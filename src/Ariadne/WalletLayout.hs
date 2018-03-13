@@ -1,47 +1,83 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Ariadne.WalletLayout  where
 
-import Brick.Main (App(..), neverShowCursor, resizeOrQuit, defaultMain)
-import Brick.Types
-  ( Widget
-  , Padding(..)
-  )
+
+import Control.Monad (void)
+
+import qualified Brick.Main as M
+
 import Brick.Widgets.Core
   ( vBox
   , hBox
+  , padAll
   , padLeft
   , padRight
   , str
   , padTopBottom
+  , padTop
   )
-import Brick.Widgets.Border as B
-import Brick.Widgets.Center as C
-import Brick.AttrMap (attrMap)
-import qualified Graphics.Vty as V
+import Brick.Util (on, bg)
 
-ui :: Widget ()
-ui =
-  vBox [ vBox [ padTopBottom 2 $ str "Menu Bar"
-         , B.hBorder
-         ]
-       , hBox [ padLeft (Pad 70) $ str " "
+
+import qualified Brick.AttrMap as A
+import qualified Brick.Widgets.Border as B
+import qualified Brick.Widgets.Center as C
+import qualified Brick.Widgets.Dialog as D
+import qualified Graphics.Vty as V
+import qualified Brick.Types as T
+
+data Menu = File | View | Help | WIP
+
+drawUI :: D.Dialog Menu -> [T.Widget ()]
+drawUI d = [
+        vBox [ vBox [ D.renderDialog d $
+                             C.hCenter $
+                             padTopBottom 1 $
+                             str " "
+                    ]
+       , hBox [ padLeft (T.Pad 70) $ str " "
               , B.vBorder
-              , padRight Max $ str " "
+              , padRight T.Max $ str " "
               ]
        , B.hBorder
-       , vBox [ padTopBottom 5 $ str "Auxx Repl"
+       , vBox [ padTopBottom 5 $ C.hCenter $ str "Auxx Repl"
               , B.hBorder
               ]
        ]
+       ]
 
-app :: App () e ()
+initialState :: D.Dialog Menu
+initialState = D.dialog Nothing (Just (0, items)) maxBound
+  where
+    items = [ ("File", File)
+              , ("View", View)
+              , ("Help", Help)
+              , ("Other itmes are in WIP, lad", WIP)
+              ]
+
+appEvent :: D.Dialog Menu -> T.BrickEvent () e -> T.EventM () (T.Next (D.Dialog Menu))
+appEvent d (T.VtyEvent ev) =
+  case ev of
+    V.EvKey V.KEsc [] -> M.halt d
+    V.EvKey V.KEnter [] -> M.halt d
+    _ -> M.continue =<< D.handleDialogEvent ev d
+appEvent d _ = M.continue d
+
+theMap :: A.AttrMap
+theMap = A.attrMap V.defAttr
+    [ (D.dialogAttr, V.white `on` V.black)
+    , (D.buttonAttr, V.black `on` V.white)
+    , (D.buttonSelectedAttr, bg V.blue)
+    ]
+
+app :: M.App (D.Dialog Menu) e ()
 app =
-    App { appDraw = const [ui]
-        , appHandleEvent = resizeOrQuit
-        , appStartEvent = return
-        , appAttrMap = const $ attrMap V.defAttr []
-        , appChooseCursor = neverShowCursor
+    M.App { M.appDraw = drawUI
+        , M.appHandleEvent = appEvent
+        , M.appStartEvent = return
+        , M.appAttrMap = const theMap
+        , M.appChooseCursor = M.showFirstCursor
         }
 
 main :: IO ()
-main = defaultMain app ()
+main = void $ M.defaultMain app initialState
