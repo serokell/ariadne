@@ -52,7 +52,7 @@ initialState = D.dialog Nothing (Just (0, items)) maxBound
     items = [ ("File", File)
               , ("View", View)
               , ("Help", Help)
-              , ("Other itmes are in WIP, lad", WIP)
+              , ("WIP", WIP)
               ]
 
 appEvent :: D.Dialog Menu -> T.BrickEvent () e -> T.EventM () (T.Next (D.Dialog Menu))
