@@ -10,13 +10,7 @@ import Brick.Widgets.Core
   ( vBox
   , hBox
   , str
-  , padAll
-  , padLeft
-  , padRight
-  , padTop
-  , padBottom
   , padTopBottom
-  , padLeftRight
   )
 import Brick.Widgets.Border as B
 import Brick.Widgets.Center as C
@@ -26,14 +20,7 @@ import qualified Graphics.Vty as V
 ui :: Widget ()
 ui =
   vBox [ B.hBorder
-         , hBox [ padTop Max $ hCenter $ str "Top-padded"
-                , B.vBorder
-                , padBottom Max $ hCenter $ str "Bottom-padded"
-                ]
-         , B.hBorder
-         , hBox [ padLeftRight 2 $ str "Padded by 2 on left/right"
-                , B.vBorder
-                , vBox [ padTopBottom 1 $ str "Padded by 1 on top/bottom"
+         , hBox [ vBox [ padTopBottom 2 $ str "some stuff"
                        , B.hBorder
                        ]
                 ]
