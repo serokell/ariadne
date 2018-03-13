@@ -9,6 +9,8 @@ import Brick.Types
 import Brick.Widgets.Core
   ( vBox
   , hBox
+  , padLeft
+  , padRight
   , str
   , padTopBottom
   )
@@ -19,12 +21,18 @@ import qualified Graphics.Vty as V
 
 ui :: Widget ()
 ui =
-  vBox [ B.hBorder
-         , hBox [ vBox [ padTopBottom 2 $ str "some stuff"
-                       , B.hBorder
-                       ]
-                ]
+  vBox [ vBox [ padTopBottom 2 $ str "Menu Bar"
+         , B.hBorder
          ]
+       , hBox [ padLeft (Pad 70) $ str " "
+              , B.vBorder
+              , padRight Max $ str " "
+              ]
+       , B.hBorder
+       , vBox [ padTopBottom 5 $ str "Auxx Repl"
+              , B.hBorder
+              ]
+       ]
 
 app :: App () e ()
 app =
