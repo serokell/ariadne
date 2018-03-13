@@ -37,6 +37,7 @@ library
     , plutus-prototype
     , rocksdb-haskell-ng
     , universum
+    , vty
   exposed-modules:
   other-modules:
       Paths_ariadne
