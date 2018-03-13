@@ -5,7 +5,7 @@ packages:
 
 - location:
     git: https://github.com/input-output-hk/cardano-sl.git
-    commit: d2d3998b17a63c1b5e8339750789af07eafc3e09
+    commit: 32375d85c5da0c4892c1afcd1e7f39619b49827f
   extra-dep: true
   subdirs:
   - auxx
@@ -27,76 +27,126 @@ packages:
   - util
 
 - location:
+    git: https://github.com/well-typed/cborg
+    commit: 8bddf97abe613d4eb523ed6b0ff8eabbd713c744
+  subdirs:
+  - cborg
+  extra-dep: true
+- location:
+    git: https://github.com/serokell/time-units.git
+    commit: 6c3747c1ac794f952de996dd7ba8a2f6d63bf132
+  extra-dep: true
+- location:
     git: https://github.com/serokell/acid-state.git
     commit: 9a8af2440d655e14b802639b0b363be2ffb5a32a
   extra-dep: true
-
 - location:
-    git: https://github.com/well-typed/canonical-json.git
-    commit: 2d261bb971bada1893753b503452d9e6e217bc4a
+    git: https://github.com/serokell/kademlia.git
+    commit: 7120bb4d28e708acd52dfd61d3dca7914fac7d7f
   extra-dep: true
-
+- location:
+    git: https://github.com/input-output-hk/plutus-prototype
+    commit: d4aa461fc69fc6957aab46b41a670c2144aefb77
+  extra-dep: true
+- location:
+    git: https://github.com/thoughtpolice/hs-ed25519
+    commit: da4247b5b3420120e20451e6a252e2a2ca15b43c
+  extra-dep: true
 - location:
     git: https://github.com/input-output-hk/cardano-report-server.git
     commit: 19fd5ddf24dab731375a156ce38dcfce4319d1e4
   extra-dep: true
-
 - location:
-    git: https://github.com/input-output-hk/cardano-crypto.git
-    commit: 480839f6ebeec5fd45ffeccc9eeef27df315fae6
+    git: https://github.com/serokell/network-transport-tcp
+    commit: 3d56652123bd296dc759cd31947eb2a17924e68a
   extra-dep: true
-
 - location:
-    git: https://github.com/well-typed/cborg
-    commit: 8bddf97abe613d4eb523ed6b0ff8eabbd713c744
+    git: https://github.com/serokell/network-transport
+    commit: 018a50b9042c2115c3ec9c9fd5ca5f28737dd29c
+  extra-dep: true
+- location:
+      git: https://github.com/avieth/network-transport-inmemory
+      commit: 5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a
+  extra-dep: true
+- location:
+    git: https://github.com/input-output-hk/cardano-crypto
+    commit: 287cc575fafe86af9d24af9d012c47f9d3f04da0
+  extra-dep: true
+- location:
+    git: https://github.com/serokell/swagger2
+    commit: 6693ff91be2f0b015c2ab043292587c1cc9449cf
+  extra-dep: true
+- location:
+    git: https://github.com/haskell-crypto/cryptonite
+    commit: 41d610fb18e2924d7aa704c37798e1c197557f3e
+  extra-dep: true
+- location:
+    git: https://github.com/serokell/engine.io.git
+    commit: a594e402fd450f11ad60d09ddbd93db500000632
   extra-dep: true
   subdirs:
-  - cborg
-
+    - socket-io
+    - engine-io
+    - engine-io-wai
 - location:
-    git: https://github.com/input-output-hk/plutus-prototype.git
-    commit: 9f66b6baf444245e5eda37f4e603dc0507d9bb45
+    git: https://github.com/kazu-yamamoto/dns.git
+    commit: b106470f0a93672af22cbc7ed6564b53c0f249ed
   extra-dep: true
-
+- location:
+    git: https://github.com/well-typed/canonical-json.git
+    commit: 2d261bb971bada1893753b503452d9e6e217bc4a
+  extra-dep: true
 - location:
     git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
-
 - location:
     git: https://github.com/serokell/servant.git
     commit: 5db013cc36894afdff9e748dbc1c05947c54df3d
   extra-dep: true
   subdirs:
     - servant-server
-
 - location:
-    git: https://github.com/serokell/kademlia.git
-    commit: 7120bb4d28e708acd52dfd61d3dca7914fac7d7f
+    git: https://github.com/serokell/servant-multipart.git
+    commit: e7de56b5f7c39f8dc473f1bbaf534bb7affc3cf4
   extra-dep: true
-
 - location:
     git: https://github.com/serokell/log-warper.git
     commit: 7f95c6990ef93a289678755cb1db71c2a4ecdfb5
   extra-dep: true
 
 extra-deps:
+- ekg-core-0.1.1.3
+- transformers-0.5.5.0
 - universum-0.9.0
 - serokell-util-0.5.2
 - pvss-0.2.0
 - base58-bytestring-0.1.0
 - concurrent-extra-0.7.0.10
+- directory-1.3.1.0
 - servant-0.12
 - servant-client-0.12
 - servant-client-core-0.12
+- servant-docs-0.11.1
 - servant-swagger-1.1.4
+- servant-swagger-ui-0.2.4.3.4.0
+- servant-blaze-0.7.1
 - servant-quickcheck-0.0.4
+- ether-0.5.1.0
+- pipes-interleave-1.1.1
 - generic-arbitrary-0.1.0
+- happy-1.19.5
+- entropy-0.3.7
 - fmt-0.5.0.0
 - systemd-1.1.2
-- ekg-statsd-0.2.2.0
+- tabl-1.0.3
 - fgl-5.5.3.1
+- megaparsec-6.2.0
+- parser-combinators-0.2.0
 - loc-0.1.3.1
+- lens-sop-0.2.0.2
+- json-sop-0.2.0.3
+- servant-generic-0.1.0.1
 - conduit-1.3.0
 - conduit-extra-1.3.0
 - mono-traversable-1.0.8.1
@@ -109,8 +159,17 @@ extra-deps:
 - unliftio-0.2.4.0
 - unliftio-core-0.1.1.0
 - http-conduit-2.3.0
+- simple-sendfile-0.2.27
 - basement-0.0.6
-- time-units-1.0.0
-- dns-3.0.2
+- foundation-0.0.19
+- memory-0.14.14
+- criterion-1.3.0.0
+- gauge-0.2.1
+- statistics-0.14.0.2
+- validation-0.6.1
+- brick-0.34.1
+- word-wrap-0.4.1
+- config-ini-0.2.2.0
+- vty-5.20
 
 extra-package-dbs: []
