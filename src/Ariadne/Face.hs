@@ -4,7 +4,8 @@ module Ariadne.Face
     AuxxFace(..),
     AuxxEvent(..),
     UiFace(..),
-    CommandId(..)
+    CommandId(..),
+    CommandResult(..)
   ) where
 
 import Prelude
@@ -40,7 +41,7 @@ data AuxxFace =
       -- Execute an auxx expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
-      putAuxxCommand :: CommandId -> Auxx.Expr Auxx.Name -> IO ()
+      putAuxxCommand :: Auxx.Expr Auxx.Name -> IO CommandId
     }
 
 -- API for the UI.

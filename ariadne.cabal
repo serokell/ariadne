@@ -23,15 +23,31 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , async
     , brick
+    , cardano-sl
     , cardano-sl-auxx
+    , cardano-sl-core
+    , cardano-sl-networking
+    , cardano-sl-infra
+    , cardano-sl-txp
+    , cardano-sl-update
+    , cardano-sl-util
     , cpphs
+    , constraints
+    , formatting
     , kademlia
     , lens
+    , network-transport-tcp
+    , log-warper
+    , optparse-applicative
     , plutus-prototype
     , raw-strings-qq
     , rocksdb-haskell-ng
+    , safe-exceptions
+    , stm
     , text
+    , temporary
     , universum
     , vector
     , vty
@@ -58,9 +74,11 @@ library
       FlexibleContexts
       FunctionalDependencies
       TupleSections
+      FlexibleContexts
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
+  ghc-options: -Wall
 
   build-tools: cpphs >= 1.19
 
