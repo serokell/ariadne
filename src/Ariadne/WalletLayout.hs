@@ -61,7 +61,7 @@ drawUI st = [ vBox [ topUI
             ]
   where
     auxxUI = vBox [ padTopBottom 5 $
-                    (str "Auxx Repl" <+> (hLimit 5 $ vLimit 50 e))
+                    ((C.center $ str "Auxx Repl ") <+> (hLimit 150 $ vLimit 5 e))
                   , B.hBorder
                   ]
     mainUI = hBox [ padLeft (T.Pad 70) $ str "Cool left part"
@@ -81,7 +81,7 @@ initialState =
   St  (D.dialog Nothing (Just (0, items)) maxBound)
       (" ")
       (F.focusRing [Edit])
-      (E.editor Edit (Just 2) " ")
+      (E.editor Edit (Just maxBound) " ")
   where
     items = [ ("File", File)
             , ("View", View)
@@ -94,11 +94,18 @@ initialState =
 appEvent :: St
          -> T.BrickEvent Edit e
          -> T.EventM Edit (T.Next St)
-appEvent d (T.VtyEvent ev) = undefined
+appEvent st (T.VtyEvent ev) =
+  case ev of
+    V.EvKey V.KEsc [] -> M.halt st
+    V.EvKey (V.KChar '\t') [] -> M.continue $ st & focusRing %~ F.focusNext
+    _ -> M.continue =<< case F.focusGetCurrent (st^.focusRing) of
+      Just Edit -> T.handleEventLensed st repl E.handleEditorEvent ev
+      Nothing -> return st
+appEvent st _ = M.continue st
 
 appCursor :: St
-            -> [T.CursorLocation Edit]
-            -> Maybe (T.CursorLocation Edit)
+          -> [T.CursorLocation Edit]
+          -> Maybe (T.CursorLocation Edit)
 appCursor = F.focusRingCursor (^.focusRing)
 
 theMap :: A.AttrMap
@@ -113,7 +120,7 @@ theMap = A.attrMap V.defAttr
 app :: M.App St e Edit
 app =
     M.App { M.appDraw = drawUI
-          , M.appHandleEvent = undefined
+          , M.appHandleEvent = appEvent
           , M.appStartEvent = return
           , M.appAttrMap = const theMap
           , M.appChooseCursor = appCursor
