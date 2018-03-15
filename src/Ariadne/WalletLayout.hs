@@ -39,6 +39,7 @@ data Menu = File
           | View
           | Help
           | Settings
+          | Repl
           | WIP
     deriving (Show, Eq, Ord)
 
@@ -60,13 +61,12 @@ drawUI st = [ vBox [ topUI
             ]
   where
     auxxUI = vBox [ padTopBottom 5 $
-                    C.center $
                     (str "Auxx Repl" <+> (hLimit 5 $ vLimit 50 e))
                   , B.hBorder
                   ]
-    mainUI = hBox [ padLeft (T.Pad 20) $ str "side"
+    mainUI = hBox [ padLeft (T.Pad 70) $ str "Cool left part"
                   , B.vBorder
-                  , padRight T.Max $ str "main"
+                  , padRight T.Max $ str "Cool right part"
                   ]
     topUI  = vBox [ D.renderDialog (st^.menu) $
                     C.hCenter $
@@ -87,6 +87,7 @@ initialState =
             , ("View", View)
             , ("Help", Help)
             , ("Settings", Settings)
+            , ("Repl", Repl)
             , ("WIP", WIP)
             ]
 
@@ -95,7 +96,9 @@ appEvent :: St
          -> T.EventM Edit (T.Next St)
 appEvent d (T.VtyEvent ev) = undefined
 
-appCursor :: St -> [T.CursorLocation Edit] -> Maybe (T.CursorLocation Edit)
+appCursor :: St
+            -> [T.CursorLocation Edit]
+            -> Maybe (T.CursorLocation Edit)
 appCursor = F.focusRingCursor (^.focusRing)
 
 theMap :: A.AttrMap
