@@ -34,8 +34,13 @@ library
     , cardano-sl-auxx
     , cpphs
     , kademlia
+    , microlens
+    , microlens-platform
+    , microlens-th
     , plutus-prototype
+    , raw-strings-qq
     , rocksdb-haskell-ng
+    , text
     , universum
     , vty
   exposed-modules:

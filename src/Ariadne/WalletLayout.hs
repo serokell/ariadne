@@ -26,34 +26,33 @@ import qualified Brick.Widgets.Dialog as D
 import qualified Graphics.Vty as V
 import qualified Brick.Types as T
 
-data Menu = File | View | Help | WIP
+data Menu = File | View | Help | Settings | WIP 
 
 drawUI :: D.Dialog Menu -> [T.Widget ()]
-drawUI d = [
-        vBox [ vBox [ D.renderDialog d $
-                             C.hCenter $
-                             padTopBottom 1 $
-                             str " "
-                    ]
-       , hBox [ padLeft (T.Pad 70) $ str " "
-              , B.vBorder
-              , padRight T.Max $ str " "
-              ]
-       , B.hBorder
-       , vBox [ padTopBottom 5 $ C.hCenter $ str "Auxx Repl"
-              , B.hBorder
-              ]
-       ]
-       ]
+drawUI d = [ vBox [ topUI
+                  , mainUI
+                  , B.hBorder
+                  , auxxUI 
+                  ]
+           ]
+  where
+    auxxUI = vBox [padTopBottom 5 $ C.hCenter $ str "Auxx Repl", B.hBorder]
+    mainUI = hBox [ padLeft (T.Pad 20) $ str "side"
+                  , B.vBorder
+                  , padRight T.Max $ str "main"
+                  ]
+    topUI  = vBox [D.renderDialog d $ C.hCenter $ padTopBottom 1 $ str "top"]
+
 
 initialState :: D.Dialog Menu
 initialState = D.dialog Nothing (Just (0, items)) maxBound
   where
     items = [ ("File", File)
-              , ("View", View)
-              , ("Help", Help)
-              , ("WIP", WIP)
-              ]
+            , ("View", View)
+            , ("Help", Help)
+            , ("Settings", Settings)
+            , ("WIP", WIP)
+            ]
 
 appEvent :: D.Dialog Menu -> T.BrickEvent () e -> T.EventM () (T.Next (D.Dialog Menu))
 appEvent d (T.VtyEvent ev) =
@@ -73,11 +72,11 @@ theMap = A.attrMap V.defAttr
 app :: M.App (D.Dialog Menu) e ()
 app =
     M.App { M.appDraw = drawUI
-        , M.appHandleEvent = appEvent
-        , M.appStartEvent = return
-        , M.appAttrMap = const theMap
-        , M.appChooseCursor = M.showFirstCursor
-        }
+          , M.appHandleEvent = appEvent
+          , M.appStartEvent = return
+          , M.appAttrMap = const theMap
+          , M.appChooseCursor = M.showFirstCursor
+          }
 
 main :: IO ()
 main = void $ M.defaultMain app initialState
