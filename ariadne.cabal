@@ -40,7 +40,7 @@ library
     , word-wrap
   exposed-modules:
       Ariadne.WalletLayout
-    , Ariadne.WalletRepl
+      Ariadne.ConfigForm
   other-modules:
       Paths_ariadne
   default-language: Haskell2010

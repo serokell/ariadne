@@ -39,8 +39,8 @@ data Menu = File
           | View
           | Help
           | Settings
+          | Configurations
           | Repl
-          | WIP
     deriving (Show, Eq, Ord)
 
 data St =
@@ -87,8 +87,8 @@ initialState =
             , ("View", View)
             , ("Help", Help)
             , ("Settings", Settings)
+            , ("Configurations", Configurations)
             , ("Repl", Repl)
-            , ("WIP", WIP)
             ]
 
 appEvent :: St
