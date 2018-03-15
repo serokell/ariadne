@@ -1,9 +1,3 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
---
--- see: https://github.com/sol/hpack
---
--- hash: c2c72dfc78b63cd7f9a828df06081ac1786ec1f062e7971b2001b7778176e99b
-
 name:           ariadne
 version:        0.1.0.0
 description:    Please see the README on Github at <https://github.com/githubuser/ariadne#readme>
@@ -45,6 +39,8 @@ library
     , vty
     , word-wrap
   exposed-modules:
+      Ariadne.WalletLayout
+    , Ariadne.WalletRepl
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
