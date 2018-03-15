@@ -3,6 +3,10 @@ module Ariadne.WalletLayout  where
 
 
 import Control.Monad (void)
+import Data.Monoid ((<>))
+import Text.Wrap (defaultWrapSettings, preserveIndentation)
+
+import Brick (strWrapWith)
 
 import qualified Brick.Main as M
 
@@ -23,6 +27,7 @@ import qualified Brick.AttrMap as A
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
 import qualified Brick.Widgets.Dialog as D
+import qualified Brick.Widgets.Edit as E
 import qualified Graphics.Vty as V
 import qualified Brick.Types as T
 
@@ -35,9 +40,9 @@ drawUI d = [
                              padTopBottom 1 $
                              str " "
                     ]
-       , hBox [ padLeft (T.Pad 70) $ str " "
+       , hBox [ padLeft (T.Pad 70) $ C.hCenter $ roots
               , B.vBorder
-              , padRight T.Max $ str " "
+              , padRight T.Max $ C.hCenter $ content
               ]
        , B.hBorder
        , vBox [ padTopBottom 5 $ C.hCenter $ str "Auxx Repl"
@@ -45,11 +50,25 @@ drawUI d = [
               ]
        ]
        ]
+      where
+         roots = strWrapWith settings $ "Root 1\n" <>
+                 "1-1\n" <>
+                 "1-2\n" <>
+                 "*1-2-2*\n" <>
+                 "Root 2\n" <>
+                 "2-1\n"
+         content = strWrapWith settings $ "Total block tip balance: 9.9 ADA\n" <>
+                    "Total stable balance (`k` blocks deep): 10 ADA\n" <>
+                    "Underlying addresses: \n" <>
+                    "<addr1>  Stable: <balance1>  Tip: <balance1_tip>"
+         settings = defaultWrapSettings { preserveIndentation = True }
+
+
 
 initialState :: D.Dialog Menu
 initialState = D.dialog Nothing (Just (0, items)) maxBound
   where
-    items = [ ("File", File)
+    items = [   ("File", File)
               , ("View", View)
               , ("Help", Help)
               , ("WIP", WIP)

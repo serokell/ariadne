@@ -38,6 +38,7 @@ library
     , rocksdb-haskell-ng
     , universum
     , vty
+    , word-wrap
   exposed-modules:
   other-modules:
       Paths_ariadne
