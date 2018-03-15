@@ -43,6 +43,7 @@ library
     , text
     , universum
     , vty
+    , word-wrap
   exposed-modules:
   other-modules:
       Paths_ariadne

@@ -3,6 +3,10 @@ module Ariadne.WalletLayout  where
 
 
 import Control.Monad (void)
+import Data.Monoid ((<>))
+import Text.Wrap (defaultWrapSettings, preserveIndentation)
+
+import Brick (strWrapWith)
 
 import qualified Brick.Main as M
 
@@ -23,6 +27,7 @@ import qualified Brick.AttrMap as A
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
 import qualified Brick.Widgets.Dialog as D
+import qualified Brick.Widgets.Edit as E
 import qualified Graphics.Vty as V
 import qualified Brick.Types as T
 
