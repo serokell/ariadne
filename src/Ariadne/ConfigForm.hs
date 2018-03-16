@@ -67,7 +67,7 @@ data UserInfo =
              deriving (Show)
 
 defaultUserInfo :: UserInfo
-defaultUserInfo = 
+defaultUserInfo =
   UserInfo { _name  = ""
            , _email = ""
            , _language = ""
@@ -99,8 +99,8 @@ theMap = attrMap V.defAttr
   ]
 
 draw :: Form UserInfo e Name -> [Widget Name]
-draw f = [ (Center.vCenter $ Center.hCenter $ txt ariadneBanner) <=> 
-           (viewport FormViewport Vertical $ Center.hCenter form) <=> 
+draw f = [ (Center.vCenter $ Center.hCenter $ txt ariadneBanner) <=>
+           (viewport FormViewport Vertical $ Center.hCenter form) <=>
            (Center.vCenter $ Center.hCenter help)
          ]
     where
@@ -122,22 +122,22 @@ app =
 formScroll :: Main.ViewportScroll Name
 formScroll = Main.viewportScroll FormViewport
 
-appEvent :: Form UserInfo e Name 
-         -> Types.BrickEvent Name e 
+appEvent :: Form UserInfo e Name
+         -> Types.BrickEvent Name e
          -> Types.EventM Name (Types.Next (Form UserInfo e Name))
 appEvent s ev =
   case ev of
     VtyEvent (V.EvResize {})       -> continue s
     VtyEvent (V.EvKey V.KEsc [])   -> halt s
-    VtyEvent (V.EvKey V.KEnter []) -> halt s 
+    VtyEvent (V.EvKey V.KEnter []) -> halt s
     VtyEvent (V.EvKey V.KDown [])  -> vScrollBy formScroll 1 >> continue s
     VtyEvent (V.EvKey V.KUp [])    -> vScrollBy formScroll (-1) >> continue s
     _ -> do
         s' <- handleFormEvent ev s
         continue s'
 
-main :: IO ()
-main = do
+runConfigForm :: IO ()
+runConfigForm = do
     let buildVty = do
           v <- V.mkVty =<< V.standardIOConfig
           V.setMode (V.outputIface v) V.Mouse True
@@ -159,36 +159,36 @@ main = do
 
 ariadneMaze :: T.Text
 ariadneMaze = [QQ.r|
-      #\                           /#        
-      ##\                         /##        
-      ###\                       /###        
-      ####]                     [####        
-      ####]                     [####        
-      ####]___               ___[####        
-      ####]__]\             /[__[####        
-      ####]__]#\           /#[__[####        
-      ####]__]##]         [##[__[####        
-      ####]__]##]__     __[##[__[####        
-      ####]__]##]_]\___/[_[##[__[####        
-      ####]__]##]_]#|_|#[_[##[__[####        
-      ####]__]##]_]/   \[_[##[__[####        
-      ####]__]##]---------[##[__[####        
-      ####]__]#/           \#[__[####        
-      ####]__]/             \[__[####        
-      ####]                     [####        
-      ####]=====================[####        
-      ####]                     [####        
-      ###/                       \###        
-      ##/                         \##        
-      #/                           \#      
+      #\                           /#
+      ##\                         /##
+      ###\                       /###
+      ####]                     [####
+      ####]                     [####
+      ####]___               ___[####
+      ####]__]\             /[__[####
+      ####]__]#\           /#[__[####
+      ####]__]##]         [##[__[####
+      ####]__]##]__     __[##[__[####
+      ####]__]##]_]\___/[_[##[__[####
+      ####]__]##]_]#|_|#[_[##[__[####
+      ####]__]##]_]/   \[_[##[__[####
+      ####]__]##]---------[##[__[####
+      ####]__]#/           \#[__[####
+      ####]__]/             \[__[####
+      ####]                     [####
+      ####]=====================[####
+      ####]                     [####
+      ###/                       \###
+      ##/                         \##
+      #/                           \#
 |]
 
 ariadneBanner :: T.Text
 ariadneBanner = [QQ.r|
-  ___  ____ ___  ___           _   _ _____ 
+  ___  ____ ___  ___           _   _ _____
  / _ \|  _ (   )/ _ \    /\   | \ | |  ___)
-| |_| | |_) ) || |_| |  /  \  |  \| | |_   
-|  _  |    /| ||  _  | / /\ \ |     |  _)  
-| | | | |\ \| || | | |/ /__\ \| |\  | |___ 
+| |_| | |_) ) || |_| |  /  \  |  \| | |_
+|  _  |    /| ||  _  | / /\ \ |     |  _)
+| | | | |\ \| || | | |/ /__\ \| |\  | |___
 |_| |_|_| \(___)_| |_/________\_| \_|_____)
 |]

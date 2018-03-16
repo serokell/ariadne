@@ -36,7 +36,9 @@ import qualified Brick.Focus as F
 import qualified Graphics.Vty as V
 import qualified Brick.Types as T
 
-data Edit = Edit
+data Mode = MenuMode
+          | MiddleMode
+          | ReplMode
     deriving (Show, Eq, Ord)
 
 data Menu = File
@@ -50,13 +52,13 @@ data Menu = File
 data St =
   St { _menu :: D.Dialog Menu
      , _middle :: String
-     , _focusRing :: F.FocusRing Edit
-     , _repl :: E.Editor String Edit
+     , _focusRing :: F.FocusRing Mode
+     , _repl :: E.Editor String Mode
      }
 
 makeLenses ''St
 
-drawUI :: St -> [T.Widget Edit]
+drawUI :: St -> [T.Widget Mode]
 drawUI st = [ vBox [ topUI
                    , mainUI
                    , B.hBorder
@@ -89,8 +91,8 @@ initialState :: St
 initialState =
   St  (D.dialog Nothing (Just (0, items)) maxBound)
       (" ")
-      (F.focusRing [Edit])
-      (E.editor Edit (Just maxBound) " ")
+      (F.focusRing [ReplMode])
+      (E.editor ReplMode (Just maxBound) " ")
   where
     items = [ ("File", File)
             , ("View", View)
@@ -101,8 +103,8 @@ initialState =
             ]
 
 appEvent :: St
-         -> T.BrickEvent Edit e
-         -> T.EventM Edit (T.Next St)
+         -> T.BrickEvent Mode e
+         -> T.EventM Mode (T.Next St)
 appEvent st (T.VtyEvent ev) =
   case ev of
     V.EvKey V.KEsc [] -> M.halt st
@@ -110,7 +112,7 @@ appEvent st (T.VtyEvent ev) =
     V.EvKey V.KRight [] -> M.continue =<< handleDialogEventLensed
     V.EvKey (V.KChar '\t') [] -> M.continue $ st & focusRing %~ F.focusNext
     _ -> M.continue =<< case F.focusGetCurrent (st ^. focusRing) of
-      Just Edit -> handleEditorEventLensed
+      Just ReplMode -> handleEditorEventLensed
       Nothing -> return st
     where
       handleDialogEventLensed =
@@ -120,8 +122,8 @@ appEvent st (T.VtyEvent ev) =
 appEvent st _ = M.continue st
 
 appCursor :: St
-          -> [T.CursorLocation Edit]
-          -> Maybe (T.CursorLocation Edit)
+          -> [T.CursorLocation Mode]
+          -> Maybe (T.CursorLocation Mode)
 appCursor = F.focusRingCursor (^.focusRing)
 
 theMap :: A.AttrMap
@@ -133,7 +135,7 @@ theMap = A.attrMap V.defAttr
     , (E.editFocusedAttr, V.white `on` V.black)
     ]
 
-app :: M.App St e Edit
+app :: M.App St e Mode
 app =
     M.App { M.appDraw = drawUI
           , M.appHandleEvent = appEvent
