@@ -12,6 +12,12 @@ import Data.Monoid ((<>))
 
 
 import qualified Graphics.Vty as V
+import Graphics.Vty
+  ( Color, black, red, green, yellow, blue, magenta, cyan, white
+  , brightBlack, brightRed, brightGreen, brightYellow
+  , brightBlue, brightMagenta, brightCyan, brightWhite
+  )
+    
 import Brick
 import Brick.Forms
   ( Form
@@ -41,6 +47,7 @@ import qualified Brick.Widgets.Edit   as Edit
 import qualified Brick.Widgets.Border as Border
 import qualified Brick.Widgets.Center as Center
 import qualified Brick.Types          as Types
+import qualified Brick.Themes         as Themes
 
 import Brick.Widgets.Core
   ( hLimit
@@ -55,6 +62,43 @@ data Name = NameField
           | EmailField
           | LanguageField
           | CityField
+          | FGColorField
+          | FGBlackField
+          | FGRedField
+          | FGGreenField
+          | FGYellowField
+          | FGBlueField
+          | FGMagentaField
+          | FGCyanField
+          | FGWhiteField
+          | BGColorField
+          | BGBlackField
+          | BGRedField
+          | BGGreenField
+          | BGYellowField
+          | BGBlueField
+          | BGMagentaField
+          | BGCyanField
+          | BGWhiteField
+          | Acc1ColorField
+          | Acc1BlackField
+          | Acc1RedField
+          | Acc1GreenField
+          | Acc1YellowField
+          | Acc1BlueField
+          | Acc1MagentaField
+          | Acc1CyanField
+          | Acc1WhiteField
+          | Acc2ColorField
+          | Acc2BlackField
+          | Acc2RedField
+          | Acc2GreenField
+          | Acc2YellowField
+          | Acc2BlueField
+          | Acc2MagentaField
+          | Acc2CyanField
+          | Acc2WhiteField
+          | HandedField
           | FormViewport
           deriving (Eq, Ord, Show)
 
@@ -63,6 +107,10 @@ data UserInfo =
              , _email     :: T.Text
              , _language  :: T.Text
              , _city      :: T.Text
+             , _fgColor   :: Color
+             , _bgColor   :: Color
+             , _acc1Color :: Color
+             , _acc2Color :: Color
              }
              deriving (Show)
 
@@ -72,6 +120,10 @@ defaultUserInfo =
            , _email = ""
            , _language = ""
            , _city  = ""
+           , _fgColor = black
+           , _bgColor = white
+           , _acc1Color = yellow
+           , _acc2Color = red
            }
 
 makeLenses ''UserInfo
@@ -88,27 +140,73 @@ mkForm =
                    editTextField language LanguageField (Just 1)
                , label "City/Town" @@=
                    editTextField city CityField (Just 1)
+               , label "FG Color" @@=
+                   radioField fgColor 
+                    [ (black, FGBlackField, "black")
+                    , (red, FGRedField, "red")
+                    , (yellow, FGYellowField, "yellow")
+                    , (blue, FGBlueField, "blue")
+                    , (magenta, FGMagentaField, "magenta")
+                    , (cyan, FGCyanField, "cyan")
+                    , (white, FGWhiteField, "white")
+                    ]
+                , label "BG Color" @@= radioField bgColor 
+                      [ (black, BGBlackField, "black")
+                      , (red, BGRedField, "red")
+                      , (yellow, BGYellowField, "yellow")
+                      , (blue, BGBlueField, "blue")
+                      , (magenta, BGMagentaField, "magenta")
+                      , (cyan, BGCyanField, "cyan")
+                      , (white, BGWhiteField, "white")
+                      ]
+                , label "Accent 1 Color" @@= radioField acc1Color 
+                      [ (black, Acc1BlackField, "black")
+                      , (red, Acc1RedField, "red")
+                      , (yellow, Acc1YellowField, "yellow")
+                      , (blue, Acc1BlueField, "blue")
+                      , (magenta, Acc1MagentaField, "magenta")
+                      , (cyan, Acc1CyanField, "cyan")
+                      , (white, Acc1WhiteField, "white")
+                      ]
+                , label "Accent 2 Color" @@= radioField acc2Color 
+                      [ (black, Acc2BlackField, "black")
+                      , (red, Acc2RedField, "red")
+                      , (yellow, Acc2YellowField, "yellow")
+                      , (blue, Acc2BlueField, "blue")
+                      , (magenta, Acc2MagentaField, "magenta")
+                      , (cyan, Acc2CyanField, "cyan")
+                      , (white, Acc2WhiteField, "white")
+                      ]
                ]
 
-theMap :: AttrMap
-theMap = attrMap V.defAttr
-  [ (Edit.editAttr, V.white `on` V.black)
-  , (Edit.editFocusedAttr, V.black `on` V.yellow)
-  , (invalidFormInputAttr, V.white `on` V.red)
-  , (focusedFormInputAttr, V.black `on` V.yellow)
+theMap :: Form UserInfo e Name -> AttrMap
+theMap form = 
+  attrMap (fg `on` bg)
+  [ (Edit.editAttr, bg `on` fg)
+  , (Edit.editFocusedAttr, bg `on` acc2)
+  , (invalidFormInputAttr, bg `on` acc2)
+  , (focusedFormInputAttr, fg `on` acc2)
   ]
+  where
+    fs   = formState form
+    fg   = _fgColor fs
+    bg   = _bgColor fs
+    acc1 = _acc1Color fs 
+    acc2 = _acc2Color fs 
 
 draw :: Form UserInfo e Name -> [Widget Name]
-draw f = [ (Center.vCenter $ Center.hCenter $ txt ariadneBanner) <=> 
-           (viewport FormViewport Vertical $ Center.hCenter form) <=> 
-           (Center.vCenter $ Center.hCenter help)
+draw f = [ (viewport FormViewport Vertical $ Center.hCenter $ form) <=>
+           (Center.hCenter help) 
          ]
     where
         form = Border.borderWithLabel (str "Configuration") $ padTop (Pad 1) $
-                  hLimit 50 $ renderForm f
-        help = padTop (Pad 1) $ Border.borderWithLabel (str "Help") body
-        body = str $ "- Fields are form text\n" <>
-                     "- Enter/Esc quit, mouse interacts with fields"
+                  hLimit 80 $ renderForm f
+        help = Border.borderWithLabel (str "Help") body
+        body = str $ "- Use the mouse to select fields\n" <>
+                     "- Type in your configuration settings\n" <>
+                     "- Tab/Shift-Tab also selects fields\n" <>
+                     "- Scroll the form with Up/Down\n" <>
+                     "- Enter/Esc quit"
 
 app :: App (Form UserInfo e Name) e Name
 app =
@@ -116,7 +214,7 @@ app =
         , appHandleEvent = appEvent
         , appChooseCursor = focusRingCursor formFocus
         , appStartEvent = return
-        , appAttrMap = const theMap
+        , appAttrMap = theMap
         }
 
 formScroll :: Main.ViewportScroll Name
