@@ -3,7 +3,8 @@
 
 module Ariadne.WalletLayout  where
 
-import Lens.Micro
+import Universum hiding (on, unlines)
+
 import Lens.Micro.TH
 
 import Control.Monad (void)
@@ -61,9 +62,9 @@ drawUI st = [ vBox [ topUI
             ]
   where
     auxxUI = vBox [ padTopBottom 5 $
-                    ((C.center $ str "Auxx Repl ")
+                    ((C.center $ str "")
                         <+>
-                        (hLimit 150 $ vLimit 5 e))
+                        (hLimit 200 $ vLimit 32 e))
                   , B.hBorder
                   ]
     mainUI = hBox [ padLeft (T.Pad 70) $ str "Cool left part"
