@@ -97,10 +97,14 @@ appEvent :: St
 appEvent st (T.VtyEvent ev) =
   case ev of
     V.EvKey V.KEsc [] -> M.halt st
+    V.EvKey V.KLeft [] -> M.continue =<< handleDialogEventLensed
+    V.EvKey V.KRight [] -> M.continue =<< handleDialogEventLensed
     V.EvKey (V.KChar '\t') [] -> M.continue $ st & focusRing %~ F.focusNext
-    _ -> M.continue =<< case F.focusGetCurrent (st^.focusRing) of
+    _ -> M.continue =<< case F.focusGetCurrent (st ^. focusRing) of
       Just Edit -> T.handleEventLensed st repl E.handleEditorEvent ev
       Nothing -> return st
+    where
+      handleDialogEventLensed = T.handleEventLensed st menu D.handleDialogEvent ev
 appEvent st _ = M.continue st
 
 appCursor :: St
