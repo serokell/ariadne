@@ -55,6 +55,7 @@ executable ariadne-exe
   build-depends:
       ariadne
     , base >=4.7 && <5
+    , brick
     , universum
   other-modules:
       Paths_ariadne

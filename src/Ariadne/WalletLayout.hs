@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Ariadne.WalletLayout  where
+module Ariadne.WalletLayout
+      ( app
+      , initialState
+      ) where
 
 import Universum hiding (on, unlines)
 
@@ -138,6 +141,3 @@ app =
           , M.appAttrMap = const theMap
           , M.appChooseCursor = appCursor
           }
-
-main :: IO ()
-main = void $ M.defaultMain app initialState

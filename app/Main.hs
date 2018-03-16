@@ -1,4 +1,8 @@
 module Main where
 
+import Ariadne.WalletLayout (app, initialState)
+import Control.Monad (void)
+import Brick.Main (defaultMain)
+
 main :: IO ()
-main = putStrLn "work in progress"
+main = void $ defaultMain app initialState
