@@ -6,9 +6,8 @@ module Ariadne.WalletLayout
       , initialState
       ) where
 
-import Universum hiding (on, unlines)
-
 import Lens.Micro.TH
+import Lens.Micro
 
 import Control.Monad (void)
 
@@ -46,7 +45,6 @@ data Menu = File
           | Help
           | Settings
           | Configurations
-          | Repl
     deriving (Show, Eq, Ord)
 
 data St =
@@ -99,7 +97,6 @@ initialState =
             , ("Help", Help)
             , ("Settings", Settings)
             , ("Configurations", Configurations)
-            , ("Repl", Repl)
             ]
 
 appEvent :: St
@@ -107,13 +104,19 @@ appEvent :: St
          -> T.EventM Mode (T.Next St)
 appEvent st (T.VtyEvent ev) =
   case ev of
+    V.EvResize {} -> M.continue st
     V.EvKey V.KEsc [] -> M.halt st
     V.EvKey V.KLeft [] -> M.continue =<< handleDialogEventLensed
     V.EvKey V.KRight [] -> M.continue =<< handleDialogEventLensed
+    V.EvKey V.KBackTab [] -> case D.dialogSelection (st ^. menu) of
+                              Nothing -> M.continue st
+                              Just m -> case m of
+                                _    -> M.continue st
     V.EvKey (V.KChar '\t') [] -> M.continue $ st & focusRing %~ F.focusNext
-    _ -> M.continue =<< case F.focusGetCurrent (st ^. focusRing) of
-      Just ReplMode -> handleEditorEventLensed
-      Nothing -> return st
+    _ -> M.continue =<<
+                    case F.focusGetCurrent (st ^. focusRing) of
+                      Just ReplMode -> handleEditorEventLensed
+                      _ -> return st
     where
       handleDialogEventLensed =
         T.handleEventLensed st menu D.handleDialogEvent ev
