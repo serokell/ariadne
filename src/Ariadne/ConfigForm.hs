@@ -1,14 +1,13 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
-
 module Ariadne.ConfigForm where
+
+import Universum hiding (on, putStrLn)
+
+import Prelude (putStrLn)
 
 import qualified Data.Text as T
 import qualified Text.RawString.QQ as QQ
 import Lens.Micro ((^.))
 import Lens.Micro.TH
-import Data.Monoid ((<>))
 
 
 import qualified Graphics.Vty as V
@@ -17,7 +16,7 @@ import Graphics.Vty
   , brightBlack, brightRed, brightGreen, brightYellow
   , brightBlue, brightMagenta, brightCyan, brightWhite
   )
-    
+
 import Brick
 import Brick.Forms
   ( Form
@@ -141,7 +140,7 @@ mkForm =
                , label "City/Town" @@=
                    editTextField city CityField (Just 1)
                , label "FG Color" @@=
-                   radioField fgColor 
+                   radioField fgColor
                     [ (black, FGBlackField, "black")
                     , (red, FGRedField, "red")
                     , (yellow, FGYellowField, "yellow")
@@ -150,7 +149,7 @@ mkForm =
                     , (cyan, FGCyanField, "cyan")
                     , (white, FGWhiteField, "white")
                     ]
-                , label "BG Color" @@= radioField bgColor 
+                , label "BG Color" @@= radioField bgColor
                       [ (black, BGBlackField, "black")
                       , (red, BGRedField, "red")
                       , (yellow, BGYellowField, "yellow")
@@ -159,7 +158,7 @@ mkForm =
                       , (cyan, BGCyanField, "cyan")
                       , (white, BGWhiteField, "white")
                       ]
-                , label "Accent 1 Color" @@= radioField acc1Color 
+                , label "Accent 1 Color" @@= radioField acc1Color
                       [ (black, Acc1BlackField, "black")
                       , (red, Acc1RedField, "red")
                       , (yellow, Acc1YellowField, "yellow")
@@ -168,7 +167,7 @@ mkForm =
                       , (cyan, Acc1CyanField, "cyan")
                       , (white, Acc1WhiteField, "white")
                       ]
-                , label "Accent 2 Color" @@= radioField acc2Color 
+                , label "Accent 2 Color" @@= radioField acc2Color
                       [ (black, Acc2BlackField, "black")
                       , (red, Acc2RedField, "red")
                       , (yellow, Acc2YellowField, "yellow")
@@ -180,7 +179,7 @@ mkForm =
                ]
 
 theMap :: Form UserInfo e Name -> AttrMap
-theMap form = 
+theMap form =
   attrMap (fg `on` bg)
   [ (Edit.editAttr, bg `on` fg)
   , (Edit.editFocusedAttr, bg `on` acc2)
@@ -191,12 +190,12 @@ theMap form =
     fs   = formState form
     fg   = _fgColor fs
     bg   = _bgColor fs
-    acc1 = _acc1Color fs 
-    acc2 = _acc2Color fs 
+    acc1 = _acc1Color fs
+    acc2 = _acc2Color fs
 
 draw :: Form UserInfo e Name -> [Widget Name]
 draw f = [ (viewport FormViewport Vertical $ Center.hCenter $ form) <=>
-           (Center.hCenter help) 
+           (Center.hCenter help)
          ]
     where
         form = Border.borderWithLabel (str "Configuration") $ padTop (Pad 1) $

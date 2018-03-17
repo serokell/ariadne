@@ -1,8 +1,9 @@
 module Main where
 
-import Ariadne.WalletLayout (app, initialState)
-import Control.Monad (void)
-import Brick.Main (defaultMain)
+import Ariadne.WalletLayout (initialState, runBySt)
+import Ariadne.ConfigForm (runConfigForm)
 
 main :: IO ()
-main = void $ defaultMain app initialState
+main = do
+  runConfigForm
+  runBySt initialState

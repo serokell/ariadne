@@ -1,15 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+module Ariadne.WalletLayout where
 
-module Ariadne.WalletLayout
-      ( app
-      , initialState
-      ) where
+import Universum hiding (on)
 
 import Lens.Micro.TH
 import Lens.Micro
 
-import Control.Monad (void)
+import Data.Text (unpack, pack)
 
 import Brick.Widgets.Core
   ( vBox
@@ -44,7 +40,6 @@ data Menu = File
           | View
           | Help
           | Settings
-          | Configurations
     deriving (Show, Eq, Ord)
 
 data St =
@@ -81,9 +76,9 @@ drawUI st = [ vBox [ topUI
                   ]
     e = F.withFocusRing
           (st^.focusRing)
-          (E.renderEditor (str . unlines))
+          (E.renderEditor (str . unlinesStr))
           (st^.repl)
-
+    unlinesStr = unpack . unlines . fmap pack
 
 initialState :: St
 initialState =
@@ -96,7 +91,6 @@ initialState =
             , ("View", View)
             , ("Help", Help)
             , ("Settings", Settings)
-            , ("Configurations", Configurations)
             ]
 
 appEvent :: St
@@ -108,10 +102,6 @@ appEvent st (T.VtyEvent ev) =
     V.EvKey V.KEsc [] -> M.halt st
     V.EvKey V.KLeft [] -> M.continue =<< handleDialogEventLensed
     V.EvKey V.KRight [] -> M.continue =<< handleDialogEventLensed
-    V.EvKey V.KBackTab [] -> case D.dialogSelection (st ^. menu) of
-                              Nothing -> M.continue st
-                              Just m -> case m of
-                                _    -> M.continue st
     V.EvKey (V.KChar '\t') [] -> M.continue $ st & focusRing %~ F.focusNext
     _ -> M.continue =<<
                     case F.focusGetCurrent (st ^. focusRing) of
@@ -146,3 +136,6 @@ app =
           , M.appAttrMap = const theMap
           , M.appChooseCursor = appCursor
           }
+
+runBySt :: St -> IO ()
+runBySt st = void $ M.defaultMain app st

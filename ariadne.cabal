@@ -41,6 +41,15 @@ library
   exposed-modules:
       Ariadne.WalletLayout
       Ariadne.ConfigForm
+  default-extensions:
+      RecordWildCards
+      NoImplicitPrelude
+      OverloadedStrings
+      LambdaCase
+      RankNTypes
+      TemplateHaskell
+      QuasiQuotes
+      FlexibleContexts
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
