@@ -40,6 +40,8 @@ data Menu = File
           | View
           | Help
           | Settings
+          | Configurations
+          | Exit
     deriving (Show, Eq, Ord)
 
 data St =
@@ -91,6 +93,8 @@ initialState =
             , ("View", View)
             , ("Help", Help)
             , ("Settings", Settings)
+            , ("Configurations", Configurations)
+            , ("Exit", Exit)
             ]
 
 appEvent :: St
@@ -137,5 +141,5 @@ app =
           , M.appChooseCursor = appCursor
           }
 
-runBySt :: St -> IO ()
-runBySt st = void $ M.defaultMain app st
+runBySt :: St -> IO St
+runBySt st = M.defaultMain app st

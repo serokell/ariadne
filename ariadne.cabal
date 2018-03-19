@@ -41,6 +41,7 @@ library
   exposed-modules:
       Ariadne.WalletLayout
       Ariadne.ConfigForm
+      Ariadne.Help
   default-extensions:
       RecordWildCards
       NoImplicitPrelude
@@ -56,7 +57,7 @@ library
 
   build-tools: cpphs >= 1.19
 
-executable ariadne-exe
+executable ariadne
   main-is: Main.hs
   hs-source-dirs:
       app
@@ -65,6 +66,7 @@ executable ariadne-exe
       ariadne
     , base >=4.7 && <5
     , brick
+    , microlens
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
