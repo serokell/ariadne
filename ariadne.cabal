@@ -1,10 +1,10 @@
 name:           ariadne
 version:        0.1.0.0
-description:    Please see the README on Github at <https://github.com/githubuser/ariadne#readme>
-homepage:       https://github.com/githubuser/ariadne#readme
-bug-reports:    https://github.com/githubuser/ariadne/issues
-author:         Author name here
-maintainer:     example@example.com
+description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
+homepage:       https://github.com/serokell/ariadne#readme
+bug-reports:    https://github.com/serokell/ariadne/issues
+author:         @serokell
+maintainer:     Serokell <hi@serokell.io>
 copyright:      2018 Author name here
 license:        BSD3
 license-file:   LICENSE
@@ -65,7 +65,6 @@ executable ariadne-exe
       ariadne
     , base >=4.7 && <5
     , brick
-    , universum
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
@@ -79,7 +78,6 @@ test-suite ariadne-test
   build-depends:
       ariadne
     , base >=4.7 && <5
-    , universum
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
