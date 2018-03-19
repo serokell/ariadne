@@ -5,6 +5,7 @@ import Control.Monad (void)
 import Ariadne.WalletLayout (initialState, runBySt, menu, Menu(..))
 import Ariadne.ConfigForm (runConfigForm)
 import Ariadne.Help (runHelp)
+import Ariadne.Settings (runSettings)
 import Brick.Widgets.Dialog (dialogSelection)
 import Lens.Micro ((^.))
 
@@ -22,6 +23,9 @@ main = do
       Exit -> return ()
       Configurations -> do
         runConfigForm
+        runLayoutAgain
+      Settings -> do
+        runSettings
         runLayoutAgain
       _ -> void (return d)
       where

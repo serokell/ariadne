@@ -42,6 +42,7 @@ library
       Ariadne.WalletLayout
       Ariadne.ConfigForm
       Ariadne.Help
+      Ariadne.Settings            
   default-extensions:
       RecordWildCards
       NoImplicitPrelude
