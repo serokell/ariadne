@@ -18,9 +18,11 @@ main = do
     Just m -> case m of
       Help -> do
         runHelp
-        void $ runBySt initialState
+        runLayoutAgain
       Exit -> return ()
       Configurations -> do
         runConfigForm
-        void $ runBySt initialState
+        runLayoutAgain
       _ -> void (return d)
+      where
+        runLayoutAgain = void $ runBySt initialState
