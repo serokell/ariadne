@@ -1,16 +1,10 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
---
--- see: https://github.com/sol/hpack
---
--- hash: c2c72dfc78b63cd7f9a828df06081ac1786ec1f062e7971b2001b7778176e99b
-
 name:           ariadne
 version:        0.1.0.0
-description:    Please see the README on Github at <https://github.com/githubuser/ariadne#readme>
-homepage:       https://github.com/githubuser/ariadne#readme
-bug-reports:    https://github.com/githubuser/ariadne/issues
-author:         Author name here
-maintainer:     example@example.com
+description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
+homepage:       https://github.com/serokell/ariadne#readme
+bug-reports:    https://github.com/serokell/ariadne/issues
+author:         @serokell
+maintainer:     Serokell <hi@serokell.io>
 copyright:      2018 Author name here
 license:        BSD3
 license-file:   LICENSE
@@ -34,18 +28,37 @@ library
     , cardano-sl-auxx
     , cpphs
     , kademlia
+    , microlens
+    , microlens-platform
+    , microlens-th
     , plutus-prototype
+    , raw-strings-qq
     , rocksdb-haskell-ng
+    , text
     , universum
+    , vector
     , vty
+    , word-wrap
   exposed-modules:
+      UI.Wallet
+      UI.Config
+      UI.Help
+  default-extensions:
+      RecordWildCards
+      NoImplicitPrelude
+      OverloadedStrings
+      LambdaCase
+      RankNTypes
+      TemplateHaskell
+      QuasiQuotes
+      FlexibleContexts
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
 
   build-tools: cpphs >= 1.19
 
-executable ariadne-exe
+executable ariadne
   main-is: Main.hs
   hs-source-dirs:
       app
@@ -53,7 +66,8 @@ executable ariadne-exe
   build-depends:
       ariadne
     , base >=4.7 && <5
-    , universum
+    , brick
+    , microlens
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
@@ -67,7 +81,6 @@ test-suite ariadne-test
   build-depends:
       ariadne
     , base >=4.7 && <5
-    , universum
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
