@@ -1,10 +1,11 @@
 module UI.Wallet where
 
-import Universum hiding (on)
+import Universum hiding (on, (<>))
 
 import Lens.Micro.TH
 import Lens.Micro
 
+import Data.Monoid((<>))
 import Data.Text (unpack, pack)
 
 import Brick.Widgets.Core
@@ -17,8 +18,10 @@ import Brick.Widgets.Core
   , padTopBottom
   , padTop
   , (<+>)
+  , (<=>)
   , hLimit
   , vLimit
+  , withAttr
   )
 import Brick.Util (on, bg)
 import qualified Brick.AttrMap        as Attr
@@ -37,8 +40,9 @@ import qualified Data.Vector          as Vec
 data Name = 
     MenuName
   | MiddleName
-  | ListName
   | ReplName
+  | WalletListName
+  | WalID Int
   deriving (Show, Eq, Ord)
 
 data Menu = 
@@ -49,12 +53,21 @@ data Menu =
   | Exit
   deriving (Show, Eq, Ord)
 
+data Currency = ADA | SHN deriving (Show, Eq, Ord)
+
+data Wallet = Wallet 
+  { _id       :: Int
+  , _currency :: Currency
+  , _balance  :: Int
+  } 
+  deriving (Show, Eq, Ord)
+
 data AppState = AppState 
-  { _menu           :: WDialog.Dialog Menu
+  { _menu              :: WDialog.Dialog Menu
   , _middle            :: String
   , _focusRing         :: Focus.FocusRing Name
   , _repl              :: WEdit.Editor String Name
-  , _wallets           :: [Wallet]
+  , _wallets           :: WList.List Name Wallet
   , _clicked           :: [Types.Extent Name]
   , _lastReportedClick :: Maybe (Name, Types.Location)
   }
@@ -63,9 +76,9 @@ initialAppState :: AppState
 initialAppState = AppState  
   (WDialog.dialog Nothing (Just (0, items)) maxBound)
   (" ")
-  (Focus.focusRing [ReplName])
+  (Focus.focusRing [ReplName, WalletListName])
   (WEdit.editor ReplName (Just maxBound) " ")
-  []
+  (WList.list WalletListName (Vec.fromList walletList) 1)
   []
   Nothing
   where
@@ -75,14 +88,11 @@ initialAppState = AppState
             , ("Config", Config)
             , ("Exit", Exit)
             ]
-
-data Currency = ADA | SHN
-
-data Wallet = Wallet 
-  { _id       :: Int
-  , _currency :: Currency
-  , _balance  :: Int
-  }
+    walletList = [ Wallet 0 ADA 100
+                 , Wallet 1 SHN 500
+                 , Wallet 2 ADA 1000
+                 , Wallet 3 SHN 50000
+                 ]
 
 makeLenses ''AppState
 
@@ -96,7 +106,7 @@ drawUI st = [ vBox [ topUI
                    ]
             ]
   where
-    walletList = padLeft (Types.Pad 5) $ str "wallet list" -- walletList
+    walletList = padLeft (Types.Pad 5) $ renderWalletList st
     walletInfo = padRight Types.Max $ str "wallet info"
     topUI  = vBox [ WDialog.renderDialog (st^.menu) $
                     WCenter.hCenter $
@@ -104,22 +114,30 @@ drawUI st = [ vBox [ topUI
                     str "Menu Bar"
                   ]
     unlinesStr = unpack . unlines . fmap pack
-    auxxReadEval = padTopBottom 5 $
-                    ((WCenter.center $ str ">>>>>")
-                        <+>
-                        (hLimit 200 $ vLimit 32 e))
+    auxxReadEval = str "auxx Read" <=> (str ">" <+> vLimit 1 e)
     e = Focus.withFocusRing
           (st^.focusRing)
-          (WEdit.renderEditor (str . unlinesStr))
-          (st^.repl)
+          (WEdit.renderEditor (str . unlinesStr)) (st^.repl)
     auxxPrint = str "auxx Print"
 
-{-
-walletList :: AppState -> [Widget ()]
-walletList s = [wal] 
-  where 
-    label = str "Wallet" <+> 
--}
+renderWalletList :: AppState -> Types.Widget Name
+renderWalletList st = WList.renderList listDrawElement True (_wallets st)
+
+
+listDrawElement :: Bool -> Wallet -> Types.Widget Name
+listDrawElement sel w = 
+  selStr $ walletStr
+  where
+   walletStr  = "Wallet" ++ idn ++ " " ++ cur ++ " " ++ bal
+   idn  = show $ _id w
+   cur  = show $ _currency w
+   bal  = show $ _balance w
+   selStr s =  if sel
+               then withAttr customAttr (str $ "<" <> s <> ">")
+               else str s
+              
+customAttr :: Attr.AttrName
+customAttr = WList.listSelectedAttr <> "custom"
 
 
 appEvent :: AppState
@@ -136,8 +154,11 @@ appEvent st (Types.VtyEvent ev) =
     _                         -> Main.continue =<<
                                   case Focus.focusGetCurrent (st ^. focusRing) of
                                     Just ReplName -> handleEditorEventLensed
+                                    Just WalletListName -> handleListEventLensed
                                     _ -> return st
     where
+      handleListEventLensed = 
+        Types.handleEventLensed st wallets WList.handleListEvent ev
       handleDialogEventLensed =
         Types.handleEventLensed st menu WDialog.handleDialogEvent ev
       handleEditorEventLensed =
@@ -156,6 +177,7 @@ theMap = Attr.attrMap V.defAttr
     , (WDialog.buttonSelectedAttr, bg V.blue)
     , (WEdit.editAttr, V.white `on` V.black)
     , (WEdit.editFocusedAttr, V.white `on` V.black)
+    , (customAttr, V.white `on` V.black)
     ]
 
 app :: Main.App AppState e Name
