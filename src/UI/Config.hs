@@ -1,4 +1,4 @@
-module Ariadne.ConfigForm where
+module UI.Config where
 
 import Universum hiding (on, putStrLn)
 
@@ -61,42 +61,8 @@ data Name = NameField
           | EmailField
           | LanguageField
           | CityField
-          | FGColorField
-          | FGBlackField
-          | FGRedField
-          | FGGreenField
-          | FGYellowField
-          | FGBlueField
-          | FGMagentaField
-          | FGCyanField
-          | FGWhiteField
-          | BGColorField
-          | BGBlackField
-          | BGRedField
-          | BGGreenField
-          | BGYellowField
-          | BGBlueField
-          | BGMagentaField
-          | BGCyanField
-          | BGWhiteField
-          | Acc1ColorField
-          | Acc1BlackField
-          | Acc1RedField
-          | Acc1GreenField
-          | Acc1YellowField
-          | Acc1BlueField
-          | Acc1MagentaField
-          | Acc1CyanField
-          | Acc1WhiteField
-          | Acc2ColorField
-          | Acc2BlackField
-          | Acc2RedField
-          | Acc2GreenField
-          | Acc2YellowField
-          | Acc2BlueField
-          | Acc2MagentaField
-          | Acc2CyanField
-          | Acc2WhiteField
+          | DefaultThemeField
+          | Theme1Field
           | HandedField
           | FormViewport
           deriving (Eq, Ord, Show)
@@ -106,10 +72,7 @@ data UserInfo =
              , _email     :: T.Text
              , _language  :: T.Text
              , _city      :: T.Text
-             , _fgColor   :: Color
-             , _bgColor   :: Color
-             , _acc1Color :: Color
-             , _acc2Color :: Color
+             , _theme     :: Themes.Theme
              }
              deriving (Show)
 
@@ -119,11 +82,24 @@ defaultUserInfo =
            , _email = ""
            , _language = ""
            , _city  = ""
-           , _fgColor = black
-           , _bgColor = white
-           , _acc1Color = yellow
-           , _acc2Color = red
+           , _theme = defaultTheme
            }
+
+defaultTheme :: Themes.Theme
+defaultTheme = Themes.newTheme V.defAttr
+  [ (Edit.editAttr, white `on` black)
+  , (Edit.editFocusedAttr, black `on` yellow)
+  , (invalidFormInputAttr, white `on` red)
+  , (focusedFormInputAttr, black `on` yellow)
+  ]
+
+theme1 :: Themes.Theme
+theme1 = Themes.newTheme (white `on` blue)
+  [ (Edit.editAttr, white `on` black)
+  , (Edit.editFocusedAttr, black `on` yellow)
+  , (invalidFormInputAttr, white `on` red)
+  , (focusedFormInputAttr, black `on` yellow)
+  ]
 
 makeLenses ''UserInfo
 
@@ -139,59 +115,15 @@ mkForm =
                    editTextField language LanguageField (Just 1)
                , label "City/Town" @@=
                    editTextField city CityField (Just 1)
-               , label "FG Color" @@=
-                   radioField fgColor
-                    [ (black, FGBlackField, "black")
-                    , (red, FGRedField, "red")
-                    , (yellow, FGYellowField, "yellow")
-                    , (blue, FGBlueField, "blue")
-                    , (magenta, FGMagentaField, "magenta")
-                    , (cyan, FGCyanField, "cyan")
-                    , (white, FGWhiteField, "white")
+               , label "Theme" @@=
+                   radioField theme
+                    [ (defaultTheme, DefaultThemeField, "Default")
+                    , (theme1, Theme1Field, "White on Blue")
                     ]
-                , label "BG Color" @@= radioField bgColor
-                      [ (black, BGBlackField, "black")
-                      , (red, BGRedField, "red")
-                      , (yellow, BGYellowField, "yellow")
-                      , (blue, BGBlueField, "blue")
-                      , (magenta, BGMagentaField, "magenta")
-                      , (cyan, BGCyanField, "cyan")
-                      , (white, BGWhiteField, "white")
-                      ]
-                , label "Accent 1 Color" @@= radioField acc1Color
-                      [ (black, Acc1BlackField, "black")
-                      , (red, Acc1RedField, "red")
-                      , (yellow, Acc1YellowField, "yellow")
-                      , (blue, Acc1BlueField, "blue")
-                      , (magenta, Acc1MagentaField, "magenta")
-                      , (cyan, Acc1CyanField, "cyan")
-                      , (white, Acc1WhiteField, "white")
-                      ]
-                , label "Accent 2 Color" @@= radioField acc2Color
-                      [ (black, Acc2BlackField, "black")
-                      , (red, Acc2RedField, "red")
-                      , (yellow, Acc2YellowField, "yellow")
-                      , (blue, Acc2BlueField, "blue")
-                      , (magenta, Acc2MagentaField, "magenta")
-                      , (cyan, Acc2CyanField, "cyan")
-                      , (white, Acc2WhiteField, "white")
-                      ]
                ]
 
 theMap :: Form UserInfo e Name -> AttrMap
-theMap form =
-  attrMap (fg `on` bg)
-  [ (Edit.editAttr, bg `on` fg)
-  , (Edit.editFocusedAttr, bg `on` acc2)
-  , (invalidFormInputAttr, bg `on` acc2)
-  , (focusedFormInputAttr, fg `on` acc2)
-  ]
-  where
-    fs   = formState form
-    fg   = _fgColor fs
-    bg   = _bgColor fs
-    acc1 = _acc1Color fs
-    acc2 = _acc2Color fs
+theMap form = Themes.themeToAttrMap $ _theme $ formState form
 
 draw :: Form UserInfo e Name -> [Widget Name]
 draw f = [ (viewport FormViewport Vertical $ Center.hCenter $ form) <=>

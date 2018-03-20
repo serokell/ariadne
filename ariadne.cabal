@@ -36,13 +36,13 @@ library
     , rocksdb-haskell-ng
     , text
     , universum
+    , vector
     , vty
     , word-wrap
   exposed-modules:
-      Ariadne.WalletLayout
-      Ariadne.ConfigForm
-      Ariadne.Help
-      Ariadne.Settings            
+      UI.Wallet
+      UI.Config
+      UI.Help
   default-extensions:
       RecordWildCards
       NoImplicitPrelude
