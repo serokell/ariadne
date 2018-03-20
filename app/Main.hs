@@ -1,12 +1,13 @@
 module Main where
 
+import Prelude
 import Control.Monad (void)
 
-import Ariadne.WalletLayout (initialState, runBySt, menu,
-                             focusRing, repl, Menu(..), St(..))
-import Ariadne.ConfigForm (runConfigForm)
-import Ariadne.Help (runHelp)
-import Ariadne.Settings (runSettings)
+import UI.Wallet (initialAppState, runBySt, menu, focusRing, repl, wallets
+                 , clicked, lastReportedClick, Menu(..), AppState(..)
+                 )
+import UI.Config (runConfigForm)
+import UI.Help (runHelp)
 import Brick.Widgets.Dialog (dialogSelection)
 import Lens.Micro ((^.))
 
@@ -14,20 +15,24 @@ import Lens.Micro ((^.))
 main :: IO ()
 main = do
   runConfigForm
-  d <- runBySt initialState
-  let currentState = St (d ^. menu) (" ") (d ^. focusRing) (d ^. repl)
+  d <- runBySt initialAppState
+  let currentState = AppState  
+                     (d ^. menu) 
+                     (" ") 
+                     (d ^. focusRing) 
+                     (d ^. repl) 
+                     (d ^. wallets)
+                     (d ^. clicked)
+                     (d ^. lastReportedClick)
   let runLayout = void $ runBySt currentState
   case (dialogSelection $ currentState ^. menu) of
     Nothing -> runLayout
     Just m -> case m of
+      Exit -> return ()
       Help -> do
         runHelp
         runLayout
-      Exit -> return ()
-      Configurations -> do
+      Config -> do
         runConfigForm
-        runLayout
-      Settings -> do
-        runSettings
         runLayout
       _ -> runLayout
