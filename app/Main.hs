@@ -18,7 +18,6 @@ main = do
   d <- runBySt initialAppState
   let currentState = AppState  
                      (d ^. menu) 
-                     (" ") 
                      (d ^. focusRing) 
                      (d ^. repl) 
                      (d ^. wallets)
@@ -35,4 +34,3 @@ main = do
       Config -> do
         runConfigForm
         runLayout
-      _ -> runLayout
