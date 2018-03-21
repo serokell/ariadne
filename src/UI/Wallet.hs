@@ -17,13 +17,15 @@ import Brick.Widgets.Core
   , str
   , padTopBottom
   , padTop
+  , padBottom
   , (<+>)
   , (<=>)
   , hLimit
   , vLimit
   , withAttr
+  , emptyWidget
   )
-import Brick.Util (on, bg)
+import Brick.Util (on, bg, fg)
 import qualified Brick.AttrMap        as Attr
 import qualified Brick.Focus          as Focus
 import qualified Brick.Main           as Main
@@ -39,9 +41,10 @@ import qualified Data.Vector          as Vec
 
 data Name = 
     MenuName
-  | MiddleName
-  | ReplName
+  | AuxxReadName
+  | AuxxPrintName
   | WalletListName
+  | WalletInfoName
   | WalID Int
   deriving (Show, Eq, Ord)
 
@@ -67,12 +70,13 @@ data AppState = AppState
   , _wallets           :: WList.List Name Wallet
   , _clicked           :: [Types.Extent Name]
   , _lastReportedClick :: Maybe (Name, Types.Location)
+  -- , _log               :: Text
   }
 
 initialAppState :: AppState
 initialAppState = AppState  
   (WDialog.dialog Nothing (Just (0, items)) maxBound)
-  (Focus.focusRing [ReplName, WalletListName])
+  (Focus.focusRing [AuxxReadName, MenuName, WalletListName, WalletInfoName])
   (WEdit.editor AuxxReadName (Just maxBound) " ")
   (WList.list WalletListName (Vec.fromList walletList) 1)
   []
@@ -92,27 +96,27 @@ makeLenses ''AppState
 
 drawUI :: AppState -> [Types.Widget Name]
 drawUI st = [ vBox [ topUI
-                   , hBox [walletList, WBorder.vBorder, walletInfo]
+                   , walletList <+> WBorder.vBorder <+> walletInfo
+                   , WBorder.hBorder
+                   ,  auxxPrint
                    , WBorder.hBorder
                    , auxxReadEval
-                   , WBorder.hBorder
-                   , auxxPrint
                    ]
             ]
   where
-    walletList = padLeft (Types.Pad 5) $ renderWalletList st
+    walletList = hLimit 30 $ padLeft (Types.Pad 4) $ renderWalletList st
     walletInfo = padRight Types.Max $ str "wallet info"
-    topUI  = vBox [ WDialog.renderDialog (st^.menu) $
+    topUI  = vLimit 4 $ WDialog.renderDialog (st^.menu) $
                     WCenter.hCenter $
-                    padTopBottom 1 $
-                    str "Menu Bar"
-                  ]
+                    padBottom (Types.Pad 1) $
+                    emptyWidget
+            
     unlinesStr = unpack . unlines . fmap pack
     auxxReadEval = str "auxx Read" <=> (str ">" <+> vLimit 1 e)
     e = Focus.withFocusRing
           (st^.focusRing)
           (WEdit.renderEditor (str . unlinesStr)) (st^.repl)
-    auxxPrint = str "auxx Print"
+    auxxPrint = padTop (Types.Max) $ padBottom (Types.Max) $ str "auxx Print"
 
 renderWalletList :: AppState -> Types.Widget Name
 renderWalletList st = WList.renderList listDrawElement True (_wallets st)
@@ -147,7 +151,7 @@ appEvent st (Types.VtyEvent ev) =
     V.EvKey (V.KChar '\t') [] -> Main.continue $ st & focusRing %~ Focus.focusNext
     _                         -> Main.continue =<<
                                   case Focus.focusGetCurrent (st ^. focusRing) of
-                                    Just ReplName -> handleEditorEventLensed
+                                    Just AuxxReadName -> handleEditorEventLensed
                                     Just WalletListName -> handleListEventLensed
                                     _ -> return st
     where
@@ -168,8 +172,8 @@ theMap :: Attr.AttrMap
 theMap = Attr.attrMap V.defAttr
     [ (WDialog.dialogAttr, V.white `on` V.black)
     , (WDialog.buttonAttr, V.black `on` V.white)
-    , (WDialog.buttonSelectedAttr, bg V.blue)
-    , (WEdit.editAttr, V.white `on` V.black)
+    , (WDialog.buttonSelectedAttr, V.withStyle (fg V.blue) V.standout)
+    , (WEdit.editAttr, V.black `on` V.white)
     , (WEdit.editFocusedAttr, V.white `on` V.black)
     , (customAttr, V.white `on` V.black)
     ]
