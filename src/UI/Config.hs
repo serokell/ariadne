@@ -6,8 +6,7 @@ import Prelude (putStrLn)
 
 import qualified Data.Text as T
 import qualified Text.RawString.QQ as QQ
-import Lens.Micro ((^.))
-import Lens.Micro.TH
+import Control.Lens
 
 
 import qualified Graphics.Vty as V

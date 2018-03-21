@@ -27,9 +27,7 @@ library
     , cardano-sl-auxx
     , cpphs
     , kademlia
-    , microlens
-    , microlens-platform
-    , microlens-th
+    , lens
     , plutus-prototype
     , raw-strings-qq
     , rocksdb-haskell-ng
@@ -42,6 +40,12 @@ library
       UI.Wallet
       UI.Config
       UI.Help
+      Ariadne.UI.Model
+      Ariadne.UI.View
+      Ariadne.UI.Controller
+      Ariadne.UI
+      Ariadne.AuxxBackend
+      Ariadne.Face
   default-extensions:
       RecordWildCards
       NoImplicitPrelude
@@ -66,7 +70,8 @@ executable ariadne
       ariadne
     , base >=4.7 && <5
     , brick
-    , microlens
+    , lens
+    , async
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
