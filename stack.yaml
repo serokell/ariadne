@@ -1,5 +1,9 @@
 resolver: lts-9.1
 
+flags:
+  ether:
+    disable-tup-instances: true
+
 packages:
 - .
 
@@ -176,3 +180,6 @@ extra-deps:
 - vty-5.20
 
 extra-package-dbs: []
+
+nix:
+  shell-file: shell.nix
