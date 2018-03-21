@@ -8,17 +8,30 @@ module Ariadne.Face
   ) where
 
 import Prelude
-import qualified Lang as Auxx
 import Data.Unique
+import Data.List.NonEmpty
+import Control.Exception (SomeException)
+
+import qualified Lang as Auxx
 
 -- A unique identifier assigned to each command, needed to associate it with
 -- the result of its execution.
 newtype CommandId = CommandId Unique
 
+-- The result of executing an auxx command.
+data CommandResult
+  = CommandSuccess Auxx.Value
+  | CommandEvalError Auxx.EvalError
+  | CommandProcError (NonEmpty Auxx.Name)
+  | CommandException SomeException
+
+data CardanoNodeEvent
+  = CardanoNodeEvent -- update slot id, stuff like that
+
 -- An event triggered by the auxx backend.
 data AuxxEvent
-  = CardanoNodeEvent -- update slot id, stuff like that
-  | AuxxResultEvent CommandId Auxx.Value -- a command has finished execution
+  = AuxxCardanoEvent CardanoNodeEvent -- the node state has changed
+  | AuxxResultEvent CommandId CommandResult -- a command has finished execution
 
 -- API for the auxx backend.
 data AuxxFace =

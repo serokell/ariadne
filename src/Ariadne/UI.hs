@@ -71,7 +71,7 @@ mkVtyConfig = do
 mkEventChan :: IO (BChan AuxxEvent)
 mkEventChan = newBChan 100
 
--- Create the
+-- Create the API for interacting with the UI thread.
 mkUiFace :: BChan AuxxEvent -> UiFace
 mkUiFace eventChan =
   UiFace
