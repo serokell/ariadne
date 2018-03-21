@@ -73,7 +73,7 @@ initialAppState :: AppState
 initialAppState = AppState  
   (WDialog.dialog Nothing (Just (0, items)) maxBound)
   (Focus.focusRing [ReplName, WalletListName])
-  (WEdit.editor ReplName (Just maxBound) " ")
+  (WEdit.editor AuxxReadName (Just maxBound) " ")
   (WList.list WalletListName (Vec.fromList walletList) 1)
   []
   Nothing
