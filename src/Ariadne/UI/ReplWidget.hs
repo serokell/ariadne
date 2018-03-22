@@ -13,9 +13,7 @@ import Control.Exception (displayException)
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Center as B
 import qualified Brick.Widgets.Edit as B
-import qualified Graphics.Vty as V
 
 import qualified Lang as Auxx
 
@@ -114,9 +112,9 @@ handleReplWidgetEvent
   -> ReplWidgetEvent
   -> StateT (ReplWidgetState name) (B.EventM name) ()
 handleReplWidgetEvent AuxxFace{..} = \case
-  ReplInputModifyEvent mod -> do
+  ReplInputModifyEvent modification -> do
     zoom replWidgetEditorL $ modify $ B.applyEdit $
-      case mod of
+      case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
         DeleteForwards -> deleteChar
@@ -132,7 +130,7 @@ handleReplWidgetEvent AuxxFace{..} = \case
   ReplSendEvent -> do
     exprOrErr <- use replWidgetExprL
     case exprOrErr of
-      Left parseErr -> return ()
+      Left _parseErr -> return ()
       Right expr -> do
         commandId <- liftIO $ putAuxxCommand expr
         zoom replWidgetEditorL $ modify $ B.applyEdit clearZipper
@@ -150,8 +148,7 @@ updateCommandResult
 updateCommandResult
   commandId
   commandResult
-  (OutputCommand commandId' commandSrc mCommandOut)
-  | commandId == commandId'
+  (OutputCommand commandId' commandSrc _) | commandId == commandId'
   = OutputCommand commandId commandSrc (Just commandResultText)
   where
     commandResultText =

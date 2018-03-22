@@ -8,7 +8,7 @@ import Brick.BChan
 import qualified Graphics.Vty as V
 
 import Ariadne.Face (UiFace(..), AuxxFace, AuxxEvent(..))
-import Ariadne.UI.App (AppState, initialAppState, app)
+import Ariadne.UI.App (initialAppState, app)
 
 -- Initialize the UI, returning two components:
 --

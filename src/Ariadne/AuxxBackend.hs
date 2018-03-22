@@ -52,7 +52,7 @@ auxxPlugin commandQueue uiFace = worker mempty $ \sendActions -> do
         res <- handleAsync (\e -> return $ CommandException e) $
             case Lang.resolveCommandProcs commandProcs expr of
                 Left e -> return $ CommandProcError e
-                Right expr -> either CommandEvalError CommandSuccess <$> Lang.evaluate expr
+                Right expr' -> either CommandEvalError CommandSuccess <$> Lang.evaluate expr'
         liftIO $ putUiEvent uiFace $ AuxxResultEvent uid res
 
 correctNodeParams :: AuxxOptions -> NodeParams -> Production (NodeParams, Bool)

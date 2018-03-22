@@ -1,19 +1,13 @@
 module Ariadne.UI.WalletWidget where
 
 import Prelude
-import Data.Text
 import qualified Data.Vector as Vec
 import Control.Lens
 import Data.Monoid
-import Data.Maybe
 import Control.Monad.Trans.State
 
 import qualified Brick as B
-import qualified Brick.AttrMap as B
 import qualified Brick.Focus as B
-import qualified Brick.Main as B
-import qualified Brick.Types as B
-import qualified Brick.Themes as B
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as B
 import qualified Brick.Widgets.Dialog as B
@@ -163,8 +157,8 @@ handleWalletWidgetEvent auxxFace ev = do
       zoom focusRingL $ modify B.focusNext
       return WalletInProgress
     B.VtyEvent vtyEv
-      | Just ev <- toReplEv vtyEv, ReplName <- focus -> do
-        zoom replL $ handleReplWidgetEvent auxxFace ev
+      | Just replEv <- toReplEv vtyEv, ReplName <- focus -> do
+        zoom replL $ handleReplWidgetEvent auxxFace replEv
         return WalletInProgress
     B.VtyEvent (V.EvKey V.KEnter []) -> do
       diaSel <- uses menuL B.dialogSelection
