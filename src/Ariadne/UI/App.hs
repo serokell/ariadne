@@ -3,6 +3,7 @@ module Ariadne.UI.App where
 import Prelude
 import Control.Lens
 import Control.Monad.Trans.State
+import Control.Monad.Class.IO
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -111,7 +112,7 @@ handleAppEvent auxxFace ev = do
         WW.WalletToLayer layerName -> do
           zoom appStateLayerFocusL $ modify (B.focusSetCurrent layerName)
           return AppInProgress
-    LayerHelp -> do
+    LayerHelp -> mapStateT liftIO $ do
       completed <- zoom appStateHelpL $
         HW.handleHelpWidgetEvent ev
       case completed of

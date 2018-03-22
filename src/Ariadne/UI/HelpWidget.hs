@@ -24,7 +24,7 @@ data HelpCompleted = HelpCompleted | HelpInProgress
 
 handleHelpWidgetEvent
   :: B.BrickEvent name ev
-  -> StateT HelpWidgetState (B.EventM name) HelpCompleted
+  -> StateT HelpWidgetState IO HelpCompleted
 handleHelpWidgetEvent ev = do
   case ev of
     B.VtyEvent (V.EvKey V.KEsc []) ->
