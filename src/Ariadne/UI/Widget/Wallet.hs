@@ -1,4 +1,4 @@
-module Ariadne.UI.WalletWidget where
+module Ariadne.UI.Widget.Wallet where
 
 import Prelude
 import qualified Data.Vector as Vec
@@ -17,7 +17,7 @@ import qualified Brick.Widgets.List as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.LayerName
-import Ariadne.UI.ReplWidget
+import Ariadne.UI.Widget.Repl
 import Ariadne.Face
 import Ariadne.Util
 

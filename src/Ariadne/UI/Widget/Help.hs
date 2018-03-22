@@ -1,4 +1,4 @@
-module Ariadne.UI.HelpWidget where
+module Ariadne.UI.Widget.Help where
 
 import Prelude
 import Control.Monad.Trans.State
