@@ -114,7 +114,7 @@ action commandQueue uiFace opts@AuxxOptions{..} = withConfigurations (CLI.config
 runAuxx :: CommandQueue -> UiFace -> IO ()
 runAuxx commandQueue uiFace = withCompileInfo $(retrieveCompileTimeInfo) $ do
     -- temporary mess
-    let (Success commonArgs) = execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc) ["--system-start", "0", "--log-config", "log-config.yaml", "--no-ntp"]
+    let (Success commonArgs) = execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc) ["--system-start", "0", "--log-config", "log-config.yaml", "--no-ntp", "--configuration-file",  "auxx.yaml"]
     let opts = AuxxOptions Repl commonArgs [] Automatic
     let disableConsoleLog = \lp -> lp { lpConsoleLog = Just False }
         loggingParams = disableConsoleLog $
