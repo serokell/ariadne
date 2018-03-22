@@ -2,7 +2,6 @@ module Ariadne.AuxxBackend (createAuxxBackend) where
 
 import Universum hiding (atomically)
 
-import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
 import Unsafe (unsafeFromJust)
 import qualified Lang
@@ -40,19 +39,21 @@ import Formatting
 
 import Ariadne.Face
 
-data WithCommandAction = WithCommandAction
-    { withCommand :: (Lang.Expr Lang.Name -> AuxxMode CommandResult) -> AuxxMode ()
-    , printAction :: Text -> AuxxMode ()
-    }
+type CommandQueue = TBQueue (Lang.Expr Lang.Name, CommandId)
 
 auxxPlugin :: (HasConfigurations, HasCompileInfo)
-    => WithCommandAction
+    => CommandQueue
+    -> UiFace
     -> (WorkerSpec AuxxMode, OutSpecs)
-auxxPlugin WithCommandAction{..} = worker mempty $ \sendActions -> do
-    let commandProcs = createCommandProcs (Just Dict) printAction (Just sendActions)
-    forever $ withCommand $ \cmd -> case Lang.resolveCommandProcs commandProcs cmd of
-        Left e -> return $ CommandProcError e
-        Right expr -> either CommandEvalError CommandSuccess <$> Lang.evaluate expr
+auxxPlugin commandQueue uiFace = worker mempty $ \sendActions -> do
+    let commandProcs = createCommandProcs (Just Dict) (const (return ())) (Just sendActions)
+    forever $ do
+        (expr, uid) <- liftIO . atomically $ readTBQueue commandQueue
+        res <- handleAsync (\e -> return $ CommandException e) $
+            case Lang.resolveCommandProcs commandProcs expr of
+                Left e -> return $ CommandProcError e
+                Right expr -> either CommandEvalError CommandSuccess <$> Lang.evaluate expr
+        liftIO $ putUiEvent uiFace $ AuxxResultEvent uid res
 
 correctNodeParams :: AuxxOptions -> NodeParams -> Production (NodeParams, Bool)
 correctNodeParams AuxxOptions {..} np = do
@@ -84,8 +85,8 @@ correctNodeParams AuxxOptions {..} np = do
         }
 
 
-action :: HasCompileInfo => WithCommandAction -> AuxxOptions -> Production ()
-action commandAction opts@AuxxOptions{..} = withConfigurations (CLI.configurationOptions . CLI.commonArgs $ cArgs) $ do
+action :: HasCompileInfo => CommandQueue -> UiFace -> AuxxOptions -> Production ()
+action commandQueue uiFace opts@AuxxOptions{..} = withConfigurations (CLI.configurationOptions . CLI.commonArgs $ cArgs) $ do
     (nodeParams, tempDbUsed) <- correctNodeParams opts =<< CLI.getNodeParams "ariadne" cArgs nArgs
     let toRealMode :: AuxxMode a -> RealMode EmptyMempoolExt a
         toRealMode auxxAction = do
@@ -104,14 +105,14 @@ action commandAction opts@AuxxOptions{..} = withConfigurations (CLI.configuratio
                     diffusionLayerFull (npNetworkConfig nodeParams) lastKnownBlockVersion transport Nothing $ \withLogic -> do
                         diffusionLayer <- withLogic (logic logicLayer)
                         let singlePlugin (plug, outs) = ([plug], outs)
-                        let (ActionSpec auxxModeAction, _) = runNode nr (singlePlugin $ auxxPlugin commandAction)
+                        let (ActionSpec auxxModeAction, _) = runNode nr (singlePlugin $ auxxPlugin commandQueue uiFace)
                         runLogicLayer logicLayer (runDiffusionLayer diffusionLayer (auxxModeAction (diffusion diffusionLayer)))
   where
     cArgs = aoCommonNodeArgs
     nArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
 
-runAuxx :: WithCommandAction -> IO ()
-runAuxx commandAction = withCompileInfo $(retrieveCompileTimeInfo) $ do
+runAuxx :: CommandQueue -> UiFace -> IO ()
+runAuxx commandQueue uiFace = withCompileInfo $(retrieveCompileTimeInfo) $ do
     -- temporary mess
     let (Success commonArgs) = execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc) ["--system-start", "0", "--log-config", "log-config.yaml", "--no-ntp"]
     let opts = AuxxOptions Repl commonArgs [] Automatic
@@ -119,21 +120,15 @@ runAuxx commandAction = withCompileInfo $(retrieveCompileTimeInfo) $ do
         loggingParams = disableConsoleLog $
             CLI.loggingParams "ariadne" (aoCommonNodeArgs opts)
     loggerBracket loggingParams. logException "ariadne" $ do
-        runProduction (action commandAction opts)
+        runProduction (action commandQueue uiFace opts)
 
 createAuxxBackend :: IO (AuxxFace, UiFace -> IO ())
 createAuxxBackend = do
   commandQueue <- newTBQueueIO 100
   let
-    withCommand' uiFace cont = do
-      (expr, uid) <- liftIO . atomically $ readTBQueue commandQueue
-      res <- handleAsync
-          (\e -> return $ CommandException e)
-          (cont expr)
-      liftIO $ putUiEvent uiFace $ AuxxResultEvent uid res
     putCommand expr = do
       uid <- CommandId <$> newUnique
       atomically $ writeTBQueue commandQueue (expr, uid)
       return uid
 
-  return (AuxxFace putCommand, \uiFace -> runAuxx $ WithCommandAction (withCommand' uiFace) (const (return ())))
+  return (AuxxFace putCommand, runAuxx commandQueue)
