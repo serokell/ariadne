@@ -8,8 +8,8 @@ packages:
 - .
 
 - location:
-    git: https://github.com/input-output-hk/cardano-sl.git
-    commit: 32375d85c5da0c4892c1afcd1e7f39619b49827f
+    git: https://github.com/serokell/cardano-sl.git
+    commit: a3bef5a013975832d3e02e1f6237da5c42147204
   extra-dep: true
   subdirs:
   - auxx
