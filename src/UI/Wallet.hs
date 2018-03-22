@@ -48,9 +48,7 @@ data Name =
   deriving (Show, Eq, Ord)
 
 data Menu = 
-    File
-  | View
-  | Help
+    Help
   | Config
   | Exit
   deriving (Show, Eq, Ord)
@@ -66,7 +64,6 @@ data Wallet = Wallet
 
 data AppState = AppState 
   { _menu              :: WDialog.Dialog Menu
-  , _middle            :: String
   , _focusRing         :: Focus.FocusRing Name
   , _repl              :: WEdit.Editor String Name
   , _wallets           :: WList.List Name Wallet
@@ -78,16 +75,13 @@ data AppState = AppState
 initialAppState :: AppState
 initialAppState = AppState  
   (WDialog.dialog Nothing (Just (0, items)) maxBound)
-  (" ")
   (Focus.focusRing [AuxxReadName, MenuName, WalletListName, WalletInfoName])
   (WEdit.editor AuxxReadName (Just maxBound) " ")
   (WList.list WalletListName (Vec.fromList walletList) 1)
   []
   Nothing
   where
-    items = [ -- ("File", File)
-              -- , ("View", View)
-              ("Help", Help)
+    items = [ ("Help", Help)
             , ("Config", Config)
             , ("Exit", Exit)
             ]
