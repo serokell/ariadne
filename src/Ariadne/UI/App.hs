@@ -3,7 +3,6 @@ module Ariadne.UI.App where
 import Prelude
 import Control.Lens
 import Control.Monad.Trans.State
-import Data.Maybe
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -65,7 +64,7 @@ app auxxFace = B.App{..} where
     :: AppState
     -> [B.CursorLocation AppSelector]
     -> Maybe (B.CursorLocation AppSelector)
-  appChooseCursor _ = listToMaybe
+  appChooseCursor = B.showFirstCursor
 
   appHandleEvent
     :: AppState

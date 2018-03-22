@@ -54,6 +54,7 @@ library
     , word-wrap
     , transformers
     , text-zipper
+    , ansi-wl-pprint
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
@@ -62,6 +63,7 @@ library
       Ariadne.UI.HelpWidget
       Ariadne.UI.WalletWidget
       Ariadne.UI.ReplWidget
+      Ariadne.UI.AnsiToVty
       Ariadne.AuxxBackend
       Ariadne.Face
       Ariadne.Util

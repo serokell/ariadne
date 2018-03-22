@@ -5,6 +5,7 @@ import qualified Data.Vector as Vec
 import Control.Lens
 import Data.Monoid
 import Control.Monad.Trans.State
+import Control.Monad.IO.Class
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -23,7 +24,6 @@ import Ariadne.Util
 data WalletWidgetSelector =
     MenuName
   | ReplName
-  | ReplSelector ReplWidgetSelector
   | WalletListName
   | WalletInfoName
   | WalletId Int
@@ -53,7 +53,7 @@ data WalletWidgetState name =
   WalletWidgetState
     { menu :: B.Dialog Menu
     , focusRing :: B.FocusRing WalletWidgetSelector
-    , repl :: ReplWidgetState name
+    , repl :: ReplWidgetState
     , wallets :: B.List name Wallet
     , clicked :: [B.Extent name]
     , lastReportedClick :: Maybe (name, B.Location)
@@ -71,7 +71,7 @@ initWalletWidget injName = WalletWidgetState
     , MenuName
     , WalletListName
     , WalletInfoName])
-  (initReplWidget (injName . ReplSelector))
+  initReplWidget
   (B.list (injName WalletListName) (Vec.fromList walletList) 1)
   []
   Nothing
@@ -158,7 +158,7 @@ handleWalletWidgetEvent auxxFace ev = do
       return WalletInProgress
     B.VtyEvent vtyEv
       | Just replEv <- toReplEv vtyEv, ReplName <- focus -> do
-        zoom replL $ handleReplWidgetEvent auxxFace replEv
+        zoom replL $ mapStateT liftIO $ handleReplWidgetEvent auxxFace replEv
         return WalletInProgress
     B.VtyEvent (V.EvKey V.KEnter []) -> do
       diaSel <- uses menuL B.dialogSelection
@@ -178,7 +178,7 @@ handleWalletWidgetEvent auxxFace ev = do
       zoom walletsL $ wrapBrickHandler B.handleListEvent vtyEv
       return WalletInProgress
     B.AppEvent (AuxxResultEvent commandId commandResult) -> do
-      zoom replL $ handleReplWidgetEvent auxxFace $
+      zoom replL $ mapStateT liftIO $ handleReplWidgetEvent auxxFace $
         ReplCommandResultEvent commandId commandResult
       return WalletInProgress
     _ -> return WalletInProgress
