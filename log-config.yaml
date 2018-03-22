@@ -9,5 +9,5 @@ termSeveritiesErr: []
 loggerTree:
   severity: Debug+
   files:
-    - node.pub
-    - node
+    - logs/node.pub
+    - logs/node

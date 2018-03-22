@@ -5,7 +5,8 @@ import Data.Text
 import qualified Data.Vector as Vec
 import Control.Lens
 import Data.Monoid
-import Control.Monad.Trans.Writer
+import Data.Maybe
+import Control.Monad.Trans.State
 
 import qualified Brick as B
 import qualified Brick.AttrMap as B
@@ -21,16 +22,20 @@ import qualified Brick.Widgets.List as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.LayerName
+import Ariadne.UI.ReplWidget
+import Ariadne.Face
 import Ariadne.Util
 
 data WalletWidgetSelector =
     MenuName
-  | AuxxReadName
-  | AuxxPrintName
+  | ReplName
+  | ReplSelector ReplWidgetSelector
   | WalletListName
   | WalletInfoName
   | WalletId Int
   deriving (Show, Eq, Ord)
+
+makePrisms ''WalletWidgetSelector
 
 data Menu =
     MenuHelp
@@ -53,8 +58,8 @@ makeLensesWith postfixLFields ''Wallet
 data WalletWidgetState name =
   WalletWidgetState
     { menu :: B.Dialog Menu
-    , focusRing :: B.FocusRing name
-    , repl :: B.Editor Text name
+    , focusRing :: B.FocusRing WalletWidgetSelector
+    , repl :: ReplWidgetState name
     , wallets :: B.List name Wallet
     , clicked :: [B.Extent name]
     , lastReportedClick :: Maybe (name, B.Location)
@@ -63,13 +68,17 @@ data WalletWidgetState name =
 makeLensesWith postfixLFields ''WalletWidgetState
 
 initWalletWidget
-  :: HasReview name WalletWidgetSelector
-  => WalletWidgetState name
-initWalletWidget = WalletWidgetState
+  :: (WalletWidgetSelector -> name)
+  -> WalletWidgetState name
+initWalletWidget injName = WalletWidgetState
   (B.dialog Nothing (Just (0, items)) maxBound)
-  (B.focusRing [inj AuxxReadName, inj MenuName, inj WalletListName, inj WalletInfoName])
-  (B.editor (inj AuxxReadName) (Just maxBound) " ")
-  (B.list (inj WalletListName) (Vec.fromList walletList) 1)
+  (B.focusRing
+    [ ReplName
+    , MenuName
+    , WalletListName
+    , WalletInfoName])
+  (initReplWidget (injName . ReplSelector))
+  (B.list (injName WalletListName) (Vec.fromList walletList) 1)
   []
   Nothing
   where
@@ -94,11 +103,10 @@ drawWalletWidget st =
     [ topUI
     , walletList B.<+> B.vBorder B.<+> walletInfo
     , B.hBorder
-    , auxxPrint
-    , B.hBorder
-    , auxxReadEval
+    , drawReplWidget (focus == ReplName) (st ^. replL)
     ]
   where
+    focus = currentFocus (st ^. focusRingL)
     walletList = B.hLimit 30 $ B.padLeft (B.Pad 4) $ renderWalletList st
     walletInfo = B.padRight B.Max $ B.str "wallet info"
     topUI =
@@ -108,15 +116,8 @@ drawWalletWidget st =
       B.padBottom (B.Pad 1) $
       B.emptyWidget
 
-    auxxReadEval = B.str "auxx Read" B.<=> (B.str ">" B.<+> B.vLimit 1 e)
-    e = B.withFocusRing
-          (st^.focusRingL)
-          (B.renderEditor (B.txt . Data.Text.unlines)) (st^.replL)
-    auxxPrint = B.padTop B.Max $ B.padBottom B.Max $ B.str "auxx Print"
-
 renderWalletList :: (Ord name, Show name) => WalletWidgetState name -> B.Widget name
 renderWalletList st = B.renderList listDrawElement True (wallets st)
-
 
 listDrawElement :: Bool -> Wallet -> B.Widget name
 listDrawElement sel w =
@@ -143,52 +144,69 @@ walletWidgetAttrMap = B.attrMap V.defAttr
     , (customAttr, V.white `B.on` V.black)
     ]
 
-walletWidgetCursor
-  :: Eq name
-  => WalletWidgetState name
-  -> [B.CursorLocation name]
-  -> Maybe (B.CursorLocation name)
-walletWidgetCursor = B.focusRingCursor focusRing
-
-data WalletCompleted = WalletCompleted | WalletInProgress | WalletToLayer LayerName
+data WalletCompleted
+  = WalletCompleted
+  | WalletInProgress
+  | WalletToLayer LayerName
 
 handleWalletWidgetEvent
-  :: (Ord name, HasPrism name WalletWidgetSelector)
-  => B.BrickEvent name ev
-  -> WalletWidgetState name
-  -> WriterT WalletCompleted (B.EventM name) (WalletWidgetState name)
-handleWalletWidgetEvent ev walletWidgetState =
-  WriterT $ case ev of
+  :: Ord name
+  => AuxxFace
+  -> B.BrickEvent name AuxxEvent
+  -> StateT (WalletWidgetState name) (B.EventM name) WalletCompleted
+handleWalletWidgetEvent auxxFace ev = do
+  focus <- uses focusRingL currentFocus
+  case ev of
     B.VtyEvent (V.EvKey V.KEsc []) ->
-      return (walletWidgetState, WalletCompleted)
+      return WalletCompleted
+    B.VtyEvent (V.EvKey (V.KChar '\t') []) -> do
+      zoom focusRingL $ modify B.focusNext
+      return WalletInProgress
+    B.VtyEvent vtyEv
+      | Just ev <- toReplEv vtyEv, ReplName <- focus -> do
+        zoom replL $ handleReplWidgetEvent auxxFace ev
+        return WalletInProgress
     B.VtyEvent (V.EvKey V.KEnter []) -> do
-      return $ (walletWidgetState,) $
-        case B.dialogSelection (menu walletWidgetState) of
+      diaSel <- uses menuL B.dialogSelection
+      return $
+        case diaSel of
           Nothing -> WalletCompleted
           Just MenuExit -> WalletCompleted
           Just MenuConfig -> WalletToLayer LayerConfig
           Just MenuHelp -> WalletToLayer LayerHelp
-    B.VtyEvent vtyEv@(V.EvKey V.KLeft []) -> (, WalletInProgress) <$>
-      case B.focusGetCurrent (walletWidgetState ^. focusRingL) >>= proj of
-        Just AuxxReadName -> handleEditorEventLensed vtyEv
-        _ -> handleDialogEventLensed vtyEv
-    B.VtyEvent vtyEv@(V.EvKey V.KRight []) -> (, WalletInProgress) <$>
-      case B.focusGetCurrent (walletWidgetState ^. focusRingL) >>= proj of
-        Just AuxxReadName -> handleEditorEventLensed vtyEv
-        _ -> handleDialogEventLensed vtyEv
-    B.VtyEvent (V.EvKey (V.KChar '\t') []) -> do
-      let walletWidgetState' = walletWidgetState & focusRingL %~ B.focusNext
-      return (walletWidgetState', WalletInProgress)
-    B.VtyEvent vtyEv -> (, WalletInProgress) <$>
-      case B.focusGetCurrent (walletWidgetState ^. focusRingL) >>= proj of
-        Just AuxxReadName -> handleEditorEventLensed vtyEv
-        Just WalletListName -> handleListEventLensed vtyEv
-        _ -> return walletWidgetState
-    _ -> return (walletWidgetState, WalletInProgress)
-    where
-      handleListEventLensed =
-        B.handleEventLensed walletWidgetState walletsL B.handleListEvent
-      handleDialogEventLensed =
-        B.handleEventLensed walletWidgetState menuL B.handleDialogEvent
-      handleEditorEventLensed =
-        B.handleEventLensed walletWidgetState replL B.handleEditorEvent
+    B.VtyEvent vtyEv@(V.EvKey V.KLeft []) -> do
+      zoom menuL $ wrapBrickHandler B.handleDialogEvent vtyEv
+      return WalletInProgress
+    B.VtyEvent vtyEv@(V.EvKey V.KRight []) -> do
+      zoom menuL $ wrapBrickHandler B.handleDialogEvent vtyEv
+      return WalletInProgress
+    B.VtyEvent vtyEv | WalletListName <- focus -> do
+      zoom walletsL $ wrapBrickHandler B.handleListEvent vtyEv
+      return WalletInProgress
+    B.AppEvent (AuxxResultEvent commandId commandResult) -> do
+      zoom replL $ handleReplWidgetEvent auxxFace $
+        ReplCommandResultEvent commandId commandResult
+      return WalletInProgress
+    _ -> return WalletInProgress
+
+toReplEv :: V.Event -> Maybe ReplWidgetEvent
+toReplEv = \case
+  V.EvKey V.KLeft [] ->
+    Just $ ReplInputNavigationEvent NavArrowLeft
+  V.EvKey V.KRight [] ->
+    Just $ ReplInputNavigationEvent NavArrowRight
+  V.EvKey V.KUp [] ->
+    Just $ ReplInputNavigationEvent NavArrowUp
+  V.EvKey V.KDown [] ->
+    Just $ ReplInputNavigationEvent NavArrowDown
+  V.EvKey V.KBS [] ->
+    Just $ ReplInputModifyEvent DeleteBackwards
+  V.EvKey V.KDel [] ->
+    Just $ ReplInputModifyEvent DeleteForwards
+  V.EvKey V.KEnter [] ->
+    Just $ ReplSendEvent
+  V.EvKey (V.KChar 'n') [V.MCtrl] ->
+    Just $ ReplInputModifyEvent BreakLine
+  V.EvKey (V.KChar c) _ ->
+    Just $ ReplInputModifyEvent (InsertChar c)
+  _ -> Nothing

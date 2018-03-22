@@ -2,9 +2,9 @@ module Ariadne.UI.ConfigWidget where
 
 import Prelude
 import Data.Text (Text)
-import Data.Void
 import Control.Lens
-import Control.Monad.Trans.Writer
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Class
 
 import qualified Brick as B
 import qualified Brick.Forms as B
@@ -56,24 +56,25 @@ data ConfigWidgetSelector
 
 -- Create a new form from the initial user info.
 initConfigWidget
-  :: (Ord name, Show name, HasReview name ConfigWidgetSelector)
-  => UserInfo
+  :: (Ord name, Show name)
+  => (ConfigWidgetSelector -> name)
+  -> UserInfo
   -> ConfigWidgetState ev name
-initConfigWidget =
+initConfigWidget injName =
     let
       label s w =
         B.padBottom (B.Pad 1) $
           (B.vLimit 1 $ B.hLimit 15 $ B.str s B.<+> B.fill ' ') B.<+> w
     in
       B.newForm
-        [ label "Name" B.@@= B.editTextField nameL (inj NameField) (Just 1)
-        , label "Email" B.@@= B.editTextField emailL (inj EmailField) (Just 1)
-        , label "Language" B.@@= B.editTextField languageL (inj LanguageField) (Just 1)
-        , label "City/Town" B.@@= B.editTextField cityL (inj CityField) (Just 1)
+        [ label "Name" B.@@= B.editTextField nameL (injName NameField) (Just 1)
+        , label "Email" B.@@= B.editTextField emailL (injName EmailField) (Just 1)
+        , label "Language" B.@@= B.editTextField languageL (injName LanguageField) (Just 1)
+        , label "City/Town" B.@@= B.editTextField cityL (injName CityField) (Just 1)
         , label "Theme" B.@@=
             B.radioField themeL
-              [ (defaultTheme, inj DefaultThemeField, "Default")
-              , (theme1, inj Theme1Field, "White on Blue")
+              [ (defaultTheme, injName DefaultThemeField, "Default")
+              , (theme1, injName Theme1Field, "White on Blue")
               ]
         ]
 
@@ -96,11 +97,12 @@ theme1 = B.newTheme (V.white `B.on` V.blue)
   ]
 
 drawConfigWidget
-  :: (Ord name, Show name, HasReview name ConfigWidgetSelector)
-  => ConfigWidgetState ev name
+  :: (Ord name, Show name)
+  => (ConfigWidgetSelector -> name)
+  -> ConfigWidgetState ev name
   -> B.Widget name
-drawConfigWidget configWidgetState =
-    B.viewport (inj FormViewport) B.Vertical (B.hCenter form) B.<=>
+drawConfigWidget injName configWidgetState =
+    B.viewport (injName FormViewport) B.Vertical (B.hCenter form) B.<=>
     B.hCenter help
   where
     form =
@@ -119,20 +121,25 @@ drawConfigWidget configWidgetState =
 data ConfigCompleted = ConfigCompleted | ConfigInProgress
 
 handleConfigWidgetEvent
-  :: (Ord name, Show name, HasReview name ConfigWidgetSelector)
-  => B.BrickEvent name ev
-  -> ConfigWidgetState ev name
-  -> WriterT ConfigCompleted (B.EventM name) (ConfigWidgetState ev name)
-handleConfigWidgetEvent ev configWidgetState =
-  WriterT $ case ev of
+  :: (Ord name, Show name)
+  => (ConfigWidgetSelector -> name)
+  -> B.BrickEvent name ev
+  -> StateT (ConfigWidgetState ev name) (B.EventM name) ConfigCompleted
+handleConfigWidgetEvent injName ev =
+  case ev of
     B.VtyEvent (V.EvKey V.KEsc []) ->
-      return (configWidgetState, ConfigCompleted)
+      return ConfigCompleted
     B.VtyEvent (V.EvKey V.KEnter []) ->
-      return (configWidgetState, ConfigCompleted)
-    B.VtyEvent (V.EvKey V.KDown []) ->
-      (configWidgetState, ConfigInProgress) <$ vFormScroll 1
-    B.VtyEvent (V.EvKey V.KUp []) ->
-      (configWidgetState, ConfigInProgress) <$ vFormScroll (-1)
-    _ -> (, ConfigInProgress) <$> B.handleFormEvent ev configWidgetState
+      return ConfigCompleted
+    B.VtyEvent (V.EvKey V.KDown []) -> do
+      vFormScroll 1
+      return ConfigInProgress
+    B.VtyEvent (V.EvKey V.KUp []) -> do
+      vFormScroll (-1)
+      return ConfigInProgress
+    _ -> do
+      wrapBrickHandler B.handleFormEvent ev
+      return ConfigInProgress
   where
-    vFormScroll = B.vScrollBy (B.viewportScroll (inj FormViewport))
+    vFormScroll n = lift $
+      B.vScrollBy (B.viewportScroll (injName FormViewport)) n

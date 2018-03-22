@@ -2,7 +2,8 @@ module Ariadne.UI.App where
 
 import Prelude
 import Control.Lens
-import Control.Monad.Trans.Writer
+import Control.Monad.Trans.State
+import Data.Maybe
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -26,18 +27,6 @@ data AppSelector
 
 makePrisms ''AppSelector
 
-instance HasReview AppSelector CW.ConfigWidgetSelector where
-  reviewOf = _AppSelectorConfig
-
-instance HasPrism AppSelector CW.ConfigWidgetSelector where
-  prismOf = _AppSelectorConfig
-
-instance HasReview AppSelector WW.WalletWidgetSelector where
-  reviewOf = _AppSelectorWallet
-
-instance HasPrism AppSelector WW.WalletWidgetSelector where
-  prismOf = _AppSelectorWallet
-
 data AppState =
   AppState
     { appStateConfig :: CW.ConfigWidgetState AuxxEvent AppSelector
@@ -51,23 +40,17 @@ makeLensesWith postfixLFields ''AppState
 initialAppState :: AppState
 initialAppState =
   AppState
-    { appStateConfig = CW.initConfigWidget CW.defaultUserInfo
+    { appStateConfig = CW.initConfigWidget AppSelectorConfig CW.defaultUserInfo
     , appStateHelp = HW.initHelpWidget
-    , appStateWallet = WW.initWalletWidget
+    , appStateWallet = WW.initWalletWidget AppSelectorWallet
     , appStateLayerFocus =
         B.focusSetCurrent LayerConfig $
         B.focusRing [LayerWallet, LayerHelp, LayerConfig]
     }
 
-currentFocus :: B.FocusRing LayerName -> LayerName
-currentFocus focusRing =
-  case B.focusGetCurrent focusRing of
-    Nothing -> error "currentFocus: impossible, no focused layer"
-    Just a -> a
-
 -- The Ariadne UI view and controller a single record.
 app :: AuxxFace -> B.App AppState AuxxEvent AppSelector
-app _ = B.App{..} where
+app auxxFace = B.App{..} where
 
   appDraw
     :: AppState
@@ -76,55 +59,24 @@ app _ = B.App{..} where
     case currentFocus appStateLayerFocus of
       LayerWallet -> [WW.drawWalletWidget appStateWallet]
       LayerHelp -> [HW.drawHelpWidget appStateHelp]
-      LayerConfig -> [CW.drawConfigWidget appStateConfig]
+      LayerConfig -> [CW.drawConfigWidget AppSelectorConfig appStateConfig]
 
   appChooseCursor
     :: AppState
     -> [B.CursorLocation AppSelector]
     -> Maybe (B.CursorLocation AppSelector)
-  appChooseCursor appState@AppState{..} =
-    case currentFocus appStateLayerFocus of
-      LayerWallet -> WW.walletWidgetCursor appStateWallet
-      LayerHelp -> const Nothing
-      LayerConfig -> const Nothing
+  appChooseCursor _ = listToMaybe
 
   appHandleEvent
     :: AppState
     -> B.BrickEvent AppSelector AuxxEvent
     -> B.EventM AppSelector (B.Next AppState)
-  appHandleEvent appState@AppState{..} ev =
-    case ev of
-      B.VtyEvent (V.EvKey (V.KChar 'c') [V.MCtrl]) ->
-        B.halt appState
-      _ ->
-        case currentFocus appStateLayerFocus of
-          LayerWallet -> do
-            (appState', completed) <- runWriterT $
-              appStateWalletL (WW.handleWalletWidgetEvent ev) appState
-            case completed of
-              WW.WalletInProgress -> B.continue appState'
-              WW.WalletCompleted -> B.halt appState'
-              WW.WalletToLayer layerName ->
-                B.continue $ appState' &
-                  appStateLayerFocusL %~ B.focusSetCurrent layerName
-          LayerHelp -> do
-            (appState', completed) <- runWriterT $
-              appStateHelpL (HW.handleHelpWidgetEvent ev) appState
-            let
-              updateFocus = case completed of
-                HW.HelpInProgress -> id
-                HW.HelpCompleted ->
-                  appStateLayerFocusL %~ B.focusSetCurrent LayerWallet
-            B.continue (updateFocus appState')
-          LayerConfig -> do
-            (appState', completed) <- runWriterT $
-              appStateConfigL (CW.handleConfigWidgetEvent ev) appState
-            let
-              updateFocus = case completed of
-                CW.ConfigInProgress -> id
-                CW.ConfigCompleted ->
-                  appStateLayerFocusL %~ B.focusSetCurrent LayerWallet
-            B.continue (updateFocus appState')
+  appHandleEvent appState ev = do
+    (completed, appState') <-
+      runStateT (handleAppEvent auxxFace ev) appState
+    case completed of
+      AppCompleted -> B.halt appState'
+      AppInProgress -> B.continue appState'
 
   appStartEvent
     :: AppState
@@ -139,3 +91,42 @@ app _ = B.App{..} where
       LayerWallet -> WW.walletWidgetAttrMap
       LayerHelp -> B.attrMap V.defAttr []
       LayerConfig -> B.themeToAttrMap $ CW.theme $ B.formState appStateConfig
+
+data AppCompleted = AppCompleted | AppInProgress
+
+handleAppEvent
+  :: AuxxFace
+  -> B.BrickEvent AppSelector AuxxEvent
+  -> StateT AppState (B.EventM AppSelector) AppCompleted
+handleAppEvent _ (B.VtyEvent (V.EvKey (V.KChar 'c') [V.MCtrl])) =
+  return AppCompleted
+handleAppEvent auxxFace ev = do
+  appStateLayerFocus <- use appStateLayerFocusL
+  case currentFocus appStateLayerFocus of
+    LayerWallet -> do
+      completed <- zoom appStateWalletL $
+        WW.handleWalletWidgetEvent auxxFace ev
+      case completed of
+        WW.WalletInProgress -> return AppInProgress
+        WW.WalletCompleted -> return AppCompleted
+        WW.WalletToLayer layerName -> do
+          zoom appStateLayerFocusL $ modify (B.focusSetCurrent layerName)
+          return AppInProgress
+    LayerHelp -> do
+      completed <- zoom appStateHelpL $
+        HW.handleHelpWidgetEvent ev
+      case completed of
+        HW.HelpInProgress -> return ()
+        HW.HelpCompleted ->
+          zoom appStateLayerFocusL $
+            modify (B.focusSetCurrent LayerWallet)
+      return AppInProgress
+    LayerConfig -> do
+      completed <- zoom appStateConfigL $
+        CW.handleConfigWidgetEvent AppSelectorConfig ev
+      case completed of
+        CW.ConfigInProgress -> return ()
+        CW.ConfigCompleted ->
+          zoom appStateLayerFocusL $
+            modify (B.focusSetCurrent LayerWallet)
+      return AppInProgress
