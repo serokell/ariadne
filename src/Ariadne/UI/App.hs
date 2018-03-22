@@ -3,7 +3,7 @@ module Ariadne.UI.App where
 import Prelude
 import Control.Lens
 import Control.Monad.Trans.State
-import Control.Monad.Class.IO
+import Control.Monad.IO.Class
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -15,9 +15,9 @@ import Ariadne.Face (AuxxFace, AuxxEvent)
 import Ariadne.UI.LayerName
 import Ariadne.Util
 
-import qualified Ariadne.UI.ConfigWidget as CW
-import qualified Ariadne.UI.HelpWidget as HW
-import qualified Ariadne.UI.WalletWidget as WW
+import qualified Ariadne.UI.Widget.Config as CW
+import qualified Ariadne.UI.Widget.Help   as HW
+import qualified Ariadne.UI.Widget.Wallet as WW
 
 -- Selectors (unique names) for parts of the widgets in the application.
 data AppSelector

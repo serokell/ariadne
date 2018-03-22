@@ -1,4 +1,4 @@
-module Ariadne.UI.ConfigWidget where
+module Ariadne.UI.Widget.Config where
 
 import Prelude
 import Data.Text (Text)

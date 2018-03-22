@@ -59,11 +59,11 @@ library
       Ariadne.UI
       Ariadne.UI.App
       Ariadne.UI.LayerName
-      Ariadne.UI.ConfigWidget
-      Ariadne.UI.HelpWidget
-      Ariadne.UI.WalletWidget
-      Ariadne.UI.ReplWidget
       Ariadne.UI.AnsiToVty
+      Ariadne.UI.Widget.Config
+      Ariadne.UI.Widget.Help
+      Ariadne.UI.Widget.Wallet
+      Ariadne.UI.Widget.Repl
       Ariadne.AuxxBackend
       Ariadne.Face
       Ariadne.Util

@@ -1,4 +1,4 @@
-module Ariadne.UI.ReplWidget where
+module Ariadne.UI.Widget.Repl where
 
 import Prelude hiding (unlines)
 import Data.Text
