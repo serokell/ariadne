@@ -13,77 +13,107 @@ import Control.Exception (displayException)
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Edit as B
+import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
+import qualified Graphics.Vty as V
 
 import qualified Lang as Auxx
 
+import Ariadne.UI.AnsiToVty
 import Ariadne.Face
 import Ariadne.Util
 
 data OutputElement
-  = OutputCommand CommandId Text (Maybe Text)
+  = OutputCommand CommandId Text (Maybe (Int -> V.Image))
   | OutputInfo Text
 
-data ReplWidgetSelector
-  = AuxxReadName
-  | AuxxPrintName
-  deriving (Eq, Ord, Show)
-
-data ReplWidgetState name =
+data ReplWidgetState =
   ReplWidgetState
     {
       replWidgetExpr :: Either Auxx.ParseError (Auxx.Expr Auxx.Name),
-      replWidgetEditor :: B.Editor Text name,
+      replWidgetTextZipper :: TextZipper Text,
       replWidgetOut :: [OutputElement]
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-replWidgetText :: ReplWidgetState name -> Text
-replWidgetText = unlines . B.getEditContents . replWidgetEditor
+replWidgetText :: ReplWidgetState -> Text
+replWidgetText = unlines . getText . replWidgetTextZipper
 
-replReparse :: Monad m => StateT (ReplWidgetState name) m ()
+replReparse :: Monad m => StateT ReplWidgetState m ()
 replReparse = do
   t <- gets replWidgetText
   replWidgetExprL .= Auxx.parse t
 
 initReplWidget
-  :: (ReplWidgetSelector -> name)
-  -> ReplWidgetState name
-initReplWidget injName =
+  :: ReplWidgetState
+initReplWidget =
   fix $ \this -> ReplWidgetState
     {
       replWidgetExpr = Auxx.parse (replWidgetText this),
-      replWidgetEditor = B.editorText (injName AuxxReadName) Nothing "",
+      replWidgetTextZipper = textZipper [] Nothing,
       replWidgetOut = []
     }
 
 drawReplWidget
-  :: (Ord name, Show name)
-  => Bool
-  -> ReplWidgetState name
+  :: Bool
+  -> ReplWidgetState
   -> B.Widget name
 drawReplWidget hasFocus replWidgetState =
     B.vBox [drawOutput, B.hBorder, drawInput]
   where
     outElems = Prelude.reverse (replWidgetOut replWidgetState)
     drawOutput =
-      B.padTop B.Max $
-      case outElems of
-        [] -> B.txt "^S to send a command - try 'help'"
-        xs -> B.vBox (fmap drawOutputElement xs)
-    drawOutputElement (OutputInfo t) = B.txt t
-    drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
-      (B.txt (drawCommandId commandId) B.<+> B.txt " " B.<+> B.txt commandSrc) B.<=>
-      (case mCommandOut of
-            Nothing -> B.txt "<waiting for output>"
-            Just a -> B.txt a)
+      B.Widget
+        {
+          B.hSize = B.Greedy,
+          B.vSize = B.Greedy,
+          B.render = do
+            rdrCtx <- B.getContext
+            let
+              img =
+                V.cropTop ((rdrCtx ^. B.availHeightL) - 1) $
+                case outElems of
+                  [] -> V.text' V.defAttr "Press <Enter> to send a command, ^N to insert line break"
+                  xs -> V.vertCat (fmap drawOutputElement xs)
+              drawOutputElement (OutputInfo t) =
+                V.text' V.defAttr t
+              drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
+                V.vertCat
+                  [ V.horizCat
+                    [ V.text' V.defAttr (drawCommandId commandId)
+                    , V.text' V.defAttr " "
+                    , V.text' V.defAttr commandSrc
+                    ]
+                  , case mCommandOut of
+                      Nothing -> V.text' V.defAttr "<waiting for output>"
+                      Just mkImg -> mkImg (rdrCtx ^. B.availWidthL)
+                  ]
+            return $
+              B.emptyResult
+                & B.imageL .~ img
+        }
     drawInput =
-        B.str "auxx>" B.<+>
-        (B.renderEditor
-          (B.txt . unlines)
-          hasFocus
-          (replWidgetEditor replWidgetState))
+      B.Widget
+        {
+          B.hSize = B.Greedy,
+          B.vSize = B.Fixed,
+          B.render = do
+            let
+              zipper = replWidgetTextZipper replWidgetState
+              img =
+                V.string V.defAttr "auxx> " `V.horizJoin`
+                V.vertCat
+                  [ V.text' V.defAttr line
+                  | line <- getText zipper
+                  ]
+              curLoc =
+                let (y, x) = cursorPosition zipper
+                in B.CursorLocation (B.Location (x + 6, y)) Nothing
+            return $
+              B.emptyResult
+                & B.imageL .~ img
+                & B.cursorsL .~ [curLoc | hasFocus]
+        }
 
 drawCommandId :: CommandId -> Text
 drawCommandId (CommandId u) = pack $
@@ -110,10 +140,10 @@ data ReplWidgetEvent
 handleReplWidgetEvent
   :: AuxxFace
   -> ReplWidgetEvent
-  -> StateT (ReplWidgetState name) (B.EventM name) ()
+  -> StateT ReplWidgetState IO ()
 handleReplWidgetEvent AuxxFace{..} = \case
   ReplInputModifyEvent modification -> do
-    zoom replWidgetEditorL $ modify $ B.applyEdit $
+    zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
@@ -121,7 +151,7 @@ handleReplWidgetEvent AuxxFace{..} = \case
         BreakLine -> breakLine
     replReparse
   ReplInputNavigationEvent nav -> do
-    zoom replWidgetEditorL $ modify $ B.applyEdit $
+    zoom replWidgetTextZipperL $ modify $
       case nav of
         NavArrowLeft -> moveLeft
         NavArrowRight -> moveRight
@@ -133,9 +163,10 @@ handleReplWidgetEvent AuxxFace{..} = \case
       Left _parseErr -> return ()
       Right expr -> do
         commandId <- liftIO $ putAuxxCommand expr
-        zoom replWidgetEditorL $ modify $ B.applyEdit clearZipper
+        zoom replWidgetTextZipperL $ modify $ clearZipper
         let out = OutputCommand commandId (pack (show expr)) Nothing
         zoom replWidgetOutL $ modify (out:)
+        replReparse
   ReplCommandResultEvent commandId commandResult -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandResult)
@@ -149,12 +180,13 @@ updateCommandResult
   commandId
   commandResult
   (OutputCommand commandId' commandSrc _) | commandId == commandId'
-  = OutputCommand commandId commandSrc (Just commandResultText)
+  = OutputCommand commandId commandSrc (Just commandResultImage)
   where
-    commandResultText =
+    commandResultImage w =
       case commandResult of
-        CommandSuccess v -> pack (show v)
-        CommandEvalError e -> Auxx.renderAuxxDoc (Auxx.ppEvalError e)
-        CommandProcError e -> Auxx.renderAuxxDoc (Auxx.ppResolveErrors e)
-        CommandException e -> pack (displayException e)
+        CommandSuccess v -> V.string V.defAttr (show v)
+        CommandEvalError e -> pprDoc w (Auxx.ppEvalError e)
+        CommandProcError e -> pprDoc w (Auxx.ppResolveErrors e)
+        CommandException e -> V.string V.defAttr (displayException e)
+    pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
 updateCommandResult _ _ outCmd = outCmd
