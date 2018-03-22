@@ -183,3 +183,4 @@ extra-package-dbs: []
 
 nix:
   shell-file: shell.nix
+  pure: true

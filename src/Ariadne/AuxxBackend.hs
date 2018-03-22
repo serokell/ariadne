@@ -8,4 +8,4 @@ import Ariadne.Face
 -- TODO: @Hithroc
 createAuxxBackend :: IO (AuxxFace, UiFace -> IO ())
 createAuxxBackend = do
-  return (AuxxFace (\_cmdId _expr -> return ()), \_uiFace -> threadDelay 3000000)
+  return (AuxxFace (\_cmdId _expr -> return ()), \_uiFace -> threadDelay 3000000000)
