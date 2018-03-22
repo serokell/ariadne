@@ -1,9 +1,8 @@
 module UI.Wallet where
 
-import Universum hiding (on, (<>))
+import Universum hiding (on, (<>), (%~), (^.))
 
-import Lens.Micro.TH
-import Lens.Micro
+import Control.Lens
 
 import Data.Monoid((<>))
 import Data.Text (unpack, pack)

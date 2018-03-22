@@ -1,6 +1,19 @@
 module Main where
 
 import Prelude
+import Control.Concurrent.Async
+
+import Ariadne.UI
+import Ariadne.AuxxBackend
+
+main :: IO ()
+main = do
+  (uiFace, uiAction) <- createAriadneUI
+  (auxxFace, auxxAction) <- createAuxxBackend
+  race_ (uiAction auxxFace) (auxxAction uiFace)
+
+{-
+import Prelude
 import Control.Monad (void)
 
 import UI.Wallet (initialAppState, runBySt, menu, focusRing, repl, wallets
@@ -10,7 +23,6 @@ import UI.Config (runConfigForm)
 import UI.Help (runHelp)
 import Brick.Widgets.Dialog (dialogSelection)
 import Lens.Micro ((^.))
-
 
 main :: IO ()
 main = do
@@ -34,3 +46,4 @@ main = do
       Config -> do
         runConfigForm
         runLayout
+-}
