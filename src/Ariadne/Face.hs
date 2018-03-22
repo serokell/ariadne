@@ -2,6 +2,7 @@
 module Ariadne.Face
   (
     AuxxFace(..),
+    CardanoNodeEvent(..),
     AuxxEvent(..),
     UiFace(..),
     CommandId(..),
@@ -18,6 +19,7 @@ import qualified Lang as Auxx
 -- A unique identifier assigned to each command, needed to associate it with
 -- the result of its execution.
 newtype CommandId = CommandId Unique
+  deriving (Eq)
 
 -- The result of executing an auxx command.
 data CommandResult

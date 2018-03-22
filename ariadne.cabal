@@ -53,6 +53,7 @@ library
     , vty
     , word-wrap
     , transformers
+    , text-zipper
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
@@ -60,6 +61,7 @@ library
       Ariadne.UI.ConfigWidget
       Ariadne.UI.HelpWidget
       Ariadne.UI.WalletWidget
+      Ariadne.UI.ReplWidget
       Ariadne.AuxxBackend
       Ariadne.Face
       Ariadne.Util
@@ -75,6 +77,8 @@ library
       FunctionalDependencies
       TupleSections
       FlexibleContexts
+      TypeApplications
+      ScopedTypeVariables
   other-modules:
       Paths_ariadne
   default-language: Haskell2010

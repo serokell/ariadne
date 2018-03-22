@@ -1,7 +1,7 @@
 module Ariadne.UI.HelpWidget where
 
 import Prelude
-import Control.Monad.Trans.Writer
+import Control.Monad.Trans.State
 
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
@@ -24,13 +24,12 @@ data HelpCompleted = HelpCompleted | HelpInProgress
 
 handleHelpWidgetEvent
   :: B.BrickEvent name ev
-  -> HelpWidgetState
-  -> WriterT HelpCompleted (B.EventM name) HelpWidgetState
-handleHelpWidgetEvent ev helpWidgetState =
-  WriterT $ case ev of
+  -> StateT HelpWidgetState (B.EventM name) HelpCompleted
+handleHelpWidgetEvent ev = do
+  case ev of
     B.VtyEvent (V.EvKey V.KEsc []) ->
-      return (helpWidgetState, HelpCompleted)
+      return HelpCompleted
     B.VtyEvent (V.EvKey V.KEnter []) ->
-      return (helpWidgetState, HelpCompleted)
+      return HelpCompleted
     _ ->
-      return (helpWidgetState, HelpInProgress)
+      return HelpInProgress

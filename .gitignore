@@ -19,3 +19,8 @@ TAGS
 # Vim
 tags
 *.swp
+
+# Runtime
+logs/*
+secret.key
+secret.key.lock
