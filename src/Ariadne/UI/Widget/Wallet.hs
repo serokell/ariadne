@@ -158,8 +158,11 @@ handleWalletWidgetEvent auxxFace ev = do
       return WalletInProgress
     B.VtyEvent vtyEv
       | Just replEv <- toReplEv vtyEv, ReplName <- focus -> do
-        zoom replL $ mapStateT liftIO $ handleReplWidgetEvent auxxFace replEv
-        return WalletInProgress
+        completed <- zoom replL $ mapStateT liftIO $
+          handleReplWidgetEvent auxxFace replEv
+        return $ case completed of
+          ReplCompleted -> WalletCompleted
+          ReplInProgress -> WalletInProgress
     B.VtyEvent (V.EvKey V.KEnter []) -> do
       diaSel <- uses menuL B.dialogSelection
       return $
@@ -178,9 +181,12 @@ handleWalletWidgetEvent auxxFace ev = do
       zoom walletsL $ wrapBrickHandler B.handleListEvent vtyEv
       return WalletInProgress
     B.AppEvent (AuxxResultEvent commandId commandResult) -> do
-      zoom replL $ mapStateT liftIO $ handleReplWidgetEvent auxxFace $
-        ReplCommandResultEvent commandId commandResult
-      return WalletInProgress
+      completed <- zoom replL $ mapStateT liftIO $
+        handleReplWidgetEvent auxxFace $
+          ReplCommandResultEvent commandId commandResult
+      return $ case completed of
+        ReplCompleted -> WalletCompleted
+        ReplInProgress -> WalletInProgress
     _ -> return WalletInProgress
 
 toReplEv :: V.Event -> Maybe ReplWidgetEvent
@@ -198,9 +204,11 @@ toReplEv = \case
   V.EvKey V.KDel [] ->
     Just $ ReplInputModifyEvent DeleteForwards
   V.EvKey V.KEnter [] ->
-    Just $ ReplSendEvent
+    Just $ ReplSmartEnterEvent
   V.EvKey (V.KChar 'n') [V.MCtrl] ->
     Just $ ReplInputModifyEvent BreakLine
+  V.EvKey (V.KChar 'd') [V.MCtrl] ->
+    Just ReplQuitEvent
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
   _ -> Nothing

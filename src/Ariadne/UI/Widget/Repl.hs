@@ -2,6 +2,7 @@ module Ariadne.UI.Widget.Repl where
 
 import Prelude hiding (unlines)
 import Data.Text as Text
+import Data.Char as Char
 import Data.Function (fix)
 import Control.Lens
 import Control.Monad.Trans.State
@@ -9,7 +10,7 @@ import Control.Monad.IO.Class
 import Data.Text.Zipper
 import Data.Unique
 import Data.List as List
-import Numeric (showHex)
+import Numeric (showIntAtBase)
 import Control.Exception (displayException)
 import Text.Earley (Report (..))
 
@@ -79,7 +80,7 @@ drawReplWidget hasFocus replWidgetState =
               img =
                 V.cropTop ((rdrCtx ^. B.availHeightL) - 1) $
                 case outElems of
-                  [] -> V.text' V.defAttr "Press <Enter> to send a command, ^N to insert line break"
+                  [] -> V.text' V.defAttr "Press <Enter> to send a command, <Backslash> <Enter> to insert a line break"
                   xs -> V.vertCat (fmap drawOutputElement xs)
               drawOutputElement (OutputInfo mkImg) =
                 mkImg (rdrCtx ^. B.availWidthL)
@@ -146,7 +147,10 @@ parseErrSpanFn parseErr (row, column) = inSpan
 
 drawCommandId :: CommandId -> Text
 drawCommandId (CommandId u) = pack $
-  '<' : showHex (hashUnique u) ">"
+    '<' : showIntAtBase 36 base36Char (hashUnique u) ">"
+  where
+    base36Char = (alphabet!!)
+    alphabet = "0123456789" ++ ['a'..'z']
 
 data NavAction
   = NavArrowLeft
@@ -159,26 +163,34 @@ data InputModification
   | DeleteBackwards
   | DeleteForwards
   | BreakLine
+  | ReplaceBreakLine
 
 data ReplWidgetEvent
   = ReplCommandResultEvent CommandId CommandResult
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
+  | ReplSmartEnterEvent
+  | ReplQuitEvent
+
+data ReplCompleted = ReplCompleted | ReplInProgress
 
 handleReplWidgetEvent
   :: AuxxFace
   -> ReplWidgetEvent
-  -> StateT ReplWidgetState IO ()
-handleReplWidgetEvent AuxxFace{..} = \case
+  -> StateT ReplWidgetState IO ReplCompleted
+handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
+  ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
     zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
         DeleteForwards -> deleteChar
-        BreakLine -> breakLine
+        BreakLine -> smartBreakLine
+        ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse
+    return ReplInProgress
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
       case nav of
@@ -186,6 +198,16 @@ handleReplWidgetEvent AuxxFace{..} = \case
         NavArrowRight -> moveRight
         NavArrowUp -> moveUp
         NavArrowDown -> moveDown
+    return ReplInProgress
+  ReplSmartEnterEvent -> do
+    quitCommandDetected <- gets (isQuitCommand . replWidgetText)
+    if quitCommandDetected
+      then go ReplQuitEvent
+      else do
+        mPrevChar <- uses replWidgetTextZipperL previousChar
+        case mPrevChar of
+          Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
+          _ -> go ReplSendEvent
   ReplSendEvent -> do
     exprOrErr <- use replWidgetExprL
     case exprOrErr of
@@ -198,9 +220,19 @@ handleReplWidgetEvent AuxxFace{..} = \case
         let out = OutputCommand commandId (Auxx.pprExpr expr) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse
+    return ReplInProgress
   ReplCommandResultEvent commandId commandResult -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandResult)
+    return ReplInProgress
+
+isQuitCommand :: Text -> Bool
+isQuitCommand t = Text.strip t `List.elem` ["quit", "q", ":quit", ":q"]
+
+smartBreakLine :: TextZipper Text -> TextZipper Text
+smartBreakLine tz =
+  let indentation = Text.takeWhile Char.isSpace (currentLine tz)
+  in insertMany indentation (breakLine tz)
 
 updateCommandResult
   :: CommandId
