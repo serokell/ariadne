@@ -46,7 +46,7 @@ auxxPlugin :: (HasConfigurations, HasCompileInfo)
     -> UiFace
     -> (WorkerSpec AuxxMode, OutSpecs)
 auxxPlugin commandQueue uiFace = worker mempty $ \sendActions -> do
-    let commandProcs = createCommandProcs (Just Dict) (const (return ())) (Just sendActions)
+    let commandProcs = createCommandProcs (Just Dict) (Just Dict) (const (return ())) (Just sendActions)
     forever $ do
         (expr, uid) <- liftIO . atomically $ readTBQueue commandQueue
         res <- handleAsync (\e -> return $ CommandException e) $

@@ -22,6 +22,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
 import qualified Graphics.Vty as V
 
 import qualified Lang as Auxx
+import qualified Printer as Auxx
 
 import Ariadne.UI.AnsiToVty
 import Ariadne.Face
@@ -29,7 +30,7 @@ import Ariadne.Util
 
 data OutputElement
   = OutputCommand CommandId Text (Maybe (Int -> V.Image))
-  | OutputInfo Text
+  | OutputInfo (Int -> V.Image)
 
 data ReplWidgetState =
   ReplWidgetState
@@ -80,8 +81,8 @@ drawReplWidget hasFocus replWidgetState =
                 case outElems of
                   [] -> V.text' V.defAttr "Press <Enter> to send a command, ^N to insert line break"
                   xs -> V.vertCat (fmap drawOutputElement xs)
-              drawOutputElement (OutputInfo t) =
-                V.text' V.defAttr t
+              drawOutputElement (OutputInfo mkImg) =
+                mkImg (rdrCtx ^. B.availWidthL)
               drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
                 V.vertCat
                   [ V.horizCat
@@ -188,11 +189,13 @@ handleReplWidgetEvent AuxxFace{..} = \case
   ReplSendEvent -> do
     exprOrErr <- use replWidgetExprL
     case exprOrErr of
-      Left _parseErr -> return ()
+      Left parseErr -> do
+        let out = OutputInfo $ \w -> pprDoc w (Auxx.ppParseError parseErr)
+        zoom replWidgetOutL $ modify (out:)
       Right expr -> do
         commandId <- liftIO $ putAuxxCommand expr
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (pack (show expr)) Nothing
+        let out = OutputCommand commandId (Auxx.pprExpr expr) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse
   ReplCommandResultEvent commandId commandResult -> do
@@ -216,5 +219,7 @@ updateCommandResult
         CommandEvalError e -> pprDoc w (Auxx.ppEvalError e)
         CommandProcError e -> pprDoc w (Auxx.ppResolveErrors e)
         CommandException e -> V.string V.defAttr (displayException e)
-    pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
 updateCommandResult _ _ outCmd = outCmd
+
+pprDoc :: Int -> Ppr.A.Doc -> V.Image
+pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
