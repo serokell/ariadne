@@ -35,10 +35,9 @@ data OutputElement
 
 data ReplWidgetState =
   ReplWidgetState
-    {
-      replWidgetExpr :: Either Auxx.ParseError (Auxx.Expr Auxx.Name),
-      replWidgetTextZipper :: TextZipper Text,
-      replWidgetOut :: [OutputElement]
+    { replWidgetExpr :: Either Auxx.ParseError (Auxx.Expr Auxx.Name)
+    , replWidgetTextZipper :: TextZipper Text
+    , replWidgetOut :: [OutputElement]
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -55,10 +54,9 @@ initReplWidget
   :: ReplWidgetState
 initReplWidget =
   fix $ \this -> ReplWidgetState
-    {
-      replWidgetExpr = Auxx.parse (replWidgetText this),
-      replWidgetTextZipper = textZipper [] Nothing,
-      replWidgetOut = []
+    { replWidgetExpr = Auxx.parse (replWidgetText this)
+    , replWidgetTextZipper = textZipper [] Nothing
+    , replWidgetOut = []
     }
 
 drawReplWidget
@@ -71,10 +69,9 @@ drawReplWidget hasFocus replWidgetState =
     outElems = Prelude.reverse (replWidgetOut replWidgetState)
     drawOutput =
       B.Widget
-        {
-          B.hSize = B.Greedy,
-          B.vSize = B.Greedy,
-          B.render = do
+        { B.hSize = B.Greedy
+        , B.vSize = B.Greedy
+        , B.render = do
             rdrCtx <- B.getContext
             let
               img =
@@ -101,10 +98,9 @@ drawReplWidget hasFocus replWidgetState =
         }
     drawInput =
       B.Widget
-        {
-          B.hSize = B.Greedy,
-          B.vSize = B.Fixed,
-          B.render = do
+        { B.hSize = B.Greedy
+        , B.vSize = B.Fixed
+        , B.render = do
             let
               attrFn :: (Int, Int) -> V.Attr -> V.Attr
               attrFn loc =
