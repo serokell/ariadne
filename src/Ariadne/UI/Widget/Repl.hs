@@ -1,15 +1,20 @@
 module Ariadne.UI.Widget.Repl where
 
 import Prelude hiding (unlines)
-import Data.Text
+import Data.Text as Text
 import Data.Function (fix)
 import Control.Lens
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import Data.Text.Zipper
 import Data.Unique
+import Data.List as List
 import Numeric (showHex)
 import Control.Exception (displayException)
+import Text.Earley (Report (..))
+
+import qualified Data.Loc as Loc
+import qualified Data.Loc.Span as Loc
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -37,7 +42,7 @@ data ReplWidgetState =
 makeLensesWith postfixLFields ''ReplWidgetState
 
 replWidgetText :: ReplWidgetState -> Text
-replWidgetText = unlines . getText . replWidgetTextZipper
+replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
 replReparse :: Monad m => StateT ReplWidgetState m ()
 replReparse = do
@@ -99,12 +104,24 @@ drawReplWidget hasFocus replWidgetState =
           B.vSize = B.Fixed,
           B.render = do
             let
+              attrFn :: (Int, Int) -> V.Attr -> V.Attr
+              attrFn loc =
+                case replWidgetExpr replWidgetState of
+                  Right _ -> id
+                  Left parseErr ->
+                    if parseErrSpanFn parseErr loc
+                    then (`V.withBackColor` V.red)
+                    else id
               zipper = replWidgetTextZipper replWidgetState
               img =
-                V.string V.defAttr "auxx> " `V.horizJoin`
-                V.vertCat
-                  [ V.text' V.defAttr line
-                  | line <- getText zipper
+                V.vertCat $ List.zipWith V.horizJoin
+                  (V.string V.defAttr "auxx> " :
+                   List.repeat (V.string V.defAttr "  ... "))
+                  [ V.horizCat
+                    [ V.char (attrFn (row, column) V.defAttr) char
+                    | (column, char) <- List.zip [1..] (unpack line)
+                    ]
+                  | (row, line) <- List.zip [1..] (getText zipper)
                   ]
               curLoc =
                 let (y, x) = cursorPosition zipper
@@ -114,6 +131,17 @@ drawReplWidget hasFocus replWidgetState =
                 & B.imageL .~ img
                 & B.cursorsL .~ [curLoc | hasFocus]
         }
+
+parseErrSpanFn :: Auxx.ParseError -> (Int, Int) -> Bool
+parseErrSpanFn parseErr (row, column) = inSpan
+  where
+    Auxx.ParseError _ report = parseErr
+    spans = List.map fst (unconsumed report)
+    inSpan = List.any inSpan1 spans
+    inSpan1 = Loc.overlapping $
+      Loc.fromTo
+        (Loc.loc (fromIntegral row) (fromIntegral column))
+        (Loc.loc (fromIntegral row) (fromIntegral column + 1))
 
 drawCommandId :: CommandId -> Text
 drawCommandId (CommandId u) = pack $
