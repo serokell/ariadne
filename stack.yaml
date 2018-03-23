@@ -9,7 +9,7 @@ packages:
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: a3bef5a013975832d3e02e1f6237da5c42147204
+    commit: 43e173b0160f19b02fd64a3be374a3a9d90617de
   extra-dep: true
   subdirs:
   - auxx

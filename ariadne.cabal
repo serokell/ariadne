@@ -55,6 +55,8 @@ library
     , transformers
     , text-zipper
     , ansi-wl-pprint
+    , loc
+    , Earley
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
