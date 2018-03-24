@@ -35,6 +35,7 @@ library
     , cardano-sl-util
     , cpphs
     , constraints
+    , directory
     , formatting
     , kademlia
     , lens
@@ -62,6 +63,7 @@ library
       Ariadne.UI.App
       Ariadne.UI.LayerName
       Ariadne.UI.AnsiToVty
+      Ariadne.UI.CommandHistory
       Ariadne.UI.Widget.Config
       Ariadne.UI.Widget.Help
       Ariadne.UI.Widget.Wallet

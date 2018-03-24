@@ -1,5 +1,6 @@
-module CommandHistory
-    ( openCommandHistory
+module Ariadne.UI.CommandHistory
+    ( CommandHistory
+    , openCommandHistory
     , setCurrCommand
     , startNewCommand
     , toNextCommand
@@ -10,6 +11,7 @@ import Control.Monad (when)
 import Data.IORef
 import Data.Maybe (isNothing)
 import Data.Text (Text)
+import Prelude
 import System.Directory (renameFile)
 import qualified Data.Text as T
 
@@ -53,7 +55,7 @@ changeCommand ch counterChange = do
 maybeIndex :: Int -> [a] -> Maybe a
 maybeIndex _ [] = Nothing
 maybeIndex 0 (x:_) = Just x
-maybeIndex n (x:xs) = maybeIndex (n-1) xs
+maybeIndex n (_:xs) = maybeIndex (n-1) xs
 
 setCurrCommand :: CommandHistory -> Text -> IO ()
 setCurrCommand ch =
