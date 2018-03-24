@@ -19,3 +19,13 @@ currentFocus focusRing =
 
 wrapBrickHandler :: Functor m => (e -> s -> m s) -> e -> StateT s m ()
 wrapBrickHandler f ev = StateT $ \s -> ((),) <$> f ev s
+
+integralDistribExcess :: Integral n => n -> n -> (n, n)
+integralDistribExcess desired actual = (l, r)
+  where
+    excess =
+      if desired > actual
+      then desired - actual
+      else 0
+    l = excess `quot` 2
+    r = excess - l
