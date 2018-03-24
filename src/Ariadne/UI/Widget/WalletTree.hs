@@ -33,10 +33,12 @@ drawWalletTreeWidget _hasFocus WalletTreeWidgetState =
           V.vertCat
             [ V.text' V.defAttr "root1 ADA"
             , V.text' V.defAttr "├── 1-1"
-            , V.text' V.defAttr "├── 1-2"
-            , V.text' V.defAttr "│   └── "
+            , V.text' V.defAttr "│   ├── 1-1-1"
+            , V.text' V.defAttr "│   └── 1-1-2"
+            , V.text' V.defAttr "└── 1-2"
+            , V.text' V.defAttr "    └── "
                 `V.horizJoin` V.text' selAttr  "1-2-2"
-            , V.text' V.defAttr "│"
+            , V.text' V.defAttr ""
             , V.text' V.defAttr "root2 ADA"
             , V.text' V.defAttr "└── 2-1"
             ]
