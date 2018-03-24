@@ -61,13 +61,15 @@ library
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
-      Ariadne.UI.LayerName
       Ariadne.UI.AnsiToVty
       Ariadne.UI.CommandHistory
       Ariadne.UI.Widget.Config
       Ariadne.UI.Widget.Help
-      Ariadne.UI.Widget.Wallet
+      Ariadne.UI.Widget.Logs
+      Ariadne.UI.Widget.Menu
       Ariadne.UI.Widget.Repl
+      Ariadne.UI.Widget.WalletTree
+      Ariadne.UI.Widget.WalletPane
       Ariadne.AuxxBackend
       Ariadne.Face
       Ariadne.Util

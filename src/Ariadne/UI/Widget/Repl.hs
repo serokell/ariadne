@@ -18,7 +18,6 @@ import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
 
 import qualified Brick as B
-import qualified Brick.Widgets.Border as B
 import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
 import qualified Graphics.Vty as V
 
@@ -50,85 +49,92 @@ replReparse = do
   t <- gets replWidgetText
   replWidgetExprL .= Auxx.parse t
 
-initReplWidget
-  :: ReplWidgetState
+initReplWidget :: ReplWidgetState
 initReplWidget =
   fix $ \this -> ReplWidgetState
     { replWidgetExpr = Auxx.parse (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
-    , replWidgetOut = []
+    , replWidgetOut = [OutputInfo ariadneBanner]
     }
 
-drawReplWidget
+drawReplOutputWidget
   :: Bool
   -> ReplWidgetState
   -> B.Widget name
-drawReplWidget hasFocus replWidgetState =
-    B.vBox [drawOutput, B.hBorder, drawInput]
+drawReplOutputWidget _hasFocus replWidgetState =
+  B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Greedy
+    , B.render = render
+    }
   where
     outElems = Prelude.reverse (replWidgetOut replWidgetState)
-    drawOutput =
-      B.Widget
-        { B.hSize = B.Greedy
-        , B.vSize = B.Greedy
-        , B.render = do
-            rdrCtx <- B.getContext
-            let
-              img =
-                V.cropTop ((rdrCtx ^. B.availHeightL) - 1) $
-                case outElems of
-                  [] -> V.text' V.defAttr "Press <Enter> to send a command, <Backslash> <Enter> to insert a line break"
-                  xs -> V.vertCat (fmap drawOutputElement xs)
-              drawOutputElement (OutputInfo mkImg) =
-                mkImg (rdrCtx ^. B.availWidthL)
-              drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
-                V.vertCat
-                  [ V.horizCat
-                    [ V.text' V.defAttr (drawCommandId commandId)
-                    , V.text' V.defAttr " "
-                    , V.text' V.defAttr commandSrc
-                    ]
-                  , case mCommandOut of
-                      Nothing -> V.text' V.defAttr "<waiting for output>"
-                      Just mkImg -> mkImg (rdrCtx ^. B.availWidthL)
-                  ]
-            return $
-              B.emptyResult
-                & B.imageL .~ img
-        }
-    drawInput =
-      B.Widget
-        { B.hSize = B.Greedy
-        , B.vSize = B.Fixed
-        , B.render = do
-            let
-              attrFn :: (Int, Int) -> V.Attr -> V.Attr
-              attrFn loc =
-                case replWidgetExpr replWidgetState of
-                  Right _ -> id
-                  Left parseErr ->
-                    if parseErrSpanFn parseErr loc
-                    then (`V.withBackColor` V.red)
-                    else id
-              zipper = replWidgetTextZipper replWidgetState
-              img =
-                V.vertCat $ List.zipWith V.horizJoin
-                  (V.string V.defAttr "auxx> " :
-                   List.repeat (V.string V.defAttr "  ... "))
-                  [ V.horizCat
-                    [ V.char (attrFn (row, column) V.defAttr) char
-                    | (column, char) <- List.zip [1..] (unpack line)
-                    ]
-                  | (row, line) <- List.zip [1..] (getText zipper)
-                  ]
-              curLoc =
-                let (y, x) = cursorPosition zipper
-                in B.CursorLocation (B.Location (x + 6, y)) Nothing
-            return $
-              B.emptyResult
-                & B.imageL .~ img
-                & B.cursorsL .~ [curLoc | hasFocus]
-        }
+    render = do
+      rdrCtx <- B.getContext
+      let
+        height = (rdrCtx ^. B.availHeightL) - 1
+        img =
+          V.cropTop height $
+          V.vertCat $
+          List.intersperse (V.backgroundFill 1 1) $
+          fmap drawOutputElement outElems
+        drawOutputElement (OutputInfo mkImg) =
+          mkImg (rdrCtx ^. B.availWidthL)
+        drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
+          V.vertCat
+            [ V.horizCat
+              [ V.text' V.defAttr (drawCommandId commandId)
+              , V.text' V.defAttr " "
+              , V.text' V.defAttr commandSrc
+              ]
+            , case mCommandOut of
+                Nothing -> V.text' V.defAttr "<waiting for output>"
+                Just mkImg -> mkImg (rdrCtx ^. B.availWidthL)
+            ]
+      return $
+        B.emptyResult
+          & B.imageL .~ img
+
+drawReplInputWidget
+  :: Bool
+  -> ReplWidgetState
+  -> B.Widget name
+drawReplInputWidget hasFocus replWidgetState =
+  B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Fixed
+    , B.render = render
+    }
+  where
+    render = do
+      let
+        attrFn :: (Int, Int) -> V.Attr -> V.Attr
+        attrFn loc =
+          case replWidgetExpr replWidgetState of
+            Right _ -> id
+            Left parseErr ->
+              if parseErrSpanFn parseErr loc
+              then (`V.withBackColor` V.red)
+              else id
+        zipper = replWidgetTextZipper replWidgetState
+        img =
+          V.vertCat $
+          List.zipWith V.horizJoin
+            (V.string V.defAttr "auxx> " :
+              List.repeat (V.string V.defAttr "  ... "))
+            [ V.horizCat
+              [ V.char (attrFn (row, column) V.defAttr) char
+              | (column, char) <- List.zip [1..] (unpack line)
+              ]
+            | (row, line) <- List.zip [1..] (getText zipper)
+            ]
+        curLoc =
+          let (y, x) = cursorPosition zipper
+          in B.CursorLocation (B.Location (x + 6, y)) Nothing
+      return $
+        B.emptyResult
+          & B.imageL .~ img
+          & B.cursorsL .~ [curLoc | hasFocus]
 
 parseErrSpanFn :: Auxx.ParseError -> (Int, Int) -> Bool
 parseErrSpanFn parseErr (row, column) = inSpan
@@ -223,7 +229,8 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
     return ReplInProgress
 
 isQuitCommand :: Text -> Bool
-isQuitCommand t = Text.strip t `List.elem` ["quit", "q", ":quit", ":q"]
+isQuitCommand t =
+  Text.strip t `List.elem` ["quit", "q", ":quit", ":q", "exit"]
 
 smartBreakLine :: TextZipper Text -> TextZipper Text
 smartBreakLine tz =
@@ -251,3 +258,15 @@ updateCommandResult _ _ outCmd = outCmd
 
 pprDoc :: Int -> Ppr.A.Doc -> V.Image
 pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
+
+ariadneBanner :: Int -> V.Image
+ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
+  [ "             ___         _           __         "
+  , "            /   |  _____(_)___ _____/ /___  ___ "
+  , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
+  , "          / ___ |/ /  / / /_/ / /_/ / / / /  __/"
+  , "         /_/  |_/_/  /_/\\__,_/\\__,_/_/ /_/\\___/ "
+  , ""
+  , "              Press <Enter> to send a command,"
+  , "        <Backslash> <Enter> to insert a line break."
+  ]

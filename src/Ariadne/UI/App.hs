@@ -1,38 +1,57 @@
 module Ariadne.UI.App where
 
 import Prelude
+import Data.Void
+import Data.List.NonEmpty
 import Control.Lens
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 
 import qualified Brick as B
-import qualified Brick.Focus as B
-import qualified Brick.Themes as B
-import qualified Brick.Forms as B
+import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
-import Ariadne.Face (AuxxFace, AuxxEvent)
-import Ariadne.UI.LayerName
+import Ariadne.Face
 import Ariadne.Util
 
-import qualified Ariadne.UI.Widget.Config as CW
-import qualified Ariadne.UI.Widget.Help   as HW
-import qualified Ariadne.UI.Widget.Wallet as WW
+import Ariadne.UI.Widget.Repl
+  ( ReplWidgetState, initReplWidget, drawReplOutputWidget, drawReplInputWidget,
+    ReplCompleted(..), handleReplWidgetEvent, ReplWidgetEvent(..),
+    NavAction(..), InputModification(..) )
 
--- Selectors (unique names) for parts of the widgets in the application.
+import Ariadne.UI.Widget.Menu
+  ( MenuWidgetState, initMenuWidget, drawMenuWidget, menuWidgetSel,
+    handleMenuWidgetEvent, MenuWidgetEvent(..) )
+
+import Ariadne.UI.Widget.Help
+  ( HelpWidgetState, initHelpWidget, drawHelpWidget )
+
+import Ariadne.UI.Widget.Logs
+  ( LogsWidgetState, initLogsWidget, drawLogsWidget )
+
+import Ariadne.UI.Widget.WalletPane
+  ( WalletPaneWidgetState, initWalletPaneWidget, drawWalletPaneWidget )
+
+import Ariadne.UI.Widget.WalletTree
+  ( WalletTreeWidgetState, initWalletTreeWidget, drawWalletTreeWidget )
+
 data AppSelector
-  = AppSelectorConfig CW.ConfigWidgetSelector
-  | AppSelectorWallet WW.WalletWidgetSelector
-  deriving (Eq, Ord, Show)
-
-makePrisms ''AppSelector
+  = AppSelectorReplInput
+  | AppSelectorReplOutput
+  | AppSelectorWalletTree
+  | AppSelectorWalletPane
+  | AppSelectorHelp
+  | AppSelectorLogs
+  deriving (Eq)
 
 data AppState =
   AppState
-    { appStateConfig :: CW.ConfigWidgetState AuxxEvent AppSelector
-    , appStateHelp :: HW.HelpWidgetState
-    , appStateWallet :: WW.WalletWidgetState AppSelector
-    , appStateLayerFocus :: B.FocusRing LayerName
+    { appStateRepl :: ReplWidgetState
+    , appStateMenu :: MenuWidgetState AppSelector
+    , appStateHelp :: HelpWidgetState
+    , appStateLogs :: LogsWidgetState
+    , appStateWalletTree :: WalletTreeWidgetState
+    , appStateWalletPane :: WalletPaneWidgetState
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -40,93 +59,189 @@ makeLensesWith postfixLFields ''AppState
 initialAppState :: AppState
 initialAppState =
   AppState
-    { appStateConfig = CW.initConfigWidget AppSelectorConfig CW.defaultUserInfo
-    , appStateHelp = HW.initHelpWidget
-    , appStateWallet = WW.initWalletWidget AppSelectorWallet
-    , appStateLayerFocus =
-        B.focusSetCurrent LayerConfig $
-        B.focusRing [LayerWallet, LayerHelp, LayerConfig]
+    { appStateRepl = initReplWidget
+    , appStateMenu = initMenuWidget appSelectors 0
+    , appStateHelp = initHelpWidget
+    , appStateLogs = initLogsWidget
+    , appStateWalletTree = initWalletTreeWidget
+    , appStateWalletPane = initWalletPaneWidget
     }
+  where
+    appSelectors :: NonEmpty AppSelector
+    appSelectors =
+      AppSelectorReplInput  :|
+      AppSelectorReplOutput :
+      AppSelectorWalletTree :
+      AppSelectorWalletPane :
+      AppSelectorHelp       :
+      AppSelectorLogs       : []
+
+data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: AuxxFace -> B.App AppState AuxxEvent AppSelector
+app :: AuxxFace -> B.App AppState AuxxEvent Void
 app auxxFace = B.App{..} where
 
   appDraw
     :: AppState
-    -> [B.Widget AppSelector]
-  appDraw AppState{..} =
-    case currentFocus appStateLayerFocus of
-      LayerWallet -> [WW.drawWalletWidget appStateWallet]
-      LayerHelp -> [HW.drawHelpWidget appStateHelp]
-      LayerConfig -> [CW.drawConfigWidget AppSelectorConfig appStateConfig]
+    -> [B.Widget Void]
+  appDraw = drawAppWidget
 
+  -- We do not use this feature of Brick.
   appChooseCursor
     :: AppState
-    -> [B.CursorLocation AppSelector]
-    -> Maybe (B.CursorLocation AppSelector)
+    -> [B.CursorLocation Void]
+    -> Maybe (B.CursorLocation Void)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent AppSelector AuxxEvent
-    -> B.EventM AppSelector (B.Next AppState)
+    -> B.BrickEvent Void AuxxEvent
+    -> B.EventM Void (B.Next AppState)
   appHandleEvent appState ev = do
-    (completed, appState') <-
+    (completed, appState') <- liftIO $
       runStateT (handleAppEvent auxxFace ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
 
-  appStartEvent
-    :: AppState
-    -> B.EventM AppSelector AppState
+  -- We do not use this feature of Brick.
+  appStartEvent :: AppState -> B.EventM Void AppState
   appStartEvent = return
 
-  appAttrMap
-    :: AppState
-    -> B.AttrMap
-  appAttrMap AppState{..} =
-    case currentFocus appStateLayerFocus of
-      LayerWallet -> WW.walletWidgetAttrMap
-      LayerHelp -> B.attrMap V.defAttr []
-      LayerConfig -> B.themeToAttrMap $ CW.theme $ B.formState appStateConfig
+  -- We do not use this feature of Brick.
+  appAttrMap :: AppState -> B.AttrMap
+  appAttrMap _ = B.attrMap V.defAttr []
 
-data AppCompleted = AppCompleted | AppInProgress
+drawAppWidget
+    :: AppState
+    -> [B.Widget Void]
+drawAppWidget AppState{..} =
+  let
+    drawMenu =
+      drawMenuWidget
+        (\case
+          AppSelectorReplInput -> "^R REPL"
+          AppSelectorReplOutput -> "^O Output"
+          AppSelectorWalletTree -> "^T Tree"
+          AppSelectorWalletPane -> "^P Pane"
+          AppSelectorHelp -> "^H Help"
+          AppSelectorLogs -> "^L Logs")
+        appStateMenu
+    drawReplInput =
+      drawReplInputWidget
+        (menuWidgetSel appStateMenu == AppSelectorReplInput)
+        appStateRepl
+    drawReplOutput =
+      drawReplOutputWidget
+        (menuWidgetSel appStateMenu == AppSelectorReplOutput)
+        appStateRepl
+    drawRepl =
+      B.vBox
+        [ drawReplOutput
+        , B.hBorder
+        , drawReplInput
+        ]
+    drawWalletTree =
+      drawWalletTreeWidget
+        (menuWidgetSel appStateMenu == AppSelectorWalletTree)
+        appStateWalletTree
+    drawWalletPane =
+      drawWalletPaneWidget
+        (menuWidgetSel appStateMenu == AppSelectorWalletPane)
+        appStateWalletPane
+    padLR =
+      B.padLeft (B.Pad 1) . B.padRight (B.Pad 1)
+    drawDefaultView =
+      B.vBox
+        [ drawMenu
+        , B.hBox
+            [ padLR drawWalletTree
+            , B.vBorder
+            , padLR drawWalletPane
+            ]
+        , B.hBorder
+        , drawRepl
+        ]
+    drawHelp =
+      drawHelpWidget appStateHelp
+    drawHelpView =
+      B.vBox [drawMenu, drawHelp]
+    drawLogs =
+      drawLogsWidget appStateLogs
+    drawLogsView =
+      B.vBox [drawMenu, drawLogs]
+  in
+    case (menuWidgetSel appStateMenu) of
+      AppSelectorHelp -> [drawHelpView]
+      AppSelectorLogs -> [drawLogsView]
+      _ -> [drawDefaultView]
 
 handleAppEvent
   :: AuxxFace
-  -> B.BrickEvent AppSelector AuxxEvent
-  -> StateT AppState (B.EventM AppSelector) AppCompleted
-handleAppEvent _ (B.VtyEvent (V.EvKey (V.KChar 'c') [V.MCtrl])) =
-  return AppCompleted
+  -> B.BrickEvent Void AuxxEvent
+  -> StateT AppState IO AppCompleted
 handleAppEvent auxxFace ev = do
-  appStateLayerFocus <- use appStateLayerFocusL
-  case currentFocus appStateLayerFocus of
-    LayerWallet -> do
-      completed <- zoom appStateWalletL $
-        WW.handleWalletWidgetEvent auxxFace ev
-      case completed of
-        WW.WalletInProgress -> return AppInProgress
-        WW.WalletCompleted -> return AppCompleted
-        WW.WalletToLayer layerName -> do
-          zoom appStateLayerFocusL $ modify (B.focusSetCurrent layerName)
+  sel <- uses appStateMenuL menuWidgetSel
+  case ev of
+    B.VtyEvent vtyEv
+      | V.EvKey (V.KChar 'c') [V.MCtrl] <- vtyEv ->
+          return AppCompleted
+      | V.EvKey (V.KChar '\t') [] <- vtyEv -> do
+          zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
           return AppInProgress
-    LayerHelp -> mapStateT liftIO $ do
-      completed <- zoom appStateHelpL $
-        HW.handleHelpWidgetEvent ev
-      case completed of
-        HW.HelpInProgress -> return ()
-        HW.HelpCompleted ->
-          zoom appStateLayerFocusL $
-            modify (B.focusSetCurrent LayerWallet)
+      | V.EvKey V.KBackTab [] <- vtyEv -> do
+          zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
+          return AppInProgress
+      | V.EvKey (V.KChar c) [V.MCtrl] <- vtyEv,
+        Just appSel <- charAppSel c -> do
+          zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
+          return AppInProgress
+      | Just replEv <- toReplEv vtyEv,
+        AppSelectorReplInput <- sel -> do
+          completed <- zoom appStateReplL $
+            handleReplWidgetEvent auxxFace replEv
+          return $ case completed of
+            ReplCompleted -> AppCompleted
+            ReplInProgress -> AppInProgress
+    B.AppEvent (AuxxResultEvent commandId commandResult) -> do
+        completed <- zoom appStateReplL $
+          handleReplWidgetEvent auxxFace $
+            ReplCommandResultEvent commandId commandResult
+        return $ case completed of
+          ReplCompleted -> AppCompleted
+          ReplInProgress -> AppInProgress
+    _ ->
       return AppInProgress
-    LayerConfig -> do
-      completed <- zoom appStateConfigL $
-        CW.handleConfigWidgetEvent AppSelectorConfig ev
-      case completed of
-        CW.ConfigInProgress -> return ()
-        CW.ConfigCompleted ->
-          zoom appStateLayerFocusL $
-            modify (B.focusSetCurrent LayerWallet)
-      return AppInProgress
+
+charAppSel :: Char -> Maybe AppSelector
+charAppSel = \case
+  'r' -> Just AppSelectorReplInput
+  'o' -> Just AppSelectorReplOutput
+  't' -> Just AppSelectorWalletTree
+  'p' -> Just AppSelectorWalletPane
+  'h' -> Just AppSelectorHelp
+  'l' -> Just AppSelectorLogs
+  _ -> Nothing
+
+toReplEv :: V.Event -> Maybe ReplWidgetEvent
+toReplEv = \case
+  V.EvKey V.KLeft [] ->
+    Just $ ReplInputNavigationEvent NavArrowLeft
+  V.EvKey V.KRight [] ->
+    Just $ ReplInputNavigationEvent NavArrowRight
+  V.EvKey V.KUp [] ->
+    Just $ ReplInputNavigationEvent NavArrowUp
+  V.EvKey V.KDown [] ->
+    Just $ ReplInputNavigationEvent NavArrowDown
+  V.EvKey V.KBS [] ->
+    Just $ ReplInputModifyEvent DeleteBackwards
+  V.EvKey V.KDel [] ->
+    Just $ ReplInputModifyEvent DeleteForwards
+  V.EvKey V.KEnter [] ->
+    Just $ ReplSmartEnterEvent
+  V.EvKey (V.KChar 'd') [V.MCtrl] ->
+    Just ReplQuitEvent
+  V.EvKey (V.KChar c) _ ->
+    Just $ ReplInputModifyEvent (InsertChar c)
+  _ -> Nothing
