@@ -9,6 +9,12 @@ import           Pos.Crypto (AHash, PublicKey)
 import           Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
 
 import           Knit.Value
+import           Knit.Procedure
+import           Knit.Eval
+import           Knit.Syntax
+
+-- TODO
+type AuxxMode = Identity
 
 data AddrDistrPart = AddrDistrPart
     { adpStakeholderId :: !StakeholderId
@@ -53,7 +59,7 @@ data AddKeyParams = AddKeyParams
 
 data Cardano
 
-data instance ComponentValue v Cardano
+data instance ComponentValue _ Cardano
   = ValueAddress Address
   | ValuePublicKey PublicKey
   | ValueTxOut TxOut
@@ -66,3 +72,24 @@ data instance ComponentValue v Cardano
   | ValueProposeUpdateSystem ProposeUpdateSystem
   | ValueAddrDistrPart AddrDistrPart
   | ValueAddrStakeDistribution AddrStakeDistribution
+
+data instance ComponentLit Cardano
+  = LitAddress Address
+  | LitPublicKey PublicKey
+  | LitStakeholderId StakeholderId
+  | LitHash AHash
+  | LitBlockVersion BlockVersion
+  | LitSoftwareVersion SoftwareVersion
+  deriving (Eq, Ord, Show)
+
+data instance ComponentCommandRepr components Cardano
+  = CommandAction (AuxxMode (Value components))
+
+instance ComponentLitToValue components Cardano where
+  componentLitToValue = \case
+    LitAddress x -> ValueAddress x
+    LitPublicKey x -> ValuePublicKey x
+    LitStakeholderId x -> ValueStakeholderId x
+    LitHash x -> ValueHash x
+    LitBlockVersion x -> ValueBlockVersion x
+    LitSoftwareVersion x -> ValueSoftwareVersion x
