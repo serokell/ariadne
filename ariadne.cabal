@@ -63,7 +63,6 @@ library
       Ariadne.UI.App
       Ariadne.UI.AnsiToVty
       Ariadne.UI.CommandHistory
-      Ariadne.UI.Widget.Config
       Ariadne.UI.Widget.Help
       Ariadne.UI.Widget.Logs
       Ariadne.UI.Widget.Menu
