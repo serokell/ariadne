@@ -1,12 +1,10 @@
 module Ariadne.UI.Widget.Help where
 
 import Prelude
+import Control.Lens
 import Control.Monad.Trans.State
 
 import qualified Brick as B
-import qualified Brick.Widgets.Center as B
-import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Border.Style as B
 import qualified Graphics.Vty as V
 
 data HelpWidgetState = HelpWidgetState
@@ -16,20 +14,34 @@ initHelpWidget = HelpWidgetState
 
 drawHelpWidget :: HelpWidgetState -> B.Widget name
 drawHelpWidget HelpWidgetState =
-  B.withBorderStyle B.unicode $
-  B.borderWithLabel (B.str "Help") $
-  B.center (B.str "Some help") B.<+> B.vBorder B.<+> B.center (B.str "Some help")
+  B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Greedy
+    , B.render = render
+    }
+  where
+    render = do
+      let
+        img = V.text' V.defAttr "Ariadne documentation goes here..."
+      return $
+        B.emptyResult
+          & B.imageL .~ img
 
 data HelpCompleted = HelpCompleted | HelpInProgress
 
+data HelpWidgetEvent
+  = HelpExit
+  | HelpScrollDown
+  | HelpScrollUp
+
 handleHelpWidgetEvent
-  :: B.BrickEvent name ev
+  :: HelpWidgetEvent
   -> StateT HelpWidgetState IO HelpCompleted
 handleHelpWidgetEvent ev = do
   case ev of
-    B.VtyEvent (V.EvKey V.KEsc []) ->
+    HelpExit ->
       return HelpCompleted
-    B.VtyEvent (V.EvKey V.KEnter []) ->
-      return HelpCompleted
-    _ ->
+    HelpScrollUp ->
+      return HelpInProgress
+    HelpScrollDown ->
       return HelpInProgress
