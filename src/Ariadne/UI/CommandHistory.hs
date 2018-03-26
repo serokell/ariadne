@@ -60,7 +60,7 @@ maybeIndex n (_:xs) = maybeIndex (n-1) xs
 setCurrCommand :: CommandHistory -> Text -> IO ()
 setCurrCommand ch cmd = do
     writeIORef (counter ch) (-1)
-    writeIORef $ currCommand ch
+    writeIORef (currCommand ch) cmd
 
 startNewCommand :: CommandHistory -> IO ()
 startNewCommand ch = do
