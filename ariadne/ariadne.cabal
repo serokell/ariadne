@@ -31,6 +31,7 @@ library
     , scientific
     , cpphs
     , constraints
+    , directory
     , formatting
     , kademlia
     , lens
@@ -59,9 +60,10 @@ library
       Ariadne.UI
       Ariadne.UI.App
       Ariadne.UI.AnsiToVty
-      Ariadne.UI.Widget.Menu
+      Ariadne.UI.CommandHistory
       Ariadne.UI.Widget.Help
       Ariadne.UI.Widget.Logs
+      Ariadne.UI.Widget.Menu
       Ariadne.UI.Widget.Repl
       Ariadne.UI.Widget.WalletTree
       Ariadne.UI.Widget.WalletPane
