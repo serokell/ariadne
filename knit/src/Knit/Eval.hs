@@ -31,6 +31,40 @@ class ComponentLitToValue components component where
     :: ComponentLit component
     -> ComponentValue components component
 
+evaluate
+  :: ( AllConstrained (ComponentCommandExec m components) components
+     , AllConstrained (ComponentLitToValue components) components
+     , Monad m
+     , Ord (Value components)
+     )
+  => Expr (Some (Elem components) (CommandProc components)) components
+  -> m (Either (EvalError components) (Value components))
+evaluate expr = runExceptT (eval expr)
+
+eval
+  :: ( AllConstrained (ComponentCommandExec m components) components
+     , AllConstrained (ComponentLitToValue components) components
+     , Monad m
+     , Ord (Value components)
+     )
+  => Expr (Some (Elem components) (CommandProc components)) components
+  -> EvalT components m (Value components)
+eval = \case
+  ExprLit l -> return (literalToValue l)
+  ExprProcCall procCall ->
+    evalProcCall =<< traverse eval procCall
+
+evalProcCall
+  :: forall m components.
+     ( AllConstrained (ComponentCommandExec m components) components
+     , Monad m
+     , Ord (Value components)
+     )
+  => ProcCall (Some (Elem components) (CommandProc components)) (Value components)
+  -> EvalT components m (Value components)
+evalProcCall (ProcCall (Some commandProc) args) =
+  componentEvalProcCall (ProcCall commandProc args)
+
 literalToValue
   :: forall components.
      AllConstrained (ComponentLitToValue components) components
@@ -41,20 +75,20 @@ literalToValue =
   . umapConstrained @(ComponentLitToValue components) componentLitToValue
   . getLitUnion
 
-evalProcCall
+componentEvalProcCall
   :: forall m component components.
      ( AllConstrained (ComponentCommandExec m components) components
-     , Elem component components
+     , Elem components component
      , Monad m
      , Ord (Value components)
      )
   => ProcCall (CommandProc components component) (Value components)
   -> EvalT components m (Value components)
-evalProcCall (ProcCall CommandProc{..} args) = do
+componentEvalProcCall (ProcCall CommandProc{..} args) = do
     e <- either (throwError . InvalidArguments cpName) return $
          consumeArguments cpArgumentConsumer $
          cpArgumentPrepare args
-    lift $ commandExec (elemEv @component @components) (cpRepr e)
+    lift $ commandExec (elemEv @components @component) (cpRepr e)
   where
     commandExec
       :: forall components'.

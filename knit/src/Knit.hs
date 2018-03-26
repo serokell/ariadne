@@ -1,1 +1,1 @@
-module Knit where
+{-# OPTIONS_GHC -F -pgmF autoexporter #-}

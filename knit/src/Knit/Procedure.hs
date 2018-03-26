@@ -5,11 +5,15 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Validation as Validation
 import Control.Lens
 import Data.List as List
+import Data.Vinyl.TypeLevel
+import Data.Vinyl.Core
+import Data.Proxy
 
 import Knit.Name
 import Knit.Value
 import Knit.Argument
 import Knit.Syntax
+import Knit.Utils
 
 data family ComponentCommandRepr (components :: [*]) component
 
@@ -21,6 +25,20 @@ data CommandProc components component = forall e. CommandProc
   , cpHelp :: Text
   }
 
+class Elem components component => ComponentCommandProcs components component where
+  componentCommandProcs :: [CommandProc components component]
+
+commandProcs :: forall components.
+     (AllConstrained (ComponentCommandProcs components) components, KnownSpine components)
+  => [Some (Elem components) (CommandProc components)]
+commandProcs = go (knownSpine @components)
+  where
+    go :: forall components'.
+      (AllConstrained (ComponentCommandProcs components) components')
+      => Spine components' -> [Some (Elem components) (CommandProc components)]
+    go RNil = []
+    go ((Proxy :: Proxy component) :& xs) = List.map Some (componentCommandProcs @_ @component) ++ go xs
+
 resolveProcNames ::
     (x -> Name) ->
     [x] ->
@@ -30,9 +48,7 @@ resolveProcNames nameOf xs =
     over _Left NonEmpty.nub . Validation.toEither . go
   where
     go = \case
-      ExprUnit -> pure ExprUnit
       ExprLit l -> pure (ExprLit l)
-      ExprGroup exprs -> ExprGroup <$> traverse go exprs
       ExprProcCall procCall -> ExprProcCall <$> goProcCall procCall
 
     goProcCall (ProcCall procName args) =

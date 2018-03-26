@@ -1,14 +1,11 @@
 module Knit.Syntax where
 
-import Data.List.NonEmpty
 import Data.Union
 
 import Knit.Name
 
 data Expr cmd components
-  = ExprUnit
-  | ExprGroup (NonEmpty (Expr cmd components))
-  | ExprProcCall (ProcCall cmd (Expr cmd components))
+  = ExprProcCall (ProcCall cmd (Expr cmd components))
   | ExprLit (Lit components)
 
 deriving instance (Eq (Lit components), Eq cmd) => Eq (Expr cmd components)

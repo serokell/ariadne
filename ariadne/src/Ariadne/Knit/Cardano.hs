@@ -1,17 +1,21 @@
 module Ariadne.Knit.Cardano where
 
-import           Universum
+import Universum
 
-import           Pos.Core (AddrStakeDistribution, Address, BlockVersion, CoinPortion,
-                           SoftwareVersion, StakeholderId)
-import           Pos.Core.Txp (TxOut)
-import           Pos.Crypto (AHash, PublicKey)
-import           Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
+import Pos.Core (AddrStakeDistribution, Address, BlockVersion, CoinPortion,
+                 SoftwareVersion, StakeholderId)
+import Pos.Core.Txp (TxOut)
+import Pos.Crypto (AHash, PublicKey)
+import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
 
-import           Knit.Value
-import           Knit.Procedure
-import           Knit.Eval
-import           Knit.Syntax
+import Knit.Value
+import Knit.Procedure
+import Knit.Eval
+import Knit.Syntax
+import Knit.Core
+import Knit.Utils
+
+import Data.Vinyl.TypeLevel
 
 -- TODO
 type AuxxMode = Identity
@@ -73,6 +77,10 @@ data instance ComponentValue _ Cardano
   | ValueAddrDistrPart AddrDistrPart
   | ValueAddrStakeDistribution AddrStakeDistribution
 
+deriving instance Eq (Value components) => Eq (ComponentValue components Cardano)
+deriving instance Ord (Value components) => Ord (ComponentValue components Cardano)
+deriving instance Show (Value components) => Show (ComponentValue components Cardano)
+
 data instance ComponentLit Cardano
   = LitAddress Address
   | LitPublicKey PublicKey
@@ -93,3 +101,21 @@ instance ComponentLitToValue components Cardano where
     LitHash x -> ValueHash x
     LitBlockVersion x -> ValueBlockVersion x
     LitSoftwareVersion x -> ValueSoftwareVersion x
+
+instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components Cardano where
+  -- TODO: FIXME
+  componentCommandExec (CommandAction auxxModeAction) = do
+    let v = runIdentity auxxModeAction
+    v <$ print v
+
+instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommandProcs components Cardano where
+  componentCommandProcs =
+    [
+      CommandProc
+        { cpName = "cardano"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = pure ()
+        , cpRepr = \() -> CommandAction (Identity (toValue (ValueBool True)))
+        , cpHelp = "test cardano infra"
+        }
+    ]
