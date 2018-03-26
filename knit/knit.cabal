@@ -28,6 +28,10 @@ library
       containers,
       lens,
       mtl,
+      megaparsec,
+      loc,
+      parser-combinators,
+      Earley,
       validation
   exposed-modules:
       Knit
@@ -38,6 +42,8 @@ library
       Knit.Name
       Knit.Eval
       Knit.Procedure
+      Knit.Tokenizer
+      Knit.Parser
       Knit.Utils
   default-language:
       Haskell2010
