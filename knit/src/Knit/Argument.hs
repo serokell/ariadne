@@ -119,9 +119,16 @@ data TyProjection components a = TyProjection
     } deriving (Functor)
 
 data ArgumentConsumer components a where
-    GetArg :: ArgCardinality f -> (TyProjection components a) -> Name -> ArgumentConsumer components (f a)
+    GetArg
+      :: ArgCardinality f
+      -> (TyProjection components a)
+      -> Name
+      -> ArgumentConsumer components (f a)
     AcPure :: a -> ArgumentConsumer components a
-    AcAp :: ArgumentConsumer components (a -> b) -> ArgumentConsumer components a -> ArgumentConsumer components b
+    AcAp
+      :: ArgumentConsumer components (a -> b)
+      -> ArgumentConsumer components a
+      -> ArgumentConsumer components b
 
 instance Functor (ArgumentConsumer components) where
     fmap f x = pure f <*> x
@@ -130,19 +137,34 @@ instance Applicative (ArgumentConsumer components) where
     pure = AcPure
     (<*>) = AcAp
 
-getArg :: (TyProjection components a) -> Name -> ArgumentConsumer components a
+getArg
+  :: (TyProjection components a)
+  -> Name
+  -> ArgumentConsumer components a
 getArg tyProj name = fmap runIdentity (getArgSingle tyProj name)
 
-getArgSingle :: (TyProjection components a) -> Name -> ArgumentConsumer components (Identity a)
+getArgSingle
+  :: (TyProjection components a)
+  -> Name
+  -> ArgumentConsumer components (Identity a)
 getArgSingle = GetArg ArgCardSingle
 
-getArgOpt :: (TyProjection components a) -> Name -> ArgumentConsumer components (Maybe a)
+getArgOpt
+  :: (TyProjection components a)
+  -> Name
+  -> ArgumentConsumer components (Maybe a)
 getArgOpt = GetArg ArgCardOpt
 
-getArgMany :: (TyProjection components a) -> Name -> ArgumentConsumer components [a]
+getArgMany
+  :: (TyProjection components a)
+  -> Name
+  -> ArgumentConsumer components [a]
 getArgMany = GetArg ArgCardMany
 
-getArgSome :: (TyProjection components a) -> Name -> ArgumentConsumer components (NonEmpty a)
+getArgSome
+  :: (TyProjection components a)
+  -> Name
+  -> ArgumentConsumer components (NonEmpty a)
 getArgSome = GetArg ArgCardSome
 
 runArgumentConsumer :: forall components a.
@@ -152,28 +174,30 @@ runArgumentConsumer :: forall components a.
     -> (Maybe a, ArgumentConsumerState components)
 runArgumentConsumer ac acs = case ac of
     GetArg argCard tp key -> argCardC @Traversable argCard $
-        case lookupArgWithCard argCard key (acsRemaining acs) of
-            Left argError ->
-                let
-                    procError = mempty { peArgumentError = argError }
-                    acs' = acs { acsError = acsError acs `mappend` procError }
-                in
-                    (Nothing, acs')
-            Right (fv, remaining') ->
-                let
-                    acs' = acs { acsRemaining = remaining' }
-                    (mResults, acs'') = flip runState acs' $
-                        forM fv $ \v -> do
-                            let mResult = tpMatcher @components tp v
-                                typeError = TypeError { teExpectedType = tpTypeName tp
-                                                      , teActualValue = v }
-                                procError = (mempty @(ProcError components))
-                                  { peTypeErrors = Set.singleton typeError }
-                            unless (isJust mResult) $ modify $ \a ->
-                                a { acsError = acsError a `mappend` procError }
-                            return mResult
-                in
-                    (sequenceA mResults, acs'')
+      case lookupArgWithCard argCard key (acsRemaining acs) of
+        Left argError ->
+          let
+            procError = mempty { peArgumentError = argError }
+            acs' = acs { acsError = acsError acs `mappend` procError }
+          in
+            (Nothing, acs')
+        Right (fv, remaining') ->
+            let
+              acs' = acs { acsRemaining = remaining' }
+              (mResults, acs'') = flip runState acs' $
+                forM fv $ \v -> do
+                  let
+                    mResult = tpMatcher @components tp v
+                    typeError = TypeError
+                      { teExpectedType = tpTypeName tp
+                      , teActualValue = v }
+                    procError = (mempty @(ProcError components))
+                      { peTypeErrors = Set.singleton typeError }
+                  unless (isJust mResult) $ modify $ \a ->
+                    a { acsError = acsError a `mappend` procError }
+                  return mResult
+            in
+              (sequenceA mResults, acs'')
     AcPure a -> (Just a, acs)
     AcAp ac1 ac2 ->
         let
@@ -259,18 +283,26 @@ isArgPos = \case
     ArgPos _ -> True
     _ -> False
 
-toIrrelevanceError :: [Arg (Value components)] -> ArgumentError
+toIrrelevanceError
+  :: [Arg (Value components)]
+  -> ArgumentError
 toIrrelevanceError = foldMap $ \case
     ArgPos _ -> mempty { aeIrrelevantPos = 1 }
     ArgKw key _ -> mempty { aeIrrelevantKeys = Set.singleton key }
 
-getParameters :: ArgumentConsumer components a -> [(Name, TypeName, SomeArgCardinality)]
+getParameters
+  :: ArgumentConsumer components a
+  -> [(Name, TypeName, SomeArgCardinality)]
 getParameters = \case
     GetArg ac tp name -> [(name, tpTypeName tp, SomeArgCardinality ac)]
     AcPure _ -> []
     AcAp f x -> getParameters f <> getParameters x
 
-typeDirectedKwAnn :: Name -> (TyProjection components a) -> Arg (Value components) -> Arg (Value components)
+typeDirectedKwAnn
+  :: Name
+  -> (TyProjection components a)
+  -> Arg (Value components)
+  -> Arg (Value components)
 typeDirectedKwAnn name tp arg = case arg of
     ArgPos v | isJust (tpMatcher tp v) -> ArgKw name v
     _ -> arg

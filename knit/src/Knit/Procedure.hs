@@ -29,17 +29,18 @@ resolveProcNames ::
 resolveProcNames nameOf xs =
     over _Left NonEmpty.nub . Validation.toEither . go
   where
-    go ExprUnit                = pure ExprUnit
-    go (ExprLit l)             = pure (ExprLit l)
-    go (ExprGroup exprs)       = ExprGroup <$> traverse go exprs
-    go (ExprProcCall procCall) = ExprProcCall <$> goProcCall procCall
+    go = \case
+      ExprUnit -> pure ExprUnit
+      ExprLit l -> pure (ExprLit l)
+      ExprGroup exprs -> ExprGroup <$> traverse go exprs
+      ExprProcCall procCall -> ExprProcCall <$> goProcCall procCall
 
     goProcCall (ProcCall procName args) =
-        ProcCall
-            <$> lookupProcName procName
-            <*> (traverse.traverse) go args
+      ProcCall
+        <$> lookupProcName procName
+        <*> (traverse.traverse) go args
 
     lookupProcName procName =
-        Validation.fromEither $
-        maybe (Left (procName :| [])) Right $
-        List.find (\x -> nameOf x == procName) xs
+      Validation.fromEither $
+      maybe (Left (procName :| [])) Right $
+      List.find (\x -> nameOf x == procName) xs

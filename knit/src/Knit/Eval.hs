@@ -22,16 +22,24 @@ deriving instance (Show (Value components)) => Show (EvalError components)
 type EvalT components = ExceptT (EvalError components)
 
 class ComponentCommandExec m components component where
-  componentCommandExec :: ComponentCommandRepr components component -> m (Value components)
+  componentCommandExec
+    :: ComponentCommandRepr components component
+    -> m (Value components)
 
 class ComponentLitToValue components component where
-  componentLitToValue :: ComponentLit component -> ComponentValue components component
+  componentLitToValue
+    :: ComponentLit component
+    -> ComponentValue components component
 
 literalToValue
-  :: forall components. AllConstrained (ComponentLitToValue components) components
+  :: forall components.
+     AllConstrained (ComponentLitToValue components) components
   => Lit components
   -> Value components
-literalToValue  = Value . umapConstrained @(ComponentLitToValue components) componentLitToValue . getLitUnion
+literalToValue =
+    Value
+  . umapConstrained @(ComponentLitToValue components) componentLitToValue
+  . getLitUnion
 
 evalProcCall
   :: forall m component components.
