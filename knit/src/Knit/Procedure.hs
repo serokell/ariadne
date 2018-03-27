@@ -17,7 +17,6 @@ import Knit.Utils
 
 data family ComponentCommandRepr (components :: [*]) component
 
-
 data CommandProc components component = forall e. CommandProc
   { cpName :: Name
   , cpArgumentPrepare :: [Arg (Value components)] -> [Arg (Value components)]

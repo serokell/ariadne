@@ -6,8 +6,7 @@ module Ariadne.Face
     UiEvent(..),
     UiFace(..),
     CommandId(..),
-    CommandResult(..),
-    DefaultKnitComponents
+    CommandResult(..)
   ) where
 
 import Prelude
@@ -16,7 +15,6 @@ import Data.List.NonEmpty
 import Control.Exception (SomeException)
 
 import qualified Knit
-import qualified Ariadne.Knit.Cardano as Knit
 
 -- A unique identifier assigned to each command, needed to associate it with
 -- the result of its execution.
@@ -38,10 +36,12 @@ data KnitEvent components
   -- a command has finished execution
   = KnitResultEvent CommandId (CommandResult components)
 
+-- An event that the UI can handle.
 data UiEvent components
   = UiCardanoEvent CardanoNodeEvent -- the node state has changed
   | UiKnitEvent (KnitEvent components)
 
+-- API for the knit interpreter.
 data KnitFace components =
   KnitFace
     {
@@ -59,6 +59,3 @@ data UiFace components =
       -- queue of events is full (should not normally happen).
       putUiEvent :: UiEvent components -> IO ()
     }
-
--- TODO: move to 'main'
-type DefaultKnitComponents = '[Knit.Core, Knit.Cardano]

@@ -1,4 +1,9 @@
-module Ariadne.UI.App where
+module Ariadne.UI.App
+  ( AppState
+  , initialAppState
+  , app
+  , Components
+  ) where
 
 import Prelude
 import Data.Void
@@ -17,7 +22,7 @@ import Ariadne.Util
 import Ariadne.UI.Widget.Repl
   ( ReplWidgetState, initReplWidget, drawReplOutputWidget, drawReplInputWidget,
     ReplCompleted(..), handleReplWidgetEvent, ReplWidgetEvent(..),
-    NavAction(..), InputModification(..) )
+    NavAction(..), InputModification(..), Components )
 
 import Ariadne.UI.Widget.Menu
   ( MenuWidgetState, initMenuWidget, drawMenuWidget, menuWidgetSel,
@@ -44,9 +49,9 @@ data AppSelector
   | AppSelectorLogs
   deriving (Eq)
 
-data AppState =
+data AppState components =
   AppState
-    { appStateRepl :: ReplWidgetState
+    { appStateRepl :: ReplWidgetState components
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
@@ -56,7 +61,7 @@ data AppState =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: AppState
+initialAppState :: AppState components
 initialAppState =
   AppState
     { appStateRepl = initReplWidget
@@ -79,25 +84,29 @@ initialAppState =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: KnitFace DefaultKnitComponents -> B.App AppState (UiEvent DefaultKnitComponents) Void
+app
+  :: forall components.
+     Components components
+  => KnitFace components
+  -> B.App (AppState components) (UiEvent components) Void
 app knitFace = B.App{..} where
 
   appDraw
-    :: AppState
+    :: AppState components
     -> [B.Widget Void]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
   appChooseCursor
-    :: AppState
+    :: AppState components
     -> [B.CursorLocation Void]
     -> Maybe (B.CursorLocation Void)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
-    :: AppState
-    -> B.BrickEvent Void (UiEvent DefaultKnitComponents)
-    -> B.EventM Void (B.Next AppState)
+    :: AppState components
+    -> B.BrickEvent Void (UiEvent components)
+    -> B.EventM Void (B.Next (AppState components))
   appHandleEvent appState ev = do
     (completed, appState') <- liftIO $
       runStateT (handleAppEvent knitFace ev) appState
@@ -106,15 +115,15 @@ app knitFace = B.App{..} where
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState -> B.EventM Void AppState
+  appStartEvent :: AppState components -> B.EventM Void (AppState components)
   appStartEvent = return
 
   -- We do not use this feature of Brick.
-  appAttrMap :: AppState -> B.AttrMap
+  appAttrMap :: AppState components -> B.AttrMap
   appAttrMap _ = B.attrMap V.defAttr []
 
 drawAppWidget
-    :: AppState
+    :: AppState components
     -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
@@ -178,9 +187,10 @@ drawAppWidget AppState{..} =
       _ -> [drawDefaultView]
 
 handleAppEvent
-  :: KnitFace DefaultKnitComponents
-  -> B.BrickEvent Void (UiEvent DefaultKnitComponents)
-  -> StateT AppState IO AppCompleted
+  :: Components components
+  => KnitFace components
+  -> B.BrickEvent Void (UiEvent components)
+  -> StateT (AppState components) IO AppCompleted
 handleAppEvent knitFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
   case ev of
@@ -224,7 +234,7 @@ charAppSel = \case
   'l' -> Just AppSelectorLogs
   _ -> Nothing
 
-toReplEv :: V.Event -> Maybe ReplWidgetEvent
+toReplEv :: V.Event -> Maybe (ReplWidgetEvent components)
 toReplEv = \case
   V.EvKey V.KLeft [] ->
     Just $ ReplInputNavigationEvent NavArrowLeft

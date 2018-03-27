@@ -7,9 +7,10 @@ import Data.Vinyl.Core
 import Ariadne.UI
 import Ariadne.Face
 import Ariadne.Knit.Backend
-import Ariadne.Knit.Cardano (ComponentExecContext(CardanoExecCtx))
 import Ariadne.CardanoBackend
-import Knit.Core (ComponentExecContext(CoreExecCtx))
+
+import qualified Knit
+import qualified Ariadne.Knit.Cardano as Knit
 
 main :: IO ()
 main = do
@@ -19,8 +20,8 @@ main = do
   let
     putKnitEvent ev = putUiEvent uiFace (UiKnitEvent ev)
     knitExecContext =
-      CoreExecCtx :&
-      CardanoExecCtx cardanoCtx :&
+      Knit.CoreExecCtx :&
+      Knit.CardanoExecCtx cardanoCtx :&
       RNil
   uiAction knitFace `race_`
     knitAction knitExecContext putKnitEvent `race_`

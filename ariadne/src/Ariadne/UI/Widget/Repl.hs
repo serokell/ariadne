@@ -27,28 +27,35 @@ import Ariadne.Util
 
 import qualified Knit
 
+type Components components =
+  ( Knit.KnownSpine components
+  , Show (Knit.Token components)
+  , Show (Knit.Value components)
+  , Show (Knit.Lit components)
+  )
+
 data OutputElement
   = OutputCommand CommandId Text (Maybe (Int -> V.Image))
   | OutputInfo (Int -> V.Image)
 
-data ReplWidgetState =
+data ReplWidgetState components =
   ReplWidgetState
-    { replWidgetExpr :: Either (Knit.ParseError DefaultKnitComponents) (Knit.Expr Knit.Name DefaultKnitComponents)
+    { replWidgetExpr :: Either (Knit.ParseError components) (Knit.Expr Knit.Name components)
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-replWidgetText :: ReplWidgetState -> Text
+replWidgetText :: ReplWidgetState components -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
-replReparse :: Monad m => StateT ReplWidgetState m ()
+replReparse :: Monad m => StateT (ReplWidgetState components) m ()
 replReparse = do
   t <- gets replWidgetText
   replWidgetExprL .= Knit.parse t
 
-initReplWidget :: ReplWidgetState
+initReplWidget :: ReplWidgetState components
 initReplWidget =
   fix $ \this -> ReplWidgetState
     { replWidgetExpr = Knit.parse (replWidgetText this)
@@ -58,7 +65,7 @@ initReplWidget =
 
 drawReplOutputWidget
   :: Bool
-  -> ReplWidgetState
+  -> ReplWidgetState components
   -> B.Widget name
 drawReplOutputWidget _hasFocus replWidgetState =
   B.Widget
@@ -96,7 +103,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
 
 drawReplInputWidget
   :: Bool
-  -> ReplWidgetState
+  -> ReplWidgetState components
   -> B.Widget name
 drawReplInputWidget hasFocus replWidgetState =
   B.Widget
@@ -135,7 +142,7 @@ drawReplInputWidget hasFocus replWidgetState =
           & B.imageL .~ img
           & B.cursorsL .~ [curLoc | hasFocus]
 
-parseErrSpanFn :: Knit.ParseError DefaultKnitComponents -> (Int, Int) -> Bool
+parseErrSpanFn :: Knit.ParseError components -> (Int, Int) -> Bool
 parseErrSpanFn parseErr (row, column) = inSpan
   where
     Knit.ParseError _ report = parseErr
@@ -166,8 +173,8 @@ data InputModification
   | BreakLine
   | ReplaceBreakLine
 
-data ReplWidgetEvent
-  = ReplCommandResultEvent CommandId (CommandResult DefaultKnitComponents)
+data ReplWidgetEvent components
+  = ReplCommandResultEvent CommandId (CommandResult components)
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
@@ -177,9 +184,10 @@ data ReplWidgetEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 handleReplWidgetEvent
-  :: KnitFace DefaultKnitComponents
-  -> ReplWidgetEvent
-  -> StateT ReplWidgetState IO ReplCompleted
+  :: Components components
+  => KnitFace components
+  -> ReplWidgetEvent components
+  -> StateT (ReplWidgetState components) IO ReplCompleted
 handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
@@ -237,8 +245,9 @@ smartBreakLine tz =
   in insertMany indentation (breakLine tz)
 
 updateCommandResult
-  :: CommandId
-  -> CommandResult DefaultKnitComponents
+  :: Components components
+  => CommandId
+  -> CommandResult components
   -> OutputElement
   -> OutputElement
 updateCommandResult

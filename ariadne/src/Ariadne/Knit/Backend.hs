@@ -12,7 +12,7 @@ import qualified Knit
 type CommandQueue components =
   TBQueue (Knit.Expr Knit.Name components, CommandId)
 
-type CompleteComponents components =
+type Components components =
   ( Knit.KnownSpine components
   , AllConstrained (Knit.ComponentCommandProcs components) components
   , AllConstrained (Knit.ComponentCommandExec IO components) components
@@ -27,7 +27,7 @@ type KnitAction components =
 
 createKnitBackend
   :: forall components.
-     CompleteComponents components
+     Components components
   => IO (KnitFace components, KnitAction components)
 createKnitBackend = do
   commandQueue <- newTBQueueIO 100
@@ -40,7 +40,7 @@ createKnitBackend = do
 
 runKnit
   :: forall components.
-     (CompleteComponents components)
+     (Components components)
   => CommandQueue components
   -> KnitAction components
 runKnit commandQueue execCtxs putKnitEvent = do
