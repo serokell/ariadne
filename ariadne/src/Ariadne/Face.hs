@@ -25,7 +25,7 @@ newtype CommandId = CommandId Unique
 data CommandResult components
   = CommandSuccess (Knit.Value components)
   | CommandEvalError (Knit.EvalError components)
-  | CommandProcError (NonEmpty Knit.Name)
+  | CommandProcError (NonEmpty Knit.CommandName)
   | CommandException SomeException
 
 data CardanoNodeEvent
@@ -48,7 +48,7 @@ data KnitFace components =
       -- Execute a knit expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
-      putKnitCommand :: Knit.Expr Knit.Name components -> IO CommandId
+      putKnitCommand :: Knit.Expr Knit.CommandName components -> IO CommandId
     }
 
 -- API for the UI.

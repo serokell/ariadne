@@ -1,8 +1,22 @@
 module Knit.Syntax where
 
 import Data.Union
+import Data.String
 
 import Knit.Name
+
+data Operator
+  = OpSemicolon
+  | OpUnit
+  deriving (Eq, Ord, Show)
+
+data CommandName
+  = ProcedureName Name
+  | OperatorName Operator
+  deriving (Eq, Ord, Show)
+
+instance IsString CommandName where
+  fromString = ProcedureName . fromString
 
 data Expr cmd components
   = ExprProcCall (ProcCall cmd (Expr cmd components))

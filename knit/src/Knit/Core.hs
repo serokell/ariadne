@@ -60,6 +60,22 @@ instance Applicative m => ComponentCommandExec m components Core where
 instance Elem components Core => ComponentCommandProcs components Core where
   componentCommandProcs =
     [ CommandProc
+        { cpName = OperatorName OpUnit
+        , cpArgumentPrepare = id
+        , cpArgumentConsumer = pure ()
+        , cpRepr = \() -> CommandIdentity (toValue ValueUnit)
+        , cpHelp = "The logical truth value"
+        }
+    , CommandProc
+        { cpName = OperatorName OpSemicolon
+        , cpArgumentPrepare = id
+        , cpArgumentConsumer =
+            getArg tyValue "first" *>
+            getArg tyValue "second"
+        , cpRepr = \v -> CommandIdentity v
+        , cpHelp = "The logical truth value"
+        }
+    , CommandProc
         { cpName = "true"
         , cpArgumentPrepare = id
         , cpArgumentConsumer = pure ()
@@ -81,6 +97,13 @@ instance Elem components Core => ComponentCommandProcs components Core where
         , cpHelp = "The logical falsehood value"
         }
     ]
+
+tyValue :: TyProjection components (Value components)
+tyValue =
+  TyProjection
+    { tpTypeName = "Value"
+    , tpMatcher = Just
+    }
 
 tyBool :: Elem components Core => TyProjection components Bool
 tyBool =

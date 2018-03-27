@@ -9,7 +9,6 @@ import Data.Vinyl.TypeLevel
 import Data.Vinyl.Core
 import Data.Proxy
 
-import Knit.Name
 import Knit.Value
 import Knit.Argument
 import Knit.Syntax
@@ -18,7 +17,7 @@ import Knit.Utils
 data family ComponentCommandRepr (components :: [*]) component
 
 data CommandProc components component = forall e. CommandProc
-  { cpName :: Name
+  { cpName :: CommandName
   , cpArgumentPrepare :: [Arg (Value components)] -> [Arg (Value components)]
   , cpArgumentConsumer :: ArgumentConsumer components e
   , cpRepr :: e -> ComponentCommandRepr components component
@@ -39,11 +38,12 @@ commandProcs = go (knownSpine @components)
     go RNil = []
     go ((Proxy :: Proxy component) :& xs) = List.map Some (componentCommandProcs @_ @component) ++ go xs
 
-resolveProcNames ::
-    (x -> Name) ->
-    [x] ->
-    Expr Name components ->
-    Either (NonEmpty Name) (Expr x components)
+resolveProcNames
+  :: Eq name
+  => (x -> name)
+  -> [x]
+  -> Expr name components
+  -> Either (NonEmpty name) (Expr x components)
 resolveProcNames nameOf xs =
     over _Left NonEmpty.nub . Validation.toEither . go
   where

@@ -10,7 +10,7 @@ import Ariadne.Face
 import qualified Knit
 
 type CommandQueue components =
-  TBQueue (Knit.Expr Knit.Name components, CommandId)
+  TBQueue (Knit.Expr Knit.CommandName components, CommandId)
 
 type Components components =
   ( Knit.KnownSpine components

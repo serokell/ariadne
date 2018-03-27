@@ -9,12 +9,11 @@ import Knit.Syntax
 import Knit.Value
 import Knit.Utils
 import Knit.Procedure
-import Knit.Name
 import Knit.Argument
 
 import Control.Monad.Except
 
-data EvalError components = InvalidArguments Name (ProcError components)
+data EvalError components = InvalidArguments CommandName (ProcError components)
 
 deriving instance (Eq (Value components)) => Eq (EvalError components)
 deriving instance (Ord (Value components)) => Ord (EvalError components)

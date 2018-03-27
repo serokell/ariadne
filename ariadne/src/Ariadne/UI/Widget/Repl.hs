@@ -40,7 +40,7 @@ data OutputElement
 
 data ReplWidgetState components =
   ReplWidgetState
-    { replWidgetExpr :: Either (Knit.ParseError components) (Knit.Expr Knit.Name components)
+    { replWidgetExpr :: Either (Knit.ParseError components) (Knit.Expr Knit.CommandName components)
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     }

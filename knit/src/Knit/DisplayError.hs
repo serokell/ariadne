@@ -40,6 +40,7 @@ import Knit.Eval
 import Knit.Tokenizer
 import Knit.Name
 import Knit.Parser
+import Knit.Syntax
 import Knit.Value
 
 highlight :: Doc -> Doc
@@ -50,6 +51,13 @@ text = Text.PrettyPrint.ANSI.Leijen.text . unpack
 
 nameToDoc :: Name -> Doc
 nameToDoc = Text.PrettyPrint.ANSI.Leijen.text . TL.unpack . toLazyText . build
+
+commandNameToDoc :: CommandName -> Doc
+commandNameToDoc (ProcedureName name) = nameToDoc name
+commandNameToDoc (OperatorName opName) =
+  case opName of
+    OpSemicolon -> "the semicolon operator"
+    OpUnit -> "()"
 
 ppTypeName :: TypeName -> Doc
 ppTypeName (TypeName name)         = text name
@@ -92,13 +100,13 @@ ppProcError ProcError{..} = ppArgumentError peArgumentError <$> typeErrorsDoc
 
 ppEvalError :: Show (Value components) => EvalError components -> Doc
 ppEvalError (InvalidArguments name procError) =
-        "Invalid arguments for" <+> (squotes . highlight . nameToDoc) name `mappend` ":"
+        "Invalid arguments for" <+> (squotes . highlight . commandNameToDoc) name `mappend` ":"
     <$> indent 2 (ppProcError procError)
 
-ppResolveErrors :: NonEmpty Name -> Doc
+ppResolveErrors :: NonEmpty CommandName -> Doc
 ppResolveErrors names =
     "Commands not available:" <+>
-    hcat (punctuate (text ", ") . map nameToDoc $ NE.toList names)
+    hcat (punctuate (text ", ") . map commandNameToDoc $ NE.toList names)
 
 renderLine :: Int -> Int -> Text -> Doc
 renderLine start end str = text str

@@ -8,10 +8,9 @@ import Text.Earley
 import Data.Text
 import Data.List.NonEmpty
 import Control.Applicative as A
-import Data.Foldable
+import Data.Foldable as F
 
 import Knit.Tokenizer
-import Knit.Name
 import Knit.Syntax
 
 tok :: Getting (First a) (Token components) a -> Prod r e (s, Token components) a
@@ -24,7 +23,7 @@ inBrackets
 inBrackets p r =
     tok (p . _BracketSideOpening) *> r <* tok (p . _BracketSideClosing)
 
-gExpr :: Grammar r (Prod r Text (s, Token components) (Expr Name components))
+gExpr :: Grammar r (Prod r Text (s, Token components) (Expr CommandName components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
@@ -47,12 +46,16 @@ gExpr = mdo
     ntExpr1 <- rule $ asum
         [ ExprProcCall <$> ntProcCall
         , ntExprAtom
-        -- , pure ExprUnit -- TODO: FIXME
+        , pure (ExprProcCall $ ProcCall (OperatorName OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup <$> ntExpr1 `sepBy1` tok _TokenSemicolon
-    ntProcCall <- rule $ ProcCall <$> ntName <*> some ntArg <?> "procedure call"
+    ntProcCall <- rule $
+      ProcCall
+        <$> (ProcedureName <$> ntName)
+        <*> some ntArg
+        <?> "procedure call"
     ntProcCall0 <- rule $
-        (\name -> ExprProcCall $ ProcCall name []) <$> ntName
+        (\name -> ExprProcCall $ ProcCall (ProcedureName name) []) <$> ntName
         <?> "procedure call w/o arguments"
     ntExprAtom <- rule $ asum
         [ ntExprLit
@@ -61,11 +64,13 @@ gExpr = mdo
         ] <?> "atom"
     return ntExpr
 
--- TODO: FIXME
-mkExprGroup :: NonEmpty (Expr Name components) -> Expr Name components
-mkExprGroup (a :| _) = a
+mkExprGroup :: NonEmpty (Expr CommandName components) -> Expr CommandName components
+mkExprGroup = F.foldr1 opSemicolon
+  where
+    opSemicolon e1 e = ExprProcCall $
+      ProcCall (OperatorName OpSemicolon) [ArgPos e1, ArgPos e]
 
-pExpr :: Parser Text [(s, Token components)] (Expr Name components)
+pExpr :: Parser Text [(s, Token components)] (Expr CommandName components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
@@ -73,7 +78,7 @@ data ParseError components = ParseError
     , peReport :: Report Text [(Span, Token components)]
     }
 
-parse :: Text -> Either (ParseError components) (Expr Name components)
+parse :: Text -> Either (ParseError components) (Expr CommandName components)
 parse str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize $ str
   where
     toEither = \case
