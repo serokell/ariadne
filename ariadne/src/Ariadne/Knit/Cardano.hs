@@ -2,23 +2,23 @@ module Ariadne.Knit.Cardano where
 
 import Universum
 
+import Data.Vinyl.TypeLevel
+
 import Pos.Core (AddrStakeDistribution, Address, BlockVersion, CoinPortion,
                  SoftwareVersion, StakeholderId)
 import Pos.Core.Txp (TxOut)
 import Pos.Crypto (AHash, PublicKey)
 import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
+import Mockable (runProduction)
+import qualified Mode as Auxx -- TODO: FIXME
 
 import Knit.Value
 import Knit.Procedure
 import Knit.Eval
 import Knit.Syntax
 import Knit.Core
+import Knit.Tokenizer
 import Knit.Utils
-
-import Data.Vinyl.TypeLevel
-
--- TODO
-type AuxxMode = Identity
 
 data AddrDistrPart = AddrDistrPart
     { adpStakeholderId :: !StakeholderId
@@ -90,8 +90,14 @@ data instance ComponentLit Cardano
   | LitSoftwareVersion SoftwareVersion
   deriving (Eq, Ord, Show)
 
+data instance ComponentToken Cardano
+
+deriving instance Eq (ComponentToken Cardano)
+deriving instance Ord (ComponentToken Cardano)
+deriving instance Show (ComponentToken Cardano)
+
 data instance ComponentCommandRepr components Cardano
-  = CommandAction (AuxxMode (Value components))
+  = CommandAction (Auxx.AuxxMode (Value components))
 
 instance ComponentLitToValue components Cardano where
   componentLitToValue = \case
@@ -102,11 +108,13 @@ instance ComponentLitToValue components Cardano where
     LitBlockVersion x -> ValueBlockVersion x
     LitSoftwareVersion x -> ValueSoftwareVersion x
 
+newtype instance ComponentExecContext Cardano =
+  CardanoExecCtx (IO Auxx.AuxxContext)
+
 instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components Cardano where
-  -- TODO: FIXME
-  componentCommandExec (CommandAction auxxModeAction) = do
-    let v = runIdentity auxxModeAction
-    v <$ print v
+  componentCommandExec (CardanoExecCtx getAuxxContext) (CommandAction auxxModeAction) = do
+    auxxContext <- liftIO getAuxxContext
+    liftIO . runProduction . usingReaderT auxxContext $ auxxModeAction
 
 instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommandProcs components Cardano where
   componentCommandProcs =
@@ -115,7 +123,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         { cpName = "cardano"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction (Identity (toValue (ValueBool True)))
+        , cpRepr = \() -> CommandAction $ return (toValue (ValueBool True))
         , cpHelp = "test cardano infra"
         }
     ]

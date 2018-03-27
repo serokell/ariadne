@@ -21,12 +21,11 @@ import qualified Brick as B
 import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
 import qualified Graphics.Vty as V
 
-import qualified Lang as Auxx
-import qualified Printer as Auxx
-
 import Ariadne.UI.AnsiToVty
 import Ariadne.Face
 import Ariadne.Util
+
+import qualified Knit
 
 data OutputElement
   = OutputCommand CommandId Text (Maybe (Int -> V.Image))
@@ -34,7 +33,7 @@ data OutputElement
 
 data ReplWidgetState =
   ReplWidgetState
-    { replWidgetExpr :: Either Auxx.ParseError (Auxx.Expr Auxx.Name)
+    { replWidgetExpr :: Either (Knit.ParseError DefaultKnitComponents) (Knit.Expr Knit.Name DefaultKnitComponents)
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     }
@@ -47,12 +46,12 @@ replWidgetText = Text.unlines . getText . replWidgetTextZipper
 replReparse :: Monad m => StateT ReplWidgetState m ()
 replReparse = do
   t <- gets replWidgetText
-  replWidgetExprL .= Auxx.parse t
+  replWidgetExprL .= Knit.parse t
 
 initReplWidget :: ReplWidgetState
 initReplWidget =
   fix $ \this -> ReplWidgetState
-    { replWidgetExpr = Auxx.parse (replWidgetText this)
+    { replWidgetExpr = Knit.parse (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     }
@@ -136,10 +135,10 @@ drawReplInputWidget hasFocus replWidgetState =
           & B.imageL .~ img
           & B.cursorsL .~ [curLoc | hasFocus]
 
-parseErrSpanFn :: Auxx.ParseError -> (Int, Int) -> Bool
+parseErrSpanFn :: Knit.ParseError DefaultKnitComponents -> (Int, Int) -> Bool
 parseErrSpanFn parseErr (row, column) = inSpan
   where
-    Auxx.ParseError _ report = parseErr
+    Knit.ParseError _ report = parseErr
     spans = List.map fst (unconsumed report)
     inSpan = List.any inSpan1 spans
     inSpan1 = Loc.overlapping $
@@ -168,7 +167,7 @@ data InputModification
   | ReplaceBreakLine
 
 data ReplWidgetEvent
-  = ReplCommandResultEvent CommandId CommandResult
+  = ReplCommandResultEvent CommandId (CommandResult DefaultKnitComponents)
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
@@ -178,10 +177,10 @@ data ReplWidgetEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 handleReplWidgetEvent
-  :: AuxxFace
+  :: KnitFace DefaultKnitComponents
   -> ReplWidgetEvent
   -> StateT ReplWidgetState IO ReplCompleted
-handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
+handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
     zoom replWidgetTextZipperL $ modify $
@@ -214,12 +213,12 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
     exprOrErr <- use replWidgetExprL
     case exprOrErr of
       Left parseErr -> do
-        let out = OutputInfo $ \w -> pprDoc w (Auxx.ppParseError parseErr)
+        let out = OutputInfo $ \w -> pprDoc w (Knit.ppParseError parseErr)
         zoom replWidgetOutL $ modify (out:)
       Right expr -> do
-        commandId <- liftIO $ putAuxxCommand expr
+        commandId <- liftIO $ putKnitCommand expr
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (Auxx.pprExpr expr) Nothing
+        let out = OutputCommand commandId (pack (show expr)) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse
     return ReplInProgress
@@ -239,7 +238,7 @@ smartBreakLine tz =
 
 updateCommandResult
   :: CommandId
-  -> CommandResult
+  -> CommandResult DefaultKnitComponents
   -> OutputElement
   -> OutputElement
 updateCommandResult
@@ -251,8 +250,8 @@ updateCommandResult
     commandResultImage w =
       case commandResult of
         CommandSuccess v -> V.string V.defAttr (show v)
-        CommandEvalError e -> pprDoc w (Auxx.ppEvalError e)
-        CommandProcError e -> pprDoc w (Auxx.ppResolveErrors e)
+        CommandEvalError e -> pprDoc w (Knit.ppEvalError e)
+        CommandProcError e -> pprDoc w (Knit.ppResolveErrors e)
         CommandException e -> V.string V.defAttr (displayException e)
 updateCommandResult _ _ outCmd = outCmd
 

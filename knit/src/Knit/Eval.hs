@@ -1,5 +1,6 @@
 module Knit.Eval where
 
+import Data.Vinyl.Core
 import Data.Vinyl.TypeLevel
 import Data.Type.Equality
 import Data.Union
@@ -21,9 +22,14 @@ deriving instance (Show (Value components)) => Show (EvalError components)
 
 type EvalT components = ExceptT (EvalError components)
 
+type ExecContext = Rec ComponentExecContext
+
+data family ComponentExecContext component
+
 class ComponentCommandExec m components component where
   componentCommandExec
-    :: ComponentCommandRepr components component
+    :: ComponentExecContext component
+    -> ComponentCommandRepr components component
     -> m (Value components)
 
 class ComponentLitToValue components component where
@@ -37,9 +43,10 @@ evaluate
      , Monad m
      , Ord (Value components)
      )
-  => Expr (Some (Elem components) (CommandProc components)) components
+  => ExecContext components
+  -> Expr (Some (Elem components) (CommandProc components)) components
   -> m (Either (EvalError components) (Value components))
-evaluate expr = runExceptT (eval expr)
+evaluate ctxs expr = runExceptT (eval ctxs expr)
 
 eval
   :: ( AllConstrained (ComponentCommandExec m components) components
@@ -47,12 +54,13 @@ eval
      , Monad m
      , Ord (Value components)
      )
-  => Expr (Some (Elem components) (CommandProc components)) components
+  => ExecContext components
+  -> Expr (Some (Elem components) (CommandProc components)) components
   -> EvalT components m (Value components)
-eval = \case
+eval ctxs = \case
   ExprLit l -> return (literalToValue l)
   ExprProcCall procCall ->
-    evalProcCall =<< traverse eval procCall
+    evalProcCall ctxs =<< traverse (eval ctxs) procCall
 
 evalProcCall
   :: forall m components.
@@ -60,10 +68,11 @@ evalProcCall
      , Monad m
      , Ord (Value components)
      )
-  => ProcCall (Some (Elem components) (CommandProc components)) (Value components)
+  => ExecContext components
+  -> ProcCall (Some (Elem components) (CommandProc components)) (Value components)
   -> EvalT components m (Value components)
-evalProcCall (ProcCall (Some commandProc) args) =
-  componentEvalProcCall (ProcCall commandProc args)
+evalProcCall ctxs (ProcCall (Some commandProc) args) =
+  componentEvalProcCall (rgetElem ctxs) (ProcCall commandProc args)
 
 literalToValue
   :: forall components.
@@ -82,9 +91,10 @@ componentEvalProcCall
      , Monad m
      , Ord (Value components)
      )
-  => ProcCall (CommandProc components component) (Value components)
+  => ComponentExecContext component
+  -> ProcCall (CommandProc components component) (Value components)
   -> EvalT components m (Value components)
-componentEvalProcCall (ProcCall CommandProc{..} args) = do
+componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
     e <- either (throwError . InvalidArguments cpName) return $
          consumeArguments cpArgumentConsumer $
          cpArgumentPrepare args
@@ -96,5 +106,5 @@ componentEvalProcCall (ProcCall CommandProc{..} args) = do
       => Union ((:~:) component) components'
       -> ComponentCommandRepr components component
       -> m (Value components)
-    commandExec (This Refl) = componentCommandExec
+    commandExec (This Refl) = componentCommandExec ctx
     commandExec (That i) = commandExec i

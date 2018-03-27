@@ -79,8 +79,8 @@ initialAppState =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: AuxxFace -> B.App AppState AuxxEvent Void
-app auxxFace = B.App{..} where
+app :: KnitFace DefaultKnitComponents -> B.App AppState (UiEvent DefaultKnitComponents) Void
+app knitFace = B.App{..} where
 
   appDraw
     :: AppState
@@ -96,11 +96,11 @@ app auxxFace = B.App{..} where
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent Void AuxxEvent
+    -> B.BrickEvent Void (UiEvent DefaultKnitComponents)
     -> B.EventM Void (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <- liftIO $
-      runStateT (handleAppEvent auxxFace ev) appState
+      runStateT (handleAppEvent knitFace ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
@@ -178,10 +178,10 @@ drawAppWidget AppState{..} =
       _ -> [drawDefaultView]
 
 handleAppEvent
-  :: AuxxFace
-  -> B.BrickEvent Void AuxxEvent
+  :: KnitFace DefaultKnitComponents
+  -> B.BrickEvent Void (UiEvent DefaultKnitComponents)
   -> StateT AppState IO AppCompleted
-handleAppEvent auxxFace ev = do
+handleAppEvent knitFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
   case ev of
     B.VtyEvent vtyEv
@@ -200,13 +200,13 @@ handleAppEvent auxxFace ev = do
       | Just replEv <- toReplEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
-            handleReplWidgetEvent auxxFace replEv
+            handleReplWidgetEvent knitFace replEv
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
-    B.AppEvent (AuxxResultEvent commandId commandResult) -> do
+    B.AppEvent (UiKnitEvent (KnitResultEvent commandId commandResult)) -> do
         completed <- zoom appStateReplL $
-          handleReplWidgetEvent auxxFace $
+          handleReplWidgetEvent knitFace $
             ReplCommandResultEvent commandId commandResult
         return $ case completed of
           ReplCompleted -> AppCompleted

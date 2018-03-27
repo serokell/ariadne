@@ -1,12 +1,13 @@
 -- APIs for communication between threads.
 module Ariadne.Face
-  (
-    AuxxFace(..),
+  ( KnitFace(..),
     CardanoNodeEvent(..),
-    AuxxEvent(..),
+    KnitEvent(..),
+    UiEvent(..),
     UiFace(..),
     CommandId(..),
-    CommandResult(..)
+    CommandResult(..),
+    DefaultKnitComponents
   ) where
 
 import Prelude
@@ -14,7 +15,8 @@ import Data.Unique
 import Data.List.NonEmpty
 import Control.Exception (SomeException)
 
-import qualified Lang as Auxx
+import qualified Knit
+import qualified Ariadne.Knit.Cardano as Knit
 
 -- A unique identifier assigned to each command, needed to associate it with
 -- the result of its execution.
@@ -22,35 +24,41 @@ newtype CommandId = CommandId Unique
   deriving (Eq)
 
 -- The result of executing an auxx command.
-data CommandResult
-  = CommandSuccess Auxx.Value
-  | CommandEvalError Auxx.EvalError
-  | CommandProcError (NonEmpty Auxx.Name)
+data CommandResult components
+  = CommandSuccess (Knit.Value components)
+  | CommandEvalError (Knit.EvalError components)
+  | CommandProcError (NonEmpty Knit.Name)
   | CommandException SomeException
 
 data CardanoNodeEvent
   = CardanoNodeEvent -- update slot id, stuff like that
 
--- An event triggered by the auxx backend.
-data AuxxEvent
-  = AuxxCardanoEvent CardanoNodeEvent -- the node state has changed
-  | AuxxResultEvent CommandId CommandResult -- a command has finished execution
+-- An event triggered by the knit backend.
+data KnitEvent components
+  -- a command has finished execution
+  = KnitResultEvent CommandId (CommandResult components)
 
--- API for the auxx backend.
-data AuxxFace =
-  AuxxFace
+data UiEvent components
+  = UiCardanoEvent CardanoNodeEvent -- the node state has changed
+  | UiKnitEvent (KnitEvent components)
+
+data KnitFace components =
+  KnitFace
     {
-      -- Execute an auxx expression asynchronously. Does not block unless the
+      -- Execute a knit expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
-      putAuxxCommand :: Auxx.Expr Auxx.Name -> IO CommandId
+      putKnitCommand :: Knit.Expr Knit.Name components -> IO CommandId
     }
 
 -- API for the UI.
-data UiFace =
+data UiFace components =
   UiFace
     {
       -- Update the user interface with an event. Does not block unless the
       -- queue of events is full (should not normally happen).
-      putUiEvent :: AuxxEvent -> IO ()
+      putUiEvent :: UiEvent components -> IO ()
     }
+
+-- TODO: move to 'main'
+type DefaultKnitComponents = '[Knit.Core, Knit.Cardano]

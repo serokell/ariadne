@@ -7,14 +7,14 @@ import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
 
-import Ariadne.Face (UiFace(..), AuxxFace, AuxxEvent(..))
+import Ariadne.Face
 import Ariadne.UI.App (initialAppState, app)
 
 -- Initialize the UI, returning two components:
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: IO (UiFace, AuxxFace -> IO ())
+createAriadneUI :: IO (UiFace DefaultKnitComponents, KnitFace DefaultKnitComponents-> IO ())
 createAriadneUI = do
   eventChan <- mkEventChan
   return (mkUiFace eventChan, runUI eventChan)
@@ -22,7 +22,7 @@ createAriadneUI = do
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
-runUI :: BChan AuxxEvent -> AuxxFace -> IO ()
+runUI :: BChan (UiEvent DefaultKnitComponents) -> KnitFace DefaultKnitComponents -> IO ()
 runUI eventChan auxxFace = do
   vtyConfig <- mkVtyConfig
 
@@ -75,11 +75,11 @@ mkVtyConfig = do
 -- Create a channel for application events that aren't user input. This channel
 -- is bounded to avoid infinite accumulation of events, but the bound is
 -- somewhat arbitrary.
-mkEventChan :: IO (BChan AuxxEvent)
+mkEventChan :: IO (BChan (UiEvent DefaultKnitComponents))
 mkEventChan = newBChan 100
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: BChan AuxxEvent -> UiFace
+mkUiFace :: BChan (UiEvent DefaultKnitComponents) -> UiFace DefaultKnitComponents
 mkUiFace eventChan =
   UiFace
     {

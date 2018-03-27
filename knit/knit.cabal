@@ -32,7 +32,8 @@ library
       loc,
       parser-combinators,
       Earley,
-      validation
+      validation,
+      ansi-wl-pprint
   exposed-modules:
       Knit
       Knit.Argument
@@ -44,6 +45,7 @@ library
       Knit.Procedure
       Knit.Tokenizer
       Knit.Parser
+      Knit.DisplayError
       Knit.Utils
   default-language:
       Haskell2010

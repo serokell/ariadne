@@ -10,6 +10,7 @@ import Knit.Argument
 import Knit.Syntax
 import Knit.Procedure
 import Knit.Eval
+import Knit.Tokenizer
 import Knit.Utils
 
 data Core
@@ -33,6 +34,13 @@ data instance ComponentLit Core
   | LitString Text
   | LitFilePath FilePath
   | LitUnit
+  deriving (Eq, Ord, Show)
+
+data instance ComponentToken Core
+
+deriving instance Eq (ComponentToken Core)
+deriving instance Ord (ComponentToken Core)
+deriving instance Show (ComponentToken Core)
 
 data instance ComponentCommandRepr components Core
   = CommandIdentity (Value components)
@@ -44,8 +52,10 @@ instance ComponentLitToValue components Core where
     LitFilePath x -> ValueFilePath x
     LitUnit -> ValueUnit
 
+data instance ComponentExecContext Core = CoreExecCtx
+
 instance Applicative m => ComponentCommandExec m components Core where
-  componentCommandExec (CommandIdentity v) = pure v
+  componentCommandExec CoreExecCtx (CommandIdentity v) = pure v
 
 instance Elem components Core => ComponentCommandProcs components Core where
   componentCommandProcs =

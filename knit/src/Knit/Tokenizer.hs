@@ -45,6 +45,10 @@ data Token components
   | TokenKey Name
   | TokenUnknown UnknownChar
 
+deriving instance Eq (Union ComponentToken components) => Eq (Token components)
+deriving instance Ord (Union ComponentToken components) => Ord (Token components)
+deriving instance Show (Union ComponentToken components) => Show (Token components)
+
 makePrisms ''Token
 
 tokenize :: Text -> [(Span, Token components)]

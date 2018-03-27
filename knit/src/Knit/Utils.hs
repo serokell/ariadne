@@ -38,6 +38,17 @@ instance Elem' (RIndex x xs) x xs => Elem xs x
 elemEv :: forall xs a. Elem xs a => Union ((:~:) a) xs
 elemEv = elemEv'
 
+rgetElem :: forall f xs a. Elem xs a => Rec f xs -> f a
+rgetElem = go (elemEv @xs @a)
+  where
+    go
+      :: forall xs'.
+         Union ((:~:) a) xs'
+      -> Rec f xs'
+      -> f a
+    go (This Refl) (fa :& _) = fa
+    go (That i) (_ :& fxs) = go i fxs
+
 data Some c f where
   Some :: c x => f x -> Some c f
 
