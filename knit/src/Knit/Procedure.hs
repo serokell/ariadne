@@ -32,11 +32,14 @@ commandProcs :: forall components.
   => [Some (Elem components) (CommandProc components)]
 commandProcs = go (knownSpine @components)
   where
-    go :: forall components'.
-      (AllConstrained (ComponentCommandProcs components) components')
-      => Spine components' -> [Some (Elem components) (CommandProc components)]
+    go
+      :: forall components'.
+         (AllConstrained (ComponentCommandProcs components) components')
+      => Spine components'
+      -> [Some (Elem components) (CommandProc components)]
     go RNil = []
-    go ((Proxy :: Proxy component) :& xs) = List.map Some (componentCommandProcs @_ @component) ++ go xs
+    go ((Proxy :: Proxy component) :& xs) =
+      List.map Some (componentCommandProcs @_ @component) ++ go xs
 
 resolveProcNames
   :: Eq name

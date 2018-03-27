@@ -4,6 +4,7 @@ import Data.Union
 import Data.String
 
 import Knit.Name
+import Knit.Utils
 
 data Operator
   = OpSemicolon
@@ -34,6 +35,20 @@ newtype Lit components =
 deriving instance Eq (Union ComponentLit components) => Eq (Lit components)
 deriving instance Ord (Union ComponentLit components) => Ord (Lit components)
 deriving instance Show (Union ComponentLit components) => Show (Lit components)
+
+toLit
+  :: forall components component.
+     Elem components component
+  => ComponentLit component
+  -> Lit components
+toLit = Lit . uliftElem
+
+fromLit
+  :: forall components component.
+     Elem components component
+  => Lit components
+  -> Maybe (ComponentLit component)
+fromLit = umatchElem . getLitUnion
 
 data ProcCall cmd a = ProcCall cmd [Arg a]
   deriving (Functor, Foldable, Traversable)

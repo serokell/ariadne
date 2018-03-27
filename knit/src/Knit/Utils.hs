@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Knit.Utils where
 
 import Data.Union
@@ -6,7 +7,7 @@ import Data.Vinyl.TypeLevel
 import Data.Vinyl.Core hiding (Dict)
 import Data.Type.Equality
 import Data.Proxy
-import GHC.Exts (Constraint)
+import Control.Lens
 
 umapConstrained
   :: forall c f g as.
@@ -49,6 +50,32 @@ rgetElem = go (elemEv @xs @a)
     go (This Refl) (fa :& _) = fa
     go (That i) (_ :& fxs) = go i fxs
 
+uliftElem
+  :: forall f xs a.
+     Elem xs a
+  => f a
+  -> Union f xs
+uliftElem v = umap (\Refl -> v) (elemEv @xs @a)
+
+umatchElem
+  :: forall f xs a.
+     Elem xs a
+  => Union f xs
+  -> Maybe (f a)
+umatchElem = go (elemEv @xs @a)
+  where
+    go
+      :: forall xs'.
+         Union ((:~:) a) xs'
+      -> Union f xs'
+      -> Maybe (f a)
+    go (This Refl) (This v) = Just v
+    go (That i) (That v) = go i v
+    go _ _ = Nothing
+
+uprismElem :: forall f xs a. Elem xs a => Prism' (Union f xs) (f a)
+uprismElem = prism' uliftElem umatchElem
+
 data Some c f where
   Some :: c x => f x -> Some c f
 
@@ -62,48 +89,3 @@ instance KnownSpine '[] where
 
 instance KnownSpine xs => KnownSpine (x:xs) where
   knownSpine = Proxy :& knownSpine
-
-type family AllConstrainedF c f xs :: Constraint where
-  AllConstrainedF _ _ '[] = ()
-  AllConstrainedF c f (x : xs) =
-    ( c (f x)
-    , AllConstrainedF c f xs
-    )
-
-data Dict c where
-  Dict :: c => Dict c
-
-type UnionBaseCase c f = Dict (c (Union f '[]))
-type UnionInductionCase c f =
-  forall x xs'.
-     Dict (c (f x))
-  -> Dict (c (Union f xs'))
-  -> Dict (c (Union f (x:xs')))
-
-deduceUnion
-  :: forall c f xs.
-     (AllConstrainedF c f xs, KnownSpine xs)
-  => UnionBaseCase c f
-  -> UnionInductionCase c f
-  -> Dict (c (Union f xs))
-deduceUnion baseCase inductionCase = go (knownSpine @xs)
-  where
-    go
-      :: forall xs'.
-         AllConstrainedF c f xs'
-      => Spine xs'
-      -> Dict (c (Union f xs'))
-    go RNil = baseCase
-    go (Proxy :& xs) = inductionCase Dict (go xs)
-
-deduceEqUnion :: forall f xs.
-  (AllConstrainedF Eq f xs, KnownSpine xs) => Dict (Eq (Union f xs))
-deduceEqUnion = deduceUnion @Eq Dict (\Dict Dict -> Dict)
-
-deduceOrdUnion :: forall f xs.
-  (AllConstrainedF Ord f xs, KnownSpine xs) => Dict (Ord (Union f xs))
-deduceOrdUnion = deduceUnion @Ord Dict (\Dict Dict -> Dict)
-
-deduceShowUnion :: forall f xs.
-  (AllConstrainedF Show f xs, KnownSpine xs) => Dict (Show (Union f xs))
-deduceShowUnion = deduceUnion @Show Dict (\Dict Dict -> Dict)
