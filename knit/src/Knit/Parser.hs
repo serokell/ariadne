@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Knit.Parser where
 
 import Control.Applicative.Combinators.NonEmpty (sepBy1)
@@ -7,11 +9,15 @@ import Data.Monoid (First)
 import Text.Earley
 import Data.Text
 import Data.List.NonEmpty
+import Data.Proxy
+import Data.Vinyl.Core
+import Data.Vinyl.TypeLevel
 import Control.Applicative as A
 import Data.Foldable as F
 
 import Knit.Tokenizer
 import Knit.Syntax
+import Knit.Utils
 
 tok :: Getting (First a) (Token components) a -> Prod r e (s, Token components) a
 tok p = terminal (preview $ _2 . p)
@@ -23,22 +29,35 @@ inBrackets
 inBrackets p r =
     tok (p . _BracketSideOpening) *> r <* tok (p . _BracketSideClosing)
 
-gExpr :: Grammar r (Prod r Text (s, Token components) (Expr CommandName components))
+class ComponentLitGrammar components component where
+  componentLitGrammar :: Grammar r (Prod r Text (s, Token components) (Lit components))
+
+gComponentsLit
+  :: forall components r s.
+     (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+  => Grammar r (Prod r Text (s, Token components) (Lit components))
+gComponentsLit = go (knownSpine @components)
+  where
+    go
+      :: forall components'.
+         (AllConstrained (ComponentLitGrammar components) components')
+      => Spine components'
+      -> Grammar r (Prod r Text (s, Token components) (Lit components))
+    go RNil = rule A.empty
+    go ((Proxy :: Proxy component) :& xs) = do
+      nt1 <- go xs
+      nt2 <- componentLitGrammar @_ @component
+      rule $ nt1 <|> nt2
+
+gExpr
+  :: forall components r s.
+     (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+  => Grammar r (Prod r Text (s, Token components) (Expr CommandName components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
-    -- ntExprLit <- rule $ ExprLit <$> asum
-    --     [ LitNumber <$> tok _TokenNumber
-    --     , LitString <$> tok _TokenString
-    --     , LitAddress <$> tok _TokenAddress
-    --     , LitPublicKey <$> tok _TokenPublicKey
-    --     , LitStakeholderId <$> tok _TokenStakeholderId
-    --     , LitHash <$> tok _TokenHash
-    --     , LitBlockVersion <$> tok _TokenBlockVersion
-    --     , LitSoftwareVersion <$> tok _TokenSoftwareVersion
-    --     , LitFilePath . getFilePath' <$> tok _TokenFilePath
-    --     ] <?> "literal"
-    ntExprLit <- rule A.empty -- TODO: FIXME
+    ntComponentsLit <- gComponentsLit @components
+    ntExprLit <- rule $ ExprLit <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
         [ ArgKw <$> ntKey <*> ntExprAtom
         , ArgPos <$> ntExprAtom
@@ -70,7 +89,9 @@ mkExprGroup = F.foldr1 opSemicolon
     opSemicolon e1 e = ExprProcCall $
       ProcCall (OperatorName OpSemicolon) [ArgPos e1, ArgPos e]
 
-pExpr :: Parser Text [(s, Token components)] (Expr CommandName components)
+pExpr
+  :: (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+  => Parser Text [(s, Token components)] (Expr CommandName components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
@@ -78,7 +99,13 @@ data ParseError components = ParseError
     , peReport :: Report Text [(Span, Token components)]
     }
 
-parse :: Text -> Either (ParseError components) (Expr CommandName components)
+parse
+  :: ( KnownSpine components
+     , AllConstrained (ComponentTokenizer components) components
+     , AllConstrained (ComponentLitGrammar components) components
+     )
+  => Text
+  -> Either (ParseError components) (Expr CommandName components)
 parse str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize $ str
   where
     toEither = \case

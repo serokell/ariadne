@@ -9,6 +9,7 @@ import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import Data.Text.Zipper
 import Data.Unique
+import Data.Vinyl.TypeLevel
 import Data.List as List
 import Numeric (showIntAtBase)
 import Control.Exception (displayException)
@@ -29,6 +30,8 @@ import qualified Knit
 
 type Components components =
   ( Knit.KnownSpine components
+  , AllConstrained (Knit.ComponentTokenizer components) components
+  , AllConstrained (Knit.ComponentLitGrammar components) components
   , Show (Knit.Token components)
   , Show (Knit.Value components)
   , Show (Knit.Lit components)
@@ -50,12 +53,16 @@ makeLensesWith postfixLFields ''ReplWidgetState
 replWidgetText :: ReplWidgetState components -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
-replReparse :: Monad m => StateT (ReplWidgetState components) m ()
+replReparse
+  :: (Monad m, Components components)
+  => StateT (ReplWidgetState components) m ()
 replReparse = do
   t <- gets replWidgetText
   replWidgetExprL .= Knit.parse t
 
-initReplWidget :: ReplWidgetState components
+initReplWidget
+  :: Components components
+  => ReplWidgetState components
 initReplWidget =
   fix $ \this -> ReplWidgetState
     { replWidgetExpr = Knit.parse (replWidgetText this)

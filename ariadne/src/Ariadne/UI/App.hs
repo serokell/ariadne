@@ -61,7 +61,7 @@ data AppState components =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: AppState components
+initialAppState :: Components components => AppState components
 initialAppState =
   AppState
     { appStateRepl = initReplWidget

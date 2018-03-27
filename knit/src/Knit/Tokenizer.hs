@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Knit.Tokenizer where
 
 import Data.Text
@@ -6,17 +8,21 @@ import Data.Void
 import Data.Loc
 import Data.Union
 import Control.Monad
-import Control.Applicative
+import Control.Applicative as A
 import Data.Functor
 import Data.Maybe
 import Data.List.NonEmpty as NonEmpty
 import Data.Char
+import Data.Vinyl.Core
+import Data.Vinyl.TypeLevel
+import Data.Proxy
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
 import Text.Megaparsec hiding (Token)
 import Text.Megaparsec.Char
 
 import Knit.Name
+import Knit.Utils
 
 data BracketSide = BracketSideOpening | BracketSideClosing
     deriving (Eq, Ord, Show)
@@ -35,6 +41,9 @@ newtype UnknownChar = UnknownChar Char
 
 data family ComponentToken component
 
+class ComponentTokenizer components component where
+  componentTokenizer :: Tokenizer (Token components)
+
 data Token components
   = Token (Union ComponentToken components)
   | TokenSquareBracket BracketSide
@@ -51,7 +60,24 @@ deriving instance Show (Union ComponentToken components) => Show (Token componen
 
 makePrisms ''Token
 
-tokenize :: Text -> [(Span, Token components)]
+toToken
+  :: forall components component.
+     Elem components component
+  => ComponentToken component
+  -> Token components
+toToken = Token . uliftElem
+
+fromToken
+  :: forall components component.
+     Elem components component
+  => Token components
+  -> Maybe (ComponentToken component)
+fromToken = umatchElem <=< preview _Token
+
+tokenize
+  :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
+  => Text
+  -> [(Span, Token components)]
 tokenize = fromMaybe noTokenErr . tokenize'
   where
     noTokenErr =
@@ -60,10 +86,15 @@ tokenize = fromMaybe noTokenErr . tokenize'
         -- can't be tokenized will be treated as 'TokenUnknown'.
         error "tokenize: no token could be consumed. This is a bug"
 
-tokenize' :: Text -> Maybe [(Span, Token components)]
+tokenize'
+  :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
+  => Text
+  -> Maybe [(Span, Token components)]
 tokenize' = parseMaybe (between pSkip eof (many pToken))
 
-pToken :: Tokenizer (Span, Token components)
+pToken
+  :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
+  => Tokenizer (Span, Token components)
 pToken = withPosition (try pToken' <|> pUnknown) <* pSkip
   where
     posToLoc :: SourcePos -> Loc
@@ -82,12 +113,29 @@ pUnknown = TokenUnknown . UnknownChar <$> anyChar
 pSkip :: Tokenizer ()
 pSkip = skipMany (void spaceChar)
 
-pToken' :: Tokenizer (Token components)
+pToken'
+  :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
+  => Tokenizer (Token components)
 pToken' = choice
     [ pPunctuation
     , pIdentifier
-    -- TODO: component tokens
+    , pToken''
     ] <?> "token"
+
+pToken''
+  :: forall components.
+     (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
+  => Tokenizer (Token components)
+pToken'' = go (knownSpine @components)
+  where
+    go
+      :: forall components'.
+         AllConstrained (ComponentTokenizer components) components'
+      => Spine components'
+      -> Tokenizer (Token components)
+    go RNil = A.empty
+    go ((Proxy :: Proxy component) :& xs) =
+      (componentTokenizer @_ @component) <|> go xs
 
 pPunctuation :: Tokenizer (Token components)
 pPunctuation = choice

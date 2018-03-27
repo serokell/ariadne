@@ -10,6 +10,7 @@ import Pos.Core.Txp (TxOut)
 import Pos.Crypto (AHash, PublicKey)
 import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
 import Mockable (runProduction)
+import Text.Earley
 import qualified Mode as Auxx -- TODO: FIXME
 
 import Knit.Value
@@ -18,6 +19,7 @@ import Knit.Eval
 import Knit.Syntax
 import Knit.Core
 import Knit.Tokenizer
+import Knit.Parser
 import Knit.Utils
 
 data AddrDistrPart = AddrDistrPart
@@ -95,6 +97,12 @@ data instance ComponentToken Cardano
 deriving instance Eq (ComponentToken Cardano)
 deriving instance Ord (ComponentToken Cardano)
 deriving instance Show (ComponentToken Cardano)
+
+instance ComponentTokenizer components Cardano where
+  componentTokenizer = empty
+
+instance ComponentLitGrammar components Cardano where
+  componentLitGrammar = rule empty
 
 data instance ComponentCommandRepr components Cardano
   = CommandAction (Auxx.AuxxMode (Value components))
