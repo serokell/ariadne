@@ -56,7 +56,6 @@ makePrisms 'TokenNumber
 
 instance Elem components Core => ComponentTokenizer components Core where
   componentTokenizer =
-    P.choice
       [ toToken . TokenNumber <$> pScientific
       , toToken . TokenString <$> pString
       , toToken . TokenFilePath <$> pFilePath
