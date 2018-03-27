@@ -1,9 +1,9 @@
-module Ariadne.CardanoBackend (createCardanoBackend) where
+module Ariadne.Cardano.Backend (createCardanoBackend) where
 
 import Universum hiding (atomically)
 
 import Unsafe (unsafeFromJust)
-import Mode (AuxxContext (..), AuxxMode ())
+import Ariadne.Cardano.Mode (AuxxContext (..), AuxxMode ())
 import Mockable (Production (..))
 import System.Wlog (logInfo)
 import qualified Pos.Client.CLI as CLI
@@ -16,11 +16,10 @@ import Pos.DB.DB (initNodeDBs)
 import Pos.Util (logException)
 import Pos.Util.UserSecret (usVss)
 import Pos.WorkMode (EmptyMempoolExt, RealMode)
-import Pos.Communication (ActionSpec (..))
+import Pos.Communication (ActionSpec (..), NodeId)
 import Pos.Logic.Full (logicLayerFull)
 import Pos.Diffusion.Full (diffusionLayerFull)
 import Pos.Diffusion.Types (DiffusionLayer (..))
-import AuxxOptions (AuxxOptions (..), AuxxStartMode(..), AuxxAction(..))
 import JsonLog (jsonLog)
 import Pos.Diffusion.Transport.TCP (bracketTransportTCP)
 import Pos.Configuration (networkConnectionTimeout)
@@ -29,6 +28,13 @@ import Pos.Update (lastKnownBlockVersion)
 import Pos.Logic.Types (LogicLayer (..))
 import Options.Applicative hiding (action)
 import Formatting
+
+data AuxxOptions = AuxxOptions
+    { aoCommonNodeArgs :: !CLI.CommonNodeArgs  -- ^ Common CLI args for nodes
+    , aoPeers          :: ![NodeId]
+    -- ^ Peers with which we want to communicate
+    --   TODO: we also have topology, so it can be redundant.
+    }
 
 createCardanoBackend :: IO (IO AuxxContext, IO ())
 createCardanoBackend = do
@@ -39,7 +45,7 @@ runCardano :: MVar AuxxContext -> IO ()
 runCardano auxxContextVar = withCompileInfo $(retrieveCompileTimeInfo) $ do
     -- temporary mess
     let (Success commonArgs) = execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc) ["--system-start", "0", "--log-config", "log-config.yaml", "--no-ntp", "--configuration-file",  "auxx.yaml"]
-    let opts = AuxxOptions Repl commonArgs [] Automatic
+    let opts = AuxxOptions commonArgs []
     let disableConsoleLog = \lp -> lp { lpConsoleLog = Just False }
         loggingParams = disableConsoleLog $
             CLI.loggingParams "ariadne" (aoCommonNodeArgs opts)
