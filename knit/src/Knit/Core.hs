@@ -5,10 +5,12 @@ import Data.Scientific
 import Control.Lens
 import Control.Monad
 import Data.Maybe
+import Data.Bool
 import Data.Char (isAlphaNum)
 import Data.List as List
 import Control.Applicative as A
 import Data.Foldable (asum)
+import Data.Vinyl.TypeLevel
 import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
@@ -21,6 +23,7 @@ import Knit.Procedure
 import Knit.Eval
 import Knit.Tokenizer
 import Knit.Parser
+import Knit.Inflate
 import Knit.Utils
 
 data Core
@@ -38,6 +41,27 @@ deriving instance Ord (Value components) => Ord (ComponentValue components Core)
 deriving instance Show (Value components) => Show (ComponentValue components Core)
 
 makePrisms 'ValueBool
+
+instance
+  ( Elem components Core
+  , AllConstrained (ComponentInflate components) components
+  ) => ComponentInflate components Core
+  where
+    componentInflate = \case
+      ValueUnit ->
+        ExprProcCall $ ProcCall (OperatorName OpUnit) []
+      ValueBool b ->
+        let commandName = bool "false" "true"   b
+        in ExprProcCall $ ProcCall commandName []
+      ValueNumber n ->
+        ExprLit $ toLit (LitNumber n)
+      ValueString s ->
+        ExprLit $ toLit (LitString s)
+      ValueFilePath s ->
+        ExprLit $ toLit (LitFilePath s)
+      ValueList vs ->
+        ExprProcCall $ ProcCall "L" $
+        List.map (ArgPos . inflate) vs
 
 data instance ComponentLit Core
   = LitNumber Scientific

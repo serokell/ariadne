@@ -42,6 +42,7 @@ library
       Knit.Syntax
       Knit.Name
       Knit.Eval
+      Knit.Inflate
       Knit.Procedure
       Knit.Tokenizer
       Knit.Parser

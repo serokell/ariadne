@@ -64,6 +64,9 @@ library
     , loc
     , Earley
     , megaparsec
+    , bytestring
+    , containers
+    , time-units
     , knit
   exposed-modules:
       Ariadne.UI

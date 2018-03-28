@@ -1,3 +1,5 @@
+-- TODO: use ppr instead of show
+
 module Knit.DisplayError
     ( ppArgumentError
     , ppEvalError
