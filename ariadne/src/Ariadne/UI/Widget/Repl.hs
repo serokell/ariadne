@@ -274,7 +274,7 @@ updateCommandResult
 updateCommandResult _ _ outCmd = outCmd
 
 pprDoc :: Int -> Ppr.A.Doc -> V.Image
-pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
+pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.985 w s
 
 ariadneBanner :: Int -> V.Image
 ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
