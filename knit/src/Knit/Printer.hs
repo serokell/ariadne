@@ -58,7 +58,7 @@ ppExpr =
         OperatorName opName -> ppOperatorCall opName args
         ProcedureName procName -> ppProcedureCall procName args
 
-    ppOperatorCall OpUnit [] = text "()"
+    ppOperatorCall OpUnit [] = text ""
     ppOperatorCall OpSemicolon [ArgPos a, ArgPos b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
     ppOperatorCall _ _ =
