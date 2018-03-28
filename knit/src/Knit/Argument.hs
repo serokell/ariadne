@@ -23,7 +23,6 @@ module Knit.Argument
 import Control.Lens
 import Control.Monad
 import Control.Monad.State
-import Data.Functor.Identity
 import Data.List (sortOn)
 import Data.List.NonEmpty
 import Data.Maybe
