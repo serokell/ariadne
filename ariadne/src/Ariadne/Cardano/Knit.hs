@@ -1,4 +1,4 @@
-module Ariadne.Knit.Cardano where
+module Ariadne.Cardano.Knit where
 
 import Universum
 
@@ -15,7 +15,8 @@ import Control.Lens
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
-import qualified Mode as Auxx -- TODO: FIXME
+
+import qualified Ariadne.Cardano.Mode as Auxx
 
 import Knit.Value
 import Knit.Procedure
@@ -67,6 +68,7 @@ data AddKeyParams = AddKeyParams
     -- ^ If 'True', then primary key will be added.
     }
 
+-- Component type for Knit
 data Cardano
 
 data instance ComponentValue _ Cardano

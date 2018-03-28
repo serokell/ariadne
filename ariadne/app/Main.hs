@@ -7,10 +7,10 @@ import Data.Vinyl.Core
 import Ariadne.UI
 import Ariadne.Face
 import Ariadne.Knit.Backend
-import Ariadne.CardanoBackend
+import Ariadne.Cardano.Backend
 
 import qualified Knit
-import qualified Ariadne.Knit.Cardano as Knit
+import qualified Ariadne.Cardano.Knit as Knit
 
 main :: IO ()
 main = do
