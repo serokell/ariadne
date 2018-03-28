@@ -1,5 +1,3 @@
--- TODO: use ppr instead of show
-
 module Knit.DisplayError
     ( ppArgumentError
     , ppEvalError
@@ -8,21 +6,16 @@ module Knit.DisplayError
     , ppParseError
     , ppProcError
     , ppResolveErrors
-    , renderAuxxDoc
-    , text
-    , nameToDoc
     ) where
 
 import Prelude hiding ((<$>), span)
 
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import qualified Data.List.NonEmpty as NE
-import qualified Text.PrettyPrint.ANSI.Leijen
 import qualified Data.Set as Set
 import Data.Either
-import Data.Text (Text, unpack)
+import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
 import Data.Monoid ((<>))
 import Data.Maybe
 import Data.String (fromString)
@@ -30,8 +23,6 @@ import Control.Lens
 import Control.Applicative ((<|>))
 import Data.Loc
 import Data.Loc.Span (joinAsc)
-import Data.Text.Buildable (build)
-import Data.Text.Lazy.Builder (toLazyText)
 import Text.Earley (Report (..))
 import Text.PrettyPrint.ANSI.Leijen
   (Doc, bold, char, comma, empty, hcat, indent,
@@ -40,19 +31,12 @@ import Text.PrettyPrint.ANSI.Leijen
 import Knit.Argument
 import Knit.Eval
 import Knit.Tokenizer
-import Knit.Name
 import Knit.Parser
 import Knit.Syntax
-import Knit.Value
+import Knit.Printer
 
 highlight :: Doc -> Doc
 highlight = bold . yellow
-
-text :: Text -> Doc
-text = Text.PrettyPrint.ANSI.Leijen.text . unpack
-
-nameToDoc :: Name -> Doc
-nameToDoc = Text.PrettyPrint.ANSI.Leijen.text . TL.unpack . toLazyText . build
 
 commandNameToDoc :: CommandName -> Doc
 commandNameToDoc (ProcedureName name) = nameToDoc name
@@ -65,10 +49,13 @@ ppTypeName :: TypeName -> Doc
 ppTypeName (TypeName name)         = text name
 ppTypeName (TypeNameEither tn tn') = ppTypeName tn <+> char '|' <+> ppTypeName tn'
 
-ppTypeError :: Show (Value components) => TypeError components -> Doc
+ppTypeError
+  :: PrettyPrintValue components
+  => TypeError components
+  -> Doc
 ppTypeError TypeError{..} =
         "Couldn't match expected type" <+> (highlight $ ppTypeName teExpectedType)
-    <+> "with actual value"            <+> (highlight $ fromString (show teActualValue)) -- TODO: ppr
+    <+> "with actual value"            <+> (highlight $ ppValue teActualValue)
     `mappend`  "!"
 
 ppArgumentError :: ArgumentError -> Doc
@@ -91,7 +78,7 @@ ppArgumentError ae@ArgumentError{..} =
         then []
         else ["Irrelevant positional arguments:" <+> (highlight . fromString . show) aeIrrelevantPos]
 
-ppProcError :: Show (Value components) => ProcError components -> Doc
+ppProcError :: PrettyPrintValue components => ProcError components -> Doc
 ppProcError ProcError{..} = ppArgumentError peArgumentError <$> typeErrorsDoc
   where
     typeErrorsDoc =
@@ -100,7 +87,7 @@ ppProcError ProcError{..} = ppArgumentError peArgumentError <$> typeErrorsDoc
         else "Following type errors occured:" <$>
              (indent 2 . hcat . map ppTypeError . Set.toList) peTypeErrors
 
-ppEvalError :: Show (Value components) => EvalError components -> Doc
+ppEvalError :: PrettyPrintValue components => EvalError components -> Doc
 ppEvalError (InvalidArguments name procError) =
         "Invalid arguments for" <+> (squotes . highlight . commandNameToDoc) name `mappend` ":"
     <$> indent 2 (ppProcError procError)
@@ -117,6 +104,7 @@ renderLine start end str = text str
 renderFullLine :: Text -> Doc
 renderFullLine str = renderLine 0 (T.length str) str
 
+-- TODO: use ppr instead of show
 ppParseError :: Show (Token components) => ParseError components -> Doc
 ppParseError (ParseError str (Report {..})) =
       "Parse error at" <+> text (fromString (show span))
@@ -155,6 +143,3 @@ ppParseError (ParseError str (Report {..})) =
         case nonEmpty (joinAsc unknownSpans) <|> nonEmpty (map fst unconsumed) of
             Nothing -> spanFromTo strEndLoc (addColumn 1 strEndLoc) :|[]
             Just x  -> x
-
-renderAuxxDoc :: Doc -> Text
-renderAuxxDoc = fromString . show -- it's fine

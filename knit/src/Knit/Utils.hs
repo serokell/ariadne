@@ -76,6 +76,15 @@ umatchElem = go (elemEv @xs @a)
 uprismElem :: forall f xs a. Elem xs a => Prism' (Union f xs) (f a)
 uprismElem = prism' uliftElem umatchElem
 
+ufold
+  :: forall c f xs r.
+      AllConstrained c xs
+  => (forall x. c x => f x -> r)
+  -> Union f xs
+  -> r
+ufold f (This v) = f v
+ufold f (That v) = ufold @c f v
+
 data Some c f where
   Some :: c x => f x -> Some c f
 

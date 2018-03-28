@@ -32,13 +32,12 @@ type Components components =
   ( Knit.KnownSpine components
   , AllConstrained (Knit.ComponentTokenizer components) components
   , AllConstrained (Knit.ComponentLitGrammar components) components
+  , Knit.PrettyPrintValue components
   , Show (Knit.Token components)
-  , Show (Knit.Value components)
-  , Show (Knit.Lit components)
   )
 
 data OutputElement
-  = OutputCommand CommandId Text (Maybe (Int -> V.Image))
+  = OutputCommand CommandId (Int -> V.Image) (Maybe (Int -> V.Image))
   | OutputInfo (Int -> V.Image)
 
 data ReplWidgetState components =
@@ -86,24 +85,28 @@ drawReplOutputWidget _hasFocus replWidgetState =
       rdrCtx <- B.getContext
       let
         height = (rdrCtx ^. B.availHeightL) - 1
+        width = rdrCtx ^. B.availWidthL
         img =
           V.cropTop height $
           V.vertCat $
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg (rdrCtx ^. B.availWidthL)
+          mkImg width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
-          V.vertCat
-            [ V.horizCat
-              [ V.text' V.defAttr (drawCommandId commandId)
-              , V.text' V.defAttr " "
-              , V.text' V.defAttr commandSrc
+          let
+            cmdInfo = V.text' V.defAttr (drawCommandId commandId)
+          in
+            V.vertCat
+              [ V.horizCat
+                [ cmdInfo
+                , V.text' V.defAttr " "
+                , commandSrc (width - V.imageWidth cmdInfo - 1)
+                ]
+              , case mCommandOut of
+                  Nothing -> V.text' V.defAttr "<waiting for output>"
+                  Just mkImg -> mkImg width
               ]
-            , case mCommandOut of
-                Nothing -> V.text' V.defAttr "<waiting for output>"
-                Just mkImg -> mkImg (rdrCtx ^. B.availWidthL)
-            ]
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -233,7 +236,7 @@ handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
       Right expr -> do
         commandId <- liftIO $ putKnitCommand expr
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (pack (show expr)) Nothing
+        let out = OutputCommand commandId (\w -> pprDoc w (Knit.ppExpr expr)) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse
     return ReplInProgress
@@ -265,7 +268,7 @@ updateCommandResult
   where
     commandResultImage w =
       case commandResult of
-        CommandSuccess v -> V.string V.defAttr (show v)
+        CommandSuccess v -> pprDoc w (Knit.ppValue v)
         CommandEvalError e -> pprDoc w (Knit.ppEvalError e)
         CommandProcError e -> pprDoc w (Knit.ppResolveErrors e)
         CommandException e -> V.string V.defAttr (displayException e)

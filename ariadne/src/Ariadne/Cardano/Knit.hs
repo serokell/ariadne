@@ -12,6 +12,7 @@ import Pos.Crypto
 import Pos.Util.Util (toParsecError)
 import Mockable (runProduction)
 import Text.Earley
+import Formatting (sformat)
 import Control.Lens hiding (parts)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
@@ -294,6 +295,14 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
         P.notFollowedBy $ P.char '.'
         return BlockVersion{..}
 
+instance ComponentDetokenizer Cardano where
+  componentTokenRender = \case
+    TokenAddress a -> pretty a
+    TokenPublicKey pk -> sformat fullPublicKeyF pk
+    TokenStakeholderId sId -> sformat hashHexF sId
+    TokenHash h -> sformat hashHexF (getAHash h)
+    TokenBlockVersion v -> pretty v
+
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
     rule $ asum
@@ -303,6 +312,14 @@ instance Elem components Cardano => ComponentLitGrammar components Cardano where
       , toLit . LitHash <$> tok (_Token . uprismElem . _TokenHash)
       , toLit . LitBlockVersion <$> tok (_Token . uprismElem . _TokenBlockVersion)
       ]
+
+instance ComponentPrinter Cardano where
+  componentPpLit = \case
+    LitAddress x -> text (componentTokenRender (TokenAddress x))
+    LitPublicKey x -> text (componentTokenRender (TokenPublicKey x))
+    LitStakeholderId x -> text (componentTokenRender (TokenStakeholderId x))
+    LitHash x -> text (componentTokenRender (TokenHash x))
+    LitBlockVersion x -> text (componentTokenRender (TokenBlockVersion x))
 
 data instance ComponentCommandRepr components Cardano
   = CommandAction (Auxx.AuxxMode (Value components))

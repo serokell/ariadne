@@ -13,6 +13,7 @@ import Data.Foldable (asum)
 import Data.Vinyl.TypeLevel
 import Text.Earley
 import Data.Word
+import Data.String
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -26,6 +27,7 @@ import Knit.Tokenizer
 import Knit.Parser
 import Knit.Inflate
 import Knit.Utils
+import Knit.Printer
 
 data Core
 
@@ -68,7 +70,6 @@ data instance ComponentLit Core
   = LitNumber Scientific
   | LitString Text
   | LitFilePath FilePath
-  | LitUnit
   deriving (Eq, Ord, Show)
 
 data instance ComponentToken Core
@@ -114,6 +115,21 @@ instance Elem components Core => ComponentTokenizer components Core where
         P.char '\\' *> P.anyChar <|>
         P.satisfy isFilePathChar
 
+instance ComponentDetokenizer Core where
+  componentTokenRender = \case
+    TokenNumber n ->
+      case floatingOrInteger n of
+        Left (_ :: Double) -> fromString (show n)
+        Right (n' :: Integer) -> fromString (show n')
+    TokenString s -> fromString (show s)
+    TokenFilePath s ->
+      let
+        escape c
+          | isFilePathChar c = [c]
+          | otherwise = '\\':[c]
+      in
+        fromString (List.concatMap escape s)
+
 isFilePathChar :: Char -> Bool
 isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 
@@ -125,6 +141,12 @@ instance Elem components Core => ComponentLitGrammar components Core where
       , toLit . LitFilePath <$> tok (_Token . uprismElem . _TokenFilePath)
       ]
 
+instance ComponentPrinter Core where
+  componentPpLit = \case
+    LitNumber x -> text (componentTokenRender (TokenNumber x))
+    LitString x -> text (componentTokenRender (TokenString (unpack x)))
+    LitFilePath x -> text (componentTokenRender (TokenFilePath x))
+
 data instance ComponentCommandRepr components Core
   = CommandIdentity (Value components)
 
@@ -133,7 +155,6 @@ instance ComponentLitToValue components Core where
     LitNumber x -> ValueNumber x
     LitString x -> ValueString x
     LitFilePath x -> ValueFilePath x
-    LitUnit -> ValueUnit
 
 data instance ComponentExecContext Core = CoreExecCtx
 
