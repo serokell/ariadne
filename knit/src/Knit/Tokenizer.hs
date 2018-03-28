@@ -10,9 +10,12 @@ import Data.Union
 import Control.Monad
 import Control.Applicative as A
 import Data.Functor
+import Data.Function
 import Data.Maybe
 import Data.List.NonEmpty as NonEmpty
 import Data.Char
+import Data.List as List
+import Data.Traversable
 import Data.Vinyl.Core
 import Data.Vinyl.TypeLevel
 import Data.Proxy
@@ -42,7 +45,7 @@ newtype UnknownChar = UnknownChar Char
 data family ComponentToken component
 
 class ComponentTokenizer components component where
-  componentTokenizer :: Tokenizer (Token components)
+  componentTokenizer :: [Tokenizer (Token components)]
 
 data Token components
   = Token (Union ComponentToken components)
@@ -95,13 +98,13 @@ tokenize' = parseMaybe (between pSkip eof (many pToken))
 pToken
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Tokenizer (Span, Token components)
-pToken = withPosition (try pToken' <|> pUnknown) <* pSkip
+pToken = withSpan (try pToken' <|> pUnknown) <* pSkip
   where
     posToLoc :: SourcePos -> Loc
     posToLoc SourcePos{..} = uncurry loc
         ( fromIntegral . unPos $ sourceLine
         , fromIntegral . unPos $ sourceColumn )
-    withPosition p = do
+    withSpan p = do
         position1 <- posToLoc <$> getPosition
         t <- p
         position2 <- posToLoc <$> getPosition
@@ -118,24 +121,39 @@ pToken'
   => Tokenizer (Token components)
 pToken' = choice
     [ pPunctuation
-    , pIdentifier
     , pToken''
+    , pIdentifier
     ] <?> "token"
 
 pToken''
   :: forall components.
      (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Tokenizer (Token components)
-pToken'' = go (knownSpine @components)
+pToken'' = longestMatch (go (knownSpine @components))
   where
     go
       :: forall components'.
          AllConstrained (ComponentTokenizer components) components'
       => Spine components'
-      -> Tokenizer (Token components)
-    go RNil = A.empty
+      -> [Tokenizer (Token components)]
+    go RNil = []
     go ((Proxy :: Proxy component) :& xs) =
-      (componentTokenizer @_ @component) <|> go xs
+      componentTokenizer @_ @component ++ go xs
+
+longestMatch :: [Tokenizer (Token components)] -> Tokenizer (Token components)
+longestMatch ps = do
+  ps' <-
+    for ps $ \p -> do
+      optional . try . lookAhead $ do
+        -- we discard the value and parse it again later;
+        -- this is probably bad for performance, but I haven't
+        -- measured it
+        _ <- p
+        position <- getPosition
+        return (position, p)
+  case nonEmpty (catMaybes ps') of
+    Nothing -> A.empty
+    Just ps'' -> snd $ maximumBy (compare `on` fst) ps''
 
 pPunctuation :: Tokenizer (Token components)
 pPunctuation = choice
@@ -159,3 +177,6 @@ pNameSection = NonEmpty.some1 pLetter
 
 pLetter :: Tokenizer Letter
 pLetter = unsafeMkLetter <$> satisfy isAlpha
+
+pSomeAlphaNum :: Tokenizer Text
+pSomeAlphaNum = takeWhile1P (Just "alphanumeric") isAlphaNum

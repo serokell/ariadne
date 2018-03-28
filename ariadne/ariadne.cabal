@@ -63,6 +63,7 @@ library
     , ansi-wl-pprint
     , loc
     , Earley
+    , megaparsec
     , knit
   exposed-modules:
       Ariadne.UI
