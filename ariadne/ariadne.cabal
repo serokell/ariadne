@@ -68,6 +68,7 @@ library
     , containers
     , time-units
     , knit
+    , serokell-util
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
@@ -86,6 +87,7 @@ library
       Ariadne.Face
       Ariadne.Util
   default-extensions:
+      ApplicativeDo
       NoImplicitPrelude
       BangPatterns
       ConstraintKinds

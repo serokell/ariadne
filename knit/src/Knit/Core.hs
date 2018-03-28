@@ -12,6 +12,7 @@ import Control.Applicative as A
 import Data.Foldable (asum)
 import Data.Vinyl.TypeLevel
 import Text.Earley
+import Data.Word
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -188,8 +189,36 @@ instance Elem components Core => ComponentCommandProcs components Core where
         }
     ]
 
+infixr `tyEither`
+
+tyEither :: TyProjection components a -> TyProjection components b -> TyProjection components (Either a b)
+tyEither tpa tpb = TyProjection
+    { tpTypeName = TypeNameEither (tpTypeName tpa) (tpTypeName tpb)
+    , tpMatcher = \v ->
+        Left <$> tpMatcher tpa v <|>
+        Right <$> tpMatcher tpb v
+    }
+
 tyValue :: TyProjection components (Value components)
 tyValue = TyProjection "Value" Just
 
 tyBool :: Elem components Core => TyProjection components Bool
 tyBool = TyProjection "Bool" (preview _ValueBool <=< fromValue)
+
+tyFilePath :: Elem components Core => TyProjection components FilePath
+tyFilePath = TyProjection "FilePath" (preview _ValueFilePath <=< fromValue)
+
+tyInt :: Elem components Core => TyProjection components Int
+tyInt = TyProjection "Int" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+
+tyWord :: Elem components Core => TyProjection components Word
+tyWord = TyProjection "Word" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+
+tyWord8 :: Elem components Core => TyProjection components Word8
+tyWord8 = TyProjection "Word8" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+
+tyWord32 :: Elem components Core => TyProjection components Word32
+tyWord32 = TyProjection "Word32" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+
+tyWord64 :: Elem components Core => TyProjection components Word64
+tyWord64 = TyProjection "Word64" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
