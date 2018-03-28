@@ -146,6 +146,10 @@ instance ComponentPrinter Core where
     LitNumber x -> text (componentTokenRender (TokenNumber x))
     LitString x -> text (componentTokenRender (TokenString (unpack x)))
     LitFilePath x -> text (componentTokenRender (TokenFilePath x))
+  componentPpToken = \case
+    TokenNumber _ -> "number"
+    TokenString _ -> "string literal"
+    TokenFilePath _ -> "filepath"
 
 data instance ComponentCommandRepr components Core
   = CommandIdentity (Value components)

@@ -10,6 +10,7 @@ module Knit.DisplayError
 
 import Prelude hiding ((<$>), span)
 
+import Data.Vinyl.TypeLevel
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
@@ -104,15 +105,17 @@ renderLine start end str = text str
 renderFullLine :: Text -> Doc
 renderFullLine str = renderLine 0 (T.length str) str
 
--- TODO: use ppr instead of show
-ppParseError :: Show (Token components) => ParseError components -> Doc
+ppParseError
+  :: AllConstrained ComponentPrinter components
+  => ParseError components
+  -> Doc
 ppParseError (ParseError str (Report {..})) =
       "Parse error at" <+> text (fromString (show span))
-  <$> "Unexpected" <+> text unconsumedDesc `mappend` ", expected"
+  <$> "Unexpected" <+> unconsumedDesc `mappend` ", expected"
   <+> hcat (punctuate (text ", or ") $ map text expected)
   <$> renderLines
   where
-    unconsumedDesc = maybe "end of input" (fromString . show) . listToMaybe . fmap snd $ unconsumed
+    unconsumedDesc = maybe "end of input" ppToken . listToMaybe . fmap snd $ unconsumed
     strLines = nonEmpty $ take spanLines . drop (spanLineStart - 1) $ T.lines str
     renderLines = case strLines of
         Nothing ->

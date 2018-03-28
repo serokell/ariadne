@@ -33,7 +33,6 @@ type Components components =
   , AllConstrained (Knit.ComponentTokenizer components) components
   , AllConstrained (Knit.ComponentLitGrammar components) components
   , Knit.PrettyPrintValue components
-  , Show (Knit.Token components)
   )
 
 data OutputElement

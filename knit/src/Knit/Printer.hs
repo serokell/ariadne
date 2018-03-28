@@ -15,10 +15,12 @@ import Knit.Syntax
 import Knit.Name
 import Knit.Inflate
 import Knit.Value
+import Knit.Tokenizer
 import Knit.Utils
 
 class ComponentPrinter component where
   componentPpLit :: ComponentLit component -> Doc
+  componentPpToken :: ComponentToken component -> Doc
 
 ppLit
   :: forall components.
@@ -26,6 +28,21 @@ ppLit
   => Lit components
   -> Doc
 ppLit = ufold @ComponentPrinter componentPpLit . getLitUnion
+
+ppToken
+  :: forall components.
+     AllConstrained ComponentPrinter components
+  => Token components
+  -> Doc
+ppToken = \case
+  Token u -> ufold @ComponentPrinter componentPpToken u
+  TokenSquareBracket _ -> "square bracket"
+  TokenParenthesis _ -> "parenthesis"
+  TokenEquals -> "equality sign"
+  TokenSemicolon -> "semicolon"
+  TokenName _ -> "procedure name"
+  TokenKey _ -> "key"
+  TokenUnknown (UnknownChar c) -> text ("character '" <> T.singleton c <> "'")
 
 ppExpr
   :: AllConstrained ComponentPrinter components

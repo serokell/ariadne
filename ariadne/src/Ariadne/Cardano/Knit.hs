@@ -320,6 +320,12 @@ instance ComponentPrinter Cardano where
     LitStakeholderId x -> text (componentTokenRender (TokenStakeholderId x))
     LitHash x -> text (componentTokenRender (TokenHash x))
     LitBlockVersion x -> text (componentTokenRender (TokenBlockVersion x))
+  componentPpToken = \case
+    TokenAddress _ -> "address"
+    TokenPublicKey _ -> "public key"
+    TokenStakeholderId _ -> "stakeholder id"
+    TokenHash _ -> "hash"
+    TokenBlockVersion _ -> "block version"
 
 data instance ComponentCommandRepr components Cardano
   = CommandAction (Auxx.AuxxMode (Value components))
