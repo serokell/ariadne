@@ -2,7 +2,7 @@
 
 module Knit.Tokenizer where
 
-import Data.Text
+import Data.Text as T
 import Control.Lens
 import Data.Void
 import Data.Loc
@@ -47,6 +47,9 @@ data family ComponentToken component
 class ComponentTokenizer components component where
   componentTokenizer :: [Tokenizer (Token components)]
 
+class ComponentDetokenizer component where
+  componentTokenRender :: ComponentToken component -> Text
+
 data Token components
   = Token (Union ComponentToken components)
   | TokenSquareBracket BracketSide
@@ -76,6 +79,27 @@ fromToken
   => Token components
   -> Maybe (ComponentToken component)
 fromToken = umatchElem <=< preview _Token
+
+tokenRender
+  :: forall components.
+     AllConstrained ComponentDetokenizer components
+  => Token components
+  -> Text
+tokenRender = \case
+  Token u -> ufold @ComponentDetokenizer componentTokenRender u
+  TokenSquareBracket bs -> withBracketSide "[" "]" bs
+  TokenParenthesis bs -> withBracketSide "(" ")" bs
+  TokenEquals -> "="
+  TokenSemicolon -> ";"
+  TokenName name -> T.pack (show name)
+  TokenKey name -> T.pack (shows name ":")
+  TokenUnknown (UnknownChar c) -> T.singleton c
+
+detokenize
+  :: AllConstrained ComponentDetokenizer components
+  => [Token components]
+  -> Text
+detokenize = T.unwords . List.map tokenRender
 
 tokenize
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)

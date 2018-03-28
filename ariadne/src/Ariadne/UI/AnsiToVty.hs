@@ -19,10 +19,9 @@ ansiToVty = V.vertCat . execWriter . go V.defAttr id
       Ppr.A.SEmpty -> tell [img V.emptyImage]
       Ppr.A.SChar c x -> go attr (img . V.horizJoin (V.char attr c)) x
       Ppr.A.SText _ s x -> go attr (img . V.horizJoin (V.string attr s)) x
-      Ppr.A.SLine _i x -> do
+      Ppr.A.SLine i x -> do
         tell [img V.emptyImage]
-        -- todo: indent
-        go attr id x
+        go attr (V.horizJoin (V.backgroundFill i 1)) x
       Ppr.A.SSGR _s x ->
         -- todo: attr
         go attr img x
