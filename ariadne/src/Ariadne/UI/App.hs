@@ -1,4 +1,8 @@
-module Ariadne.UI.App where
+module Ariadne.UI.App
+  ( AppState
+  , initialAppState
+  , app
+  ) where
 
 import Prelude
 import Data.Void
@@ -11,7 +15,7 @@ import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
-import Ariadne.Face
+import Ariadne.UI.Face
 import Ariadne.Util
 
 import Ariadne.UI.Widget.Repl
@@ -56,10 +60,10 @@ data AppState =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: AppState
-initialAppState =
+initialAppState :: UiLangFace -> AppState
+initialAppState langFace =
   AppState
-    { appStateRepl = initReplWidget
+    { appStateRepl = initReplWidget langFace
     , appStateMenu = initMenuWidget appSelectors 0
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
@@ -79,12 +83,10 @@ initialAppState =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: AuxxFace -> B.App AppState AuxxEvent Void
-app auxxFace = B.App{..} where
+app :: UiLangFace -> B.App AppState UiEvent Void
+app langFace = B.App{..} where
 
-  appDraw
-    :: AppState
-    -> [B.Widget Void]
+  appDraw :: AppState -> [B.Widget Void]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
@@ -96,11 +98,11 @@ app auxxFace = B.App{..} where
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent Void AuxxEvent
+    -> B.BrickEvent Void UiEvent
     -> B.EventM Void (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <- liftIO $
-      runStateT (handleAppEvent auxxFace ev) appState
+      runStateT (handleAppEvent langFace ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
@@ -113,9 +115,7 @@ app auxxFace = B.App{..} where
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap _ = B.attrMap V.defAttr []
 
-drawAppWidget
-    :: AppState
-    -> [B.Widget Void]
+drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
     drawMenu =
@@ -178,10 +178,10 @@ drawAppWidget AppState{..} =
       _ -> [drawDefaultView]
 
 handleAppEvent
-  :: AuxxFace
-  -> B.BrickEvent Void AuxxEvent
+  :: UiLangFace
+  -> B.BrickEvent Void UiEvent
   -> StateT AppState IO AppCompleted
-handleAppEvent auxxFace ev = do
+handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
   case ev of
     B.VtyEvent vtyEv
@@ -200,14 +200,14 @@ handleAppEvent auxxFace ev = do
       | Just replEv <- toReplEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
-            handleReplWidgetEvent auxxFace replEv
+            handleReplWidgetEvent langFace replEv
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
-    B.AppEvent (AuxxResultEvent commandId commandResult) -> do
+    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
-          handleReplWidgetEvent auxxFace $
-            ReplCommandResultEvent commandId commandResult
+          handleReplWidgetEvent langFace $
+            ReplCommandEvent commandId commandEvent
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
