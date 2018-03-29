@@ -5,14 +5,8 @@ homepage:       https://github.com/serokell/ariadne#readme
 bug-reports:    https://github.com/serokell/ariadne/issues
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
-copyright:      2018 Author name here
-license:        BSD3
 build-type:     Simple
 cabal-version:  >= 1.10
-
-extra-source-files:
-    ChangeLog.md
-    README.md
 
 source-repository head
   type: git
@@ -26,19 +20,30 @@ library
     , async
     , brick
     , cardano-sl
-    , cardano-sl-auxx
+    , cardano-sl-block
+    , cardano-sl-client
     , cardano-sl-core
-    , cardano-sl-networking
+    , cardano-sl-crypto
+    , cardano-sl-db
+    , cardano-sl-generator
     , cardano-sl-infra
+    , cardano-sl-networking
+    , cardano-sl-ssc
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
+    , scientific
     , cpphs
     , constraints
     , directory
     , formatting
     , kademlia
     , lens
+    , vinyl
+    , mtl
+    , conduit
+    , resourcet
+    , data-default
     , network-transport-tcp
     , log-warper
     , optparse-applicative
@@ -58,6 +63,12 @@ library
     , ansi-wl-pprint
     , loc
     , Earley
+    , megaparsec
+    , bytestring
+    , containers
+    , time-units
+    , knit
+    , serokell-util
   exposed-modules:
       Ariadne.UI
       Ariadne.UI.App
@@ -69,27 +80,53 @@ library
       Ariadne.UI.Widget.Repl
       Ariadne.UI.Widget.WalletTree
       Ariadne.UI.Widget.WalletPane
-      Ariadne.AuxxBackend
-      Ariadne.Face
+      Ariadne.UI.Face
+      Ariadne.Cardano.Knit
+      Ariadne.Cardano.Backend
+      Ariadne.Cardano.Mode
+      Ariadne.Cardano.Face
+      Ariadne.Knit.Backend
+      Ariadne.Knit.Face
+      Ariadne.CommandId
+      Ariadne.Glue
       Ariadne.Util
   default-extensions:
-      RecordWildCards
+      ApplicativeDo
       NoImplicitPrelude
-      OverloadedStrings
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
       LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NegativeLiterals
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
       RankNTypes
-      TemplateHaskell
-      QuasiQuotes
-      FlexibleContexts
-      FunctionalDependencies
-      TupleSections
-      FlexibleContexts
-      TypeApplications
+      RecordWildCards
+      RecursiveDo
       ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      ViewPatterns
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
-  ghc-options: -Wall -Werror
+  ghc-options: -Wall -Werror -Wno-unused-top-binds
 
   build-tools: cpphs >= 1.19
 
@@ -100,13 +137,14 @@ executable ariadne
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       ariadne
+    , knit
     , base >=4.7 && <5
-    , brick
-    , lens
     , async
+    , vinyl
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
+  default-extensions: DataKinds
   ghc-options: -Wall -Werror
 
 test-suite ariadne-test

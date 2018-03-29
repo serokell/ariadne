@@ -5,7 +5,8 @@ flags:
     disable-tup-instances: true
 
 packages:
-- .
+- ./ariadne
+- ./knit
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
@@ -178,6 +179,8 @@ extra-deps:
 - word-wrap-0.4.1
 - config-ini-0.2.2.0
 - vty-5.20
+- vinyl-0.8.1.1
+- union-0.1.1.2
 
 extra-package-dbs: []
 

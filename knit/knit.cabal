@@ -1,0 +1,86 @@
+name:           knit
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
+homepage:       https://github.com/serokell/ariadne#readme
+bug-reports:    https://github.com/serokell/ariadne/issues
+author:         @serokell
+maintainer:     Serokell <hi@serokell.io>
+build-type:     Simple
+cabal-version:  >= 1.10
+
+source-repository head
+  type: git
+  location: https://github.com/serokell/ariadne
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5,
+      union,
+      vinyl,
+      text,
+      scientific,
+      split,
+      text-format,
+      generic-arbitrary,
+      QuickCheck,
+      containers,
+      lens,
+      mtl,
+      megaparsec,
+      loc,
+      parser-combinators,
+      Earley,
+      validation,
+      ansi-wl-pprint
+  exposed-modules:
+      Knit
+      Knit.Argument
+      Knit.Value
+      Knit.Core
+      Knit.Syntax
+      Knit.Name
+      Knit.Eval
+      Knit.Inflate
+      Knit.Procedure
+      Knit.Tokenizer
+      Knit.Parser
+      Knit.DisplayError
+      Knit.Printer
+      Knit.Utils
+  default-language:
+      Haskell2010
+  default-extensions:
+      ApplicativeDo
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NegativeLiterals
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      RecursiveDo
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      ViewPatterns
+  ghc-options: -Wall -Werror

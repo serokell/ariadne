@@ -11,30 +11,33 @@ import Data.Text.Zipper
 import Data.Unique
 import Data.List as List
 import Numeric (showIntAtBase)
-import Control.Exception (displayException)
-import Text.Earley (Report (..))
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
 
 import qualified Brick as B
-import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified Graphics.Vty as V
 
-import qualified Lang as Auxx
-import qualified Printer as Auxx
-
 import Ariadne.UI.AnsiToVty
-import Ariadne.Face
+import Ariadne.UI.Face
+import Ariadne.CommandId
 import Ariadne.Util
 
 data OutputElement
-  = OutputCommand CommandId Text (Maybe (Int -> V.Image))
+  = OutputCommand CommandId (Int -> V.Image) (Maybe (Int -> V.Image))
   | OutputInfo (Int -> V.Image)
+
+-- Note that fields here are lazy, so we can afford to put all results we might
+-- need and discard the existential from 'UiLangFace' without causing excessive
+-- recomputation in 'mkReplParseResult'.
+data ReplParseResult
+  = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
+  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO CommandId }
 
 data ReplWidgetState =
   ReplWidgetState
-    { replWidgetExpr :: Either Auxx.ParseError (Auxx.Expr Auxx.Name)
+    { replWidgetParseResult :: ReplParseResult
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     }
@@ -44,15 +47,29 @@ makeLensesWith postfixLFields ''ReplWidgetState
 replWidgetText :: ReplWidgetState -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
-replReparse :: Monad m => StateT ReplWidgetState m ()
-replReparse = do
-  t <- gets replWidgetText
-  replWidgetExprL .= Auxx.parse t
+mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
+mkReplParseResult UiLangFace{..} t =
+  case langParse t of
+    Left err ->
+      ReplParseFailure
+        { rpfParseErrDoc = langPpParseError err
+        , rpfParseErrSpans = langParseErrSpans err
+        }
+    Right expr ->
+      ReplParseSuccess
+        { rpfExprDoc = langPpExpr expr
+        , rpfPutCommand = langPutCommand expr
+        }
 
-initReplWidget :: ReplWidgetState
-initReplWidget =
+replReparse :: Monad m => UiLangFace -> StateT ReplWidgetState m ()
+replReparse langFace = do
+  t <- gets replWidgetText
+  replWidgetParseResultL .= mkReplParseResult langFace t
+
+initReplWidget :: UiLangFace -> ReplWidgetState
+initReplWidget langFace =
   fix $ \this -> ReplWidgetState
-    { replWidgetExpr = Auxx.parse (replWidgetText this)
+    { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     }
@@ -73,24 +90,28 @@ drawReplOutputWidget _hasFocus replWidgetState =
       rdrCtx <- B.getContext
       let
         height = (rdrCtx ^. B.availHeightL) - 1
+        width = rdrCtx ^. B.availWidthL
         img =
           V.cropTop height $
           V.vertCat $
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg (rdrCtx ^. B.availWidthL)
+          mkImg width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
-          V.vertCat
-            [ V.horizCat
-              [ V.text' V.defAttr (drawCommandId commandId)
-              , V.text' V.defAttr " "
-              , V.text' V.defAttr commandSrc
+          let
+            cmdInfo = V.text' V.defAttr (drawCommandId commandId)
+          in
+            V.vertCat
+              [ V.horizCat
+                [ cmdInfo
+                , V.text' V.defAttr " "
+                , commandSrc (width - V.imageWidth cmdInfo - 1)
+                ]
+              , case mCommandOut of
+                  Nothing -> V.text' V.defAttr "<waiting for output>"
+                  Just mkImg -> mkImg width
               ]
-            , case mCommandOut of
-                Nothing -> V.text' V.defAttr "<waiting for output>"
-                Just mkImg -> mkImg (rdrCtx ^. B.availWidthL)
-            ]
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -110,17 +131,15 @@ drawReplInputWidget hasFocus replWidgetState =
       let
         attrFn :: (Int, Int) -> V.Attr -> V.Attr
         attrFn loc =
-          case replWidgetExpr replWidgetState of
-            Right _ -> id
-            Left parseErr ->
-              if parseErrSpanFn parseErr loc
-              then (`V.withBackColor` V.red)
-              else id
+          case replWidgetParseResult replWidgetState of
+            ReplParseFailure{..} | inSpans rpfParseErrSpans loc ->
+              (`V.withBackColor` V.red)
+            _ -> id
         zipper = replWidgetTextZipper replWidgetState
         img =
           V.vertCat $
           List.zipWith V.horizJoin
-            (V.string V.defAttr "auxx> " :
+            (V.string V.defAttr "knit> " :
               List.repeat (V.string V.defAttr "  ... "))
             [ V.horizCat
               [ V.char (attrFn (row, column) V.defAttr) char
@@ -136,11 +155,9 @@ drawReplInputWidget hasFocus replWidgetState =
           & B.imageL .~ img
           & B.cursorsL .~ [curLoc | hasFocus]
 
-parseErrSpanFn :: Auxx.ParseError -> (Int, Int) -> Bool
-parseErrSpanFn parseErr (row, column) = inSpan
+inSpans :: [Loc.Span] -> (Int, Int) -> Bool
+inSpans spans (row, column) = inSpan
   where
-    Auxx.ParseError _ report = parseErr
-    spans = List.map fst (unconsumed report)
     inSpan = List.any inSpan1 spans
     inSpan1 = Loc.overlapping $
       Loc.fromTo
@@ -168,7 +185,7 @@ data InputModification
   | ReplaceBreakLine
 
 data ReplWidgetEvent
-  = ReplCommandResultEvent CommandId CommandResult
+  = ReplCommandEvent CommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
@@ -178,10 +195,10 @@ data ReplWidgetEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 handleReplWidgetEvent
-  :: AuxxFace
+  :: UiLangFace
   -> ReplWidgetEvent
   -> StateT ReplWidgetState IO ReplCompleted
-handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
+handleReplWidgetEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
     zoom replWidgetTextZipperL $ modify $
@@ -191,7 +208,7 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
         DeleteForwards -> deleteChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
-    replReparse
+    replReparse langFace
     return ReplInProgress
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
@@ -211,21 +228,21 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
   ReplSendEvent -> do
-    exprOrErr <- use replWidgetExprL
-    case exprOrErr of
-      Left parseErr -> do
-        let out = OutputInfo $ \w -> pprDoc w (Auxx.ppParseError parseErr)
+    replParseResult <- use replWidgetParseResultL
+    case replParseResult of
+      ReplParseFailure{..} -> do
+        let out = OutputInfo $ \w -> pprDoc w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
-      Right expr -> do
-        commandId <- liftIO $ putAuxxCommand expr
+      ReplParseSuccess{..} -> do
+        commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (Auxx.pprExpr expr) Nothing
+        let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
-        replReparse
+        replReparse langFace
     return ReplInProgress
-  ReplCommandResultEvent commandId commandResult -> do
+  ReplCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
-      modify (updateCommandResult commandId commandResult)
+      modify (updateCommandResult commandId commandEvent)
     return ReplInProgress
 
 isQuitCommand :: Text -> Bool
@@ -239,25 +256,29 @@ smartBreakLine tz =
 
 updateCommandResult
   :: CommandId
-  -> CommandResult
+  -> UiCommandEvent
   -> OutputElement
   -> OutputElement
 updateCommandResult
   commandId
-  commandResult
-  (OutputCommand commandId' commandSrc _) | commandId == commandId'
-  = OutputCommand commandId commandSrc (Just commandResultImage)
+  commandEvent
+  (OutputCommand commandId' commandSrc oldResultImage) | commandId == commandId'
+  = OutputCommand commandId commandSrc mCommandResultImage
   where
-    commandResultImage w =
-      case commandResult of
-        CommandSuccess v -> V.string V.defAttr (show v)
-        CommandEvalError e -> pprDoc w (Auxx.ppEvalError e)
-        CommandProcError e -> pprDoc w (Auxx.ppResolveErrors e)
-        CommandException e -> V.string V.defAttr (displayException e)
+    mCommandResultImage =
+      case commandEvent of
+        UiCommandSuccess doc ->
+          Just $ \w -> pprDoc w doc
+        UiCommandFailure doc ->
+          Just $ \w -> pprDoc w doc   -- TODO: highlight as an error
+        UiCommandOutput _ ->
+          -- TODO: create a new field in 'OutputCommand' and append
+          -- the 'doc' there.
+          oldResultImage
 updateCommandResult _ _ outCmd = outCmd
 
-pprDoc :: Int -> Ppr.A.Doc -> V.Image
-pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.4 w s
+pprDoc :: Int -> PP.Doc -> V.Image
+pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
 
 ariadneBanner :: Int -> V.Image
 ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)

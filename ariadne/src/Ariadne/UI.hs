@@ -1,4 +1,7 @@
-module Ariadne.UI (createAriadneUI) where
+module Ariadne.UI
+  ( UiFace(..)
+  , createAriadneUI
+  ) where
 
 import Prelude
 import Control.Monad (void)
@@ -7,14 +10,16 @@ import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
 
-import Ariadne.Face (UiFace(..), AuxxFace, AuxxEvent(..))
+import Ariadne.UI.Face
 import Ariadne.UI.App (initialAppState, app)
+
+type UiAction = UiLangFace -> IO ()
 
 -- Initialize the UI, returning two components:
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: IO (UiFace, AuxxFace -> IO ())
+createAriadneUI :: IO (UiFace, UiAction)
 createAriadneUI = do
   eventChan <- mkEventChan
   return (mkUiFace eventChan, runUI eventChan)
@@ -22,8 +27,11 @@ createAriadneUI = do
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
-runUI :: BChan AuxxEvent -> AuxxFace -> IO ()
-runUI eventChan auxxFace = do
+runUI
+  :: BChan UiEvent
+  -> UiLangFace
+  -> IO ()
+runUI eventChan langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -51,10 +59,10 @@ runUI eventChan auxxFace = do
 
     -- The third argument to 'customMain' is a record that contains the view
     -- and the controller.
-    (app auxxFace)
+    (app langFace)
 
     -- The fourth argument to 'customMain' is the initial application state.
-    initialAppState
+    (initialAppState langFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name
@@ -75,11 +83,11 @@ mkVtyConfig = do
 -- Create a channel for application events that aren't user input. This channel
 -- is bounded to avoid infinite accumulation of events, but the bound is
 -- somewhat arbitrary.
-mkEventChan :: IO (BChan AuxxEvent)
+mkEventChan :: IO (BChan UiEvent)
 mkEventChan = newBChan 100
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: BChan AuxxEvent -> UiFace
+mkUiFace :: BChan UiEvent -> UiFace
 mkUiFace eventChan =
   UiFace
     {
