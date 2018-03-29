@@ -29,4 +29,10 @@ node-db/
 logs/*
 secret.key
 secret.key.lock
+<<<<<<< HEAD
 ariadne_history
+=======
+
+# Sourse formatting
+.stylish-haskell.yaml
+>>>>>>> [AD-1] Add navigation mode

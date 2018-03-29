@@ -36,10 +36,11 @@ initMenuWidget xs i =
     }
 
 drawMenuWidget
-  :: (a -> Text)
+  :: Bool
+  -> (a -> Text)
   -> MenuWidgetState a
   -> B.Widget name
-drawMenuWidget textElem menuWidgetState =
+drawMenuWidget appStateNavigationMode textElem menuWidgetState =
   B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
@@ -55,7 +56,8 @@ drawMenuWidget textElem menuWidgetState =
             (V.imageWidth img)
         menuElems = Vector.toList (menuWidgetElems menuWidgetState)
         i = menuWidgetSelection menuWidgetState
-        drawElem j x =
+        drawElemNavMode _ x = V.text' backMenuAttr (textElem x)
+        drawElemSelectMode j x =
           let
             attr
               | i == j =
@@ -70,6 +72,9 @@ drawMenuWidget textElem menuWidgetState =
             `V.withForeColor` V.black
             `V.withBackColor` V.white
         fill n = V.charFill @Int backMenuAttr ' ' n 1
+        drawElem = if appStateNavigationMode
+          then drawElemNavMode
+          else drawElemSelectMode
         img =
           V.horizCat $
           List.intersperse (fill 3) $
