@@ -30,4 +30,3 @@ logs/*
 secret.key
 secret.key.lock
 ariadne_history
-

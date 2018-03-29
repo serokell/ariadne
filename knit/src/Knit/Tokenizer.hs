@@ -165,17 +165,21 @@ pToken'' = longestMatch (go (knownSpine @components))
 longestMatch :: [Tokenizer (Token components)] -> Tokenizer (Token components)
 longestMatch ps = do
   ps' <-
-    for ps $ \p -> do
-      optional . try . lookAhead $ do
-        -- we discard the value and parse it again later;
-        -- this is probably bad for performance, but I haven't
-        -- measured it
-        _ <- p
-        position <- getPosition
-        return (position, p)
+    for ps $ \p ->
+        optional . try . lookAhead $ do
+            datum <- p
+            position <- getPosition
+            pState <- getParserState
+            return (position, (pState, datum))
   case nonEmpty (catMaybes ps') of
     Nothing -> A.empty
-    Just ps'' -> snd $ maximumBy (compare `on` fst) ps''
+    Just ps'' -> do
+        let tup = snd $ maximumBy (compare `on` fst) ps''
+        applyParser tup
+      where
+        applyParser (pState, datum) = do
+            updateParserState (const pState)
+            return datum
 
 pPunctuation :: Tokenizer (Token components)
 pPunctuation = choice
