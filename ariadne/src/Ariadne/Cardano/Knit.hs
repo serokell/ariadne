@@ -10,7 +10,6 @@ import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
 import Pos.Util.Util (eitherToThrow)
 import Pos.Crypto
 import Pos.Util.Util (toParsecError)
-import Mockable (runProduction)
 import Text.Earley
 import Formatting (sformat)
 import Control.Lens hiding (parts)
@@ -26,7 +25,8 @@ import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
 
-import qualified Ariadne.Cardano.Mode as Auxx
+import Ariadne.Cardano.Face
+import Ariadne.Util
 
 import Knit
 
@@ -133,7 +133,7 @@ instance
         txOutToArgs :: TxOut -> [Arg (Expr CommandName components)]
         txOutToArgs TxOut {..} = List.map ArgPos $
           [ componentInflate $ ValueAddress txOutAddress
-          , componentInflate $ ValueNumber (fromIntegral $ getCoin txOutValue)
+          , componentInflate $ ValueNumber (fromIntegral $ unsafeGetCoin txOutValue)
           ]
 
         coinPortionToScientific :: CoinPortion -> Scientific
@@ -328,7 +328,7 @@ instance ComponentPrinter Cardano where
     TokenBlockVersion _ -> "block version"
 
 data instance ComponentCommandRepr components Cardano
-  = CommandAction (Auxx.AuxxMode (Value components))
+  = CommandAction (CardanoMode (Value components))
   | CommandError  (forall m. MonadThrow m => m (Value components))
   | CommandReturn (Value components)
 
@@ -341,12 +341,11 @@ instance ComponentLitToValue components Cardano where
     LitBlockVersion x -> ValueBlockVersion x
 
 newtype instance ComponentExecContext Cardano =
-  CardanoExecCtx (IO Auxx.AuxxContext)
+  CardanoExecCtx (CardanoMode ~> IO)
 
 instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components Cardano where
-  componentCommandExec (CardanoExecCtx getAuxxContext) (CommandAction auxxModeAction) = do
-    auxxContext <- liftIO getAuxxContext
-    liftIO . runProduction . usingReaderT auxxContext $ auxxModeAction
+  componentCommandExec (CardanoExecCtx runCardanoMode) (CommandAction act) =
+    liftIO $ runCardanoMode act
   componentCommandExec _ (CommandError action) = liftIO $ action
   componentCommandExec _ (CommandReturn val) = return val
 
@@ -571,10 +570,16 @@ tyProposeUpdateSystem :: Elem components Cardano => TyProjection components Prop
 tyProposeUpdateSystem = TyProjection "ProposeUpdateSystem" (preview _ValueProposeUpdateSystem <=< fromValue)
 
 tySystemTag :: Elem components Core => TyProjection components SystemTag
-tySystemTag = TyProjection "SystemTag" ((fmap . fmap) SystemTag (preview _ValueString <=< fromValue))
+tySystemTag = TyProjection "SystemTag" (mkSystemTag' <=< preview _ValueString <=< fromValue)
 
 tyApplicationName :: Elem components Core => TyProjection components ApplicationName
-tyApplicationName = TyProjection "ApplicationName" ((fmap . fmap) ApplicationName (preview _ValueString <=< fromValue))
+tyApplicationName = TyProjection "ApplicationName" (mkApplicationName' <=< preview _ValueString <=< fromValue)
+
+mkSystemTag' :: Text -> Maybe SystemTag
+mkSystemTag' = rightToMaybe . mkSystemTag
+
+mkApplicationName' :: Text -> Maybe ApplicationName
+mkApplicationName' = rightToMaybe . mkApplicationName
 
 tySecond :: (TimeUnit a, Elem components Core) => TyProjection components a
 tySecond = secToTimeUnit <$> TyProjection "Second" (toDouble <=< preview _ValueNumber <=< fromValue)

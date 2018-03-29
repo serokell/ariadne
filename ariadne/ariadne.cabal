@@ -41,6 +41,7 @@ library
     , lens
     , vinyl
     , mtl
+    , mmorph
     , conduit
     , resourcet
     , data-default
@@ -83,7 +84,6 @@ library
       Ariadne.UI.Face
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
-      Ariadne.Cardano.Mode
       Ariadne.Cardano.Face
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
