@@ -21,6 +21,7 @@ tags
 *.swp
 
 # Runtime
+node-db/
 logs/*
 secret.key
 secret.key.lock

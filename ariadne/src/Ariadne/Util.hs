@@ -6,6 +6,10 @@ import Data.Typeable
 import Control.Monad.Trans.State
 import qualified Brick.Focus as B
 
+type f ~> g = forall x. f x -> g x
+
+newtype f :~> g = Nat (f ~> g)
+
 postfixLFields :: LensRules
 postfixLFields = lensRules & lensField .~ mappingNamer (\s -> [s++"L"])
 
