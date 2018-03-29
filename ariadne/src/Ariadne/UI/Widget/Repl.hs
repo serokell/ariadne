@@ -9,68 +9,74 @@ import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import Data.Text.Zipper
 import Data.Unique
-import Data.Vinyl.TypeLevel
 import Data.List as List
 import Numeric (showIntAtBase)
-import Control.Exception (displayException)
-import Text.Earley (Report (..))
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
 
 import qualified Brick as B
-import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.AnsiToVty
-import Ariadne.Face
+import Ariadne.UI.Face
+import Ariadne.CommandId
 import Ariadne.Util
-
-import qualified Knit
-
-type Components components =
-  ( Knit.KnownSpine components
-  , AllConstrained (Knit.ComponentTokenizer components) components
-  , AllConstrained (Knit.ComponentLitGrammar components) components
-  , Knit.PrettyPrintValue components
-  )
 
 data OutputElement
   = OutputCommand CommandId (Int -> V.Image) (Maybe (Int -> V.Image))
   | OutputInfo (Int -> V.Image)
 
-data ReplWidgetState components =
+-- Note that fields here are lazy, so we can afford to put all results we might
+-- need and discard the existential from 'UiLangFace' without causing excessive
+-- recomputation in 'mkReplParseResult'.
+data ReplParseResult
+  = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
+  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO CommandId }
+
+data ReplWidgetState =
   ReplWidgetState
-    { replWidgetExpr :: Either (Knit.ParseError components) (Knit.Expr Knit.CommandName components)
+    { replWidgetParseResult :: ReplParseResult
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-replWidgetText :: ReplWidgetState components -> Text
+replWidgetText :: ReplWidgetState -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
-replReparse
-  :: (Monad m, Components components)
-  => StateT (ReplWidgetState components) m ()
-replReparse = do
-  t <- gets replWidgetText
-  replWidgetExprL .= Knit.parse t
+mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
+mkReplParseResult UiLangFace{..} t =
+  case langParse t of
+    Left err ->
+      ReplParseFailure
+        { rpfParseErrDoc = langPpParseError err
+        , rpfParseErrSpans = langParseErrSpans err
+        }
+    Right expr ->
+      ReplParseSuccess
+        { rpfExprDoc = langPpExpr expr
+        , rpfPutCommand = langPutCommand expr
+        }
 
-initReplWidget
-  :: Components components
-  => ReplWidgetState components
-initReplWidget =
+replReparse :: Monad m => UiLangFace -> StateT ReplWidgetState m ()
+replReparse langFace = do
+  t <- gets replWidgetText
+  replWidgetParseResultL .= mkReplParseResult langFace t
+
+initReplWidget :: UiLangFace -> ReplWidgetState
+initReplWidget langFace =
   fix $ \this -> ReplWidgetState
-    { replWidgetExpr = Knit.parse (replWidgetText this)
+    { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     }
 
 drawReplOutputWidget
   :: Bool
-  -> ReplWidgetState components
+  -> ReplWidgetState
   -> B.Widget name
 drawReplOutputWidget _hasFocus replWidgetState =
   B.Widget
@@ -112,7 +118,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
 
 drawReplInputWidget
   :: Bool
-  -> ReplWidgetState components
+  -> ReplWidgetState
   -> B.Widget name
 drawReplInputWidget hasFocus replWidgetState =
   B.Widget
@@ -125,12 +131,10 @@ drawReplInputWidget hasFocus replWidgetState =
       let
         attrFn :: (Int, Int) -> V.Attr -> V.Attr
         attrFn loc =
-          case replWidgetExpr replWidgetState of
-            Right _ -> id
-            Left parseErr ->
-              if parseErrSpanFn parseErr loc
-              then (`V.withBackColor` V.red)
-              else id
+          case replWidgetParseResult replWidgetState of
+            ReplParseFailure{..} | inSpans rpfParseErrSpans loc ->
+              (`V.withBackColor` V.red)
+            _ -> id
         zipper = replWidgetTextZipper replWidgetState
         img =
           V.vertCat $
@@ -151,11 +155,9 @@ drawReplInputWidget hasFocus replWidgetState =
           & B.imageL .~ img
           & B.cursorsL .~ [curLoc | hasFocus]
 
-parseErrSpanFn :: Knit.ParseError components -> (Int, Int) -> Bool
-parseErrSpanFn parseErr (row, column) = inSpan
+inSpans :: [Loc.Span] -> (Int, Int) -> Bool
+inSpans spans (row, column) = inSpan
   where
-    Knit.ParseError _ report = parseErr
-    spans = List.map fst (unconsumed report)
     inSpan = List.any inSpan1 spans
     inSpan1 = Loc.overlapping $
       Loc.fromTo
@@ -182,8 +184,8 @@ data InputModification
   | BreakLine
   | ReplaceBreakLine
 
-data ReplWidgetEvent components
-  = ReplCommandResultEvent CommandId (CommandResult components)
+data ReplWidgetEvent
+  = ReplCommandEvent CommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
@@ -193,11 +195,10 @@ data ReplWidgetEvent components
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 handleReplWidgetEvent
-  :: Components components
-  => KnitFace components
-  -> ReplWidgetEvent components
-  -> StateT (ReplWidgetState components) IO ReplCompleted
-handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
+  :: UiLangFace
+  -> ReplWidgetEvent
+  -> StateT ReplWidgetState IO ReplCompleted
+handleReplWidgetEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
     zoom replWidgetTextZipperL $ modify $
@@ -207,7 +208,7 @@ handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
         DeleteForwards -> deleteChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
-    replReparse
+    replReparse langFace
     return ReplInProgress
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
@@ -227,21 +228,21 @@ handleReplWidgetEvent KnitFace{..} = fix $ \go -> \case
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
   ReplSendEvent -> do
-    exprOrErr <- use replWidgetExprL
-    case exprOrErr of
-      Left parseErr -> do
-        let out = OutputInfo $ \w -> pprDoc w (Knit.ppParseError parseErr)
+    replParseResult <- use replWidgetParseResultL
+    case replParseResult of
+      ReplParseFailure{..} -> do
+        let out = OutputInfo $ \w -> pprDoc w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
-      Right expr -> do
-        commandId <- liftIO $ putKnitCommand expr
+      ReplParseSuccess{..} -> do
+        commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (\w -> pprDoc w (Knit.ppExpr expr)) Nothing
+        let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
-        replReparse
+        replReparse langFace
     return ReplInProgress
-  ReplCommandResultEvent commandId commandResult -> do
+  ReplCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
-      modify (updateCommandResult commandId commandResult)
+      modify (updateCommandResult commandId commandEvent)
     return ReplInProgress
 
 isQuitCommand :: Text -> Bool
@@ -254,27 +255,30 @@ smartBreakLine tz =
   in insertMany indentation (breakLine tz)
 
 updateCommandResult
-  :: Components components
-  => CommandId
-  -> CommandResult components
+  :: CommandId
+  -> UiCommandEvent
   -> OutputElement
   -> OutputElement
 updateCommandResult
   commandId
-  commandResult
-  (OutputCommand commandId' commandSrc _) | commandId == commandId'
-  = OutputCommand commandId commandSrc (Just commandResultImage)
+  commandEvent
+  (OutputCommand commandId' commandSrc oldResultImage) | commandId == commandId'
+  = OutputCommand commandId commandSrc mCommandResultImage
   where
-    commandResultImage w =
-      case commandResult of
-        CommandSuccess v -> pprDoc w (Knit.ppValue v)
-        CommandEvalError e -> pprDoc w (Knit.ppEvalError e)
-        CommandProcError e -> pprDoc w (Knit.ppResolveErrors e)
-        CommandException e -> V.string V.defAttr (displayException e)
+    mCommandResultImage =
+      case commandEvent of
+        UiCommandSuccess doc ->
+          Just $ \w -> pprDoc w doc
+        UiCommandFailure doc ->
+          Just $ \w -> pprDoc w doc   -- TODO: highlight as an error
+        UiCommandOutput _ ->
+          -- TODO: create a new field in 'OutputCommand' and append
+          -- the 'doc' there.
+          oldResultImage
 updateCommandResult _ _ outCmd = outCmd
 
-pprDoc :: Int -> Ppr.A.Doc -> V.Image
-pprDoc w s = ansiToVty $ Ppr.A.renderSmart 0.985 w s
+pprDoc :: Int -> PP.Doc -> V.Image
+pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
 
 ariadneBanner :: Int -> V.Image
 ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)

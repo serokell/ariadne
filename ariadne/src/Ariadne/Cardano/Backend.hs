@@ -36,6 +36,8 @@ data AuxxOptions = AuxxOptions
     --   TODO: we also have topology, so it can be redundant.
     }
 
+-- TODO: Replace 'IO AuxxContext' with 'AuxxMode ~> IO', name it CardanoFace and
+-- move to Cardano/Face.hs
 createCardanoBackend :: IO (IO AuxxContext, IO ())
 createCardanoBackend = do
   auxxContextVar <- newEmptyMVar

@@ -2,7 +2,6 @@ module Ariadne.UI.App
   ( AppState
   , initialAppState
   , app
-  , Components
   ) where
 
 import Prelude
@@ -16,13 +15,13 @@ import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
-import Ariadne.Face
+import Ariadne.UI.Face
 import Ariadne.Util
 
 import Ariadne.UI.Widget.Repl
   ( ReplWidgetState, initReplWidget, drawReplOutputWidget, drawReplInputWidget,
     ReplCompleted(..), handleReplWidgetEvent, ReplWidgetEvent(..),
-    NavAction(..), InputModification(..), Components )
+    NavAction(..), InputModification(..) )
 
 import Ariadne.UI.Widget.Menu
   ( MenuWidgetState, initMenuWidget, drawMenuWidget, menuWidgetSel,
@@ -49,9 +48,9 @@ data AppSelector
   | AppSelectorLogs
   deriving (Eq)
 
-data AppState components =
+data AppState =
   AppState
-    { appStateRepl :: ReplWidgetState components
+    { appStateRepl :: ReplWidgetState
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
@@ -61,10 +60,10 @@ data AppState components =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: Components components => AppState components
-initialAppState =
+initialAppState :: UiLangFace -> AppState
+initialAppState langFace =
   AppState
-    { appStateRepl = initReplWidget
+    { appStateRepl = initReplWidget langFace
     , appStateMenu = initMenuWidget appSelectors 0
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
@@ -84,47 +83,39 @@ initialAppState =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app
-  :: forall components.
-     Components components
-  => KnitFace components
-  -> B.App (AppState components) (UiEvent components) Void
-app knitFace = B.App{..} where
+app :: UiLangFace -> B.App AppState UiEvent Void
+app langFace = B.App{..} where
 
-  appDraw
-    :: AppState components
-    -> [B.Widget Void]
+  appDraw :: AppState -> [B.Widget Void]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
   appChooseCursor
-    :: AppState components
+    :: AppState
     -> [B.CursorLocation Void]
     -> Maybe (B.CursorLocation Void)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
-    :: AppState components
-    -> B.BrickEvent Void (UiEvent components)
-    -> B.EventM Void (B.Next (AppState components))
+    :: AppState
+    -> B.BrickEvent Void UiEvent
+    -> B.EventM Void (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <- liftIO $
-      runStateT (handleAppEvent knitFace ev) appState
+      runStateT (handleAppEvent langFace ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState components -> B.EventM Void (AppState components)
+  appStartEvent :: AppState -> B.EventM Void AppState
   appStartEvent = return
 
   -- We do not use this feature of Brick.
-  appAttrMap :: AppState components -> B.AttrMap
+  appAttrMap :: AppState -> B.AttrMap
   appAttrMap _ = B.attrMap V.defAttr []
 
-drawAppWidget
-    :: AppState components
-    -> [B.Widget Void]
+drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
     drawMenu =
@@ -187,11 +178,10 @@ drawAppWidget AppState{..} =
       _ -> [drawDefaultView]
 
 handleAppEvent
-  :: Components components
-  => KnitFace components
-  -> B.BrickEvent Void (UiEvent components)
-  -> StateT (AppState components) IO AppCompleted
-handleAppEvent knitFace ev = do
+  :: UiLangFace
+  -> B.BrickEvent Void UiEvent
+  -> StateT AppState IO AppCompleted
+handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
   case ev of
     B.VtyEvent vtyEv
@@ -210,14 +200,14 @@ handleAppEvent knitFace ev = do
       | Just replEv <- toReplEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
-            handleReplWidgetEvent knitFace replEv
+            handleReplWidgetEvent langFace replEv
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
-    B.AppEvent (UiKnitEvent (KnitResultEvent commandId commandResult)) -> do
+    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
-          handleReplWidgetEvent knitFace $
-            ReplCommandResultEvent commandId commandResult
+          handleReplWidgetEvent langFace $
+            ReplCommandEvent commandId commandEvent
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
@@ -234,7 +224,7 @@ charAppSel = \case
   'l' -> Just AppSelectorLogs
   _ -> Nothing
 
-toReplEv :: V.Event -> Maybe (ReplWidgetEvent components)
+toReplEv :: V.Event -> Maybe ReplWidgetEvent
 toReplEv = \case
   V.EvKey V.KLeft [] ->
     Just $ ReplInputNavigationEvent NavArrowLeft

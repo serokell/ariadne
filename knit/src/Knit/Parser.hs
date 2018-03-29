@@ -8,6 +8,7 @@ import Data.Loc
 import Data.Monoid (First)
 import Text.Earley
 import Data.Text
+import Data.List as List
 import Data.List.NonEmpty
 import Data.Proxy
 import Data.Vinyl.Core
@@ -111,3 +112,6 @@ parse str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize
     toEither = \case
       ([] , r) -> Left r
       (a:_, _) -> Right a
+
+parseErrorSpans :: ParseError components -> [Span]
+parseErrorSpans = List.map fst . unconsumed . peReport

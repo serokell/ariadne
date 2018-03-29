@@ -1,4 +1,7 @@
-module Ariadne.Knit.Backend (createKnitBackend) where
+module Ariadne.Knit.Backend
+  ( KnitFace(..)
+  , createKnitBackend
+  ) where
 
 import Universum hiding (atomically)
 import Control.Concurrent.STM
@@ -6,7 +9,8 @@ import Data.Unique
 import Data.Vinyl.TypeLevel
 import Control.Exception (handle)
 
-import Ariadne.Face
+import Ariadne.CommandId
+import Ariadne.Knit.Face
 import qualified Knit
 
 type CommandQueue components =
@@ -50,13 +54,13 @@ runKnit commandQueue execCtxs putKnitEvent = do
     res <-
       -- We catch asynchronous exceptions intentionally here, as we don't want
       -- a single command to crash the entire app.
-      handle (\e -> return $ CommandException e) $
+      handle (\e -> return $ KnitCommandException e) $
         case resolveProcNames expr of
-          Left e -> return $ CommandProcError e
+          Left e -> return $ KnitCommandProcError e
           Right expr' ->
-            either CommandEvalError CommandSuccess <$>
+            either KnitCommandEvalError KnitCommandSuccess <$>
               Knit.evaluate execCtxs expr'
-    putKnitEvent $ KnitResultEvent commandId res
+    putKnitEvent $ KnitCommandResultEvent commandId res
   where
     commandProcs = Knit.commandProcs @components
     resolveProcNames =

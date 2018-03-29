@@ -70,7 +70,9 @@ ppExpr =
         argsDoc =
           PP.align . PP.cat . PP.punctuate PP.space $ List.map ppArg args
       in
-        nameDoc PP.<+> argsDoc
+        if List.null args
+        then nameDoc
+        else nameDoc PP.<+> argsDoc
 
     ppArg = \case
       ArgPos a -> parensIfProcCall a (ppExpr a)
@@ -82,7 +84,7 @@ ppExpr =
       _ -> id
 
     parensIfProcCall = \case
-      ExprProcCall (ProcCall _ _) -> PP.parens
+      ExprProcCall (ProcCall _ args) | not (List.null args) -> PP.parens
       _ -> id
 
 ppValue :: PrettyPrintValue components => Value components -> Doc

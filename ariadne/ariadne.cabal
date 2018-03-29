@@ -80,11 +80,15 @@ library
       Ariadne.UI.Widget.Repl
       Ariadne.UI.Widget.WalletTree
       Ariadne.UI.Widget.WalletPane
+      Ariadne.UI.Face
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Mode
+      Ariadne.Cardano.Face
       Ariadne.Knit.Backend
-      Ariadne.Face
+      Ariadne.Knit.Face
+      Ariadne.CommandId
+      Ariadne.Glue
       Ariadne.Util
   default-extensions:
       ApplicativeDo
