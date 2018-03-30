@@ -1,7 +1,7 @@
 module Knit.Syntax where
 
-import Data.Union
 import Data.String
+import Data.Union
 import IiExtras
 
 import Knit.Name

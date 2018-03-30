@@ -2,8 +2,8 @@ module Knit.Inflate where
 
 import IiExtras
 
-import Knit.Value
 import Knit.Syntax
+import Knit.Value
 
 class ComponentInflate components component where
   componentInflate

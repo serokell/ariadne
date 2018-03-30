@@ -3,11 +3,11 @@ module Ariadne.Knit.Backend
   , createKnitBackend
   ) where
 
-import Universum hiding (atomically)
 import Control.Concurrent.STM
-import Data.Unique
 import Control.Exception (handle)
+import Data.Unique
 import IiExtras
+import Universum hiding (atomically)
 
 import Ariadne.CommandId
 import Ariadne.Knit.Face

@@ -1,14 +1,14 @@
 module Ariadne.UI.Vty.Widget.Menu where
 
-import Prelude
+import Control.Lens
+import Control.Monad.Trans.State as State
+import Data.Foldable
+import Data.Function (fix)
 import Data.List as List
+import Data.List.NonEmpty as NonEmpty
 import Data.Text as Text
 import Data.Vector as Vector
-import Data.List.NonEmpty as NonEmpty
-import Data.Foldable
-import Control.Monad.Trans.State as State
-import Data.Function (fix)
-import Control.Lens
+import Prelude
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

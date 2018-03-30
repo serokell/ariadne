@@ -2,14 +2,14 @@
 
 module Ariadne.Glue where
 
-import Prelude
 import Control.Exception (displayException)
 import Data.Foldable
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import Data.Unique
-import Numeric
 import Data.Text (pack)
+import Data.Unique
 import IiExtras
+import Numeric
+import Prelude
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.CommandId
 import Ariadne.Knit.Face

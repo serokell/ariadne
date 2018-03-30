@@ -1,16 +1,16 @@
 module Knit.Procedure where
 
-import Data.Text
-import Data.List.NonEmpty as NonEmpty
-import Data.Validation as Validation
 import Control.Lens
 import Data.List as List
+import Data.List.NonEmpty as NonEmpty
 import Data.Proxy
+import Data.Text
+import Data.Validation as Validation
 import IiExtras
 
-import Knit.Value
 import Knit.Argument
 import Knit.Syntax
+import Knit.Value
 
 data family ComponentCommandRepr (components :: [*]) component
 

@@ -3,15 +3,15 @@ module Ariadne.UI.Vty
   , createAriadneUI
   ) where
 
-import Prelude
 import Control.Monad (void)
+import Prelude
 
 import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
 
+import Ariadne.UI.Vty.App (app, initialAppState)
 import Ariadne.UI.Vty.Face
-import Ariadne.UI.Vty.App (initialAppState, app)
 
 type UiAction = UiLangFace -> IO ()
 

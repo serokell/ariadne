@@ -1,16 +1,16 @@
 module Main where
 
-import Prelude
 import Control.Concurrent.Async
 import IiExtras
+import Prelude
 
-import Ariadne.UI.Vty
-import Ariadne.Knit.Backend
 import Ariadne.Cardano.Backend
 import Ariadne.Glue
+import Ariadne.Knit.Backend
+import Ariadne.UI.Vty
 
-import qualified Knit
 import qualified Ariadne.Cardano.Knit as Knit
+import qualified Knit
 
 main :: IO ()
 main = do

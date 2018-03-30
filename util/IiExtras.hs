@@ -27,13 +27,13 @@ module IiExtras
   , AllConstrained
   ) where
 
-import Prelude
 import Control.Lens
-import Data.Union
-import Data.Vinyl.TypeLevel
-import Data.Vinyl.Core hiding (Dict)
-import Data.Type.Equality
 import Data.Proxy
+import Data.Type.Equality
+import Data.Union
+import Data.Vinyl.Core hiding (Dict)
+import Data.Vinyl.TypeLevel
+import Prelude
 
 type f ~> g = forall x. f x -> g x
 

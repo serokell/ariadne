@@ -1,9 +1,9 @@
 module Ariadne.Knit.Face where
 
-import Prelude
 import Control.Exception (SomeException)
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Data.List.NonEmpty (NonEmpty)
+import Prelude
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.CommandId
 import qualified Knit

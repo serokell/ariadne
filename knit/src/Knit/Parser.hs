@@ -2,21 +2,21 @@
 
 module Knit.Parser where
 
+import Control.Applicative as A
 import Control.Applicative.Combinators.NonEmpty (sepBy1)
 import Control.Lens
-import Data.Loc
-import Data.Monoid (First)
-import Text.Earley
-import Data.Text
+import Data.Foldable as F
 import Data.List as List
 import Data.List.NonEmpty
+import Data.Loc
+import Data.Monoid (First)
 import Data.Proxy
-import Control.Applicative as A
-import Data.Foldable as F
+import Data.Text
 import IiExtras
+import Text.Earley
 
-import Knit.Tokenizer
 import Knit.Syntax
+import Knit.Tokenizer
 
 tok :: Getting (First a) (Token components) a -> Prod r e (s, Token components) a
 tok p = terminal (preview $ _2 . p)

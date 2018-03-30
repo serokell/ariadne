@@ -1,23 +1,23 @@
 module Ariadne.UI.Vty.Widget.Repl where
 
-import Prelude hiding (unlines)
-import Data.Text as Text
+import Control.Lens
+import Control.Monad.IO.Class
+import Control.Monad.Trans.State
 import Data.Char as Char
 import Data.Function (fix)
-import Control.Lens
-import Control.Monad.Trans.State
-import Control.Monad.IO.Class
-import Data.Text.Zipper
-import Data.List as List
 import Data.Function (on)
+import Data.List as List
+import Data.Text as Text
+import Data.Text.Zipper
 import IiExtras
+import Prelude hiding (unlines)
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
 
 import qualified Brick as B
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified Graphics.Vty as V
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face

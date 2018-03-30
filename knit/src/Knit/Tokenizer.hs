@@ -2,21 +2,21 @@
 
 module Knit.Tokenizer where
 
-import Data.Text as T
-import Control.Lens
-import Data.Void
-import Data.Loc
-import Data.Union
-import Control.Monad
 import Control.Applicative as A
-import Data.Functor
-import Data.Function
-import Data.Maybe
-import Data.List.NonEmpty as NonEmpty
+import Control.Lens
+import Control.Monad
 import Data.Char
+import Data.Function
+import Data.Functor
 import Data.List as List
-import Data.Traversable
+import Data.List.NonEmpty as NonEmpty
+import Data.Loc
+import Data.Maybe
 import Data.Proxy
+import Data.Text as T
+import Data.Traversable
+import Data.Union
+import Data.Void
 import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty

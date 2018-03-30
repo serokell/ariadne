@@ -1,23 +1,23 @@
 module Ariadne.Cardano.Backend (createCardanoBackend) where
 
-import           Universum
+import Universum
 
-import           Data.Maybe (fromJust)
-import           Mockable (runProduction)
-import           Options.Applicative hiding (action)
-import           IiExtras
+import Data.Maybe (fromJust)
+import IiExtras
+import Mockable (runProduction)
+import Options.Applicative hiding (action)
 
-import           Pos.Communication.Protocol (toAction)
-import           Pos.Binary ()
-import           Pos.Client.CLI (NodeArgs (..))
+import Pos.Binary ()
+import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
-import           Pos.Launcher
-import           Pos.Update (updateTriggerWorker)
-import           Pos.Util (logException)
-import           Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
-import           Pos.Util.UserSecret (usVss)
+import Pos.Communication.Protocol (toAction)
+import Pos.Launcher
+import Pos.Update (updateTriggerWorker)
+import Pos.Util (logException)
+import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
+import Pos.Util.UserSecret (usVss)
 
-import           Ariadne.Cardano.Face
+import Ariadne.Cardano.Face
 
 createCardanoBackend :: IO (CardanoMode :~> IO, IO ())
 createCardanoBackend = do

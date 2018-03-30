@@ -1,7 +1,7 @@
 module Ariadne.CommandId where
 
-import Prelude
 import Data.Unique
+import Prelude
 
 -- A unique identifier assigned to each command, needed to associate it with
 -- the result of its execution.

@@ -1,9 +1,9 @@
 module Ariadne.UI.Vty.Face where
 
+import Data.Loc.Span (Span)
+import Data.Text
 import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
-import Data.Text
-import Data.Loc.Span (Span)
 
 data UiCommandId =
   UiCommandId

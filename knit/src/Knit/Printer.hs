@@ -1,21 +1,21 @@
 module Knit.Printer where
 
 import Data.List as List
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
 import Data.Monoid
+import qualified Data.Text as T
 import Data.Text.Buildable (build)
+import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (toLazyText)
 import IiExtras
 
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import Knit.Syntax
-import Knit.Name
 import Knit.Inflate
-import Knit.Value
+import Knit.Name
+import Knit.Syntax
 import Knit.Tokenizer
+import Knit.Value
 
 class ComponentPrinter component where
   componentPpLit :: ComponentLit component -> Doc

@@ -5,15 +5,16 @@ module Knit.Name
        , unsafeMkName
        ) where
 
-import Data.String (IsString (..))
 import Data.Char (isAlpha)
 import Data.Coerce (coerce)
 import Data.List.NonEmpty as NonEmpty
 import Data.List.Split (splitWhen)
+import Data.String (IsString(..))
 import Data.Text.Buildable as Buildable
-import Test.QuickCheck.Arbitrary.Generic (Arbitrary (..), genericArbitrary, genericShrink)
-import Test.QuickCheck.Gen (suchThat)
 import GHC.Generics (Generic)
+import Test.QuickCheck.Arbitrary.Generic
+  (Arbitrary(..), genericArbitrary, genericShrink)
+import Test.QuickCheck.Gen (suchThat)
 
 -- | Invariant: @isAlpha . getLetter = const True@
 newtype Letter = Letter { getLetter :: Char }

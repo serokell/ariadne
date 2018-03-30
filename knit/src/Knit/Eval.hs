@@ -4,10 +4,10 @@ import Data.Type.Equality
 import Data.Union
 import IiExtras
 
+import Knit.Argument
+import Knit.Procedure
 import Knit.Syntax
 import Knit.Value
-import Knit.Procedure
-import Knit.Argument
 
 import Control.Monad.Except
 

@@ -20,21 +20,21 @@ module Knit.Argument
        , typeDirectedKwAnn
        ) where
 
-import Data.String
-import Data.Set as Set
-import Numeric.Natural (Natural)
-import Data.Functor.Identity
-import Data.Text
-import Data.List.NonEmpty
-import Data.Monoid
-import Control.Monad
 import Control.Lens
-import Data.Maybe
+import Control.Monad
 import Control.Monad.State
+import Data.Functor.Identity
 import Data.List (sortOn)
+import Data.List.NonEmpty
+import Data.Maybe
+import Data.Monoid
+import Data.Set as Set
+import Data.String
+import Data.Text
+import Numeric.Natural (Natural)
 
-import Knit.Name (Name (..))
-import Knit.Syntax (Arg (..))
+import Knit.Name (Name(..))
+import Knit.Syntax (Arg(..))
 import Knit.Value (Value)
 
 data ArgumentError = ArgumentError

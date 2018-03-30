@@ -1,32 +1,32 @@
 module Knit.Core where
 
-import Data.Text
-import Data.Scientific
+import Control.Applicative as A
 import Control.Lens
 import Control.Monad
-import Data.Maybe
 import Data.Bool
 import Data.Char (isAlphaNum)
-import Data.List as List
-import Control.Applicative as A
 import Data.Foldable (asum)
-import Text.Earley
-import Data.Word
+import Data.List as List
+import Data.Maybe
+import Data.Scientific
 import Data.String
+import Data.Text
+import Data.Word
+import IiExtras
+import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
-import IiExtras
 
-import Knit.Value
 import Knit.Argument
-import Knit.Syntax
-import Knit.Procedure
 import Knit.Eval
-import Knit.Tokenizer
-import Knit.Parser
 import Knit.Inflate
+import Knit.Parser
 import Knit.Printer
+import Knit.Procedure
+import Knit.Syntax
+import Knit.Tokenizer
+import Knit.Value
 
 data Core
 

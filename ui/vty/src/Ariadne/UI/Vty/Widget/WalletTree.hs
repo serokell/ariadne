@@ -6,7 +6,7 @@ module Ariadne.UI.Vty.Widget.WalletTree
 
 import Universum
 
-import Data.Tree (Tree (..))
+import Data.Tree (Tree(..))
 import Serokell.Util (enumerate)
 
 import qualified Brick as B

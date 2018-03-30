@@ -2,26 +2,26 @@ module Ariadne.Cardano.Knit where
 
 import Universum hiding (preview)
 
-import Pos.Core
-import Pos.Core.Txp (TxOut)
-import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
-import Pos.Util.Util (eitherToThrow, toParsecError)
-import Pos.Crypto
-import Text.Earley
-import Formatting (sformat)
 import Control.Lens hiding (parts)
+import Data.Coerce (coerce)
+import Data.Fixed
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
 import Data.Map as Map
 import Data.Scientific
-import Data.Fixed
 import Data.Time.Units
-import Data.Coerce (coerce)
+import Formatting (sformat)
+import IiExtras
+import Pos.Core
+import Pos.Core.Txp (TxOut)
+import Pos.Crypto
+import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
+import Pos.Util.Util (eitherToThrow, toParsecError)
 import Serokell.Data.Memory.Units (Byte, fromBytes)
+import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
-import IiExtras
 
 import Ariadne.Cardano.Face
 

@@ -1,8 +1,8 @@
 module Ariadne.UI.Vty.Widget.Logs where
 
-import Prelude
 import Control.Lens
 import Control.Monad.Trans.State
+import Prelude
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
