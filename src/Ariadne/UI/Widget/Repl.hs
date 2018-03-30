@@ -51,8 +51,6 @@ replReparse :: MonadIO m => StateT ReplWidgetState m ()
 replReparse = do
   t <- gets replWidgetText
   replWidgetExprL .= Auxx.parse t
-  history <- gets replWidgetHistory
-  liftIO $ setCurrCommand history t
 
 initReplWidget :: CommandHistory -> ReplWidgetState
 initReplWidget history =
@@ -195,6 +193,9 @@ handleReplWidgetEvent
 handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
+    history <- gets replWidgetHistory
+    t <- gets replWidgetText
+    liftIO $ setCurrCommand history t
     zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
@@ -213,14 +214,13 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
         NavArrowDown -> moveDown
     return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
+    -- TODO: handle multi-line commands
     history <- gets replWidgetHistory
     let action = case cmdAction of
                     NextCommand -> toNextCommand
                     PrevCommand -> toPrevCommand
-    -- TODO: fix this section
     cmd <- liftIO $ action history
-    oldCmd <- gets replWidgetText
-    replWidgetTextZipperL .= textZipper [fromMaybe oldCmd cmd] Nothing
+    zoom replWidgetTextZipperL $ modify $ insertMany (fromMaybe "" cmd) . clearZipper
     replReparse
     return ReplInProgress
   ReplSmartEnterEvent -> do
@@ -233,14 +233,16 @@ handleReplWidgetEvent AuxxFace{..} = fix $ \go -> \case
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
   ReplSendEvent -> do
+    history <- gets replWidgetHistory
+    t <- gets replWidgetText
+    liftIO $ setCurrCommand history t
+    liftIO $ startNewCommand history
     exprOrErr <- use replWidgetExprL
     case exprOrErr of
       Left parseErr -> do
         let out = OutputInfo $ \w -> pprDoc w (Auxx.ppParseError parseErr)
         zoom replWidgetOutL $ modify (out:)
       Right expr -> do
-        history <- gets replWidgetHistory
-        liftIO $ startNewCommand history
         commandId <- liftIO $ putAuxxCommand expr
         zoom replWidgetTextZipperL $ modify $ clearZipper
         let out = OutputCommand commandId (Auxx.pprExpr expr) Nothing
