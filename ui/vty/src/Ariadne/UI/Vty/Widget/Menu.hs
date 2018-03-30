@@ -3,14 +3,17 @@ module Ariadne.UI.Vty.Widget.Menu where
 import Control.Lens
 import Control.Monad.Trans.State as State
 import Data.Foldable
-import Data.Function (fix)
+import Data.Function
+    (fix)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
-import Data.Text as Text
+import Data.Text
+    (Text)
 import Data.Vector as Vector
 import Prelude
 
 import qualified Brick as B
+import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import IiExtras
@@ -54,9 +57,20 @@ drawMenuWidget appStateNavigationMode textElem menuWidgetState =
           integralDistribExcess
             (rdrCtx ^. B.availWidthL)
             (V.imageWidth img)
+
         menuElems = Vector.toList (menuWidgetElems menuWidgetState)
         i = menuWidgetSelection menuWidgetState
-        drawElemNavMode _ x = V.text' backMenuAttr (textElem x)
+
+        drawElemNavMode _ x =
+          let
+            selectorText = textElem x
+            firstLetter
+              | T.null selectorText = error "Bug: empty title"
+              | otherwise = (T.singleton . T.head) selectorText
+            titleList = [firstLetter, " - ", selectorText]
+          in
+            V.horizCat $ List.map (V.text' backMenuAttr) titleList
+
         drawElemSelectMode j x =
           let
             attr
@@ -67,20 +81,26 @@ drawMenuWidget appStateNavigationMode textElem menuWidgetState =
               | otherwise = backMenuAttr
           in
             V.text' attr (textElem x)
+
         backMenuAttr =
           V.defAttr
             `V.withForeColor` V.black
             `V.withBackColor` V.white
+
         fill n = V.charFill @Int backMenuAttr ' ' n 1
+
         drawElem = if appStateNavigationMode
           then drawElemNavMode
           else drawElemSelectMode
+
         img =
           V.horizCat $
           List.intersperse (fill 3) $
           List.zipWith drawElem [0..] menuElems
+
         img' =
           V.horizCat [fill leftPad, img, fill rightPad]
+
       return $
         B.emptyResult
           & B.imageL .~ img'
