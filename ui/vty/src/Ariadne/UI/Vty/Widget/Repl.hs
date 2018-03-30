@@ -4,11 +4,13 @@ import Control.Lens
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State
 import Data.Char as Char
-import Data.Function (fix)
-import Data.Function (on)
+import Data.Function (fix, on)
 import Data.List as List
 import Data.Text as Text
 import Data.Text.Zipper
+  ( TextZipper, clearZipper, currentLine, deleteChar, deletePrevChar,
+    getText, moveDown, moveLeft, moveRight, moveUp, previousChar, textZipper,
+    cursorPosition, insertChar, insertMany, breakLine)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -22,9 +24,16 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
 
+-- TODO (thatguy): use the fancy `named` library suggested by @int-index.
+newtype Width = Width { unWidth :: Int }
+
 data OutputElement
-  = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Int -> V.Image))
-  | OutputInfo (Int -> V.Image)
+  = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Width -> V.Image))
+  | OutputInfo (Width -> V.Image)
+
+data ScrollingOffset
+    = OffsetFollowing
+    | OffsetFixed Int
 
 -- Note that fields here are lazy, so we can afford to put all results we might
 -- need and discard the existential from 'UiLangFace' without causing excessive
@@ -38,6 +47,9 @@ data ReplWidgetState =
     { replWidgetParseResult :: ReplParseResult
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
+    , replWidgetScrollingOffset :: Int -> Int -> ScrollingOffset
+    -- ^ viewport height -> full image height -> offset from top
+    -- TODO (thatguy): use `named`
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -70,6 +82,7 @@ initReplWidget langFace =
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
+    , replWidgetScrollingOffset = \_ _ -> OffsetFollowing
     }
 
 drawReplOutputWidget
@@ -87,15 +100,15 @@ drawReplOutputWidget _hasFocus replWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        height = (rdrCtx ^. B.availHeightL) - 1
+        viewportHeight = (rdrCtx ^. B.availHeightL) - 1
         width = rdrCtx ^. B.availWidthL
         img =
-          V.cropTop height $
+          crop viewportHeight (replWidgetState ^. replWidgetScrollingOffsetL) $
           V.vertCat $
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg width
+          mkImg $ Width width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
           let
             cmdInfo = drawCommandId commandId
@@ -108,11 +121,19 @@ drawReplOutputWidget _hasFocus replWidgetState =
                 ]
               , case mCommandOut of
                   Nothing -> V.text' V.defAttr "<waiting for output>"
-                  Just mkImg -> mkImg width
+                  Just mkImg -> mkImg $ Width width
               ]
       return $
         B.emptyResult
           & B.imageL .~ img
+    crop :: Int -> (Int -> Int -> ScrollingOffset) -> V.Image -> V.Image
+    crop viewportHeight mkPos image =
+      let imageHeight = V.imageHeight image in
+      case mkPos viewportHeight imageHeight of
+        OffsetFollowing ->
+          V.cropTop viewportHeight image
+        OffsetFixed pos ->
+          V.cropBottom viewportHeight $ V.cropTop (imageHeight - pos) image
 
 drawReplInputWidget
   :: Bool
@@ -178,7 +199,7 @@ data InputModification
   | BreakLine
   | ReplaceBreakLine
 
-data ReplWidgetEvent
+data ReplInputEvent
   = ReplCommandEvent UiCommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
@@ -186,13 +207,22 @@ data ReplWidgetEvent
   | ReplSmartEnterEvent
   | ReplQuitEvent
 
+data ScrollingAction
+  = ScrollingLineUp
+  | ScrollingLineDown
+  | ScrollingPgUp
+  | ScrollingPgDown
+
+data ReplOutputEvent
+  = ReplOutputScrollingEvent ScrollingAction
+
 data ReplCompleted = ReplCompleted | ReplInProgress
 
-handleReplWidgetEvent
+handleReplInputEvent
   :: UiLangFace
-  -> ReplWidgetEvent
+  -> ReplInputEvent
   -> StateT ReplWidgetState IO ReplCompleted
-handleReplWidgetEvent langFace = fix $ \go -> \case
+handleReplInputEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
     zoom replWidgetTextZipperL $ modify $
@@ -225,7 +255,7 @@ handleReplWidgetEvent langFace = fix $ \go -> \case
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
-        let out = OutputInfo $ \w -> pprDoc w rpfParseErrDoc
+        let out = OutputInfo $ \(Width w) -> pprDoc w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
         commandId <- liftIO rpfPutCommand
@@ -238,6 +268,42 @@ handleReplWidgetEvent langFace = fix $ \go -> \case
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandEvent)
     return ReplInProgress
+
+data ScrollingDistance = OneLine | Page
+
+handleReplOutputEvent :: ReplOutputEvent -> StateT ReplWidgetState IO ()
+handleReplOutputEvent = \case
+  ReplOutputScrollingEvent ScrollingLineUp -> do
+    zoom replWidgetScrollingOffsetL $ modify $ goUp OneLine
+  ReplOutputScrollingEvent ScrollingLineDown -> do
+    zoom replWidgetScrollingOffsetL $ modify $ goDown OneLine
+  ReplOutputScrollingEvent ScrollingPgUp -> do
+    zoom replWidgetScrollingOffsetL $ modify $ goUp Page
+  ReplOutputScrollingEvent ScrollingPgDown -> do
+    zoom replWidgetScrollingOffsetL $ modify $ goDown Page
+  where
+    goUp :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
+    goUp distance mkPos viewportHeight imageHeight =
+      let numLines = toNumLines viewportHeight distance
+          prev = mkPos viewportHeight imageHeight
+          pos = unwrapOffset (imageHeight - viewportHeight) prev
+      in OffsetFixed $ max 0 (pos - numLines)
+    goDown :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
+    goDown distance mkPos viewportHeight imageHeight =
+      let numLines = toNumLines viewportHeight distance in
+      case mkPos viewportHeight imageHeight of
+        OffsetFollowing -> OffsetFollowing
+        OffsetFixed pos ->
+          if pos >= imageHeight - viewportHeight - numLines then OffsetFollowing
+          else OffsetFixed $ pos + numLines
+    toNumLines :: Int -> ScrollingDistance -> Int
+    toNumLines viewportHeight = \case
+      OneLine -> 1
+      Page -> viewportHeight
+    unwrapOffset :: Int -> ScrollingOffset -> Int
+    unwrapOffset def = \case
+      OffsetFollowing -> def
+      OffsetFixed pos -> pos
 
 isQuitCommand :: Text -> Bool
 isQuitCommand t =
@@ -263,9 +329,9 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \w -> pprDoc w doc
+          Just $ \(Width w) -> pprDoc w doc
         UiCommandFailure doc ->
-          Just $ \w -> pprDoc w doc   -- TODO: highlight as an error
+          Just $ \(Width w) -> pprDoc w doc   -- TODO: highlight as an error
         UiCommandOutput _ ->
           -- TODO: create a new field in 'OutputCommand' and append
           -- the 'doc' there.
@@ -275,7 +341,7 @@ updateCommandResult _ _ outCmd = outCmd
 pprDoc :: Int -> PP.Doc -> V.Image
 pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
 
-ariadneBanner :: Int -> V.Image
+ariadneBanner :: Width -> V.Image
 ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___ _____/ /___  ___ "

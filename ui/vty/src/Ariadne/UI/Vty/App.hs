@@ -19,9 +19,10 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Face
 
 import Ariadne.UI.Vty.Widget.Repl
-  (InputModification(..), NavAction(..), ReplCompleted(..),
-  ReplWidgetEvent(..), ReplWidgetState, drawReplInputWidget,
-  drawReplOutputWidget, handleReplWidgetEvent, initReplWidget)
+  (InputModification(..), NavAction(..), ReplCompleted(..), ReplInputEvent(..),
+  ReplOutputEvent(..), ReplWidgetState(..), ScrollingAction(..),
+  drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
+  handleReplOutputEvent, initReplWidget)
 
 import Ariadne.UI.Vty.Widget.Menu
   (MenuWidgetEvent(..), MenuWidgetState, drawMenuWidget, handleMenuWidgetEvent,
@@ -197,16 +198,20 @@ handleAppEvent langFace ev = do
         Just appSel <- charAppSel c -> do
           zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
           return AppInProgress
-      | Just replEv <- toReplEv vtyEv,
+      | Just replEv <- toReplInputEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
-            handleReplWidgetEvent langFace replEv
+            handleReplInputEvent langFace replEv
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
+      | Just replEv <- toReplOutputEv vtyEv,
+        AppSelectorReplOutput <- sel -> do
+            zoom appStateReplL $ handleReplOutputEvent replEv
+            return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
-          handleReplWidgetEvent langFace $
+          handleReplInputEvent langFace $
             ReplCommandEvent commandId commandEvent
         return $ case completed of
           ReplCompleted -> AppCompleted
@@ -224,8 +229,8 @@ charAppSel = \case
   'l' -> Just AppSelectorLogs
   _ -> Nothing
 
-toReplEv :: V.Event -> Maybe ReplWidgetEvent
-toReplEv = \case
+toReplInputEv :: V.Event -> Maybe ReplInputEvent
+toReplInputEv = \case
   V.EvKey V.KLeft [] ->
     Just $ ReplInputNavigationEvent NavArrowLeft
   V.EvKey V.KRight [] ->
@@ -244,4 +249,16 @@ toReplEv = \case
     Just ReplQuitEvent
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
+  _ -> Nothing
+
+toReplOutputEv :: V.Event -> Maybe ReplOutputEvent
+toReplOutputEv = \case
+  V.EvKey V.KUp [] ->
+    Just $ ReplOutputScrollingEvent ScrollingLineUp
+  V.EvKey V.KDown [] ->
+    Just $ ReplOutputScrollingEvent ScrollingLineDown
+  V.EvKey V.KPageUp [] ->
+    Just $ ReplOutputScrollingEvent ScrollingPgUp
+  V.EvKey V.KPageDown [] ->
+    Just $ ReplOutputScrollingEvent ScrollingPgDown
   _ -> Nothing
