@@ -19,7 +19,6 @@ library
       base >=4.7 && <5
     , ansi-terminal
     , async
-    , brick
     , cardano-sl
     , cardano-sl-block
     , cardano-sl-client
@@ -58,10 +57,8 @@ library
     , temporary
     , universum
     , vector
-    , vty
     , word-wrap
     , transformers
-    , text-zipper
     , ansi-wl-pprint
     , loc
     , Earley
@@ -69,20 +66,11 @@ library
     , bytestring
     , containers
     , time-units
-    , knit
     , serokell-util
+    , ariadne-vty-ui
+    , knit
+    , ii-extras
   exposed-modules:
-      Ariadne.UI
-      Ariadne.UI.App
-      Ariadne.UI.AnsiToVty
-      Ariadne.UI.CommandHistory
-      Ariadne.UI.Widget.Help
-      Ariadne.UI.Widget.Logs
-      Ariadne.UI.Widget.Menu
-      Ariadne.UI.Widget.Repl
-      Ariadne.UI.Widget.WalletTree
-      Ariadne.UI.Widget.WalletPane
-      Ariadne.UI.Face
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
@@ -90,7 +78,6 @@ library
       Ariadne.Knit.Face
       Ariadne.CommandId
       Ariadne.Glue
-      Ariadne.Util
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
@@ -138,7 +125,9 @@ executable ariadne
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       ariadne
+    , ariadne-vty-ui
     , knit
+    , ii-extras
     , base >=4.7 && <5
     , async
     , vinyl

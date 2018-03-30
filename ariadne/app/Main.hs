@@ -2,13 +2,12 @@ module Main where
 
 import Prelude
 import Control.Concurrent.Async
-import Data.Vinyl.Core
+import IiExtras
 
-import Ariadne.UI
+import Ariadne.UI.Vty
 import Ariadne.Knit.Backend
 import Ariadne.Cardano.Backend
 import Ariadne.Glue
-import Ariadne.Util
 
 import qualified Knit
 import qualified Ariadne.Cardano.Knit as Knit

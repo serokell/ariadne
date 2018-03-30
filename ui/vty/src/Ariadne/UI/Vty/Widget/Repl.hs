@@ -1,4 +1,4 @@
-module Ariadne.UI.Widget.Repl where
+module Ariadne.UI.Vty.Widget.Repl where
 
 import Prelude hiding (unlines)
 import Data.Text as Text
@@ -8,9 +8,9 @@ import Control.Lens
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import Data.Text.Zipper
-import Data.Unique
 import Data.List as List
-import Numeric (showIntAtBase)
+import Data.Function (on)
+import IiExtras
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
@@ -19,13 +19,11 @@ import qualified Brick as B
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.AnsiToVty
-import Ariadne.UI.Face
-import Ariadne.CommandId
-import Ariadne.Util
+import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Face
 
 data OutputElement
-  = OutputCommand CommandId (Int -> V.Image) (Maybe (Int -> V.Image))
+  = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Int -> V.Image))
   | OutputInfo (Int -> V.Image)
 
 -- Note that fields here are lazy, so we can afford to put all results we might
@@ -33,7 +31,7 @@ data OutputElement
 -- recomputation in 'mkReplParseResult'.
 data ReplParseResult
   = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
-  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO CommandId }
+  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO UiCommandId }
 
 data ReplWidgetState =
   ReplWidgetState
@@ -100,7 +98,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
           mkImg width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
           let
-            cmdInfo = V.text' V.defAttr (drawCommandId commandId)
+            cmdInfo = drawCommandId commandId
           in
             V.vertCat
               [ V.horizCat
@@ -164,12 +162,8 @@ inSpans spans (row, column) = inSpan
         (Loc.loc (fromIntegral row) (fromIntegral column))
         (Loc.loc (fromIntegral row) (fromIntegral column + 1))
 
-drawCommandId :: CommandId -> Text
-drawCommandId (CommandId u) = pack $
-    '<' : showIntAtBase 36 base36Char (hashUnique u) ">"
-  where
-    base36Char = (alphabet!!)
-    alphabet = "0123456789" ++ ['a'..'z']
+drawCommandId :: UiCommandId -> V.Image
+drawCommandId (UiCommandId _ t) = V.text' V.defAttr t
 
 data NavAction
   = NavArrowLeft
@@ -185,7 +179,7 @@ data InputModification
   | ReplaceBreakLine
 
 data ReplWidgetEvent
-  = ReplCommandEvent CommandId UiCommandEvent
+  = ReplCommandEvent UiCommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplSendEvent
@@ -255,16 +249,17 @@ smartBreakLine tz =
   in insertMany indentation (breakLine tz)
 
 updateCommandResult
-  :: CommandId
+  :: UiCommandId
   -> UiCommandEvent
   -> OutputElement
   -> OutputElement
 updateCommandResult
   commandId
   commandEvent
-  (OutputCommand commandId' commandSrc oldResultImage) | commandId == commandId'
+  (OutputCommand commandId' commandSrc oldResultImage) | eqCommandId commandId commandId'
   = OutputCommand commandId commandSrc mCommandResultImage
   where
+    eqCommandId = (==) `on` cmdIdEqObject
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->

@@ -2,9 +2,9 @@ module Knit.Syntax where
 
 import Data.Union
 import Data.String
+import IiExtras
 
 import Knit.Name
-import Knit.Utils
 
 data Operator
   = OpSemicolon

@@ -1,11 +1,22 @@
-module Ariadne.UI.Face where
+module Ariadne.UI.Vty.Face where
 
 import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Data.Text
 import Data.Loc.Span (Span)
 
-import Ariadne.CommandId
+data UiCommandId =
+  UiCommandId
+  { -- This field is used to compare whether two command identifiers are equal.
+    -- The mapping from actual command identifiers to these integers must be
+    -- injective.
+    cmdIdEqObject :: Integer
+  , -- This field is the visual representation of a command identifier. The
+    -- mapping from actual command identifiers to text need not be injective,
+    -- but it would be very unfair to the user, as different command identifiers
+    -- would appear the same to her.
+    cmdIdRendered :: Text
+  }
 
 -- A REPL command has either finished or sent some information.
 data UiCommandEvent
@@ -20,13 +31,13 @@ data UiCardanoEvent = UiCardanoEventMock
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
-  = UiCommandEvent CommandId UiCommandEvent
+  = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
   forall err expr. UiLangFace
-  { langPutCommand :: expr -> IO CommandId
+  { langPutCommand :: expr -> IO UiCommandId
   , langParse :: Text -> Either err expr
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc

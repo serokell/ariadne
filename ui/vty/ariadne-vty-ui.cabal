@@ -1,4 +1,4 @@
-name:           knit
+name:           ariadne-vty-ui
 version:        0.1.0.0
 description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
 homepage:       https://github.com/serokell/ariadne#readme
@@ -16,43 +16,36 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5,
-      union,
-      vinyl,
-      text,
-      scientific,
-      split,
-      text-format,
-      generic-arbitrary,
-      QuickCheck,
-      containers,
-      lens,
-      mtl,
-      megaparsec,
-      loc,
-      parser-combinators,
-      Earley,
-      validation,
-      ansi-wl-pprint,
-      ii-extras
+      base >=4.7 && <5
+    , universum
+    , serokell-util
+    , containers
+    , brick
+    , vty
+    , text
+    , lens
+    , transformers
+    , loc
+    , text-zipper
+    , ansi-wl-pprint
+    , ansi-terminal
+    , vector
+    , ii-extras
+
   exposed-modules:
-      Knit
-      Knit.Argument
-      Knit.Value
-      Knit.Core
-      Knit.Syntax
-      Knit.Name
-      Knit.Eval
-      Knit.Inflate
-      Knit.Procedure
-      Knit.Tokenizer
-      Knit.Parser
-      Knit.DisplayError
-      Knit.Printer
-  default-language:
-      Haskell2010
+      Ariadne.UI.Vty
+      Ariadne.UI.Vty.App
+      Ariadne.UI.Vty.AnsiToVty
+      Ariadne.UI.Vty.Widget.Help
+      Ariadne.UI.Vty.Widget.Logs
+      Ariadne.UI.Vty.Widget.Menu
+      Ariadne.UI.Vty.Widget.Repl
+      Ariadne.UI.Vty.Widget.WalletTree
+      Ariadne.UI.Vty.Widget.WalletPane
+      Ariadne.UI.Vty.Face
   default-extensions:
       ApplicativeDo
+      NoImplicitPrelude
       BangPatterns
       ConstraintKinds
       DataKinds
@@ -83,4 +76,5 @@ library
       TypeOperators
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Werror
+  default-language: Haskell2010
+  ghc-options: -Wall -Werror -Wno-unused-top-binds

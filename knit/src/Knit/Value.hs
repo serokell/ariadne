@@ -1,8 +1,7 @@
 module Knit.Value where
 
 import Data.Union
-
-import Knit.Utils
+import IiExtras
 
 data family ComponentValue (components :: [*]) component
 

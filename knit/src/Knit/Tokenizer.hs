@@ -16,16 +16,14 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Char
 import Data.List as List
 import Data.Traversable
-import Data.Vinyl.Core
-import Data.Vinyl.TypeLevel
 import Data.Proxy
+import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
 import Text.Megaparsec hiding (Token)
 import Text.Megaparsec.Char
 
 import Knit.Name
-import Knit.Utils
 
 data BracketSide = BracketSideOpening | BracketSideClosing
     deriving (Eq, Ord, Show)

@@ -6,8 +6,8 @@ module Ariadne.Knit.Backend
 import Universum hiding (atomically)
 import Control.Concurrent.STM
 import Data.Unique
-import Data.Vinyl.TypeLevel
 import Control.Exception (handle)
+import IiExtras
 
 import Ariadne.CommandId
 import Ariadne.Knit.Face
@@ -17,7 +17,7 @@ type CommandQueue components =
   TBQueue (Knit.Expr Knit.CommandName components, CommandId)
 
 type Components components =
-  ( Knit.KnownSpine components
+  ( KnownSpine components
   , AllConstrained (Knit.ComponentCommandProcs components) components
   , AllConstrained (Knit.ComponentCommandExec IO components) components
   , AllConstrained (Knit.ComponentLitToValue components) components
@@ -64,4 +64,4 @@ runKnit commandQueue execCtxs putKnitEvent = do
   where
     commandProcs = Knit.commandProcs @components
     resolveProcNames =
-      Knit.resolveProcNames (\(Knit.Some cp) -> Knit.cpName cp) commandProcs
+      Knit.resolveProcNames (\(Some cp) -> Knit.cpName cp) commandProcs

@@ -1,4 +1,4 @@
-module Ariadne.UI.Widget.Logs where
+module Ariadne.UI.Vty.Widget.Logs where
 
 import Prelude
 import Control.Lens

@@ -1,10 +1,9 @@
 module Knit.Inflate where
 
-import Data.Vinyl.TypeLevel
+import IiExtras
 
 import Knit.Value
 import Knit.Syntax
-import Knit.Utils
 
 class ComponentInflate components component where
   componentInflate

@@ -6,7 +6,9 @@ flags:
 
 packages:
 - ./ariadne
+- ./ui/vty
 - ./knit
+- ./util/
 
 - location:
     git: https://github.com/input-output-hk/cardano-sl.git

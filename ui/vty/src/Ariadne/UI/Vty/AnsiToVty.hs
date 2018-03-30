@@ -1,4 +1,4 @@
-module Ariadne.UI.AnsiToVty (ansiToVty) where
+module Ariadne.UI.Vty.AnsiToVty (ansiToVty) where
 
 import Prelude
 

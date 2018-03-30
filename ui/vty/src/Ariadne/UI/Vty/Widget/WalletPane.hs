@@ -1,4 +1,4 @@
-module Ariadne.UI.Widget.WalletPane where
+module Ariadne.UI.Vty.Widget.WalletPane where
 
 import Prelude
 import Control.Lens

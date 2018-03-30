@@ -2,14 +2,11 @@ module Ariadne.Cardano.Knit where
 
 import Universum hiding (preview)
 
-import Data.Vinyl.TypeLevel
-
 import Pos.Core
 import Pos.Core.Txp (TxOut)
 import Pos.Update (BlockVersionData, BlockVersionModifier, SystemTag)
-import Pos.Util.Util (eitherToThrow)
+import Pos.Util.Util (eitherToThrow, toParsecError)
 import Pos.Crypto
-import Pos.Util.Util (toParsecError)
 import Text.Earley
 import Formatting (sformat)
 import Control.Lens hiding (parts)
@@ -24,9 +21,9 @@ import Serokell.Data.Memory.Units (Byte, fromBytes)
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
+import IiExtras
 
 import Ariadne.Cardano.Face
-import Ariadne.Util
 
 import Knit
 

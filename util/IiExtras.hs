@@ -1,13 +1,56 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Knit.Utils where
+module IiExtras
+  (
+  -- * Definitions
+    type (~>)
+  , (:~>)(..)
+  , postfixLFields
+  , integralDistribExcess
+  , umapConstrained
+  , Elem
+  , elemEv
+  , rgetElem
+  , uliftElem
+  , umatchElem
+  , uprismElem
+  , ufold
+  , Some(..)
+  , Spine
+  , KnownSpine(..)
 
+  -- * Re-exports
+  , Union(..)
+  , Rec(..)
+  , RecAll
+  , Proxy(..)
+  , AllConstrained
+  ) where
+
+import Prelude
+import Control.Lens
 import Data.Union
 import Data.Vinyl.TypeLevel
 import Data.Vinyl.Core hiding (Dict)
 import Data.Type.Equality
 import Data.Proxy
-import Control.Lens
+
+type f ~> g = forall x. f x -> g x
+
+newtype f :~> g = Nat (f ~> g)
+
+postfixLFields :: LensRules
+postfixLFields = lensRules & lensField .~ mappingNamer (\s -> [s++"L"])
+
+integralDistribExcess :: Integral n => n -> n -> (n, n)
+integralDistribExcess desired actual = (l, r)
+  where
+    excess =
+      if desired > actual
+      then desired - actual
+      else 0
+    l = excess `quot` 2
+    r = excess - l
 
 umapConstrained
   :: forall c f g as.
