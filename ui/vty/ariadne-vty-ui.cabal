@@ -31,11 +31,13 @@ library
     , ansi-terminal
     , vector
     , ii-extras
+    , directory
 
   exposed-modules:
       Ariadne.UI.Vty
       Ariadne.UI.Vty.App
       Ariadne.UI.Vty.AnsiToVty
+      Ariadne.UI.Vty.CommandHistory
       Ariadne.UI.Vty.Widget.Help
       Ariadne.UI.Vty.Widget.Logs
       Ariadne.UI.Vty.Widget.Menu

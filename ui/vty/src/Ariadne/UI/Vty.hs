@@ -12,6 +12,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.App (app, initialAppState)
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.CommandHistory (CommandHistory, openCommandHistory)
 
 type UiAction = UiLangFace -> IO ()
 
@@ -22,16 +23,19 @@ type UiAction = UiLangFace -> IO ()
 createAriadneUI :: IO (UiFace, UiAction)
 createAriadneUI = do
   eventChan <- mkEventChan
-  return (mkUiFace eventChan, runUI eventChan)
+  -- TODO: remove hardcoded filepath, make configurable
+  commandHistory <- openCommandHistory "ariadne_history"
+  return (mkUiFace eventChan, runUI eventChan commandHistory)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
 runUI
   :: BChan UiEvent
+  -> CommandHistory
   -> UiLangFace
   -> IO ()
-runUI eventChan langFace = do
+runUI eventChan history langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -62,7 +66,7 @@ runUI eventChan langFace = do
     (app langFace)
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initialAppState langFace)
+    (initialAppState langFace history)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name

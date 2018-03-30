@@ -6,6 +6,7 @@ import Control.Monad.Trans.State
 import Data.Char as Char
 import Data.Function (fix, on)
 import Data.List as List
+import Data.Maybe (fromMaybe)
 import Data.Text as Text
 import Data.Text.Zipper
   ( TextZipper, clearZipper, currentLine, deleteChar, deletePrevChar,
@@ -23,6 +24,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.CommandHistory
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
 newtype Width = Width { unWidth :: Int }
@@ -48,6 +50,7 @@ data ReplWidgetState =
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     , replWidgetScrollingOffset :: Int -> Int -> ScrollingOffset
+    , replWidgetHistory :: CommandHistory
     -- ^ viewport height -> full image height -> offset from top
     -- TODO (thatguy): use `named`
     }
@@ -76,13 +79,14 @@ replReparse langFace = do
   t <- gets replWidgetText
   replWidgetParseResultL .= mkReplParseResult langFace t
 
-initReplWidget :: UiLangFace -> ReplWidgetState
-initReplWidget langFace =
+initReplWidget :: UiLangFace -> CommandHistory -> ReplWidgetState
+initReplWidget langFace history =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     , replWidgetScrollingOffset = \_ _ -> OffsetFollowing
+    , replWidgetHistory = history
     }
 
 drawReplOutputWidget
@@ -192,6 +196,10 @@ data NavAction
   | NavArrowUp
   | NavArrowDown
 
+data CommandAction
+  = NextCommand
+  | PrevCommand
+
 data InputModification
   = InsertChar Char
   | DeleteBackwards
@@ -203,6 +211,7 @@ data ReplInputEvent
   = ReplCommandEvent UiCommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
+  | ReplCommandNavigationEvent CommandAction
   | ReplSendEvent
   | ReplSmartEnterEvent
   | ReplQuitEvent
@@ -225,6 +234,9 @@ handleReplInputEvent
 handleReplInputEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
+    history <- gets replWidgetHistory
+    t <- gets replWidgetText
+    liftIO $ setCurrCommand history t
     zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
@@ -242,6 +254,16 @@ handleReplInputEvent langFace = fix $ \go -> \case
         NavArrowUp -> moveUp
         NavArrowDown -> moveDown
     return ReplInProgress
+  ReplCommandNavigationEvent cmdAction -> do
+    -- TODO: handle multi-line commands
+    history <- gets replWidgetHistory
+    let action = case cmdAction of
+                    NextCommand -> toNextCommand
+                    PrevCommand -> toPrevCommand
+    cmd <- liftIO $ action history
+    zoom replWidgetTextZipperL $ modify $ insertMany (fromMaybe "" cmd) . clearZipper
+    replReparse langFace
+    return ReplInProgress
   ReplSmartEnterEvent -> do
     quitCommandDetected <- gets (isQuitCommand . replWidgetText)
     if quitCommandDetected
@@ -252,6 +274,10 @@ handleReplInputEvent langFace = fix $ \go -> \case
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
   ReplSendEvent -> do
+    history <- gets replWidgetHistory
+    t <- gets replWidgetText
+    liftIO $ setCurrCommand history t
+    liftIO $ startNewCommand history
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
