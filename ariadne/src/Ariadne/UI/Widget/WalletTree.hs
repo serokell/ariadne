@@ -35,24 +35,29 @@ renderTree ::
     -> (SelectionFlag -> TreePath -> a -> V.Image)
     -> Tree a
     -> V.Image
-renderTree selection toImg = go []
+renderTree selection toImg = go [] []
   where
-    prefix :: TreePath -> V.Image
-    prefix curPath =
-        let pathLen = length curPath
-            str | pathLen == 0 = ""
-                | otherwise = T.replicate (pathLen - 1) "|   " <> "├── "
-        in V.text' V.defAttr str
+    map' :: (from -> Bool -> to) -> [from] -> [to]
+    map' _ [] = []
+    map' f [x] = [f x True]
+    map' f (x:xs) = f x False : map' f xs
+    prefixPart :: Bool -> Bool -> Text
+    prefixPart True  False = "│   "
+    prefixPart True  True  = "├── "
+    prefixPart False False = "    "
+    prefixPart False True  = "└── "
+    prefix :: [Bool] -> V.Image
+    prefix prefixLines = V.text' V.defAttr $ mconcat $ map' prefixPart prefixLines
     selectionFlag :: TreePath -> SelectionFlag
     selectionFlag curPath
         | Just curPath == selection = Selected
         | otherwise = NotSelected
-    go :: TreePath -> Tree a -> V.Image
-    go curPath Node {..} =
+    go :: TreePath -> [Bool] -> Tree a -> V.Image
+    go curPath prefixLines Node {..} =
         V.vertCat
-        ( V.horizJoin (prefix curPath)
+        ( V.horizJoin (prefix prefixLines)
                       (toImg (selectionFlag curPath) curPath rootLabel)
-        : map (\(i, child) -> go (curPath ++ [i]) child) (enumerate subForest)
+        : map' (\(i, child) isLast -> go (curPath ++ [i]) (prefixLines ++ [not isLast]) child) (enumerate subForest)
         )
 
 ----------------------------------------------------------------------------
