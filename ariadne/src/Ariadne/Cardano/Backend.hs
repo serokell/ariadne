@@ -5,6 +5,7 @@ import           Universum
 import           Data.Maybe (fromJust)
 import           Mockable (runProduction)
 import           Options.Applicative hiding (action)
+import           IiExtras
 
 import           Pos.Communication.Protocol (toAction)
 import           Pos.Binary ()
@@ -17,7 +18,6 @@ import           Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import           Pos.Util.UserSecret (usVss)
 
 import           Ariadne.Cardano.Face
-import           Ariadne.Util
 
 createCardanoBackend :: IO (CardanoMode :~> IO, IO ())
 createCardanoBackend = do

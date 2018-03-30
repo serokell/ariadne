@@ -10,13 +10,13 @@ import Data.Char (isAlphaNum)
 import Data.List as List
 import Control.Applicative as A
 import Data.Foldable (asum)
-import Data.Vinyl.TypeLevel
 import Text.Earley
 import Data.Word
 import Data.String
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
+import IiExtras
 
 import Knit.Value
 import Knit.Argument
@@ -26,7 +26,6 @@ import Knit.Eval
 import Knit.Tokenizer
 import Knit.Parser
 import Knit.Inflate
-import Knit.Utils
 import Knit.Printer
 
 data Core

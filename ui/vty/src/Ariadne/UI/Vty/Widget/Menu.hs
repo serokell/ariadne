@@ -1,4 +1,4 @@
-module Ariadne.UI.Widget.Menu where
+module Ariadne.UI.Vty.Widget.Menu where
 
 import Prelude
 import Data.List as List
@@ -13,7 +13,7 @@ import Control.Lens
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
-import Ariadne.Util
+import IiExtras
 
 data MenuWidgetState a =
   MenuWidgetState

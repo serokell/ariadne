@@ -1,4 +1,4 @@
-module Ariadne.UI.App
+module Ariadne.UI.Vty.App
   ( AppState
   , initialAppState
   , app
@@ -10,33 +10,33 @@ import Data.List.NonEmpty
 import Control.Lens
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
+import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Face
-import Ariadne.Util
+import Ariadne.UI.Vty.Face
 
-import Ariadne.UI.Widget.Repl
+import Ariadne.UI.Vty.Widget.Repl
   ( ReplWidgetState, initReplWidget, drawReplOutputWidget, drawReplInputWidget,
     ReplCompleted(..), handleReplWidgetEvent, ReplWidgetEvent(..),
     NavAction(..), InputModification(..) )
 
-import Ariadne.UI.Widget.Menu
+import Ariadne.UI.Vty.Widget.Menu
   ( MenuWidgetState, initMenuWidget, drawMenuWidget, menuWidgetSel,
     handleMenuWidgetEvent, MenuWidgetEvent(..) )
 
-import Ariadne.UI.Widget.Help
+import Ariadne.UI.Vty.Widget.Help
   ( HelpWidgetState, initHelpWidget, drawHelpWidget )
 
-import Ariadne.UI.Widget.Logs
+import Ariadne.UI.Vty.Widget.Logs
   ( LogsWidgetState, initLogsWidget, drawLogsWidget )
 
-import Ariadne.UI.Widget.WalletPane
+import Ariadne.UI.Vty.Widget.WalletPane
   ( WalletPaneWidgetState, initWalletPaneWidget, drawWalletPaneWidget )
 
-import Ariadne.UI.Widget.WalletTree
+import Ariadne.UI.Vty.Widget.WalletTree
   ( WalletTreeWidgetState, initWalletTreeWidget, drawWalletTreeWidget )
 
 data AppSelector

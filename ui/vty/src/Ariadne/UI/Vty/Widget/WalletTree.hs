@@ -1,4 +1,4 @@
-module Ariadne.UI.Widget.WalletTree
+module Ariadne.UI.Vty.Widget.WalletTree
        ( WalletTreeWidgetState
        , initWalletTreeWidget
        , drawWalletTreeWidget

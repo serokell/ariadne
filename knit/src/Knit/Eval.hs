@@ -1,13 +1,11 @@
 module Knit.Eval where
 
-import Data.Vinyl.Core
-import Data.Vinyl.TypeLevel
 import Data.Type.Equality
 import Data.Union
+import IiExtras
 
 import Knit.Syntax
 import Knit.Value
-import Knit.Utils
 import Knit.Procedure
 import Knit.Argument
 

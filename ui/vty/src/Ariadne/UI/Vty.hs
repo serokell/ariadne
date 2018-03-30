@@ -1,4 +1,4 @@
-module Ariadne.UI
+module Ariadne.UI.Vty
   ( UiFace(..)
   , createAriadneUI
   ) where
@@ -10,8 +10,8 @@ import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Face
-import Ariadne.UI.App (initialAppState, app)
+import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.App (initialAppState, app)
 
 type UiAction = UiLangFace -> IO ()
 

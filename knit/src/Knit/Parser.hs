@@ -11,14 +11,12 @@ import Data.Text
 import Data.List as List
 import Data.List.NonEmpty
 import Data.Proxy
-import Data.Vinyl.Core
-import Data.Vinyl.TypeLevel
 import Control.Applicative as A
 import Data.Foldable as F
+import IiExtras
 
 import Knit.Tokenizer
 import Knit.Syntax
-import Knit.Utils
 
 tok :: Getting (First a) (Token components) a -> Prod r e (s, Token components) a
 tok p = terminal (preview $ _2 . p)

@@ -10,7 +10,6 @@ module Knit.DisplayError
 
 import Prelude hiding ((<$>), span)
 
-import Data.Vinyl.TypeLevel
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
@@ -28,6 +27,7 @@ import Text.Earley (Report (..))
 import Text.PrettyPrint.ANSI.Leijen
   (Doc, bold, char, comma, empty, hcat, indent,
    punctuate, red, squotes, vcat, yellow, (<$>), (<+>))
+import IiExtras
 
 import Knit.Argument
 import Knit.Eval
