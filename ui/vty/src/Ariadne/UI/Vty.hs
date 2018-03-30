@@ -11,8 +11,8 @@ import Brick.BChan
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.App (app, initialAppState)
-import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory (CommandHistory, openCommandHistory)
+import Ariadne.UI.Vty.Face
 
 type UiAction = UiLangFace -> IO ()
 

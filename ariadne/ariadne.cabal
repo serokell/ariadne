@@ -70,10 +70,14 @@ library
     , ariadne-vty-ui
     , knit
     , ii-extras
+    , QuickCheck
   exposed-modules:
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
+      Ariadne.Wallet.Knit
+      Ariadne.Wallet.Backend
+      Ariadne.Wallet.Face
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
       Ariadne.CommandId
@@ -111,6 +115,7 @@ library
       TypeOperators
       UndecidableInstances
       ViewPatterns
+      EmptyCase
   other-modules:
       Paths_ariadne
   default-language: Haskell2010

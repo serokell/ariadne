@@ -1,6 +1,7 @@
 module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
+       , UiWalletEvent (..)
        , UiEvent (..)
        , UiLangFace (..)
        , UiFace (..)
@@ -37,6 +38,9 @@ data UiCommandEvent
 -- Update current displayed slot, chain difficulty, etc
 data UiCardanoEvent = UiCardanoEventMock
 
+data UiWalletEvent
+  = UiWalletTreeUpdate [WalletTree]
+
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
@@ -44,6 +48,7 @@ data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
   | UiCardanoLogEvent Text
+  | UiWalletEvent UiWalletEvent
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

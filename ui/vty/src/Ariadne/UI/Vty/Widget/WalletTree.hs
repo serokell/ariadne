@@ -4,12 +4,17 @@ module Ariadne.UI.Vty.Widget.WalletTree
        ( WalletTreeWidgetState
        , initWalletTreeWidget
        , drawWalletTreeWidget
+       , WalletTreeWidgetEvent(..)
+       , handleWalletTreeWidgetEvent
        ) where
 
-import Universum
+import Universum hiding (StateT, (.~))
 
+import Control.Lens
+import Control.Monad.Trans.State
 import Data.List (intersperse)
 import Data.Tree (Tree(..))
+import IiExtras
 import Serokell.Util (enumerate)
 
 import qualified Brick as B
@@ -72,7 +77,11 @@ renderTree selection toImg = go [] []
 -- | State of wallet tree widget, basically the data we want to
 -- display (corresponds to a list of wallets).
 data WalletTreeWidgetState =
-    WalletTreeWidgetState ![WalletTree]
+  WalletTreeWidgetState
+    { walletTreeWallets :: ![WalletTree]
+    }
+
+makeLensesWith postfixLFields ''WalletTreeWidgetState
 
 initWalletTreeWidget :: WalletTreeWidgetState
 initWalletTreeWidget = WalletTreeWidgetState []
@@ -150,21 +159,21 @@ drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets) =
 -- Events
 ----------------------------------------------------------------------------
 
-data WalletTreeCompleted = WalletTreeCompleted | WalletTreeInProgress
-
 data WalletTreeWidgetEvent
-  = WalletTreeExit
-  | WalletTreeScrollDown
-  | WalletTreeScrollUp
+  = WalletTreeUpdateEvent [WalletTree]
 
 handleWalletTreeWidgetEvent
   :: WalletTreeWidgetEvent
-  -> StateT WalletTreeWidgetState IO WalletTreeCompleted
+  -> StateT WalletTreeWidgetState IO ()
 handleWalletTreeWidgetEvent ev = do
   case ev of
-    WalletTreeExit ->
-      return WalletTreeCompleted
-    WalletTreeScrollUp ->
-      return WalletTreeInProgress
-    WalletTreeScrollDown ->
-      return WalletTreeInProgress
+    WalletTreeUpdateEvent wallets -> do
+      -- walletTreeWalletsL .= wallets -- commented out for testing
+      -- everything below is for testing and must be deleted
+      walletTreeWalletsL <>=
+        [Node
+         { rootLabel = WalletTreeItem (Just "event received") [] False
+         , subForest = []
+         }
+        ]
+      walletTreeWalletsL <>= wallets

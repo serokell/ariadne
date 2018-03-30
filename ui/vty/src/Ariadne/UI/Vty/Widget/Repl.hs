@@ -9,9 +9,9 @@ import Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Text as Text
 import Data.Text.Zipper
-  ( TextZipper, clearZipper, currentLine, deleteChar, deletePrevChar,
-    getText, moveDown, moveLeft, moveRight, moveUp, previousChar, textZipper,
-    cursorPosition, insertChar, insertMany, breakLine)
+  (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
+  deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
+  moveRight, moveUp, previousChar, textZipper)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -23,8 +23,8 @@ import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.

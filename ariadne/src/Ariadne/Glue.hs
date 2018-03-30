@@ -8,14 +8,16 @@ module Ariadne.Glue
 
          -- * Cardano ↔ Vty
        , putLogMessage
-       , userSecretToTree
+
+         -- * Wallet ↔ Vty
+       , walletEventToUI
+       , putWalletEventToUI
        ) where
 
 import Universum
 
 import Control.Exception (displayException)
 import Control.Lens (at, non)
-import qualified Data.Foldable
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -24,10 +26,10 @@ import Numeric
 import Prelude ((!!))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import Ariadne.Cardano.Face (UserSecret, WalletUserSecret(..), usWallet)
 import Ariadne.CommandId
 import Ariadne.Knit.Face
 import Ariadne.UI.Vty.Face
+import Ariadne.Wallet.Face
 
 import qualified Knit
 
@@ -97,15 +99,30 @@ putKnitEventToUI
   -> KnitEvent components
   -> IO ()
 putKnitEventToUI UiFace{..} ev =
-  Data.Foldable.traverse_ putUiEvent (knitEventToUI ev)
+  whenJust (knitEventToUI ev) putUiEvent
 
 ----------------------------------------------------------------------------
--- Glue between Cardano backend and Vty frontend
+-- Glue between the Cardano backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putLogMessage :: UiFace -> Text -> IO ()
 putLogMessage UiFace{..} message =
-  Data.Foldable.traverse_ putUiEvent (Just $ UiCardanoLogEvent message)
+  putUiEvent (UiCardanoLogEvent message)
+
+----------------------------------------------------------------------------
+-- Glue between the Wallet backend and Vty frontend
+----------------------------------------------------------------------------
+
+-- The 'Maybe' here is not used for now, but in the future might be, if some
+-- event couldn't be mapped to a UI event.
+walletEventToUI :: WalletEvent -> Maybe UiEvent
+walletEventToUI = \case
+  WalletUserSecretSetEvent us ->
+    Just $ UiWalletEvent $ UiWalletTreeUpdate (userSecretToTree us)
+
+putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
+putWalletEventToUI UiFace{..} ev =
+  whenJust (walletEventToUI ev) putUiEvent
 
 userSecretToTree :: UserSecret -> [WalletTree]
 userSecretToTree = map toTree . maybeToList . view usWallet
