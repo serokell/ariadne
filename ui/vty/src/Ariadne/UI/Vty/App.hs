@@ -17,9 +17,10 @@ import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.CommandHistory
 
 import Ariadne.UI.Vty.Widget.Repl
-  (InputModification(..), NavAction(..), ReplCompleted(..), ReplInputEvent(..),
+  (InputModification(..), NavAction(..), CommandAction(..), ReplCompleted(..), ReplInputEvent(..),
   ReplOutputEvent(..), ReplWidgetState(..), ScrollingAction(..),
   drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
   handleReplOutputEvent, initReplWidget)
@@ -61,10 +62,10 @@ data AppState =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: UiLangFace -> AppState
-initialAppState langFace =
+initialAppState :: UiLangFace -> CommandHistory -> AppState
+initialAppState langFace history =
   AppState
-    { appStateRepl = initReplWidget langFace
+    { appStateRepl = initReplWidget langFace history
     , appStateMenu = initMenuWidget appSelectors 0
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
@@ -125,7 +126,7 @@ drawAppWidget AppState{..} =
           AppSelectorReplInput -> "^R REPL"
           AppSelectorReplOutput -> "^O Output"
           AppSelectorWalletTree -> "^T Tree"
-          AppSelectorWalletPane -> "^P Pane"
+          AppSelectorWalletPane -> "^G Pane"
           AppSelectorHelp -> "^H Help"
           AppSelectorLogs -> "^L Logs")
         appStateMenu
@@ -224,7 +225,7 @@ charAppSel = \case
   'r' -> Just AppSelectorReplInput
   'o' -> Just AppSelectorReplOutput
   't' -> Just AppSelectorWalletTree
-  'p' -> Just AppSelectorWalletPane
+  'g' -> Just AppSelectorWalletPane
   'h' -> Just AppSelectorHelp
   'l' -> Just AppSelectorLogs
   _ -> Nothing
@@ -247,6 +248,10 @@ toReplInputEv = \case
     Just $ ReplSmartEnterEvent
   V.EvKey (V.KChar 'd') [V.MCtrl] ->
     Just ReplQuitEvent
+  V.EvKey (V.KChar 'n') [V.MCtrl] ->
+    Just $ ReplCommandNavigationEvent NextCommand
+  V.EvKey (V.KChar 'p') [V.MCtrl] ->
+    Just $ ReplCommandNavigationEvent PrevCommand
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
   _ -> Nothing
