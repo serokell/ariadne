@@ -50,9 +50,9 @@ data ReplWidgetState =
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     , replWidgetScrollingOffset :: Int -> Int -> ScrollingOffset
-    , replWidgetHistory :: CommandHistory
     -- ^ viewport height -> full image height -> offset from top
     -- TODO (thatguy): use `named`
+    , replWidgetHistory :: CommandHistory
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -234,9 +234,6 @@ handleReplInputEvent
 handleReplInputEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
-    history <- gets replWidgetHistory
-    t <- gets replWidgetText
-    liftIO $ setCurrCommand history t
     zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
@@ -245,6 +242,9 @@ handleReplInputEvent langFace = fix $ \go -> \case
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse langFace
+    history <- gets replWidgetHistory
+    t <- gets replWidgetText
+    liftIO $ setCurrCommand history t
     return ReplInProgress
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
