@@ -1,8 +1,18 @@
-module Ariadne.UI.Vty.Face where
+module Ariadne.UI.Vty.Face
+       ( UiCommandId (..)
+       , UiCommandEvent (..)
+       , UiEvent (..)
+       , UiLangFace (..)
+       , UiFace (..)
+
+       , WalletTreeItem (..)
+       , WalletTree
+       ) where
+
+import Universum
 
 import Data.Loc.Span (Span)
-import Data.Text
-import Prelude
+import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 data UiCommandId =
@@ -52,3 +62,20 @@ data UiFace =
       -- queue of events is full (should not normally happen).
       putUiEvent :: UiEvent -> IO ()
     }
+
+----------------------------------------------------------------------------
+-- Wallet tree widget model
+----------------------------------------------------------------------------
+
+-- | A node in HD-wallet tree.
+data WalletTreeItem = WalletTreeItem
+    { wtiLabel :: !(Maybe Text)
+    -- ^ Some text to display (e. g. wallet's name).
+    , wtiPath :: ![Word]
+    -- ^ Path to this node in the tree. Can be used as an identifier
+    -- (hopefully).
+    , wtiShowPath :: !Bool
+    -- ^ Whether the path should be displayed.
+    }
+
+type WalletTree = Tree WalletTreeItem
