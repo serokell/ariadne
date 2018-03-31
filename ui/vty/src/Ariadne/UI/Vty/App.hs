@@ -33,7 +33,7 @@ import Ariadne.UI.Vty.Widget.Help
   (HelpWidgetState, drawHelpWidget, initHelpWidget)
 
 import Ariadne.UI.Vty.Widget.Logs
-  (LogsWidgetState, drawLogsWidget, initLogsWidget)
+  (LogsCompleted(..), LogsWidgetEvent(..), LogsWidgetState, drawLogsWidget, initLogsWidget, handleLogsWidgetEvent)
 
 import Ariadne.UI.Vty.Widget.WalletPane
   (WalletPaneWidgetState, drawWalletPaneWidget, initWalletPaneWidget)
@@ -217,6 +217,13 @@ handleAppEvent langFace ev = do
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiCardanoLogEvent message) -> do
+        completed <- zoom appStateLogsL $
+          handleLogsWidgetEvent $
+            LogsMessage message
+        return $ case completed of
+          LogsCompleted -> AppCompleted
+          LogsInProgress -> AppInProgress
     _ ->
       return AppInProgress
 

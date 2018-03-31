@@ -25,4 +25,4 @@ main = do
       RNil
   uiAction (knitFaceToUI knitFace) `race_`
     knitAction knitExecContext (putKnitEventToUI uiFace) `race_`
-    cardanoAction
+    cardanoAction (putLogMessage uiFace)

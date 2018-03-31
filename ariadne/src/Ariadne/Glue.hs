@@ -7,6 +7,7 @@ module Ariadne.Glue
        , putKnitEventToUI
 
          -- * Cardano ↔ Vty
+       , putLogMessage
        , userSecretToTree
        ) where
 
@@ -101,6 +102,10 @@ putKnitEventToUI UiFace{..} ev =
 ----------------------------------------------------------------------------
 -- Glue between Cardano backend and Vty frontend
 ----------------------------------------------------------------------------
+
+putLogMessage :: UiFace -> Text -> IO ()
+putLogMessage UiFace{..} message =
+  Data.Foldable.traverse_ putUiEvent (Just $ UiCardanoLogEvent message)
 
 userSecretToTree :: UserSecret -> [WalletTree]
 userSecretToTree = map toTree . maybeToList . view usWallet

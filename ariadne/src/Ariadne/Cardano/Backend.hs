@@ -9,6 +9,7 @@ import Options.Applicative hiding (action)
 
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
+import Pos.Client.CLI.Util (readLoggerConfig)
 import qualified Pos.Client.CLI as CLI
 import Pos.Communication.Protocol (toAction)
 import Pos.Launcher
@@ -17,9 +18,11 @@ import Pos.Util (logException)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
 
+import System.Wlog (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTimeB, showTidB)
+
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: IO (CardanoMode :~> IO, IO ())
+createCardanoBackend :: IO (CardanoMode :~> IO, (Text -> IO ()) -> IO ())
 createCardanoBackend = do
   cardanoContextVar <- newEmptyMVar
   return
@@ -31,8 +34,8 @@ runCardanoMode cardanoContextVar act = do
   cardanoContext <- readMVar cardanoContextVar
   runProduction $ runReaderT act cardanoContext
 
-runCardanoNode :: MVar CardanoContext -> IO ()
-runCardanoNode cardanoContextVar = withCompileInfo $(retrieveCompileTimeInfo) $ do
+runCardanoNode :: MVar CardanoContext -> (Text -> IO ()) -> IO ()
+runCardanoNode cardanoContextVar logAction = withCompileInfo $(retrieveCompileTimeInfo) $ do
   let (Success commonArgs) =
         execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc)
           [ "--system-start", "0"
@@ -40,14 +43,20 @@ runCardanoNode cardanoContextVar = withCompileInfo $(retrieveCompileTimeInfo) $ 
           , "--no-ntp"
           , "--configuration-file", "cardano-config.yaml"
           ]
-      disableConsoleLog = \lp -> lp { lpConsoleLog = Just False }
-      loggingParams = disableConsoleLog $
-        CLI.loggingParams "ariadne" commonArgs
+      loggingParams = CLI.loggingParams "ariadne" commonArgs
+      setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
+      getLoggerConfig LoggingParams{..} = do
+          let cfgBuilder = showTidB
+                        <> showTimeB
+                        <> maybeLogsDirB lpHandlerPrefix
+                        <> consoleActionB (const logAction)
+          cfg <- readLoggerConfig lpConfigPath
+          pure $ cfg <> cfgBuilder
       nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
       extractionWorker =
         ( [toAction $ \_sendActions -> ask >>= putMVar cardanoContextVar]
         , mempty )
-  loggerBracket loggingParams. logException "ariadne" $ runProduction $
+  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ runProduction $
     withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $ do
       nodeParams <- CLI.getNodeParams "ariadne" commonArgs nodeArgs
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss

@@ -43,6 +43,7 @@ data UiCardanoEvent = UiCardanoEventMock
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
+  | UiCardanoLogEvent Text
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

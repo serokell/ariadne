@@ -4,8 +4,6 @@ rotation:
     logLimit: 104857600 # 100 MB
     keepFiles: 20
 printOutput: False
-termSeveritiesOut: []
-termSeveritiesErr: []
 loggerTree:
   severity: Debug+
   files:
