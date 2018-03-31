@@ -5,11 +5,11 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
-import Control.Lens ((<>~))
+import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Crypto
-import Pos.Client.KeyStorage
+import Pos.Util (runGen)
 import Pos.Util.UserSecret
-import Test.QuickCheck
+import Test.QuickCheck (arbitrary)
 
 import Ariadne.Wallet.Face
 
@@ -17,7 +17,7 @@ createWalletBackend :: IO ((WalletEvent -> IO ()) -> WalletFace)
 createWalletBackend = do
   return $ \sendWalletEvent ->
     WalletFace
-      { walletAddRandomKey = addRandomKey
+      { walletAddAccount = addAccount
       , walletRefreshUserSecret = refreshUserSecret sendWalletEvent
       }
 
@@ -26,14 +26,28 @@ refreshUserSecret sendWalletEvent = do
   us <- getSecretDefault
   liftIO $ sendWalletEvent (WalletUserSecretSetEvent us)
 
-addRandomKey :: CardanoMode ()
-addRandomKey = do
-  key <- liftIO $ generate arbitrary
-  let sk = noPassEncrypt key
-  modifySecretDefault $ \us ->
-    if view usKeys us `containsKey` sk
-    then us
-    else us & usKeys <>~ [sk]
+addAccount :: CardanoMode ()
+addAccount =
+    modifySecretDefault $ \us ->
+        let (newUS, wus) = ensureWalletExists us
+            addAccountPure :: [(Word32, Text)] -> [(Word32, Text)]
+            addAccountPure accounts =
+                accounts <> [(fromIntegral (length accounts), "account")]
+            newWallet :: WalletUserSecret
+            newWallet = wus & wusAccounts %~ addAccountPure
+         in newUS & usWallet .~ Just newWallet
 
-containsKey :: [EncryptedSecretKey] -> EncryptedSecretKey -> Bool
-containsKey ls k = hash k `elem` map hash ls
+ensureWalletExists :: UserSecret -> (UserSecret, WalletUserSecret)
+ensureWalletExists us =
+    case us ^. usWallet of
+        Just wus -> (us, wus)
+        Nothing -> (us & usWallet .~ Just emptyWallet, emptyWallet)
+  where
+    emptyWallet :: WalletUserSecret
+    emptyWallet =
+        WalletUserSecret
+            { _wusRootKey = noPassEncrypt $ runGen arbitrary
+            , _wusWalletName = "patak"
+            , _wusAccounts = []
+            , _wusAddrs = []
+            }

@@ -8,7 +8,7 @@ import Ariadne.Cardano.Face
 
 data WalletFace =
   WalletFace
-    { walletAddRandomKey :: CardanoMode ()
+    { walletAddAccount :: CardanoMode ()
     , walletRefreshUserSecret :: CardanoMode ()
     }
 

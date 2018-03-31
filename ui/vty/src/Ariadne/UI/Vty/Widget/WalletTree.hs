@@ -168,12 +168,12 @@ handleWalletTreeWidgetEvent
 handleWalletTreeWidgetEvent ev = do
   case ev of
     WalletTreeUpdateEvent wallets -> do
-      -- walletTreeWalletsL .= wallets -- commented out for testing
+      walletTreeWalletsL .= wallets
       -- everything below is for testing and must be deleted
-      walletTreeWalletsL <>=
-        [Node
-         { rootLabel = WalletTreeItem (Just "event received") [] False
-         , subForest = []
-         }
-        ]
-      walletTreeWalletsL <>= wallets
+      -- walletTreeWalletsL <>=
+      --   [Node
+      --    { rootLabel = WalletTreeItem (Just "event received") [] False
+      --    , subForest = []
+      --    }
+      --   ]
+      -- walletTreeWalletsL <>= wallets

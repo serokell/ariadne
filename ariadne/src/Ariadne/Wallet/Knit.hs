@@ -73,11 +73,11 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         , cpHelp = "Internal function to update the UI"
         }
     , CommandProc
-        { cpName = "add-random-key"
+        { cpName = "add-account"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-           walletAddRandomKey
+           walletAddAccount
            walletRefreshUserSecret
            return $ toValue ValueUnit
         , cpHelp = ""
