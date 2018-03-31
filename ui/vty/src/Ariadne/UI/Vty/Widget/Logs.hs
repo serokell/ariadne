@@ -74,6 +74,17 @@ data LogsWidgetEvent
   | LogsScrollUp
   | LogsMessage Text
 
+-- Filter colors
+filterCSICodes :: Text -> Text
+filterCSICodes message = Text.pack $ go (Text.unpack message) False
+  where
+    go ('\x1b':'[':xs) False = go xs True
+    go (x:xs) False = x : go xs False
+    go (x:xs) True
+      | x `elem` ['\x40'..'\x7e'] = go xs False
+      | otherwise = go xs True
+    go [] _ = []
+
 handleLogsWidgetEvent
   :: LogsWidgetEvent
   -> StateT LogsWidgetState IO LogsCompleted
@@ -86,5 +97,5 @@ handleLogsWidgetEvent ev = do
     LogsScrollDown ->
       return LogsInProgress
     LogsMessage message -> do
-      zoom logsWidgetMessagesL $ modify (LogMessage message:)
+      zoom logsWidgetMessagesL $ modify ((LogMessage $ filterCSICodes message):)
       return LogsInProgress
