@@ -54,7 +54,7 @@ drawLogsWidget logsWidgetState =
           crop viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $
           V.vertCat $
           fmap drawLogMessage outElems
-        drawLogMessage (LogMessage message) = V.cropRight width (V.text' V.defAttr message)
+        drawLogMessage (LogMessage message) = V.cropRight width (csiToVty message)
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -87,5 +87,5 @@ handleLogsWidgetEvent ev = do
     LogsScrollDown ->
       return LogsInProgress
     LogsMessage message -> do
-      zoom logsWidgetMessagesL $ modify ((LogMessage $ filterCSICodes message):)
+      zoom logsWidgetMessagesL $ modify (LogMessage message:)
       return LogsInProgress
