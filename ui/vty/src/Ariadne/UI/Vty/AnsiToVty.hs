@@ -1,9 +1,10 @@
-module Ariadne.UI.Vty.AnsiToVty (ansiToVty) where
+module Ariadne.UI.Vty.AnsiToVty (ansiToVty, filterCSICodes) where
 
 import Prelude
 
 import Control.Monad.Trans.Writer
 
+import qualified Data.Text as T
 import qualified Graphics.Vty as V
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
@@ -48,3 +49,13 @@ getColor xs = case colors of
     isColor = \case
       AT.SetColor _ _ _ -> True
       _ -> False
+
+filterCSICodes :: T.Text -> T.Text
+filterCSICodes message = T.pack $ go (T.unpack message) False
+  where
+    go ('\x1b':'[':xs) False = go xs True
+    go (x:xs) False = x : go xs False
+    go (x:xs) True
+      | x `elem` ['\x40'..'\x7e'] = go xs False
+      | otherwise = go xs True
+    go [] _ = []

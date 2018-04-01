@@ -5,6 +5,7 @@ import Control.Monad.Trans.State
 import IiExtras
 import Prelude
 import Data.Text as Text
+import Ariadne.UI.Vty.AnsiToVty
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -73,17 +74,6 @@ data LogsWidgetEvent
   | LogsScrollDown
   | LogsScrollUp
   | LogsMessage Text
-
--- Filter colors
-filterCSICodes :: Text -> Text
-filterCSICodes message = Text.pack $ go (Text.unpack message) False
-  where
-    go ('\x1b':'[':xs) False = go xs True
-    go (x:xs) False = x : go xs False
-    go (x:xs) True
-      | x `elem` ['\x40'..'\x7e'] = go xs False
-      | otherwise = go xs True
-    go [] _ = []
 
 handleLogsWidgetEvent
   :: LogsWidgetEvent
