@@ -42,21 +42,24 @@ Where ${\bf Number} = {\bf Integer} \sqcup {\bf Double} \sqcup  {\bf Word32} \sq
 
 \begin{defin} Terms
 
+Let $\mathbb{V} = \{ x, y, z, \dots \}$ is the countable set of variables.
+
+The set of terms $\mathbb{T}_{\bf auxx}$ is defined by the following grammar.
+
 $\begin{array}{lll}
 &\mathbb{T}_{\bf auxx} ::= \mathbb{V}& \\
 &\quad\quad\quad\quad | \: \mathbb{L}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf nil}& \\
-&\quad\quad\quad\quad | \: \mathbb{T}_{\bf auxx} {\: \bf :: \:} \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf tail \:} \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf head \:} \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf ProcCall} \: {\bf Name}_{\bf auxx} \: {\bf nil} &\\
-&\quad\quad\quad\quad | \: {\bf ProcCall} \: {\bf Name}_{\bf auxx} \: (\mathbb{T}_{\bf auxx} {\: \bf :: \:} \mathbb{T}_{\bf auxx}) &\\
+&\quad\quad\quad\quad | \: {\bf ProcCall} \: \mathbb{T}_{\bf auxx} \: \mathbb{T}_{\bf auxx}^{+}&\\
 &\quad\quad\quad\quad | \: (\lambda \mathbb{V}. \mathbb{T}_{\bf auxx}) & \\
 &\quad\quad\quad\quad | \: (\mathbb{T}_{\bf auxx} \: \mathbb{T}_{\bf auxx})& \\
 &\quad\quad\quad\quad | \: \langle \mathbb{T}_{\bf auxx}, \mathbb{T}_{\bf auxx} \rangle&\\
 &\quad\quad\quad\quad | \: \pi_i \mathbb{T}_{\bf auxx}, i \in \{ 1,2 \}& \\
 &\quad\quad\quad\quad | \: \mathbb{T} &
 \end{array}$
+
+Where $\mathbb{T}_{\bf auxx}^{+} = \bigcup \limits_{i = 1}^{\infty} \mathbb{T}_{\bf auxx}^i$ is the set of
+non-empty sequences of terms.
+
 \end{defin}
 
 \section{Typing rules}
@@ -73,12 +76,18 @@ Let $\mathbb{T} = \{ \alpha, \beta, \dots \}$ be the set of atomic types.
 
 $\begin{array}{lll}
 &\mathbb{T}_{\bf auxx} ::= \mathbb{T}&\\
-&\quad\quad\quad\quad | \: {\bf U} &\\
-&\quad\quad\quad\quad | \: {\bf List \:} \mathbb{T}_{\bf auxx} &\\
+&\quad\quad\quad\quad | \: {\bf num} &\\
+&\quad\quad\quad\quad | \: {\bf str} &\\
+&\quad\quad\quad\quad | \: {\bf fp} &\\
+&\quad\quad\quad\quad | \: {\bf name} &\\
+&\quad\quad\quad\quad | \: \bigstar &\\
+&\quad\quad\quad\quad | \: {\bf Name} &\\
 &\quad\quad\quad\quad | \: \Pi_{\mathbb{V} : \mathbb{T}} \to \mathbb{T}_{\bf auxx}& \\
 &\quad\quad\quad\quad | \: \Sigma_{\mathbb{V} : \mathbb{T}} \times \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf ProcCall \:} \mathbb{T}_{\bf auxx}&
+&\quad\quad\quad\quad | \: {\bf ProcCall \:} \: {\bf Name} \: \mathbb{T}_{\bf auxx}^{+}&
 \end{array}$
+
+where $\mathbb{T}_{\bf auxx}^{+} = \bigcup \limits_{i = 1}^{\infty} \mathbb{T}_{\bf auxx}^i$ is the set of non-empty finite sequences of types.
 \end{defin}
 
 \begin{defin} Context
@@ -109,6 +118,11 @@ $\begin{array}{lll}
 \begin{prooftree}
   \AxiomC{$ x \in \mathbb{L}_{\bf auxx} \land x \in {\bf FilePath}$}
   \UnaryInfC{$\Gamma \vdash x : {\bf fp}$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$ \forall x \in {\bf Name}$}
+  \UnaryInfC{$\Gamma \vdash x : {\bf name}$}
 \end{prooftree}
 
 \subsubsection{Dependent product}
@@ -167,59 +181,24 @@ $\begin{array}{lll}
   \end{flushright}
 \end{minipage}
 
-\subsubsection{Disjunction}
-
-\begin{prooftree}
-\AxiomC{$\Gamma \vdash M : A_i$}
-\UnaryInfC{$\Gamma \vdash {\bf in}_i M : A_1 \vee A_2$}
-\end{prooftree}
-
-TODO: express disjunction anonymously.
-
-\subsubsection{Lists}
-
-\begin{prooftree}
-  \AxiomC{$\Gamma \vdash A : {\bf U}$}
-  \RightLabel{${\bf List_I}_1$}
-  \UnaryInfC{$\Gamma \vdash {\bf nil \:} : {\bf List \:} A$}
-\end{prooftree}
-
-\begin{prooftree}
-  \AxiomC{$\Gamma \vdash x : A$}
-  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
-  \RightLabel{${\bf List_I}_1$}
-  \BinaryInfC{$\Gamma \vdash x {\: \bf :: \:} L : {\bf List \:} A$}
-\end{prooftree}
-
-\begin{prooftree}
-  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
-  \RightLabel{${\bf Head}$}
-  \UnaryInfC{$\Gamma \vdash {\bf head \:} L : A$}
-\end{prooftree}
-
-\begin{prooftree}
-  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
-  \RightLabel{${\bf Tail}$}
-  \UnaryInfC{$\Gamma \vdash {\bf Tail \:} L : A$}
-\end{prooftree}
-
 \subsubsection{Special typing rules}
 
 \begin{prooftree}
-  \AxiomC{$\Gamma \vdash M : B$}
-  \AxiomC{$\Gamma \vdash N : {\bf List } (A \vee \Sigma (x : B) \times A)$}
-  \RightLabel{${\bf Procall}$}
-  \BinaryInfC{$\Gamma \vdash {\bf ProcCall \:} M \: N : {\bf ProcCall \:} B$}
+  \AxiomC{$\Gamma \vdash N : {\bf Name}$}
+  \AxiomC{$\Gamma \vdash M_1 : A_1, \dots, \Gamma \vdash M_n : A_n$}
+  \AxiomC{$n \in \omega \setminus \{ 0 \}$}
+  \RightLabel{$\omega-{\bf rule}$}
+  \TrinaryInfC{$\Gamma \vdash {\bf ProcCall} \: N \: M_1 \: \dots \: M_n : {\bf ProcCall} \: {\bf Name} \: A_1 \: \dots \: A_n$}
 \end{prooftree}
+
+We will use the short form $\vec{M}$ instead of $M_1 \: \dots \: M_n$
 
 \begin{defin} Free variables
 
   \begin{itemize}
     \item $x \in \mathbb{V} \Rightarrow FV(x) = \{ x \}$
     \item $x \in \mathbb{L}_{\bf auxx} \Rightarrow FV(x) = \emptyset$
-    \item $FV(\bf nil) = \emptyset$
-    \item $FV(M {\: \bf :: \:} N) = FV(M) \cup FV(N)$
-    \item ${\bf ProcCall \:} M \: N = FV(N)$
+    \item ${\bf ProcCall \:} N \: M_1 \: \dots \: M_n = \bigcup \limits_{i = 1}^n FV(M_i)$
     \item $FV(\lambda x. M) = FV(M) \setminus \{ x \}$
     \item $FV(M N) = FV(M) \cup FV(N)$
     \item $FV(\langle M , N \rangle) = FV(M) \cup FV(N)$
@@ -228,7 +207,6 @@ TODO: express disjunction anonymously.
     \item $FV ({\bf U}) = \{ {\bf U} \}$
     \item $FV(\Pi_{x : A} \to B) = FV(B) \setminus \{ x \}$
     \item $FV(\Sigma_{x : A} \times B) = FV(B) \setminus \{ x \}$
-    \item $FV({\bf ProcCall \:} B) = FV(B)$
   \end{itemize}
 \end{defin}
 
@@ -237,9 +215,7 @@ TODO: express disjunction anonymously.
     \item $x [y := N] = N$, $x = y$
     \item $x [y := N] = x$, $x \neq y$
     \item $x \in \mathbb{L}_{\bf auxx} \Rightarrow \forall x \in \mathbb{V}, x [y := N] = x$;
-    \item ${\bf nil \:} [y := N] = {\bf nil}$
-    \item $M {\: \bf :: \:} P = M [y := N] {\: \bf :: \:} P [y := N]$
-    \item ${\bf ProcCall \:} M \: P = {\bf ProcCall \:} M \: P [y := N]$
+    \item $({\bf ProcCall \:} N \: \vec{M}) [y := N] = {\bf ProcCall \:} N \: (\vec{M} [y := N])$
     \item $(\lambda x. M) [y := N] = \lambda x. M [y := N], y \notin BV(M)$
     \item $(M P) [y := N] = (M [y := N]) (P [y := N])$
     \item $(\langle M , P \rangle) [y := N] = \langle M [y := N], P [y := N] \rangle$
@@ -247,7 +223,6 @@ TODO: express disjunction anonymously.
     \item $\tau \in \mathbb{T} \vee \tau = {\bf U} \Rightarrow \forall x \in \mathbb{V}, \tau [y := N] = \tau$
     \item $(\Pi_{x : A} \to B) [y := N] = \Pi_{x : A} \to B [y := N]$
     \item $FV(\Sigma_{x : A} \times B) = \Sigma_{x : A} \times B [y := N]$
-    \item $({\bf ProcCall \:} B) [y := N] = {\bf ProcCall \:} (B [y := N])$
   \end{itemize}
 \end{defin}
 \section{Reduction}
@@ -266,20 +241,53 @@ TODO: express disjunction anonymously.
   \end{prooftree}
   \item
   \begin{prooftree}
+    \AxiomC{$M \rightarrow_{\beta} M^{'}$}
+    \RightLabel{$x \in FV(M) \land x \in FV(M^{'})$}
+    \UnaryInfC{$\lambda x. M \rightarrow_{\beta} \lambda x. M^{'}$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
   \AxiomC{$ $}
   \UnaryInfC{$(\lambda x. M) N \to_{\beta} M [x := N]$}
   \end{prooftree}
   \item
   \begin{prooftree}
-    \AxiomC{$P_1 \to_{\beta} P_2$}
-    \UnaryInfC{${\bf ProcCall \:} M \: ({\bf in}_1 \: P_1) {\: \bf :: \:} N \to_{\beta} {\bf ProcCall \:} M \: ({\bf in}_1 \: P_2) {\: \bf :: \:} N$}
+    \AxiomC{$M \rightarrow_{\beta} M^{'}$}
+    \UnaryInfC{$\langle M, N\rangle \rightarrow_{\beta} \langle M^{'}, N\rangle$}
   \end{prooftree}
   \item
   \begin{prooftree}
-    \AxiomC{$P_1 \to_{\beta} P_2$}
-    \UnaryInfC{${\bf ProcCall \:} M \: (Q , P_1) {\: \bf :: \:} N \to_{\beta} {\bf ProcCall \:} M \: (Q , P_2) {\: \bf :: \:} N$}
+    \AxiomC{$N \rightarrow_{\beta} N^{'}$}
+    \UnaryInfC{$\langle M, N\rangle \rightarrow_{\beta} \langle M, N^{'}\rangle$}
+  \end{prooftree}
+  \item
+  \item
+  \begin{prooftree}
+    \AxiomC{$M \rightarrow_{\beta} M^{'}$}
+    \RightLabel{$i \in \{ 1,2 \}$}
+    \UnaryInfC{$\pi_i M \rightarrow_{\beta} \pi_i M^{'}$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+  \AxiomC{$M_i \rightarrow_{\beta} M_i^{'}$}
+  \UnaryInfC{${\bf ProcCall} \: N \: M_1 \: \dots \: M_i \dots \: M_n \rightarrow_{\beta} {\bf ProcCall} \: N \: M_1 \: \dots \: M_i^{'} \dots \: M_n$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+    \AxiomC{$B \rightarrow B^{'}$}
+    \UnaryInfC{$\Pi_{x : A} \to B \rightarrow_{\beta} \Pi_{x : A} \to B^{'}$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+    \AxiomC{$B \rightarrow B^{'}$}
+    \UnaryInfC{$\Sigma_{x : A} \times B \rightarrow_{\beta} \Sigma_{x : A} \times B^{'}$}
   \end{prooftree}
 \end{itemize}
+\end{defin}
+
+\begin{defin} Multistep $\beta$-reduction
+
+  Multistep $\beta$-reduction $\twoheadrightarrow_{\beta}$ is a reflexive-transitive closure of $\beta$-reduction.
 \end{defin}
 
 \begin{theorem} Subject reduction
