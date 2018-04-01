@@ -6,6 +6,7 @@ import IiExtras
 import Prelude
 import Data.Text as Text
 import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Scrolling
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -71,21 +72,52 @@ data LogsCompleted = LogsCompleted | LogsInProgress
 
 data LogsWidgetEvent
   = LogsExit
-  | LogsScrollDown
-  | LogsScrollUp
+  | LogsScrollingEvent ScrollingAction
   | LogsMessage Text
+
+data ScrollingDistance = OneLine | Page
 
 handleLogsWidgetEvent
   :: LogsWidgetEvent
   -> StateT LogsWidgetState IO LogsCompleted
-handleLogsWidgetEvent ev = do
-  case ev of
-    LogsExit ->
-      return LogsCompleted
-    LogsScrollUp ->
-      return LogsInProgress
-    LogsScrollDown ->
-      return LogsInProgress
-    LogsMessage message -> do
-      zoom logsWidgetMessagesL $ modify (LogMessage message:)
-      return LogsInProgress
+handleLogsWidgetEvent = \case
+  LogsExit ->
+    return LogsCompleted
+  LogsScrollingEvent ScrollingLineUp -> do
+    zoom logsWidgetScrollingOffsetL $ modify $ goUp OneLine
+    return LogsInProgress
+  LogsScrollingEvent ScrollingLineDown -> do
+    zoom logsWidgetScrollingOffsetL $ modify $ goDown OneLine
+    return LogsInProgress
+  LogsScrollingEvent ScrollingPgUp -> do
+    zoom logsWidgetScrollingOffsetL $ modify $ goUp Page
+    return LogsInProgress
+  LogsScrollingEvent ScrollingPgDown -> do
+    zoom logsWidgetScrollingOffsetL $ modify $ goDown Page
+    return LogsInProgress
+  LogsMessage message -> do
+    zoom logsWidgetMessagesL $ modify (LogMessage message:)
+    return LogsInProgress
+  where
+    goUp :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
+    goUp distance mkPos viewportHeight imageHeight =
+      let numLines = toNumLines viewportHeight distance
+          prev = mkPos viewportHeight imageHeight
+          pos = unwrapOffset (imageHeight - viewportHeight) prev
+      in OffsetFixed $ max 0 (pos - numLines)
+    goDown :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
+    goDown distance mkPos viewportHeight imageHeight =
+      let numLines = toNumLines viewportHeight distance in
+      case mkPos viewportHeight imageHeight of
+        OffsetFollowing -> OffsetFollowing
+        OffsetFixed pos ->
+          if pos >= imageHeight - viewportHeight - numLines then OffsetFollowing
+          else OffsetFixed $ pos + numLines
+    toNumLines :: Int -> ScrollingDistance -> Int
+    toNumLines viewportHeight = \case
+      OneLine -> 1
+      Page -> viewportHeight
+    unwrapOffset :: Int -> ScrollingOffset -> Int
+    unwrapOffset def = \case
+      OffsetFollowing -> def
+      OffsetFixed pos -> pos

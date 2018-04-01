@@ -25,6 +25,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
 newtype Width = Width { unWidth :: Int }
@@ -215,12 +216,6 @@ data ReplInputEvent
   | ReplSendEvent
   | ReplSmartEnterEvent
   | ReplQuitEvent
-
-data ScrollingAction
-  = ScrollingLineUp
-  | ScrollingLineDown
-  | ScrollingPgUp
-  | ScrollingPgDown
 
 data ReplOutputEvent
   = ReplOutputScrollingEvent ScrollingAction
