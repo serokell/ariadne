@@ -226,6 +226,9 @@ handleAppEvent langFace ev = do
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiHelpUpdateData doc) -> do
+        zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
+        return AppInProgress
     B.AppEvent (UiCardanoLogEvent message) -> do
         zoom appStateLogsL $ handleLogsWidgetEvent $ LogsMessage message
         return AppInProgress

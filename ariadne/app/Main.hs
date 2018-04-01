@@ -8,6 +8,8 @@ import Ariadne.Cardano.Backend
 import Ariadne.Glue
 import Ariadne.Knit.Backend
 import Ariadne.UI.Vty
+import Ariadne.UI.Vty.Face
+import Ariadne.Help
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Knit
@@ -23,6 +25,7 @@ main = do
       Knit.CoreExecCtx :&
       Knit.CardanoExecCtx runCardanoMode :&
       RNil
+  putUiEvent uiFace . UiHelpUpdateData =<< generateKnitHelp
   uiAction (knitFaceToUI knitFace) `race_`
     knitAction knitExecContext (putKnitEventToUI uiFace) `race_`
     cardanoAction (putLogMessage uiFace)

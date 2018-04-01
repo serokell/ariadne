@@ -78,6 +78,7 @@ library
       Ariadne.Knit.Face
       Ariadne.CommandId
       Ariadne.Glue
+      Ariadne.Help
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
