@@ -68,25 +68,25 @@ non-empty sequences of terms.
 
 \begin{defin} Basic types
 
-Let $\mathbb{T} = \{ \alpha, \beta, \dots \}$ be the set of atomic types.
+Let $\mathcal{T} = \{ \alpha, \beta, \gamma, \dots \}$ be the set of atomic types.
 
 \end{defin}
 
 \begin{defin} Types
 
 $\begin{array}{lll}
-&\mathbb{T}_{\bf auxx} ::= \mathbb{T}&\\
+&\mathcal{T}_{\bf auxx} ::= \mathcal{T}&\\
 &\quad\quad\quad\quad | \: {\bf num} &\\
 &\quad\quad\quad\quad | \: {\bf str} &\\
 &\quad\quad\quad\quad | \: {\bf fp} &\\
 &\quad\quad\quad\quad | \: {\bf name} &\\
 &\quad\quad\quad\quad | \: \bigstar &\\
-&\quad\quad\quad\quad | \: \Pi_{\mathbb{V} : \mathbb{T}} \to \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: \Sigma_{\mathbb{V} : \mathbb{T}} \times \mathbb{T}_{\bf auxx}& \\
-&\quad\quad\quad\quad | \: {\bf ProcCall \:} \: {\bf Name} \: \mathbb{T}_{\bf auxx}^{+}&
+&\quad\quad\quad\quad | \: \Pi_{\mathbb{V} : \mathcal{T}_{\bf auxx}} \to \mathcal{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: \Sigma_{\mathbb{V} : \mathcal{T}_{\bf auxx}} \times \mathcal{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf ProcCall \:} \: {\bf Name} \: \mathcal{T}_{\bf auxx}&
 \end{array}$
 
-where $\mathbb{T}_{\bf auxx}^{+} = \bigcup \limits_{i = 1}^{\infty} \mathbb{T}_{\bf auxx}^i$ is the set of non-empty finite sequences of types.
+where $\mathcal{T}_{\bf auxx}^{+} = \bigcup \limits_{i = 1}^{\infty} \mathcal{T}_{\bf auxx}^i$ is the set of non-empty finite sequences of types.
 \end{defin}
 
 \begin{defin} Context
@@ -187,7 +187,7 @@ where $\mathbb{T}_{\bf auxx}^{+} = \bigcup \limits_{i = 1}^{\infty} \mathbb{T}_{
   \AxiomC{$\Gamma \vdash M_1 : A_1, \dots, \Gamma \vdash M_n : A_n$}
   \AxiomC{$n \in \omega \setminus \{ 0 \}$}
   \RightLabel{$\omega-{\bf rule}_1$}
-  \TrinaryInfC{$\Gamma \vdash {\bf ProcCall} \: N \: M_1 \: \dots \: M_n : {\bf ProcCall} \: {\bf Name} \: A_1 \: \dots \: A_n$}
+  \TrinaryInfC{$\Gamma \vdash {\bf ProcCall} \: N \: M_1 \: \dots \: M_n : {\bf ProcCall} \: A_1 \: \dots \: A_n$}
 \end{prooftree}
 
 We will use the short form $\vec{M}$ instead of $M_1 \: \dots \: M_n$
@@ -300,7 +300,7 @@ We will use the short form $\vec{M}$ instead of $M_1 \: \dots \: M_n$
     \item If $\Gamma \vdash \langle M , N \rangle : \Sigma_{x : A} \times B$, then $\Gamma, x : A \vdash B : \bigstar$, $\Gamma \vdash M : A$ and $\Gamma \vdash N : B [x := N]$;
     \item If $\Gamma \vdash \pi_1 M : A $, then $\Gamma \vdash M : \Sigma_{x : A} \times B$;
     \item If $\Gamma \vdash \pi_2 M : B [x := \pi_1 M]$, then $\Gamma \vdash M : \Sigma_{x : A} \times B$;
-    \item If $\Gamma \vdash \Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: {\bf Name} \: \vec{A}$ for $n \in \omega \: \setminus \: \{ 0 \}$, where $n = |\vec{A}| = |\vec{M}|$,
+    \item If $\Gamma \vdash \Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$ for $n \in \omega \: \setminus \: \{ 0 \}$, where $n = |\vec{A}| = |\vec{M}|$,
     then $\Gamma \vdash N : Name$ and $\Gamma \vdash \vec{M} : \vec{A}$.
   \end{itemize}
 \end{lemma}
@@ -316,11 +316,62 @@ We will use the short form $\vec{M}$ instead of $M_1 \: \dots \: M_n$
   \begin{itemize}
     \item Let $\Gamma \vdash M : A$ and $\Delta \subseteq \Gamma$, then $\Delta \vdash M : A$;
     \item Let $\Gamma \vdash M : A$, then $\Delta \vdash M : A$, where $\Delta = \{ x : A \: | \: x \in FV(M) \land A \in rng(\Gamma)\}$;
+    \item Let $\Gamma, x : A \vdash M : B$ and $\Gamma \vdash N : A$, then $\Gamma \vdash M [x := N] : B$;
     \item Let $\Gamma \vdash M : A$ and $\Delta$ is a permutation of $\Gamma$, then $\Delta \vdash M : A$;
     \item Let $\Gamma \vdash M : A$ and $[\alpha := B]$ is a type substituion, then $\Gamma [\alpha := B] \vdash M : A [\alpha := B]$,
     where $\Gamma [\alpha := B] = \{ x_1 : A_1 [\alpha := B], \dots, x_n : A_n [\alpha := B]\}$.
   \end{itemize}
 \end{lemma}
+
+\begin{proof}
+  $ $
+
+  Let us consider cases with ${\bf ProcCall}$.
+
+1) Let $\Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$
+for an arbitrary $n \in \omega \: \setminus \: \{ 0 \}$, such that $n = |\vec{A}| = |\vec{M}|$.
+
+By generation lemma $\Gamma \vdash N : {\bf Name}$ and $\Gamma \vdash \vec{M} : \vec{A}$.
+
+By IH $\Delta \vdash N : {\bf Name}$ and $\Delta \vdash \vec{M} : \vec{A}$.
+
+So $\Delta \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$ by $\omega$-rule.
+
+\vspace{\baselineskip}
+
+2) Let $\Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$.
+
+By inversion of $\omega$-rule $\Gamma \vdash N : {\bf Name}$ and $\Gamma \vdash \vec{M} : \vec{A}$.
+
+By IH $\vdash N : {\bf Name}$ and $\forall i \in \omega \setminus \{ 1, \dots, n \}, n = |vec{M}| = |vec{A}| \Rightarrow
+\Delta_i \vdash M_i : A_i$, where $\Delta_i = \{ (x : A) \: | \: x \in FV(M_i) \land A \in rng(\Gamma)\}$.
+
+Then $\Delta_1, \dots, \Delta_n \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$ by $\omega$-rule.
+
+\vspace{\baselineskip}
+
+3) Let $\Gamma, x : A \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$ and $\Gamma \vdash P : A$.
+
+By inversion $\Gamma, x : A \vdash N : {\bf Name}$ and $\Gamma, x : A \vdash \vec{M} : \vec{A}$.
+
+By IH $\Gamma \vdash N : {\bf Name}$ and $\Gamma \vdash (\vec{M} [x := N]) : \vec{A}$.
+
+Then $\Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \vec{A}$ by $\omega$-rule.
+
+\vspace{\baselineskip}
+
+4) Obviously.
+
+\vspace{\baselineskip}
+
+5) Let $\Gamma \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: \vec{A}$.
+
+By generation lemma $\Gamma \vdash N : {\bf Name}$ and $\Gamma \vdash \vec{M} : \vec{A}$.
+
+By assumption, $\Gamma [\alpha := B] \vdash N : {\bf Name}$ and $\Gamma \vdash \vec{M} : (\vec{A} [y := B])$.
+
+Then, by $\omega$-rule, $\Gamma [\alpha := B] \vdash {\bf ProcCall} \: N \: \vec{M} : {\bf ProcCall} \: N \: (\vec{A} [y := B])$.
+\end{proof}
 
 \begin{theorem} Subject reduction
 
@@ -329,8 +380,8 @@ We will use the short form $\vec{M}$ instead of $M_1 \: \dots \: M_n$
 
 \begin{proof}
 
-  Induction on generation of $\rightarrow_{\beta}$. The general statement follows from transitivity of
-  multistep $\beta$-reduction.
+Induction on generation of $\rightarrow_{\beta}$. The general statement follows from transitivity of
+multistep $\beta$-reduction.
 \end{proof}
 
 \end{document}
