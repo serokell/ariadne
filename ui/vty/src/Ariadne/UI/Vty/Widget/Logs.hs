@@ -11,9 +11,6 @@ import Ariadne.UI.Vty.Scrolling
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
--- TODO (thatguy): use the fancy `named` library suggested by @int-index.
-newtype Width = Width { unWidth :: Int }
-
 newtype LogMessage = LogMessage Text
 
 data LogsWidgetState =
@@ -54,22 +51,15 @@ drawLogsWidget logsWidgetState =
         B.emptyResult
           & B.imageL .~ img
 
-data LogsCompleted = LogsCompleted | LogsInProgress
-
 data LogsWidgetEvent
-  = LogsExit
-  | LogsScrollingEvent ScrollingAction
+  = LogsScrollingEvent ScrollingAction
   | LogsMessage Text
 
 handleLogsWidgetEvent
   :: LogsWidgetEvent
-  -> StateT LogsWidgetState IO LogsCompleted
+  -> StateT LogsWidgetState IO ()
 handleLogsWidgetEvent = \case
-  LogsExit ->
-    return LogsCompleted
   LogsScrollingEvent event -> do
     zoom logsWidgetScrollingOffsetL $ modify $ handleScrollingEvent event
-    return LogsInProgress
   LogsMessage message -> do
     zoom logsWidgetMessagesL $ modify (LogMessage message:)
-    return LogsInProgress
