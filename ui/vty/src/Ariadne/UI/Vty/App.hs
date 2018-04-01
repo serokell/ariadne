@@ -18,10 +18,11 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Scrolling
 
 import Ariadne.UI.Vty.Widget.Repl
   (InputModification(..), NavAction(..), CommandAction(..), ReplCompleted(..), ReplInputEvent(..),
-  ReplOutputEvent(..), ReplWidgetState(..), ScrollingAction(..),
+  ReplOutputEvent(..), ReplWidgetState(..),
   drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
   handleReplOutputEvent, initReplWidget)
 
@@ -210,6 +211,12 @@ handleAppEvent langFace ev = do
         AppSelectorReplOutput <- sel -> do
             zoom appStateReplL $ handleReplOutputEvent replEv
             return AppInProgress
+      | Just logsEv <- toLogsEv vtyEv,
+        AppSelectorLogs <- sel -> do
+            completed <- zoom appStateLogsL $ handleLogsWidgetEvent logsEv
+            return $ case completed of
+              LogsCompleted -> AppCompleted
+              LogsInProgress -> AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $
@@ -273,4 +280,16 @@ toReplOutputEv = \case
     Just $ ReplOutputScrollingEvent ScrollingPgUp
   V.EvKey V.KPageDown [] ->
     Just $ ReplOutputScrollingEvent ScrollingPgDown
+  _ -> Nothing
+
+toLogsEv :: V.Event -> Maybe LogsWidgetEvent
+toLogsEv = \case
+  V.EvKey V.KUp [] ->
+    Just $ LogsScrollingEvent ScrollingLineUp
+  V.EvKey V.KDown [] ->
+    Just $ LogsScrollingEvent ScrollingLineDown
+  V.EvKey V.KPageUp [] ->
+    Just $ LogsScrollingEvent ScrollingPgUp
+  V.EvKey V.KPageDown [] ->
+    Just $ LogsScrollingEvent ScrollingPgDown
   _ -> Nothing

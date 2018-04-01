@@ -25,6 +25,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
 newtype Width = Width { unWidth :: Int }
@@ -32,10 +33,6 @@ newtype Width = Width { unWidth :: Int }
 data OutputElement
   = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Width -> V.Image))
   | OutputInfo (Width -> V.Image)
-
-data ScrollingOffset
-    = OffsetFollowing
-    | OffsetFixed Int
 
 -- Note that fields here are lazy, so we can afford to put all results we might
 -- need and discard the existential from 'UiLangFace' without causing excessive
@@ -49,9 +46,7 @@ data ReplWidgetState =
     { replWidgetParseResult :: ReplParseResult
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
-    , replWidgetScrollingOffset :: Int -> Int -> ScrollingOffset
-    -- ^ viewport height -> full image height -> offset from top
-    -- TODO (thatguy): use `named`
+    , replWidgetScrollingOffset :: ScrollingOffset
     , replWidgetHistory :: CommandHistory
     }
 
@@ -85,7 +80,7 @@ initReplWidget langFace history =
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
-    , replWidgetScrollingOffset = \_ _ -> OffsetFollowing
+    , replWidgetScrollingOffset = defaultScrollingOffset
     , replWidgetHistory = history
     }
 
@@ -107,7 +102,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
         viewportHeight = (rdrCtx ^. B.availHeightL) - 1
         width = rdrCtx ^. B.availWidthL
         img =
-          crop viewportHeight (replWidgetState ^. replWidgetScrollingOffsetL) $
+          cropScrolling viewportHeight (replWidgetState ^. replWidgetScrollingOffsetL) $
           V.vertCat $
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
@@ -130,14 +125,6 @@ drawReplOutputWidget _hasFocus replWidgetState =
       return $
         B.emptyResult
           & B.imageL .~ img
-    crop :: Int -> (Int -> Int -> ScrollingOffset) -> V.Image -> V.Image
-    crop viewportHeight mkPos image =
-      let imageHeight = V.imageHeight image in
-      case mkPos viewportHeight imageHeight of
-        OffsetFollowing ->
-          V.cropTop viewportHeight image
-        OffsetFixed pos ->
-          V.cropBottom viewportHeight $ V.cropTop (imageHeight - pos) image
 
 drawReplInputWidget
   :: Bool
@@ -216,12 +203,6 @@ data ReplInputEvent
   | ReplSmartEnterEvent
   | ReplQuitEvent
 
-data ScrollingAction
-  = ScrollingLineUp
-  | ScrollingLineDown
-  | ScrollingPgUp
-  | ScrollingPgDown
-
 data ReplOutputEvent
   = ReplOutputScrollingEvent ScrollingAction
 
@@ -295,41 +276,9 @@ handleReplInputEvent langFace = fix $ \go -> \case
       modify (updateCommandResult commandId commandEvent)
     return ReplInProgress
 
-data ScrollingDistance = OneLine | Page
-
 handleReplOutputEvent :: ReplOutputEvent -> StateT ReplWidgetState IO ()
 handleReplOutputEvent = \case
-  ReplOutputScrollingEvent ScrollingLineUp -> do
-    zoom replWidgetScrollingOffsetL $ modify $ goUp OneLine
-  ReplOutputScrollingEvent ScrollingLineDown -> do
-    zoom replWidgetScrollingOffsetL $ modify $ goDown OneLine
-  ReplOutputScrollingEvent ScrollingPgUp -> do
-    zoom replWidgetScrollingOffsetL $ modify $ goUp Page
-  ReplOutputScrollingEvent ScrollingPgDown -> do
-    zoom replWidgetScrollingOffsetL $ modify $ goDown Page
-  where
-    goUp :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
-    goUp distance mkPos viewportHeight imageHeight =
-      let numLines = toNumLines viewportHeight distance
-          prev = mkPos viewportHeight imageHeight
-          pos = unwrapOffset (imageHeight - viewportHeight) prev
-      in OffsetFixed $ max 0 (pos - numLines)
-    goDown :: ScrollingDistance -> (Int -> Int -> ScrollingOffset) -> Int -> Int -> ScrollingOffset
-    goDown distance mkPos viewportHeight imageHeight =
-      let numLines = toNumLines viewportHeight distance in
-      case mkPos viewportHeight imageHeight of
-        OffsetFollowing -> OffsetFollowing
-        OffsetFixed pos ->
-          if pos >= imageHeight - viewportHeight - numLines then OffsetFollowing
-          else OffsetFixed $ pos + numLines
-    toNumLines :: Int -> ScrollingDistance -> Int
-    toNumLines viewportHeight = \case
-      OneLine -> 1
-      Page -> viewportHeight
-    unwrapOffset :: Int -> ScrollingOffset -> Int
-    unwrapOffset def = \case
-      OffsetFollowing -> def
-      OffsetFixed pos -> pos
+  ReplOutputScrollingEvent event -> zoom replWidgetScrollingOffsetL $ modify $ handleScrollingEvent event
 
 isQuitCommand :: Text -> Bool
 isQuitCommand t =

@@ -1,9 +1,11 @@
-module Ariadne.UI.Vty.AnsiToVty (ansiToVty) where
+module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty) where
 
 import Prelude
 
 import Control.Monad.Trans.Writer
+import Data.List
 
+import qualified Data.Text as T
 import qualified Graphics.Vty as V
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
@@ -48,3 +50,47 @@ getColor xs = case colors of
     isColor = \case
       AT.SetColor _ _ _ -> True
       _ -> False
+
+csiToVty :: T.Text -> V.Image
+csiToVty text = V.horizCat $ uncurry V.text' <$> split
+  where
+    split = readString V.defAttr "" $ T.unpack text
+
+    readString :: V.Attr -> String -> String -> [(V.Attr, T.Text)]
+    readString attr acc ('\x1b':'[':xs) = (attr, T.pack $ reverse acc) : readAttr attr "" xs
+    readString attr acc (x:xs) = readString attr (x:acc) xs
+    readString attr acc [] = [(attr, T.pack $ reverse acc)]
+
+    readAttr :: V.Attr -> String -> String -> [(V.Attr, T.Text)]
+    readAttr attr acc (x:xs)
+      | x `elem` ['\x40'..'\x7e'] = readString (csiToAttr x (T.pack $ reverse acc) attr) "" xs
+      | otherwise = readAttr attr (x:acc) xs
+    readAttr attr acc [] = [(attr, T.pack $ "\x1b[" ++ reverse acc)]
+
+    csiToAttr :: Char -> T.Text -> V.Attr -> V.Attr
+    csiToAttr 'm' params attr = foldl' sgrToAttr attr $ T.splitOn ";" params
+    csiToAttr _ _ attr = attr
+
+    sgrToAttr attr = \case
+      "" -> V.defAttr
+      "0" -> V.defAttr
+
+      "30" -> attr `V.withForeColor` V.black
+      "31" -> attr `V.withForeColor` V.red
+      "32" -> attr `V.withForeColor` V.green
+      "33" -> attr `V.withForeColor` V.yellow
+      "34" -> attr `V.withForeColor` V.blue
+      "35" -> attr `V.withForeColor` V.magenta
+      "36" -> attr `V.withForeColor` V.cyan
+      "37" -> attr `V.withForeColor` V.white
+
+      "90" -> attr `V.withForeColor` V.brightBlack
+      "91" -> attr `V.withForeColor` V.brightRed
+      "92" -> attr `V.withForeColor` V.brightGreen
+      "93" -> attr `V.withForeColor` V.brightYellow
+      "94" -> attr `V.withForeColor` V.brightBlue
+      "95" -> attr `V.withForeColor` V.brightMagenta
+      "96" -> attr `V.withForeColor` V.brightCyan
+      "97" -> attr `V.withForeColor` V.brightWhite
+
+      _ -> attr

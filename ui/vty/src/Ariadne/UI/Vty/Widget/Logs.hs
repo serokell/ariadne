@@ -5,6 +5,8 @@ import Control.Monad.Trans.State
 import IiExtras
 import Prelude
 import Data.Text as Text
+import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Scrolling
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -14,16 +16,10 @@ newtype Width = Width { unWidth :: Int }
 
 newtype LogMessage = LogMessage Text
 
-data ScrollingOffset
-    = OffsetFollowing
-    | OffsetFixed Int
-
 data LogsWidgetState =
   LogsWidgetState
     { logsWidgetMessages :: [LogMessage]
-    , logsWidgetScrollingOffset :: Int -> Int -> ScrollingOffset
-    -- ^ viewport height -> full image height -> offset from top
-    -- TODO (thatguy): use `named`
+    , logsWidgetScrollingOffset :: ScrollingOffset
     }
 
 makeLensesWith postfixLFields ''LogsWidgetState
@@ -32,7 +28,7 @@ initLogsWidget :: LogsWidgetState
 initLogsWidget = LogsWidgetState
   {
     logsWidgetMessages = []
-  , logsWidgetScrollingOffset = \_ _ -> OffsetFollowing
+  , logsWidgetScrollingOffset = defaultScrollingOffset
   }
 
 drawLogsWidget :: LogsWidgetState -> B.Widget name
@@ -50,41 +46,30 @@ drawLogsWidget logsWidgetState =
         viewportHeight = (rdrCtx ^. B.availHeightL) - 1
         width = rdrCtx ^. B.availWidthL
         img =
-          crop viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $
+          cropScrolling viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $
           V.vertCat $
           fmap drawLogMessage outElems
-        drawLogMessage (LogMessage message) = V.cropRight width (V.text' V.defAttr message)
+        drawLogMessage (LogMessage message) = V.cropRight width (csiToVty message)
       return $
         B.emptyResult
           & B.imageL .~ img
-    crop :: Int -> (Int -> Int -> ScrollingOffset) -> V.Image -> V.Image
-    crop viewportHeight mkPos image =
-      let imageHeight = V.imageHeight image in
-      case mkPos viewportHeight imageHeight of
-        OffsetFollowing ->
-          V.cropTop viewportHeight image
-        OffsetFixed pos ->
-          V.cropBottom viewportHeight $ V.cropTop (imageHeight - pos) image
 
 data LogsCompleted = LogsCompleted | LogsInProgress
 
 data LogsWidgetEvent
   = LogsExit
-  | LogsScrollDown
-  | LogsScrollUp
+  | LogsScrollingEvent ScrollingAction
   | LogsMessage Text
 
 handleLogsWidgetEvent
   :: LogsWidgetEvent
   -> StateT LogsWidgetState IO LogsCompleted
-handleLogsWidgetEvent ev = do
-  case ev of
-    LogsExit ->
-      return LogsCompleted
-    LogsScrollUp ->
-      return LogsInProgress
-    LogsScrollDown ->
-      return LogsInProgress
-    LogsMessage message -> do
-      zoom logsWidgetMessagesL $ modify (LogMessage message:)
-      return LogsInProgress
+handleLogsWidgetEvent = \case
+  LogsExit ->
+    return LogsCompleted
+  LogsScrollingEvent event -> do
+    zoom logsWidgetScrollingOffsetL $ modify $ handleScrollingEvent event
+    return LogsInProgress
+  LogsMessage message -> do
+    zoom logsWidgetMessagesL $ modify (LogMessage message:)
+    return LogsInProgress
