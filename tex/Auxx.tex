@@ -1,0 +1,290 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{bussproofs}
+\usepackage{mathtools}
+\usepackage{verbatim}
+\usepackage{dsfont}
+\usepackage{mathabx}
+\usepackage[all, 2cell]{xy}
+\usepackage[all]{xy}
+\usepackage{listings}
+\newtheorem{defin}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\date{}
+\title{Auxx type system}
+\begin{document}
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\section{Syntax}
+
+\subsection{Basic terms}
+
+\begin{defin} Literals
+
+  $\mathbb{L}_{\bf auxx} ::= {\bf Number} \: | \: {\bf String} \: | \: {\bf FilePath}$
+\end{defin}
+
+Where ${\bf Number} = {\bf Integer} \sqcup {\bf Double} \sqcup  {\bf Word32} \sqcup \dots$;
+
+\begin{defin} Name
+
+  ${\bf Name}_{\bf auxx} ::= {\bf String}$
+
+\end{defin}
+
+\begin{defin} Terms
+
+$\begin{array}{lll}
+&\mathbb{T}_{\bf auxx} ::= \mathbb{V}& \\
+&\quad\quad\quad\quad | \: \mathbb{L}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf nil}& \\
+&\quad\quad\quad\quad | \: \mathbb{T}_{\bf auxx} {\: \bf :: \:} \mathbb{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf tail \:} \mathbb{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf head \:} \mathbb{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf ProcCall} \: {\bf Name}_{\bf auxx} \: {\bf nil} &\\
+&\quad\quad\quad\quad | \: {\bf ProcCall} \: {\bf Name}_{\bf auxx} \: (\mathbb{T}_{\bf auxx} {\: \bf :: \:} \mathbb{T}_{\bf auxx}) &\\
+&\quad\quad\quad\quad | \: (\lambda \mathbb{V}. \mathbb{T}_{\bf auxx}) & \\
+&\quad\quad\quad\quad | \: (\mathbb{T}_{\bf auxx} \: \mathbb{T}_{\bf auxx})& \\
+&\quad\quad\quad\quad | \: \langle \mathbb{T}_{\bf auxx}, \mathbb{T}_{\bf auxx} \rangle&\\
+&\quad\quad\quad\quad | \: \pi_i \mathbb{T}_{\bf auxx}, i \in \{ 1,2 \}& \\
+&\quad\quad\quad\quad | \: \mathbb{T} &
+\end{array}$
+\end{defin}
+
+\section{Typing rules}
+
+\subsection{Basic types}
+
+\begin{defin} Basic types
+
+Let $\mathbb{T} = \{ \alpha, \beta, \dots \}$ be the set of atomic types.
+
+\end{defin}
+
+\begin{defin} Types
+
+$\begin{array}{lll}
+&\mathbb{T}_{\bf auxx} ::= \mathbb{T}&\\
+&\quad\quad\quad\quad | \: {\bf U} &\\
+&\quad\quad\quad\quad | \: {\bf List \:} \mathbb{T}_{\bf auxx} &\\
+&\quad\quad\quad\quad | \: \Pi_{\mathbb{V} : \mathbb{T}} \to \mathbb{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: \Sigma_{\mathbb{V} : \mathbb{T}} \times \mathbb{T}_{\bf auxx}& \\
+&\quad\quad\quad\quad | \: {\bf ProcCall \:} \mathbb{T}_{\bf auxx}&
+\end{array}$
+\end{defin}
+
+\begin{defin} Context
+
+  Context $\Gamma$ is a finite set of type declarations $x : A$, where $x$ is a variable, $A$ is a type.
+
+\end{defin}
+
+\subsection{Derivation rules}
+
+\begin{prooftree}
+  \AxiomC{$ $}
+  \UnaryInfC{$\Gamma, x : A \vdash x : A$}
+\end{prooftree}
+
+\subsubsection{Typing rules for Literals}
+
+\begin{prooftree}
+  \AxiomC{$ x \in \mathbb{L}_{\bf auxx} \land x \in {\bf Number}$}
+  \UnaryInfC{$\Gamma \vdash x : {\bf num}$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$ x \in \mathbb{L}_{\bf auxx} \land x \in {\bf String}$}
+  \UnaryInfC{$\Gamma \vdash x : {\bf str}$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$ x \in \mathbb{L}_{\bf auxx} \land x \in {\bf FilePath}$}
+  \UnaryInfC{$\Gamma \vdash x : {\bf fp}$}
+\end{prooftree}
+
+\subsubsection{Dependent product}
+
+\begin{minipage}{0.5\textwidth}
+  \begin{flushleft}
+    \begin{prooftree}
+      \AxiomC{$\Gamma, x : A \vdash B : {\bf U}$}
+      \UnaryInfC{$\Gamma \vdash \Pi_{x : A} \to B$}
+    \end{prooftree}
+  \end{flushleft}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+  \begin{flushright}
+    \begin{prooftree}
+      \AxiomC{$\Gamma, x : A \vdash M : B$}
+      \UnaryInfC{$\Gamma \vdash (\lambda x. M) : \Pi_{x : A} \to B$}
+    \end{prooftree}
+
+    \begin{prooftree}
+      \AxiomC{$\Gamma \vdash M : \Pi_{x : A} \to B$}
+      \AxiomC{$\Gamma \vdash N : A$}
+      \BinaryInfC{$\Gamma \vdash M N : B [x := N]$}
+    \end{prooftree}
+  \end{flushright}
+\end{minipage}
+
+\subsubsection{Dependent sum}
+
+\begin{minipage}{0.8\textwidth}
+  \begin{flushleft}
+    \begin{prooftree}
+      \AxiomC{$\Gamma, x : A \vdash B : {\bf U}$}
+      \UnaryInfC{$\Gamma \vdash \Sigma_{x : A} \times B$}
+    \end{prooftree}
+
+    \begin{prooftree}
+      \AxiomC{$\Gamma, x : A \vdash B : {\bf U}$}
+      \AxiomC{$\Gamma \vdash M : A$}
+      \AxiomC{$\Gamma \vdash N : B [x := M]$}
+      \TrinaryInfC{$\Gamma \vdash \langle M, N \rangle : \Sigma_{x : A} \times B$}
+    \end{prooftree}
+  \end{flushleft}
+\end{minipage}
+\begin{minipage}{0.2\textwidth}
+  \begin{flushright}
+    \begin{prooftree}
+      \AxiomC{$\Gamma \vdash M : \Sigma_{x : A} \times B$}
+      \UnaryInfC{$\Gamma \vdash \pi_1 M : A$}
+    \end{prooftree}
+
+    \begin{prooftree}
+      \AxiomC{$\Gamma \vdash M : \Sigma_{x : A} \times B$}
+      \UnaryInfC{$\Gamma \vdash \pi_2 M : B [x := \pi_1 M]$}
+    \end{prooftree}
+  \end{flushright}
+\end{minipage}
+
+\subsubsection{Disjunction}
+
+\begin{prooftree}
+\AxiomC{$\Gamma \vdash M : A_i$}
+\UnaryInfC{$\Gamma \vdash {\bf in}_i M : A_1 \vee A_2$}
+\end{prooftree}
+
+TODO: express disjunction anonymously.
+
+\subsubsection{Lists}
+
+\begin{prooftree}
+  \AxiomC{$\Gamma \vdash A : {\bf U}$}
+  \RightLabel{${\bf List_I}_1$}
+  \UnaryInfC{$\Gamma \vdash {\bf nil \:} : {\bf List \:} A$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$\Gamma \vdash x : A$}
+  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
+  \RightLabel{${\bf List_I}_1$}
+  \BinaryInfC{$\Gamma \vdash x {\: \bf :: \:} L : {\bf List \:} A$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
+  \RightLabel{${\bf Head}$}
+  \UnaryInfC{$\Gamma \vdash {\bf head \:} L : A$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$\Gamma \vdash L : {\bf List \:} A$}
+  \RightLabel{${\bf Tail}$}
+  \UnaryInfC{$\Gamma \vdash {\bf Tail \:} L : A$}
+\end{prooftree}
+
+\subsubsection{Special typing rules}
+
+\begin{prooftree}
+  \AxiomC{$\Gamma \vdash M : B$}
+  \AxiomC{$\Gamma \vdash N : {\bf List } (A \vee \Sigma (x : B) \times A)$}
+  \RightLabel{${\bf Procall}$}
+  \BinaryInfC{$\Gamma \vdash {\bf ProcCall \:} M \: N : {\bf ProcCall \:} B$}
+\end{prooftree}
+
+\begin{defin} Free variables
+
+  \begin{itemize}
+    \item $x \in \mathbb{V} \Rightarrow FV(x) = \{ x \}$
+    \item $x \in \mathbb{L}_{\bf auxx} \Rightarrow FV(x) = \emptyset$
+    \item $FV(\bf nil) = \emptyset$
+    \item $FV(M {\: \bf :: \:} N) = FV(M) \cup FV(N)$
+    \item ${\bf ProcCall \:} M \: N = FV(N)$
+    \item $FV(\lambda x. M) = FV(M) \setminus \{ x \}$
+    \item $FV(M N) = FV(M) \cup FV(N)$
+    \item $FV(\langle M , N \rangle) = FV(M) \cup FV(N)$
+    \item $FV (\pi_i \: M) = FV(M), i \in \{ 1, 2\}$
+    \item $\tau \in \mathbb{T} \Rightarrow FV (\tau) = \emptyset$
+    \item $FV ({\bf U}) = \{ {\bf U} \}$
+    \item $FV(\Pi_{x : A} \to B) = FV(B) \setminus \{ x \}$
+    \item $FV(\Sigma_{x : A} \times B) = FV(B) \setminus \{ x \}$
+    \item $FV({\bf ProcCall \:} B) = FV(B)$
+  \end{itemize}
+\end{defin}
+
+\begin{defin} Substitution
+  \begin{itemize}
+    \item $x [y := N] = N$, $x = y$
+    \item $x [y := N] = x$, $x \neq y$
+    \item $x \in \mathbb{L}_{\bf auxx} \Rightarrow \forall x \in \mathbb{V}, x [y := N] = x$;
+    \item ${\bf nil \:} [y := N] = {\bf nil}$
+    \item $M {\: \bf :: \:} P = M [y := N] {\: \bf :: \:} P [y := N]$
+    \item ${\bf ProcCall \:} M \: P = {\bf ProcCall \:} M \: P [y := N]$
+    \item $(\lambda x. M) [y := N] = \lambda x. M [y := N], y \notin BV(M)$
+    \item $(M P) [y := N] = (M [y := N]) (P [y := N])$
+    \item $(\langle M , P \rangle) [y := N] = \langle M [y := N], P [y := N] \rangle$
+    \item $(\pi_i \: M) [y := N] = \pi_i (M [y := N]), i \in \{ 1, 2\}$
+    \item $\tau \in \mathbb{T} \vee \tau = {\bf U} \Rightarrow \forall x \in \mathbb{V}, \tau [y := N] = \tau$
+    \item $(\Pi_{x : A} \to B) [y := N] = \Pi_{x : A} \to B [y := N]$
+    \item $FV(\Sigma_{x : A} \times B) = \Sigma_{x : A} \times B [y := N]$
+    \item $({\bf ProcCall \:} B) [y := N] = {\bf ProcCall \:} (B [y := N])$
+  \end{itemize}
+\end{defin}
+\section{Reduction}
+
+\begin{defin} Operational semantics
+\begin{itemize}
+  \item
+  \begin{prooftree}
+    \AxiomC{$M_1 \rightarrow_{\beta} M_2$}
+    \UnaryInfC{$M_1 \: N \rightarrow_{\beta} M_2 \: N$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+    \AxiomC{$N_1 \rightarrow_{\beta} N_2$}
+    \UnaryInfC{$M \: N_1 \rightarrow_{\beta} M \: N_2$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+  \AxiomC{$ $}
+  \UnaryInfC{$(\lambda x. M) N \to_{\beta} M [x := N]$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+    \AxiomC{$P_1 \to_{\beta} P_2$}
+    \UnaryInfC{${\bf ProcCall \:} M \: ({\bf in}_1 \: P_1) {\: \bf :: \:} N \to_{\beta} {\bf ProcCall \:} M \: ({\bf in}_1 \: P_2) {\: \bf :: \:} N$}
+  \end{prooftree}
+  \item
+  \begin{prooftree}
+    \AxiomC{$P_1 \to_{\beta} P_2$}
+    \UnaryInfC{${\bf ProcCall \:} M \: (Q , P_1) {\: \bf :: \:} N \to_{\beta} {\bf ProcCall \:} M \: (Q , P_2) {\: \bf :: \:} N$}
+  \end{prooftree}
+\end{itemize}
+\end{defin}
+
+\begin{theorem} Subject reduction
+
+  If $\Gamma \vdash M : A$ and $M \twoheadrightarrow_{\beta} N$, then $\Gamma \vdash N : A$.
+\end{theorem}
+
+\end{document}
