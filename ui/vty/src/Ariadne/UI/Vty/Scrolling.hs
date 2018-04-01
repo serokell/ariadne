@@ -2,6 +2,7 @@ module Ariadne.UI.Vty.Scrolling
      ( ScrollingOffset,
        ScrollingAction(..),
        defaultScrollingOffset,
+       eventToScrollingAction,
        handleScrollingEvent,
        cropScrolling) where
 
@@ -36,6 +37,18 @@ cropScrolling viewportHeight mkPos image =
       V.cropTop viewportHeight image
     OffsetFixed pos ->
       V.cropBottom viewportHeight $ V.cropTop (imageHeight - pos) image
+
+eventToScrollingAction :: V.Event -> Maybe ScrollingAction
+eventToScrollingAction = \case
+  V.EvKey V.KUp [] ->
+    Just ScrollingLineUp
+  V.EvKey V.KDown [] ->
+    Just ScrollingLineDown
+  V.EvKey V.KPageUp [] ->
+    Just ScrollingPgUp
+  V.EvKey V.KPageDown [] ->
+    Just ScrollingPgDown
+  _ -> Nothing
 
 handleScrollingEvent :: ScrollingAction -> ScrollingOffset -> ScrollingOffset
 handleScrollingEvent = \case
