@@ -9,7 +9,6 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.State
 import Data.List.NonEmpty
 import Data.Void
--- import Formatting (sformat, stext, (%))
 import IiExtras
 import Prelude
 
@@ -122,7 +121,6 @@ app langFace = B.App{..} where
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap _ = B.attrMap V.defAttr []
 
-
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
@@ -190,19 +188,21 @@ handleAppEvent
   -> StateT AppState IO AppCompleted
 handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
-  appSt <- get
-  let appStateNavigationMode = view appStateNavigationModeL appSt
+  navModeEnabled <- use appStateNavigationModeL
   case ev of
     B.VtyEvent vtyEv
       | V.EvKey (V.KChar 'c') [V.MCtrl] <- vtyEv ->
           return AppCompleted
-      | (V.EvKey (V.KChar '\t') [], True) <- (vtyEv, appStateNavigationMode) -> do
+      | V.EvKey (V.KChar '\t') [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
           return AppInProgress
-      | (V.EvKey V.KBackTab [], True) <- (vtyEv, appStateNavigationMode) -> do
+      | V.EvKey V.KBackTab [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
           return AppInProgress
-      | (V.EvKey (V.KChar c) [], True) <- (vtyEv, appStateNavigationMode),
+      | V.EvKey (V.KChar c) [] <- vtyEv,
+        navModeEnabled,
         Just appSel <- charAppSel c -> do
           appStateNavigationModeL .= False
           zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
@@ -211,7 +211,8 @@ handleAppEvent langFace ev = do
         do
             appStateNavigationModeL .= True
             return AppInProgress
-      | (Just replEv, False) <- (toReplInputEv vtyEv, appStateNavigationMode),
+      | Just replEv <- toReplInputEv vtyEv,
+        (not navModeEnabled),
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
             handleReplInputEvent langFace replEv
