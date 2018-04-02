@@ -84,20 +84,3 @@ substitution (pair t t₁ s) p = {!!}
 substitution (π₁ t s) p = {!!}
 substitution (π₂ t s) p = {!!}
 substitution (type x s) p = {!!}
-
-
-
-
-
-
-
-
-
-
-
-
-  
-
-  
-                                    
-                                    
