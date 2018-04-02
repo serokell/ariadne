@@ -1,0 +1,152 @@
+name:           ariadne
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
+homepage:       https://github.com/serokell/ariadne#readme
+bug-reports:    https://github.com/serokell/ariadne/issues
+author:         @serokell
+maintainer:     Serokell <hi@serokell.io>
+build-type:     Simple
+cabal-version:  >= 1.10
+
+source-repository head
+  type: git
+  location: https://github.com/serokell/ariadne
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , ansi-terminal
+    , async
+    , cardano-sl
+    , cardano-sl-block
+    , cardano-sl-client
+    , cardano-sl-core
+    , cardano-sl-crypto
+    , cardano-sl-db
+    , cardano-sl-generator
+    , cardano-sl-infra
+    , cardano-sl-networking
+    , cardano-sl-ssc
+    , cardano-sl-txp
+    , cardano-sl-update
+    , cardano-sl-util
+    , scientific
+    , cpphs
+    , constraints
+    , directory
+    , formatting
+    , kademlia
+    , lens
+    , vinyl
+    , mtl
+    , mmorph
+    , conduit
+    , resourcet
+    , data-default
+    , network-transport-tcp
+    , log-warper
+    , optparse-applicative
+    , plutus-prototype
+    , raw-strings-qq
+    , rocksdb-haskell-ng
+    , safe-exceptions
+    , stm
+    , text
+    , temporary
+    , universum
+    , vector
+    , word-wrap
+    , transformers
+    , ansi-wl-pprint
+    , loc
+    , Earley
+    , megaparsec
+    , bytestring
+    , containers
+    , time-units
+    , serokell-util
+    , ariadne-vty-ui
+    , knit
+    , ii-extras
+  exposed-modules:
+      Ariadne.Cardano.Knit
+      Ariadne.Cardano.Backend
+      Ariadne.Cardano.Face
+      Ariadne.Knit.Backend
+      Ariadne.Knit.Face
+      Ariadne.CommandId
+      Ariadne.Glue
+  default-extensions:
+      ApplicativeDo
+      NoImplicitPrelude
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NegativeLiterals
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      RecursiveDo
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      ViewPatterns
+  other-modules:
+      Paths_ariadne
+  default-language: Haskell2010
+  ghc-options: -Wall -Werror -Wno-unused-top-binds
+
+  build-tools: cpphs >= 1.19
+
+executable ariadne
+  main-is: Main.hs
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ariadne
+    , ariadne-vty-ui
+    , knit
+    , ii-extras
+    , base >=4.7 && <5
+    , async
+    , vinyl
+  other-modules:
+      Paths_ariadne
+  default-language: Haskell2010
+  default-extensions: DataKinds
+  ghc-options: -Wall -Werror
+
+test-suite ariadne-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ariadne
+    , base >=4.7 && <5
+  other-modules:
+      Paths_ariadne
+  default-language: Haskell2010
+  ghc-options: -Wall -Werror
