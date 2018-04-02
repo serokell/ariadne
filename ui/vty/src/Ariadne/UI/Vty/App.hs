@@ -211,8 +211,8 @@ handleAppEvent langFace ev = do
         do
             appStateNavigationModeL .= True
             return AppInProgress
+      | navModeEnabled -> return AppInProgress
       | Just replEv <- toReplInputEv vtyEv,
-        (not navModeEnabled),
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
             handleReplInputEvent langFace replEv
@@ -245,7 +245,7 @@ charAppSel = \case
   'r' -> Just AppSelectorReplInput
   'o' -> Just AppSelectorReplOutput
   't' -> Just AppSelectorWalletTree
-  'g' -> Just AppSelectorWalletPane
+  'p' -> Just AppSelectorWalletPane
   'h' -> Just AppSelectorHelp
   'l' -> Just AppSelectorLogs
   _ -> Nothing
