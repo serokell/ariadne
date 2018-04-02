@@ -386,6 +386,18 @@ Then, by $\omega$-rule, $\Gamma [\alpha := B] \vdash {\bf ProcCall} \: N \: \vec
 
 Induction on generation of $\rightarrow_{\beta}$. The general statement follows from transitivity of
 multistep $\beta$-reduction.
+
+Let us consider case with ${\bf ProcCall}$.
+
+Let $n \in \omega \setminus \{ 0 \}$ and $\Gamma \vdash {\bf ProcCall} \: N \: M_1 \: \dots \: M_n : {\bf ProcCall} \: A_1 \: \dots \: A_n$.
+
+By generation, $\Gamma \vdash N : {\bf Name}$ and $\forall i \in \{ 1, \dots, n\}, \Gamma \vdash M_i$.
+
+Let $(\exists j \in \{ 1, \dots, n \}) (\exists M^{'} \in \mathcal{T}_{\bf auxx}), M_j \twoheadrightarrow_{\beta} M^{'}$.
+
+By IH, $\Gamma \vdash M^{'} : A_j$.
+
+Then, by $\omega$-rule, $\Gamma \vdash {\bf ProcCall \:} N \: M_1 \dots M_{j - 1} \: M^{'} \: M_{j+1} \dots M_n : {\bf ProcCall} \: A_1 \: \dots \: A_n$.
 \end{proof}
 
 \end{document}
