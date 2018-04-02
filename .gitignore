@@ -20,7 +20,13 @@ TAGS
 tags
 *.swp
 
+# Intellij
+*.iml
+.idea/
+
 # Runtime
+node-db/
 logs/*
 secret.key
 secret.key.lock
+ariadne_history

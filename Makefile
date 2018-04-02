@@ -1,5 +1,16 @@
-make:
+make pdf:
 	pdflatex tex/Auxx.tex
 
-make clean:
-	rm tex/Auxx.aux && rm tex/Auxx.log && rm tex/Auxx.pdf	&& rm tex/Auxx.toc
+.PHONY: dev test stylish clean
+
+dev:
+	stack build ariadne --fast --ghc-options -Wwarn --file-watch
+
+test:
+	stack test ii-extras knit ariadne-vty-ui ariadne
+
+stylish:
+	stylish-haskell -i `find ariadne knit util ui -iname '*.hs'`
+
+clean:
+	stack clean
