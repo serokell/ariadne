@@ -44,6 +44,8 @@ data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
   | UiCardanoLogEvent Text
+  | UiHelpUpdateData [Doc]
+
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

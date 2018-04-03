@@ -18,6 +18,7 @@ module IiExtras
   , Some(..)
   , Spine
   , KnownSpine(..)
+  , relemsproxy
 
   -- * Re-exports
   , Union(..)
@@ -141,3 +142,6 @@ instance KnownSpine '[] where
 
 instance KnownSpine xs => KnownSpine (x:xs) where
   knownSpine = Proxy :& knownSpine
+
+relemsproxy :: Rec f xs -> Proxy xs
+relemsproxy = const Proxy

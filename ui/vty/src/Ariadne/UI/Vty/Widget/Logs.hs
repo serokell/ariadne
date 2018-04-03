@@ -25,7 +25,7 @@ initLogsWidget :: LogsWidgetState
 initLogsWidget = LogsWidgetState
   {
     logsWidgetMessages = []
-  , logsWidgetScrollingOffset = defaultScrollingOffset
+  , logsWidgetScrollingOffset = scrollingOffsetFollowing
   }
 
 drawLogsWidget :: LogsWidgetState -> B.Widget name
