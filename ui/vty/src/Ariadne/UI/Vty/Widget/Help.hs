@@ -23,7 +23,7 @@ initHelpWidget :: HelpWidgetState
 initHelpWidget = HelpWidgetState
   {
     helpWidgetData = []
-  , helpWidgetScrollingOffset = defaultScrollingOffset
+  , helpWidgetScrollingOffset = scrollingOffsetBeginning
   }
 
 drawHelpWidget :: HelpWidgetState -> B.Widget name

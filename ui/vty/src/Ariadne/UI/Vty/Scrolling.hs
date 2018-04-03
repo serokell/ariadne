@@ -1,7 +1,8 @@
 module Ariadne.UI.Vty.Scrolling
      ( ScrollingOffset,
        ScrollingAction(..),
-       defaultScrollingOffset,
+       scrollingOffsetBeginning,
+       scrollingOffsetFollowing,
        eventToScrollingAction,
        handleScrollingEvent,
        cropScrolling) where
@@ -26,8 +27,11 @@ data ScrollingAction
 
 data ScrollingDistance = OneLine | Page
 
-defaultScrollingOffset :: ScrollingOffset
-defaultScrollingOffset _ _ = OffsetFollowing
+scrollingOffsetBeginning :: ScrollingOffset
+scrollingOffsetBeginning _ _ = OffsetFixed 0
+
+scrollingOffsetFollowing :: ScrollingOffset
+scrollingOffsetFollowing _ _ = OffsetFollowing
 
 cropScrolling :: Int -> ScrollingOffset -> V.Image -> V.Image
 cropScrolling viewportHeight mkPos image =
