@@ -20,23 +20,11 @@ import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget.Help
-  (HelpWidgetEvent(..), HelpWidgetState, drawHelpWidget, initHelpWidget, handleHelpWidgetEvent)
 import Ariadne.UI.Vty.Widget.Logs
-  (LogsWidgetEvent(..), LogsWidgetState, drawLogsWidget, handleLogsWidgetEvent,
-  initLogsWidget)
 import Ariadne.UI.Vty.Widget.Menu
-  (MenuWidgetEvent(..), MenuWidgetState, drawMenuWidget, handleMenuWidgetEvent,
-  initMenuWidget, menuWidgetSel)
 import Ariadne.UI.Vty.Widget.Repl
-  (CommandAction(..), InputModification(..), NavAction(..), ReplCompleted(..),
-  ReplInputEvent(..), ReplOutputEvent(..), ReplWidgetState(..),
-  drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
-  handleReplOutputEvent, initReplWidget)
 import Ariadne.UI.Vty.Widget.WalletPane
-  (WalletPaneWidgetState, drawWalletPaneWidget, initWalletPaneWidget)
 import Ariadne.UI.Vty.Widget.WalletTree
-  (WalletTreeWidgetEvent(..), WalletTreeWidgetState, drawWalletTreeWidget,
-  handleWalletTreeWidgetEvent, initWalletTreeWidget)
 
 data AppSelector
   = AppSelectorReplInput
@@ -51,6 +39,7 @@ data AppState =
   AppState
     { appStateRepl :: ReplWidgetState
     , appStateMenu :: MenuWidgetState AppSelector
+    , appStateNavigationMode :: Bool
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
     , appStateWalletTree :: WalletTreeWidgetState
@@ -64,6 +53,7 @@ initialAppState langFace history =
   AppState
     { appStateRepl = initReplWidget langFace history
     , appStateMenu = initMenuWidget appSelectors 0
+    , appStateNavigationMode = False
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
     , appStateWalletTree = initWalletTreeWidget
@@ -117,16 +107,15 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
-    drawMenu =
-      drawMenuWidget
-        (\case
-          AppSelectorReplInput -> "^R REPL"
-          AppSelectorReplOutput -> "^O Output"
-          AppSelectorWalletTree -> "^T Tree"
-          AppSelectorWalletPane -> "^G Pane"
-          AppSelectorHelp -> "^H Help"
-          AppSelectorLogs -> "^L Logs")
-        appStateMenu
+    drawMenu = drawMenuWidget appStateNavigationMode
+          (\case
+            AppSelectorReplInput -> "REPL"
+            AppSelectorReplOutput -> "Output"
+            AppSelectorWalletTree -> "Tree"
+            AppSelectorWalletPane -> "Pane"
+            AppSelectorHelp -> "Help"
+            AppSelectorLogs -> "Logs")
+          appStateMenu
     drawReplInput =
       drawReplInputWidget
         (menuWidgetSel appStateMenu == AppSelectorReplInput)
@@ -182,20 +171,30 @@ handleAppEvent
   -> StateT AppState IO AppCompleted
 handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
+  navModeEnabled <- use appStateNavigationModeL
   case ev of
     B.VtyEvent vtyEv
       | V.EvKey (V.KChar 'c') [V.MCtrl] <- vtyEv ->
           return AppCompleted
-      | V.EvKey (V.KChar '\t') [] <- vtyEv -> do
+      | V.EvKey (V.KChar '\t') [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
           return AppInProgress
-      | V.EvKey V.KBackTab [] <- vtyEv -> do
+      | V.EvKey V.KBackTab [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
           return AppInProgress
-      | V.EvKey (V.KChar c) [V.MCtrl] <- vtyEv,
+      | V.EvKey (V.KChar c) [] <- vtyEv,
+        navModeEnabled,
         Just appSel <- charAppSel c -> do
+          appStateNavigationModeL .= False
           zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
           return AppInProgress
+      | V.EvKey (V.KChar 'g') [V.MCtrl] <- vtyEv ->
+        do
+            appStateNavigationModeL .= True
+            return AppInProgress
+      | navModeEnabled -> return AppInProgress
       | Just replEv <- toReplInputEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
@@ -243,7 +242,7 @@ charAppSel = \case
   'r' -> Just AppSelectorReplInput
   'o' -> Just AppSelectorReplOutput
   't' -> Just AppSelectorWalletTree
-  'g' -> Just AppSelectorWalletPane
+  'p' -> Just AppSelectorWalletPane
   'h' -> Just AppSelectorHelp
   'l' -> Just AppSelectorLogs
   _ -> Nothing
