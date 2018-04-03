@@ -190,6 +190,7 @@ data CommandAction
 data InputModification
   = InsertChar Char
   | DeleteBackwards
+  | DeleteWordBackwards
   | DeleteForwards
   | BreakLine
   | ReplaceBreakLine
@@ -219,6 +220,7 @@ handleReplInputEvent langFace = fix $ \go -> \case
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
+        DeleteWordBackwards -> deletePrevWord
         DeleteForwards -> deleteChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
@@ -288,6 +290,14 @@ smartBreakLine :: TextZipper Text -> TextZipper Text
 smartBreakLine tz =
   let indentation = Text.takeWhile Char.isSpace (currentLine tz)
   in insertMany indentation (breakLine tz)
+
+deletePrevWord :: TextZipper Text -> TextZipper Text
+deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
+  where
+    deletePrevChars p = until (nothingLeft p) deletePrevChar
+    nothingLeft p tz = case previousChar tz of
+      Nothing -> True
+      Just c -> p c
 
 updateCommandResult
   :: UiCommandId
