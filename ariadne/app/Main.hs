@@ -16,18 +16,24 @@ import qualified Knit
 
 main :: IO ()
 main = do
-  (uiFace, uiAction) <- createAriadneUI
-  (knitFace, knitAction) <- createKnitBackend
-  (Nat runCardanoMode, cardanoAction) <- createCardanoBackend
+  (uiFace, mkUiAction) <- createAriadneUI
+  (knitFace, mkKnitAction) <- createKnitBackend
+  (runCardanoMode, mkCardanoAction) <- createCardanoBackend
   mkWalletFace <- createWalletBackend
-  let walletFace = mkWalletFace (putWalletEventToUI uiFace)
   let
-    -- The list of components is inferred from this list.
+    uiAction, knitAction, cardanoAction :: IO ()
+    uiAction = mkUiAction (knitFaceToUI knitFace)
+    knitAction = mkKnitAction knitExecContext (putKnitEventToUI uiFace)
+    cardanoAction = mkCardanoAction (putLogMessage uiFace)
+
+    walletFace :: WalletFace
+    walletFace = mkWalletFace runCardanoMode (putWalletEventToUI uiFace)
+
+    knitExecContext :: Rec Knit.ComponentExecContext _
     knitExecContext =
       Knit.CoreExecCtx :&
-      Knit.CardanoExecCtx runCardanoMode :&
-      Knit.WalletExecCtx walletFace runCardanoMode :&
+      Knit.CardanoExecCtx (runNat runCardanoMode) :&
+      Knit.WalletExecCtx walletFace :&
       RNil
-  uiAction (knitFaceToUI knitFace) `race_`
-    knitAction knitExecContext (putKnitEventToUI uiFace) `race_`
-    cardanoAction (putLogMessage uiFace)
+
+  uiAction `race_` knitAction `race_` cardanoAction

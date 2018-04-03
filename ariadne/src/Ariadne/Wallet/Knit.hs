@@ -46,19 +46,17 @@ instance ComponentPrinter Wallet where
   componentPpToken = \case{}
 
 data instance ComponentCommandRepr components Wallet
-  = CommandAction (WalletFace -> CardanoMode (Value components))
+  = CommandAction (WalletFace -> IO (Value components))
 
 instance ComponentLitToValue components Wallet where
   componentLitToValue = \case{}
 
 data instance ComponentExecContext Wallet =
-  WalletExecCtx WalletFace (CardanoMode ~> IO)
+  WalletExecCtx WalletFace
 
 instance MonadIO m => ComponentCommandExec m components Wallet where
-  componentCommandExec
-    (WalletExecCtx walletFace runCardanoMode)
-    (CommandAction act) =
-      liftIO $ runCardanoMode (act walletFace)
+  componentCommandExec (WalletExecCtx walletFace) (CommandAction act) =
+    liftIO $ act walletFace
 
 instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs components Wallet where
   componentCommandProcs =
@@ -70,7 +68,7 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
            walletRefreshUserSecret
            return $ toValue ValueUnit
-        , cpHelp = "Internal function to update the UI"
+        , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
         { cpName = "add-account"
@@ -78,8 +76,20 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
            walletAddAccount
-           walletRefreshUserSecret
            return $ toValue ValueUnit
-        , cpHelp = ""
+        , cpHelp = "Add an account to the specified wallet. When no wallet \
+                   \is specified, uses the selected wallet."
+        }
+    , CommandProc
+        { cpName = "select"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            wsaWalletIndex <- getArg tyWord "wallet"
+            wsaPath <- getArgMany tyWord "a" -- account or address
+            return WalletSelectByIndex{..}
+        , cpRepr = \wsa -> CommandAction $ \WalletFace{..} -> do
+            walletSelect wsa
+            return $ toValue ValueUnit
+        , cpHelp = "Select a wallet by index."
         }
     ]

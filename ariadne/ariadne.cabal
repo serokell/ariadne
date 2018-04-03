@@ -139,8 +139,8 @@ executable ariadne
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
-  default-extensions: DataKinds
-  ghc-options: -Wall -Werror
+  default-extensions: DataKinds PartialTypeSignatures
+  ghc-options: -Wall -Werror -fno-warn-partial-type-signatures
 
 test-suite ariadne-test
   type: exitcode-stdio-1.0

@@ -7,6 +7,7 @@ module IiExtras
   , (:~>)(..)
   , postfixLFields
   , integralDistribExcess
+  , atomicRunStateIORef'
   , umapConstrained
   , Elem
   , elemEv
@@ -29,15 +30,18 @@ module IiExtras
 
 import Control.Lens
 import Data.Proxy
+import Data.IORef
+import Control.Monad.Trans.State
 import Data.Type.Equality
 import Data.Union
+import Data.Tuple
 import Data.Vinyl.Core hiding (Dict)
 import Data.Vinyl.TypeLevel
 import Prelude
 
 type f ~> g = forall x. f x -> g x
 
-newtype f :~> g = Nat (f ~> g)
+newtype f :~> g = Nat { runNat :: f ~> g }
 
 postfixLFields :: LensRules
 postfixLFields = lensRules & lensField .~ mappingNamer (\s -> [s++"L"])
@@ -51,6 +55,12 @@ integralDistribExcess desired actual = (l, r)
       else 0
     l = excess `quot` 2
     r = excess - l
+
+-- | Atomically modifies the contents of an 'IORef' using the provided 'State'
+-- action. Forces both the value stored in the 'IORef' as well as the value
+-- returned.
+atomicRunStateIORef' :: IORef s -> State s a -> IO a
+atomicRunStateIORef' ref st = atomicModifyIORef' ref (swap . runState st)
 
 umapConstrained
   :: forall c f g as.
