@@ -25,7 +25,8 @@ main = do
       Knit.CoreExecCtx :&
       Knit.CardanoExecCtx runCardanoMode :&
       RNil
-  putUiEvent uiFace . UiHelpUpdateData =<< generateKnitHelp
+    helpData = generateKnitHelp $ relemsproxy knitExecContext
+  putUiEvent uiFace $ UiHelpUpdateData helpData
   uiAction (knitFaceToUI knitFace) `race_`
     knitAction knitExecContext (putKnitEventToUI uiFace) `race_`
     cardanoAction (putLogMessage uiFace)
