@@ -1,11 +1,11 @@
 module Ariadne.Help (generateKnitHelp) where
 
-import Universum
+import qualified Data.Text as T
 import IiExtras
+import qualified Knit
 import Pos.Util.Justify (leftAlign)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import qualified Knit
-import qualified Data.Text as T
+import Universum
 
 generateKnitHelp :: forall components.
   ( AllConstrained (Knit.ComponentCommandProcs components) components

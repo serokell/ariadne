@@ -5,12 +5,12 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
+import IiExtras
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Crypto
 import Pos.Util (runGen)
 import Pos.Util.UserSecret
 import Test.QuickCheck (arbitrary)
-import IiExtras
 
 import Ariadne.Wallet.Face
 

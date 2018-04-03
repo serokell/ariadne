@@ -3,12 +3,10 @@ module Ariadne.UI.Vty.Widget.Menu where
 import Control.Lens
 import Control.Monad.Trans.State as State
 import Data.Foldable
-import Data.Function
-    (fix)
+import Data.Function (fix)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
-import Data.Text
-    (Text)
+import Data.Text (Text)
 import Data.Vector as Vector
 import Prelude
 

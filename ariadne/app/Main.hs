@@ -6,11 +6,11 @@ import Prelude
 
 import Ariadne.Cardano.Backend
 import Ariadne.Glue
+import Ariadne.Help
 import Ariadne.Knit.Backend
 import Ariadne.UI.Vty
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Backend
-import Ariadne.Help
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit

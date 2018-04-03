@@ -30,12 +30,12 @@ module IiExtras
   ) where
 
 import Control.Lens
-import Data.Proxy
-import Data.IORef
 import Control.Monad.Trans.State
+import Data.IORef
+import Data.Proxy
+import Data.Tuple
 import Data.Type.Equality
 import Data.Union
-import Data.Tuple
 import Data.Vinyl.Core hiding (Dict)
 import Data.Vinyl.TypeLevel
 import Prelude
