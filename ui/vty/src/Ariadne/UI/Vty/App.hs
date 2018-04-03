@@ -20,7 +20,7 @@ import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget.Help
-  (HelpWidgetState, drawHelpWidget, initHelpWidget)
+  (HelpWidgetEvent(..), HelpWidgetState, drawHelpWidget, initHelpWidget, handleHelpWidgetEvent)
 import Ariadne.UI.Vty.Widget.Logs
   (LogsWidgetEvent(..), LogsWidgetState, drawLogsWidget, handleLogsWidgetEvent,
   initLogsWidget)
@@ -203,13 +203,17 @@ handleAppEvent langFace ev = do
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
-      | Just replEv <- toReplOutputEv vtyEv,
+      | Just scrollAction <- eventToScrollingAction vtyEv,
         AppSelectorReplOutput <- sel -> do
-            zoom appStateReplL $ handleReplOutputEvent replEv
+            zoom appStateReplL $ handleReplOutputEvent $ ReplOutputScrollingEvent scrollAction
             return AppInProgress
-      | Just logsEv <- toLogsEv vtyEv,
+      | Just scrollAction <- eventToScrollingAction vtyEv,
+        AppSelectorHelp <- sel -> do
+            zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
+            return AppInProgress
+      | Just scrollAction <- eventToScrollingAction vtyEv,
         AppSelectorLogs <- sel -> do
-            zoom appStateLogsL $ handleLogsWidgetEvent logsEv
+            zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
@@ -225,6 +229,9 @@ handleAppEvent langFace ev = do
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiHelpUpdateData doc) -> do
+        zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
+        return AppInProgress
     B.AppEvent (UiCardanoLogEvent message) -> do
         zoom appStateLogsL $ handleLogsWidgetEvent $ LogsMessage message
         return AppInProgress
@@ -265,28 +272,4 @@ toReplInputEv = \case
     Just $ ReplCommandNavigationEvent PrevCommand
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
-
-toReplOutputEv :: V.Event -> Maybe ReplOutputEvent
-toReplOutputEv = \case
-  V.EvKey V.KUp [] ->
-    Just $ ReplOutputScrollingEvent ScrollingLineUp
-  V.EvKey V.KDown [] ->
-    Just $ ReplOutputScrollingEvent ScrollingLineDown
-  V.EvKey V.KPageUp [] ->
-    Just $ ReplOutputScrollingEvent ScrollingPgUp
-  V.EvKey V.KPageDown [] ->
-    Just $ ReplOutputScrollingEvent ScrollingPgDown
-  _ -> Nothing
-
-toLogsEv :: V.Event -> Maybe LogsWidgetEvent
-toLogsEv = \case
-  V.EvKey V.KUp [] ->
-    Just $ LogsScrollingEvent ScrollingLineUp
-  V.EvKey V.KDown [] ->
-    Just $ LogsScrollingEvent ScrollingLineDown
-  V.EvKey V.KPageUp [] ->
-    Just $ LogsScrollingEvent ScrollingPgUp
-  V.EvKey V.KPageDown [] ->
-    Just $ LogsScrollingEvent ScrollingPgDown
   _ -> Nothing

@@ -51,6 +51,7 @@ data UiEvent
   | UiCardanoEvent UiCardanoEvent
   | UiCardanoLogEvent Text
   | UiWalletEvent UiWalletEvent
+  | UiHelpUpdateData [Doc]
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

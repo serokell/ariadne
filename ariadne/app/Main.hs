@@ -8,7 +8,9 @@ import Ariadne.Cardano.Backend
 import Ariadne.Glue
 import Ariadne.Knit.Backend
 import Ariadne.UI.Vty
+import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Backend
+import Ariadne.Help
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
@@ -29,6 +31,8 @@ main = do
     walletFace :: WalletFace
     walletFace = mkWalletFace runCardanoMode (putWalletEventToUI uiFace)
 
+    helpData = generateKnitHelp $ relemsproxy knitExecContext
+
     knitExecContext :: Rec Knit.ComponentExecContext _
     knitExecContext =
       Knit.CoreExecCtx :&
@@ -36,4 +40,5 @@ main = do
       Knit.WalletExecCtx walletFace :&
       RNil
 
+  putUiEvent uiFace $ UiHelpUpdateData helpData
   uiAction `race_` knitAction `race_` cardanoAction
