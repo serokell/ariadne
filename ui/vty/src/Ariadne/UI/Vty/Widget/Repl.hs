@@ -292,12 +292,12 @@ smartBreakLine tz =
   in insertMany indentation (breakLine tz)
 
 deletePrevWord :: TextZipper Text -> TextZipper Text
-deletePrevWord = go . deletePrevChar -- In case previous char is space already
+deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
   where
-    go = until nothingLeft deletePrevChar
-    nothingLeft tz = case previousChar tz of
+    deletePrevChars p = until (nothingLeft p) deletePrevChar
+    nothingLeft p tz = case previousChar tz of
       Nothing -> True
-      Just c -> Char.isSpace c
+      Just c -> p c
 
 updateCommandResult
   :: UiCommandId
