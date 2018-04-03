@@ -257,6 +257,8 @@ toReplInputEv = \case
     Just $ ReplInputNavigationEvent NavArrowDown
   V.EvKey V.KBS [] ->
     Just $ ReplInputModifyEvent DeleteBackwards
+  V.EvKey (V.KChar 'w') [V.MCtrl] ->
+    Just $ ReplInputModifyEvent DeleteWordBackwards
   V.EvKey V.KDel [] ->
     Just $ ReplInputModifyEvent DeleteForwards
   V.EvKey V.KEnter [] ->
