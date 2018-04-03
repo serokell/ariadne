@@ -80,7 +80,7 @@ initReplWidget langFace history =
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
-    , replWidgetScrollingOffset = defaultScrollingOffset
+    , replWidgetScrollingOffset = scrollingOffsetFollowing
     , replWidgetHistory = history
     }
 
