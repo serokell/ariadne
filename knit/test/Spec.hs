@@ -1,25 +1,17 @@
-import Control.Applicative
-    (optional)
+import Control.Applicative (optional)
 import Control.Applicative as A
-import Data.Function
-    (on)
-import Data.List
-    (maximumBy)
-import Data.List.NonEmpty
-    (nonEmpty)
+import Data.Function (on)
+import Data.List (maximumBy)
+import Data.List.NonEmpty (nonEmpty)
 import Data.Maybe
-import Data.Text
-    (Text, pack)
-import Data.Traversable
-    (for)
+import Data.Text (Text)
+import Data.Traversable (for)
 import Data.Void
-import Test.Hspec
-    (Expectation, Spec, describe, hspec, it, shouldBe)
+import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
 import Text.Megaparsec
-    (Parsec, State, getParserState, getPosition, lookAhead, runParser, try,
-    updateParserState)
-import Text.Megaparsec.Char
-    (string)
+  (Parsec, getParserState, getPosition, lookAhead, runParser, try,
+  updateParserState)
+import Text.Megaparsec.Char (string)
 
 main :: IO ()
 main = hspec spec
