@@ -1,12 +1,12 @@
 module Ariadne.UI.Vty.Widget.Logs where
 
-import Control.Lens
-import Control.Monad.Trans.State
-import IiExtras
-import Prelude
-import Data.Text as Text
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
+import Control.Lens
+import Control.Monad.Trans.State
+import Data.Text as Text
+import IiExtras
+import Prelude
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

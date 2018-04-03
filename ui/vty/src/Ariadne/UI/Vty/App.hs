@@ -19,29 +19,12 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
-
-import Ariadne.UI.Vty.Widget.Repl
-  (CommandAction(..), InputModification(..), NavAction(..), ReplCompleted(..),
-  ReplInputEvent(..), ReplOutputEvent(..), ReplWidgetState(..),
-  drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
-  handleReplOutputEvent, initReplWidget)
-
-import Ariadne.UI.Vty.Widget.Menu
-  (MenuWidgetEvent(..), MenuWidgetState, drawMenuWidget, handleMenuWidgetEvent,
-  initMenuWidget, menuWidgetSel)
-
 import Ariadne.UI.Vty.Widget.Help
-  (HelpWidgetEvent(..), HelpWidgetState, drawHelpWidget, initHelpWidget, handleHelpWidgetEvent)
-
 import Ariadne.UI.Vty.Widget.Logs
-  (LogsWidgetEvent(..), LogsWidgetState, drawLogsWidget, handleLogsWidgetEvent,
-  initLogsWidget)
-
+import Ariadne.UI.Vty.Widget.Menu
+import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.WalletPane
-  (WalletPaneWidgetState, drawWalletPaneWidget, initWalletPaneWidget)
-
 import Ariadne.UI.Vty.Widget.WalletTree
-  (WalletTreeWidgetState, drawWalletTreeWidget, initWalletTreeWidget)
 
 data AppSelector
   = AppSelectorReplInput
@@ -231,6 +214,13 @@ handleAppEvent langFace ev = do
         AppSelectorLogs <- sel -> do
             zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
+    B.AppEvent (UiWalletEvent walletEvent) -> do
+      case walletEvent of
+        UiWalletTreeUpdate wallets wselection ->
+          zoom appStateWalletTreeL $
+            handleWalletTreeWidgetEvent $
+              WalletTreeUpdateEvent wallets wselection
+      return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $

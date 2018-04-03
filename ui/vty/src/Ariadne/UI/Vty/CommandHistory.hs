@@ -11,11 +11,11 @@ import Control.Monad (unless, when)
 import Data.IORef
 import Data.Maybe (isNothing)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Prelude
 import System.Directory (doesFileExist, renameFile)
-import qualified Data.Text as T
 
-data CommandHistory = 
+data CommandHistory =
     CommandHistory
     { currCommand :: IORef Text
     , historyFile :: FilePath
@@ -30,7 +30,7 @@ openCommandHistory path = do
     fileExists <- doesFileExist path
     unless fileExists $ writeFile path ""
     return
-        CommandHistory 
+        CommandHistory
         { currCommand = currCommandRef
         , historyFile = path
         , counter = counterRef

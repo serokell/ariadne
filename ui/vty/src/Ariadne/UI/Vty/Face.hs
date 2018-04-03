@@ -1,12 +1,15 @@
 module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
+       , UiWalletEvent (..)
        , UiEvent (..)
        , UiLangFace (..)
        , UiFace (..)
 
-       , WalletTreeItem (..)
-       , WalletTree
+       , UiWalletTreeItem (..)
+       , UiWalletTree
+       , UiWalletTreeSelection(..)
+       , TreePath
        ) where
 
 import Universum
@@ -37,6 +40,9 @@ data UiCommandEvent
 -- Update current displayed slot, chain difficulty, etc
 data UiCardanoEvent = UiCardanoEventMock
 
+data UiWalletEvent
+  = UiWalletTreeUpdate [UiWalletTree] (Maybe UiWalletTreeSelection)
+
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
@@ -44,8 +50,8 @@ data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
   | UiCardanoLogEvent Text
+  | UiWalletEvent UiWalletEvent
   | UiHelpUpdateData [Doc]
-
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -71,7 +77,7 @@ data UiFace =
 ----------------------------------------------------------------------------
 
 -- | A node in HD-wallet tree.
-data WalletTreeItem = WalletTreeItem
+data UiWalletTreeItem = UiWalletTreeItem
     { wtiLabel :: !(Maybe Text)
     -- ^ Some text to display (e. g. wallet's name).
     , wtiPath :: ![Word]
@@ -81,4 +87,17 @@ data WalletTreeItem = WalletTreeItem
     -- ^ Whether the path should be displayed.
     }
 
-type WalletTree = Tree WalletTreeItem
+type UiWalletTree = Tree UiWalletTreeItem
+
+-- | Path in a 'Tree'.
+--
+-- N.B. The head of this list is the index in root's children.
+-- I find this order more intuitive, but if perfomance turns out
+-- to be an issue, we may consider changing it.
+type TreePath = [Word]
+
+data UiWalletTreeSelection =
+  UiWalletTreeSelection
+    { wtsWalletIdx :: Word
+    , wtsPath :: TreePath
+    }

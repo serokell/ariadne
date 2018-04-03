@@ -8,14 +8,16 @@ module Ariadne.Glue
 
          -- * Cardano ↔ Vty
        , putLogMessage
-       , userSecretToTree
+
+         -- * Wallet ↔ Vty
+       , walletEventToUI
+       , putWalletEventToUI
        ) where
 
 import Universum
 
 import Control.Exception (displayException)
 import Control.Lens (at, non)
-import qualified Data.Foldable
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -24,10 +26,10 @@ import Numeric
 import Prelude ((!!))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import Ariadne.Cardano.Face (UserSecret, WalletUserSecret(..), usWallet)
 import Ariadne.CommandId
 import Ariadne.Knit.Face
 import Ariadne.UI.Vty.Face
+import Ariadne.Wallet.Face
 
 import qualified Knit
 
@@ -97,23 +99,46 @@ putKnitEventToUI
   -> KnitEvent components
   -> IO ()
 putKnitEventToUI UiFace{..} ev =
-  Data.Foldable.traverse_ putUiEvent (knitEventToUI ev)
+  whenJust (knitEventToUI ev) putUiEvent
 
 ----------------------------------------------------------------------------
--- Glue between Cardano backend and Vty frontend
+-- Glue between the Cardano backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putLogMessage :: UiFace -> Text -> IO ()
 putLogMessage UiFace{..} message =
-  Data.Foldable.traverse_ putUiEvent (Just $ UiCardanoLogEvent message)
+  putUiEvent (UiCardanoLogEvent message)
 
-userSecretToTree :: UserSecret -> [WalletTree]
+----------------------------------------------------------------------------
+-- Glue between the Wallet backend and Vty frontend
+----------------------------------------------------------------------------
+
+-- The 'Maybe' here is not used for now, but in the future might be, if some
+-- event couldn't be mapped to a UI event.
+walletEventToUI :: WalletEvent -> Maybe UiEvent
+walletEventToUI = \case
+  WalletUserSecretSetEvent us sel ->
+    Just $ UiWalletEvent $
+      UiWalletTreeUpdate
+        (userSecretToTree us)
+        (walletSelectionToUI <$> sel)
+
+walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
+walletSelectionToUI WalletSelection{..} =
+  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+
+
+putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
+putWalletEventToUI UiFace{..} ev =
+  whenJust (walletEventToUI ev) putUiEvent
+
+userSecretToTree :: UserSecret -> [UiWalletTree]
 userSecretToTree = map toTree . maybeToList . view usWallet
   where
-    toTree :: WalletUserSecret -> WalletTree
+    toTree :: WalletUserSecret -> UiWalletTree
     toTree WalletUserSecret {..} =
         Node
-            { rootLabel = WalletTreeItem (Just _wusWalletName) [] False
+            { rootLabel = UiWalletTreeItem (Just _wusWalletName) [] False
             , subForest = map toAccountNode _wusAccounts
             }
       where
@@ -122,11 +147,11 @@ userSecretToTree = map toTree . maybeToList . view usWallet
         foldlStep m (acc, addr) = m & at acc . non [] %~ (addr :)
         addrsMap :: Map Word32 [Word32]
         addrsMap = foldl' foldlStep mempty _wusAddrs
-        toAccountNode :: (Word32, Text) -> WalletTree
+        toAccountNode :: (Word32, Text) -> UiWalletTree
         toAccountNode (accIdx, accName) =
             Node
                 { rootLabel =
-                      WalletTreeItem
+                      UiWalletTreeItem
                           { wtiLabel = Just accName
                           , wtiPath = [fromIntegral accIdx]
                           , wtiShowPath = True
@@ -135,10 +160,10 @@ userSecretToTree = map toTree . maybeToList . view usWallet
                       map (toAddressNode accIdx) $ addrsMap ^. at accIdx .
                       non []
                 }
-        toAddressNode :: Word32 -> Word32 -> WalletTree
+        toAddressNode :: Word32 -> Word32 -> UiWalletTree
         toAddressNode accIdx addrIdx =
             pure $
-            WalletTreeItem
+            UiWalletTreeItem
                 { wtiLabel = Nothing
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
