@@ -11,7 +11,7 @@ generateKnitHelp :: forall components.
   ( AllConstrained (Knit.ComponentCommandProcs components) components
   , KnownSpine components)
   => Proxy components -> [PP.Doc]
-generateKnitHelp _execCtxs =
+generateKnitHelp _ =
   let
     procs = Knit.commandProcs @components
   in fmap (PP.text . T.unpack) $ T.lines $ mkHelpMessage procs
