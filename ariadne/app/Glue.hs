@@ -1,6 +1,6 @@
 -- | Glue code between the frontend and the backends.
 
-module Ariadne.Glue
+module Glue
        (
          -- * Knit ↔ Vty
          knitFaceToUI

@@ -34,7 +34,8 @@ library
       Earley,
       validation,
       ansi-wl-pprint,
-      ii-extras
+      ii-extras,
+      autoexporter
   exposed-modules:
       Knit
       Knit.Argument
