@@ -9,9 +9,9 @@ import Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Text as Text
 import Data.Text.Zipper
-  ( TextZipper, clearZipper, currentLine, deleteChar, deletePrevChar,
-    getText, moveDown, moveLeft, moveRight, moveUp, previousChar, textZipper,
-    cursorPosition, insertChar, insertMany, breakLine)
+  (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
+  deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
+  moveRight, moveUp, previousChar, textZipper)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -23,8 +23,8 @@ import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
@@ -80,7 +80,7 @@ initReplWidget langFace history =
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
-    , replWidgetScrollingOffset = defaultScrollingOffset
+    , replWidgetScrollingOffset = scrollingOffsetFollowing
     , replWidgetHistory = history
     }
 
@@ -190,6 +190,7 @@ data CommandAction
 data InputModification
   = InsertChar Char
   | DeleteBackwards
+  | DeleteWordBackwards
   | DeleteForwards
   | BreakLine
   | ReplaceBreakLine
@@ -219,6 +220,7 @@ handleReplInputEvent langFace = fix $ \go -> \case
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
+        DeleteWordBackwards -> deletePrevWord
         DeleteForwards -> deleteChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
@@ -289,6 +291,14 @@ smartBreakLine tz =
   let indentation = Text.takeWhile Char.isSpace (currentLine tz)
   in insertMany indentation (breakLine tz)
 
+deletePrevWord :: TextZipper Text -> TextZipper Text
+deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
+  where
+    deletePrevChars p = until (nothingLeft p) deletePrevChar
+    nothingLeft p tz = case previousChar tz of
+      Nothing -> True
+      Just c -> p c
+
 updateCommandResult
   :: UiCommandId
   -> UiCommandEvent
@@ -325,5 +335,7 @@ ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
   , "         /_/  |_/_/  /_/\\__,_/\\__,_/_/ /_/\\___/ "
   , ""
   , "              Press <Enter> to send a command,"
-  , "        <Backslash> <Enter> to insert a line break."
+  , "        <Backslash> <Enter> to insert a line break,"
+  , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
+  , "           <Ctrl+G> to switch to navigation mode."
   ]

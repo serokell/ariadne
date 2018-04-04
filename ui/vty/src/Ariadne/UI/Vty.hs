@@ -11,8 +11,8 @@ import Brick.BChan
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.App (app, initialAppState)
-import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory (CommandHistory, openCommandHistory)
+import Ariadne.UI.Vty.Face
 
 type UiAction = UiLangFace -> IO ()
 
@@ -74,15 +74,7 @@ runUI eventChan history langFace = do
 mkVtyConfig :: IO V.Config
 mkVtyConfig = do
   stdConfig <- V.standardIOConfig
-  return stdConfig
-    { V.mouseMode = Just True
-    , V.inputMap =
-      [
-        -- Terminals map ^H to an escape sequence, we
-        -- unmap it back.
-        (Nothing, "\b", V.EvKey (V.KChar 'h') [V.MCtrl])
-      ]
-    }
+  return stdConfig { V.mouseMode = Just True }
 
 -- Create a channel for application events that aren't user input. This channel
 -- is bounded to avoid infinite accumulation of events, but the bound is

@@ -340,7 +340,7 @@ instance ComponentLitToValue components Cardano where
 newtype instance ComponentExecContext Cardano =
   CardanoExecCtx (CardanoMode ~> IO)
 
-instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components Cardano where
+instance MonadIO m => ComponentCommandExec m components Cardano where
   componentCommandExec (CardanoExecCtx runCardanoMode) (CommandAction act) =
     liftIO $ runCardanoMode act
   componentCommandExec _ (CommandError action) = liftIO $ action

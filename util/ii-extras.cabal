@@ -8,6 +8,7 @@ library
       base >=4.7 && <5,
       vinyl,
       union,
+      transformers,
       lens
   exposed-modules:
       IiExtras

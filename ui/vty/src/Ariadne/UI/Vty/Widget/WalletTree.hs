@@ -4,30 +4,28 @@ module Ariadne.UI.Vty.Widget.WalletTree
        ( WalletTreeWidgetState
        , initWalletTreeWidget
        , drawWalletTreeWidget
+       , WalletTreeWidgetEvent(..)
+       , handleWalletTreeWidgetEvent
        ) where
 
-import Universum
+import Universum hiding (StateT, (.~))
 
+import Control.Lens
+import Control.Monad.Trans.State
 import Data.List (intersperse)
 import Data.Tree (Tree(..))
+import IiExtras
 import Serokell.Util (enumerate)
 
 import qualified Brick as B
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Vty.Face (WalletTree, WalletTreeItem(..))
+import Ariadne.UI.Vty.Face
 
 ----------------------------------------------------------------------------
 -- General (should probably be moved somewhere at later stage)
 ----------------------------------------------------------------------------
-
--- | Path in a 'Tree'.
---
--- N.B. The head of this list is the index in root's children.
--- I find this order more intuitive, but if perfomance turns out
--- to be an issue, we may consider changing it.
-type TreePath = [Word]
 
 -- | Whether an item is selected.
 data SelectionFlag
@@ -72,17 +70,22 @@ renderTree selection toImg = go [] []
 -- | State of wallet tree widget, basically the data we want to
 -- display (corresponds to a list of wallets).
 data WalletTreeWidgetState =
-    WalletTreeWidgetState ![WalletTree]
+  WalletTreeWidgetState
+    { walletTreeWallets :: ![UiWalletTree]
+    , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
+    }
+
+makeLensesWith postfixLFields ''WalletTreeWidgetState
 
 initWalletTreeWidget :: WalletTreeWidgetState
-initWalletTreeWidget = WalletTreeWidgetState []
+initWalletTreeWidget = WalletTreeWidgetState [] (Just (UiWalletTreeSelection 0 [0]))
 
 ----------------------------------------------------------------------------
 -- View
 ----------------------------------------------------------------------------
 
-renderWalletTreeItem :: SelectionFlag -> TreePath -> WalletTreeItem -> V.Image
-renderWalletTreeItem selection _ WalletTreeItem {..} = V.text' attr toDisplay
+renderWalletTreeItem :: SelectionFlag -> TreePath -> UiWalletTreeItem -> V.Image
+renderWalletTreeItem selection _ UiWalletTreeItem {..} = V.text' attr toDisplay
   where
     toDisplay =
         case wtiLabel of
@@ -103,43 +106,25 @@ drawWalletTreeWidget
   :: Bool
   -> WalletTreeWidgetState
   -> B.Widget name
-drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets) =
+drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets mSelection) =
   B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Greedy
     , B.render = render
     }
   where
-    -- Some static data to remove in future.
-    wallet1 =
-        Node { rootLabel = WalletTreeItem (Just "root1 ADA") [] False
-                , subForest = [account11, account12]
-                }
-    account11 =
-        Node { rootLabel = WalletTreeItem Nothing [0] True
-             , subForest = map pure [ WalletTreeItem Nothing [0, 0] True
-                                    , WalletTreeItem Nothing [0, 1] True]
-             }
-    account12 =
-        Node { rootLabel = WalletTreeItem Nothing [1] True
-             , subForest = [pure (WalletTreeItem Nothing [1, 0] True)]
-             }
-    selectedWallet = Just 0
-    selectedNode = Just [1, 0]
-
-    -- Actual rendering.
     render = do
       let
-        renderOneTree :: (Word, WalletTree) -> V.Image
+        renderOneTree :: (Word, UiWalletTree) -> V.Image
         renderOneTree (walletIdx, walletTree) =
             renderTree selection renderWalletTreeItem walletTree
           where
             selection :: Maybe TreePath
             selection = do
-                selWallet <- selectedWallet
-                selectedNode <* guard (selWallet == walletIdx)
+                UiWalletTreeSelection{..} <- mSelection
+                wtsPath <$ guard (wtsWalletIdx == walletIdx)
         walletImages :: [V.Image]
-        walletImages = map renderOneTree $ enumerate (wallet1:wallets)
+        walletImages = map renderOneTree $ enumerate wallets
         separator :: V.Image
         separator = V.text V.defAttr ""
         img = V.vertCat $ intersperse separator walletImages
@@ -150,21 +135,14 @@ drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets) =
 -- Events
 ----------------------------------------------------------------------------
 
-data WalletTreeCompleted = WalletTreeCompleted | WalletTreeInProgress
-
 data WalletTreeWidgetEvent
-  = WalletTreeExit
-  | WalletTreeScrollDown
-  | WalletTreeScrollUp
+  = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
 
 handleWalletTreeWidgetEvent
   :: WalletTreeWidgetEvent
-  -> StateT WalletTreeWidgetState IO WalletTreeCompleted
+  -> StateT WalletTreeWidgetState IO ()
 handleWalletTreeWidgetEvent ev = do
   case ev of
-    WalletTreeExit ->
-      return WalletTreeCompleted
-    WalletTreeScrollUp ->
-      return WalletTreeInProgress
-    WalletTreeScrollDown ->
-      return WalletTreeInProgress
+    WalletTreeUpdateEvent wallets wselection -> do
+      walletTreeWalletsL .= wallets
+      walletTreeSelectionL .= wselection

@@ -16,31 +16,15 @@ import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.CommandHistory
+import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
-
-import Ariadne.UI.Vty.Widget.Repl
-  (InputModification(..), NavAction(..), CommandAction(..), ReplCompleted(..), ReplInputEvent(..),
-  ReplOutputEvent(..), ReplWidgetState(..),
-  drawReplInputWidget, drawReplOutputWidget, handleReplInputEvent,
-  handleReplOutputEvent, initReplWidget)
-
-import Ariadne.UI.Vty.Widget.Menu
-  (MenuWidgetEvent(..), MenuWidgetState, drawMenuWidget, handleMenuWidgetEvent,
-  initMenuWidget, menuWidgetSel)
-
 import Ariadne.UI.Vty.Widget.Help
-  (HelpWidgetState, drawHelpWidget, initHelpWidget)
-
 import Ariadne.UI.Vty.Widget.Logs
-  (LogsWidgetEvent(..), LogsWidgetState, drawLogsWidget, initLogsWidget, handleLogsWidgetEvent)
-
+import Ariadne.UI.Vty.Widget.Menu
+import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.WalletPane
-  (WalletPaneWidgetState, drawWalletPaneWidget, initWalletPaneWidget)
-
 import Ariadne.UI.Vty.Widget.WalletTree
-  (WalletTreeWidgetState, drawWalletTreeWidget, initWalletTreeWidget)
 
 data AppSelector
   = AppSelectorReplInput
@@ -55,6 +39,7 @@ data AppState =
   AppState
     { appStateRepl :: ReplWidgetState
     , appStateMenu :: MenuWidgetState AppSelector
+    , appStateNavigationMode :: Bool
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
     , appStateWalletTree :: WalletTreeWidgetState
@@ -68,6 +53,7 @@ initialAppState langFace history =
   AppState
     { appStateRepl = initReplWidget langFace history
     , appStateMenu = initMenuWidget appSelectors 0
+    , appStateNavigationMode = False
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
     , appStateWalletTree = initWalletTreeWidget
@@ -121,16 +107,15 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
-    drawMenu =
-      drawMenuWidget
-        (\case
-          AppSelectorReplInput -> "^R REPL"
-          AppSelectorReplOutput -> "^O Output"
-          AppSelectorWalletTree -> "^T Tree"
-          AppSelectorWalletPane -> "^G Pane"
-          AppSelectorHelp -> "^H Help"
-          AppSelectorLogs -> "^L Logs")
-        appStateMenu
+    drawMenu = drawMenuWidget appStateNavigationMode
+          (\case
+            AppSelectorReplInput -> "REPL"
+            AppSelectorReplOutput -> "Output"
+            AppSelectorWalletTree -> "Tree"
+            AppSelectorWalletPane -> "Pane"
+            AppSelectorHelp -> "Help"
+            AppSelectorLogs -> "Logs")
+          appStateMenu
     drawReplInput =
       drawReplInputWidget
         (menuWidgetSel appStateMenu == AppSelectorReplInput)
@@ -186,20 +171,30 @@ handleAppEvent
   -> StateT AppState IO AppCompleted
 handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
+  navModeEnabled <- use appStateNavigationModeL
   case ev of
     B.VtyEvent vtyEv
       | V.EvKey (V.KChar 'c') [V.MCtrl] <- vtyEv ->
           return AppCompleted
-      | V.EvKey (V.KChar '\t') [] <- vtyEv -> do
+      | V.EvKey (V.KChar '\t') [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
           return AppInProgress
-      | V.EvKey V.KBackTab [] <- vtyEv -> do
+      | V.EvKey V.KBackTab [] <- vtyEv,
+        navModeEnabled -> do
           zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
           return AppInProgress
-      | V.EvKey (V.KChar c) [V.MCtrl] <- vtyEv,
+      | V.EvKey (V.KChar c) [] <- vtyEv,
+        navModeEnabled,
         Just appSel <- charAppSel c -> do
+          appStateNavigationModeL .= False
           zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
           return AppInProgress
+      | V.EvKey (V.KChar 'g') [V.MCtrl] <- vtyEv ->
+        do
+            appStateNavigationModeL .= True
+            return AppInProgress
+      | navModeEnabled -> return AppInProgress
       | Just replEv <- toReplInputEv vtyEv,
         AppSelectorReplInput <- sel -> do
           completed <- zoom appStateReplL $
@@ -207,14 +202,25 @@ handleAppEvent langFace ev = do
           return $ case completed of
             ReplCompleted -> AppCompleted
             ReplInProgress -> AppInProgress
-      | Just replEv <- toReplOutputEv vtyEv,
+      | Just scrollAction <- eventToScrollingAction vtyEv,
         AppSelectorReplOutput <- sel -> do
-            zoom appStateReplL $ handleReplOutputEvent replEv
+            zoom appStateReplL $ handleReplOutputEvent $ ReplOutputScrollingEvent scrollAction
             return AppInProgress
-      | Just logsEv <- toLogsEv vtyEv,
+      | Just scrollAction <- eventToScrollingAction vtyEv,
+        AppSelectorHelp <- sel -> do
+            zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
+            return AppInProgress
+      | Just scrollAction <- eventToScrollingAction vtyEv,
         AppSelectorLogs <- sel -> do
-            zoom appStateLogsL $ handleLogsWidgetEvent logsEv
+            zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
+    B.AppEvent (UiWalletEvent walletEvent) -> do
+      case walletEvent of
+        UiWalletTreeUpdate wallets wselection ->
+          zoom appStateWalletTreeL $
+            handleWalletTreeWidgetEvent $
+              WalletTreeUpdateEvent wallets wselection
+      return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $
@@ -222,6 +228,9 @@ handleAppEvent langFace ev = do
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiHelpUpdateData doc) -> do
+        zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
+        return AppInProgress
     B.AppEvent (UiCardanoLogEvent message) -> do
         zoom appStateLogsL $ handleLogsWidgetEvent $ LogsMessage message
         return AppInProgress
@@ -233,7 +242,7 @@ charAppSel = \case
   'r' -> Just AppSelectorReplInput
   'o' -> Just AppSelectorReplOutput
   't' -> Just AppSelectorWalletTree
-  'g' -> Just AppSelectorWalletPane
+  'p' -> Just AppSelectorWalletPane
   'h' -> Just AppSelectorHelp
   'l' -> Just AppSelectorLogs
   _ -> Nothing
@@ -250,6 +259,8 @@ toReplInputEv = \case
     Just $ ReplInputNavigationEvent NavArrowDown
   V.EvKey V.KBS [] ->
     Just $ ReplInputModifyEvent DeleteBackwards
+  V.EvKey (V.KChar 'w') [V.MCtrl] ->
+    Just $ ReplInputModifyEvent DeleteWordBackwards
   V.EvKey V.KDel [] ->
     Just $ ReplInputModifyEvent DeleteForwards
   V.EvKey V.KEnter [] ->
@@ -262,28 +273,4 @@ toReplInputEv = \case
     Just $ ReplCommandNavigationEvent PrevCommand
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
-
-toReplOutputEv :: V.Event -> Maybe ReplOutputEvent
-toReplOutputEv = \case
-  V.EvKey V.KUp [] ->
-    Just $ ReplOutputScrollingEvent ScrollingLineUp
-  V.EvKey V.KDown [] ->
-    Just $ ReplOutputScrollingEvent ScrollingLineDown
-  V.EvKey V.KPageUp [] ->
-    Just $ ReplOutputScrollingEvent ScrollingPgUp
-  V.EvKey V.KPageDown [] ->
-    Just $ ReplOutputScrollingEvent ScrollingPgDown
-  _ -> Nothing
-
-toLogsEv :: V.Event -> Maybe LogsWidgetEvent
-toLogsEv = \case
-  V.EvKey V.KUp [] ->
-    Just $ LogsScrollingEvent ScrollingLineUp
-  V.EvKey V.KDown [] ->
-    Just $ LogsScrollingEvent ScrollingLineDown
-  V.EvKey V.KPageUp [] ->
-    Just $ LogsScrollingEvent ScrollingPgUp
-  V.EvKey V.KPageDown [] ->
-    Just $ LogsScrollingEvent ScrollingPgDown
   _ -> Nothing
