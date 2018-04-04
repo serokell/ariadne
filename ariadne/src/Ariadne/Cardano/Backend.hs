@@ -9,8 +9,8 @@ import Options.Applicative hiding (action)
 
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
-import Pos.Client.CLI.Util (readLoggerConfig)
 import qualified Pos.Client.CLI as CLI
+import Pos.Client.CLI.Util (readLoggerConfig)
 import Pos.Communication.Protocol (toAction)
 import Pos.Launcher
 import Pos.Update (updateTriggerWorker)
@@ -18,7 +18,9 @@ import Pos.Util (logException)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
 
-import System.Wlog (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTimeB, showTidB)
+import System.Wlog
+  (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
+  showTimeB)
 
 import Ariadne.Cardano.Face
 
