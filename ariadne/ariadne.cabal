@@ -35,12 +35,14 @@ library
     , cardano-sl-update
     , cardano-sl-util
     , conduit
+    , contravariant
+    , scientific
     , constraints
     , containers
-    , cpphs
     , data-default
     , directory
     , exceptions
+    , dhall
     , formatting
     , kademlia
     , knit
@@ -59,9 +61,14 @@ library
     , safe-exceptions
     , scientific
     , stm
+    , serokell-util
     , text
     , text-format
     , temporary
+    , time-units
+    , universum
+    , vector
+    , word-wrap
     , transformers
     , loc
     , Earley
@@ -81,6 +88,11 @@ library
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
+      Ariadne.Cardano.Orphans
+      Ariadne.Config.Ariadne
+      Ariadne.Config.CLI
+      Ariadne.Config.Cardano
+      Ariadne.Config.DhallUtil
       Ariadne.Wallet.Knit
       Ariadne.Wallet.Backend
       Ariadne.Wallet.Backend.KeyStorage
@@ -200,9 +212,54 @@ test-suite ariadne-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       ariadne
-    , ariadne-vty-ui
     , base >=4.7 && <5
+    , bytestring
+    , cardano-sl-infra
+    , cardano-sl
+    , cardano-sl-core
+    , universum
+    , text
+    , time-units
+    , QuickCheck
+    , hspec
   other-modules:
       Paths_ariadne
+      Test.Ariadne.Cardano.Arbitrary
   default-language: Haskell2010
-  ghc-options: -Wall -Werror
+  default-extensions:
+        ApplicativeDo
+        NoImplicitPrelude
+        BangPatterns
+        ConstraintKinds
+        DataKinds
+        DeriveGeneric
+        DeriveFunctor
+        DeriveFoldable
+        DeriveTraversable
+        FlexibleContexts
+        FlexibleInstances
+        GADTs
+        GeneralizedNewtypeDeriving
+        LambdaCase
+        MultiParamTypeClasses
+        MultiWayIf
+        NegativeLiterals
+        OverloadedStrings
+        PatternSynonyms
+        PolyKinds
+        RankNTypes
+        RecordWildCards
+        NamedFieldPuns
+        RecursiveDo
+        ScopedTypeVariables
+        StandaloneDeriving
+        TemplateHaskell
+        TupleSections
+        TypeApplications
+        TypeFamilies
+        TypeOperators
+        UndecidableInstances
+        ViewPatterns
+        EmptyCase
+        PartialTypeSignatures
+  ghc-options: -Wall -Werror -Wno-unused-top-binds
