@@ -44,14 +44,12 @@ cropScrolling viewportHeight mkPos image =
 
 eventToScrollingAction :: V.Event -> Maybe ScrollingAction
 eventToScrollingAction = \case
-  V.EvKey V.KUp [] ->
-    Just ScrollingLineUp
-  V.EvKey V.KDown [] ->
-    Just ScrollingLineDown
-  V.EvKey V.KPageUp [] ->
-    Just ScrollingPgUp
-  V.EvKey V.KPageDown [] ->
-    Just ScrollingPgDown
+  V.EvKey V.KUp         [] -> Just ScrollingLineUp
+  V.EvKey (V.KChar 'k') [] -> Just ScrollingLineUp
+  V.EvKey V.KDown       [] -> Just ScrollingLineDown
+  V.EvKey (V.KChar 'j') [] -> Just ScrollingLineDown
+  V.EvKey V.KPageUp     [] -> Just ScrollingPgUp
+  V.EvKey V.KPageDown   [] -> Just ScrollingPgDown
   _ -> Nothing
 
 handleScrollingEvent :: ScrollingAction -> ScrollingOffset -> ScrollingOffset
