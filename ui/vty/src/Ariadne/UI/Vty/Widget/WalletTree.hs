@@ -73,12 +73,13 @@ data WalletTreeWidgetState =
   WalletTreeWidgetState
     { walletTreeWallets :: ![UiWalletTree]
     , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
+    , walletTreeInitialized :: Bool
     }
 
 makeLensesWith postfixLFields ''WalletTreeWidgetState
 
 initWalletTreeWidget :: WalletTreeWidgetState
-initWalletTreeWidget = WalletTreeWidgetState [] (Just (UiWalletTreeSelection 0 [0]))
+initWalletTreeWidget = WalletTreeWidgetState [] (Just (UiWalletTreeSelection 0 [0])) False
 
 ----------------------------------------------------------------------------
 -- View
@@ -106,13 +107,14 @@ drawWalletTreeWidget
   :: Bool
   -> WalletTreeWidgetState
   -> B.Widget name
-drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets mSelection) =
+drawWalletTreeWidget _hasFocus wtws  =
   B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Greedy
     , B.render = render
     }
   where
+    WalletTreeWidgetState wallets mSelection initialized = wtws
     render = do
       let
         renderOneTree :: (Word, UiWalletTree) -> V.Image
@@ -127,9 +129,14 @@ drawWalletTreeWidget _hasFocus (WalletTreeWidgetState wallets mSelection) =
         walletImages = map renderOneTree $ enumerate wallets
         separator :: V.Image
         separator = V.text V.defAttr ""
-        img = V.vertCat $ intersperse separator walletImages
+        img
+          | null walletImages = V.text V.defAttr "No wallets"
+          | otherwise = V.vertCat $ intersperse separator walletImages
+        imgOrLoading
+          | initialized = img
+          | otherwise = V.text V.defAttr "Loading..."
       return $ B.emptyResult
-             & B.imageL .~ img
+             & B.imageL .~ imgOrLoading
 
 ----------------------------------------------------------------------------
 -- Events
@@ -144,5 +151,6 @@ handleWalletTreeWidgetEvent
 handleWalletTreeWidgetEvent ev = do
   case ev of
     WalletTreeUpdateEvent wallets wselection -> do
+      walletTreeInitializedL .= True
       walletTreeWalletsL .= wallets
       walletTreeSelectionL .= wselection

@@ -14,16 +14,22 @@ import Test.QuickCheck (arbitrary)
 
 import Ariadne.Wallet.Face
 
-createWalletBackend :: IO ((CardanoMode :~> IO) -> (WalletEvent -> IO ()) -> WalletFace)
+createWalletBackend :: IO ((CardanoMode :~> IO) -> (WalletEvent -> IO ()) -> (WalletFace, IO ()))
 createWalletBackend = do
   walletSelRef <- newIORef Nothing
   return $ \(Nat runCardanoMode) sendWalletEvent ->
-    fix $ \this -> WalletFace
-      { walletAddAccount = addAccount this runCardanoMode
-      , walletRefreshUserSecret =
-          refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
-      , walletSelect = select this walletSelRef
-      }
+    let
+      walletFace =
+        fix $ \this -> WalletFace
+          { walletAddAccount = addAccount this runCardanoMode
+          , walletRefreshUserSecret =
+              refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
+          , walletSelect = select this walletSelRef
+          }
+      initWalletAction =
+        walletRefreshUserSecret walletFace
+    in
+      (walletFace, initWalletAction)
 
 refreshUserSecret
   :: IORef (Maybe WalletSelection)

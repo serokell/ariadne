@@ -90,6 +90,6 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         , cpRepr = \wsa -> CommandAction $ \WalletFace{..} -> do
             walletSelect wsa
             return $ toValue ValueUnit
-        , cpHelp = "Select a wallet by index."
+        , cpHelp = "Select a wallet, account, or address, by index."
         }
     ]
