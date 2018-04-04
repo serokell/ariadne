@@ -51,7 +51,7 @@ data instance ComponentCommandRepr components Wallet
 instance ComponentLitToValue components Wallet where
   componentLitToValue = \case{}
 
-data instance ComponentExecContext Wallet =
+data instance ComponentExecContext _ Wallet =
   WalletExecCtx WalletFace
 
 instance MonadIO m => ComponentCommandExec m components Wallet where

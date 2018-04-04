@@ -20,16 +20,13 @@ import Control.Exception (displayException)
 import Control.Lens (at, non)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
-import Data.Unique
 import IiExtras
-import Numeric
-import Prelude ((!!))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import Ariadne.CommandId
 import Ariadne.Knit.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
+import Ariadne.TaskManager.Face
 
 import qualified Knit
 
@@ -55,16 +52,12 @@ knitFaceToUI KnitFace{..} =
     , langParseErrSpans = Knit.parseErrorSpans
     }
 
-commandIdToUI :: CommandId -> UiCommandId
-commandIdToUI (CommandId u) =
+commandIdToUI :: TaskId -> UiCommandId
+commandIdToUI (TaskId u) =
   UiCommandId
-    { cmdIdEqObject = fromIntegral i
-    , cmdIdRendered = pack $ '<' : showIntAtBase 36 base36Char i ">"
+    { cmdIdEqObject = fromIntegral u
+    , cmdIdRendered = pack $ '<' : show u ++ ">"
     }
-  where
-    i = hashUnique u
-    base36Char = (alphabet!!)
-    alphabet = "0123456789" ++ ['a'..'z']
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
 -- event couldn't be mapped to a UI event.
