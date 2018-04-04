@@ -6,7 +6,6 @@ import Control.Applicative as A
 import Control.Lens
 import Control.Monad
 import Data.Char
-import Data.Function
 import Data.Functor
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
@@ -14,7 +13,6 @@ import Data.Loc
 import Data.Maybe
 import Data.Proxy
 import Data.Text as T
-import Data.Traversable
 import Data.Union
 import Data.Void
 import IiExtras
@@ -161,25 +159,6 @@ pToken'' = longestMatch (go (knownSpine @components))
     go RNil = []
     go ((Proxy :: Proxy component) :& xs) =
       componentTokenizer @_ @component ++ go xs
-
-longestMatch :: [Tokenizer (Token components)] -> Tokenizer (Token components)
-longestMatch ps = do
-  ps' <-
-    for ps $ \p ->
-        optional . try . lookAhead $ do
-            datum <- p
-            position <- getPosition
-            pState <- getParserState
-            return (position, (pState, datum))
-  case nonEmpty (catMaybes ps') of
-    Nothing -> A.empty
-    Just ps'' -> do
-        let tup = snd $ maximumBy (compare `on` fst) ps''
-        applyParser tup
-      where
-        applyParser (pState, datum) = do
-            updateParserState (const pState)
-            return datum
 
 pPunctuation :: Tokenizer (Token components)
 pPunctuation = choice

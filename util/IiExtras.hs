@@ -21,6 +21,9 @@ module IiExtras
   , KnownSpine(..)
   , relemsproxy
 
+  -- * Parsing
+  , longestMatch
+
   -- * Re-exports
   , Union(..)
   , Rec(..)
@@ -29,16 +32,25 @@ module IiExtras
   , AllConstrained
   ) where
 
+import Control.Applicative (optional)
+import Control.Applicative as A
 import Control.Lens
 import Control.Monad.Trans.State
+import Data.Function (on)
 import Data.IORef
+import Data.List (maximumBy)
+import Data.List.NonEmpty (nonEmpty)
+import Data.Maybe
 import Data.Proxy
+import Data.Traversable (for)
 import Data.Tuple
 import Data.Type.Equality
 import Data.Union
 import Data.Vinyl.Core hiding (Dict)
 import Data.Vinyl.TypeLevel
 import Prelude
+import Text.Megaparsec
+  (MonadParsec, getParserState, getPosition, lookAhead, try, updateParserState)
 
 type f ~> g = forall x. f x -> g x
 
@@ -155,3 +167,22 @@ instance KnownSpine xs => KnownSpine (x:xs) where
 
 relemsproxy :: Rec f xs -> Proxy xs
 relemsproxy = const Proxy
+
+longestMatch :: MonadParsec e s m => [m a] -> m a
+longestMatch ps = do
+  ps' <-
+    for ps $ \p ->
+        optional . try . lookAhead $ do
+            datum <- p
+            position <- getPosition
+            pState <- getParserState
+            return (position, (pState, datum))
+  case nonEmpty (catMaybes ps') of
+    Nothing -> A.empty
+    Just ps'' -> do
+        let tup = snd $ maximumBy (compare `on` fst) ps''
+        applyParser tup
+      where
+        applyParser (pState, datum) = do
+            updateParserState (const pState)
+            return datum
