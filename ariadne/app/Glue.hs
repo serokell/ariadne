@@ -107,7 +107,7 @@ putKnitEventToUI UiFace{..} ev =
 
 putLogMessage :: UiFace -> Text -> IO ()
 putLogMessage UiFace{..} message =
-  putUiEvent (UiCardanoLogEvent message)
+  putUiEvent (UiCardanoEvent $ UiCardanoLogEvent message)
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Vty frontend

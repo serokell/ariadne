@@ -23,6 +23,7 @@ import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
 import Ariadne.UI.Vty.Widget.Repl
+import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.WalletPane
 import Ariadne.UI.Vty.Widget.WalletTree
 
@@ -39,6 +40,7 @@ data AppState =
   AppState
     { appStateRepl :: ReplWidgetState
     , appStateMenu :: MenuWidgetState AppSelector
+    , appStateStatus :: StatusWidgetState
     , appStateNavigationMode :: Bool
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
@@ -53,6 +55,7 @@ initialAppState langFace history =
   AppState
     { appStateRepl = initReplWidget langFace history
     , appStateMenu = initMenuWidget appSelectors 0
+    , appStateStatus = initStatusWidget
     , appStateNavigationMode = False
     , appStateHelp = initHelpWidget
     , appStateLogs = initLogsWidget
@@ -116,6 +119,7 @@ drawAppWidget AppState{..} =
             AppSelectorHelp -> "Help"
             AppSelectorLogs -> "Logs")
           appStateMenu
+    drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
       drawReplInputWidget
         (menuWidgetSel appStateMenu == AppSelectorReplInput)
@@ -143,6 +147,7 @@ drawAppWidget AppState{..} =
     drawDefaultView =
       B.vBox
         [ drawMenu
+        , drawStatus
         , B.hBox
             [ padLR drawWalletTree
             , B.vBorder
@@ -154,11 +159,11 @@ drawAppWidget AppState{..} =
     drawHelp =
       drawHelpWidget appStateHelp
     drawHelpView =
-      B.vBox [drawMenu, drawHelp]
+      B.vBox [drawMenu, drawStatus, drawHelp]
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
-      B.vBox [drawMenu, drawLogs]
+      B.vBox [drawMenu, drawStatus, drawLogs]
   in
     case (menuWidgetSel appStateMenu) of
       AppSelectorHelp -> [drawHelpView]
@@ -228,11 +233,19 @@ handleAppEvent langFace ev = do
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiCardanoEvent cardanoEvent) -> do
+      case cardanoEvent of
+        UiCardanoLogEvent message ->
+          zoom appStateLogsL $
+            handleLogsWidgetEvent $
+              LogsMessage message
+        UiCardanoStatusEvent status ->
+          zoom appStateStatusL $
+            handleStatusWidgetEvent $
+              StatusUpdateEvent status
+      return AppInProgress
     B.AppEvent (UiHelpUpdateData doc) -> do
         zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
-        return AppInProgress
-    B.AppEvent (UiCardanoLogEvent message) -> do
-        zoom appStateLogsL $ handleLogsWidgetEvent $ LogsMessage message
         return AppInProgress
     _ ->
       return AppInProgress

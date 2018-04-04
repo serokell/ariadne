@@ -2,6 +2,7 @@ module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
        , UiWalletEvent (..)
+       , UiCardanoEvent (..)
        , UiEvent (..)
        , UiLangFace (..)
        , UiFace (..)
@@ -38,7 +39,9 @@ data UiCommandEvent
   | UiCommandOutput Doc
 
 -- Update current displayed slot, chain difficulty, etc
-data UiCardanoEvent = UiCardanoEventMock
+data UiCardanoEvent
+  = UiCardanoLogEvent Text
+  | UiCardanoStatusEvent Text
 
 data UiWalletEvent
   = UiWalletTreeUpdate [UiWalletTree] (Maybe UiWalletTreeSelection)
@@ -49,7 +52,6 @@ data UiWalletEvent
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
-  | UiCardanoLogEvent Text
   | UiWalletEvent UiWalletEvent
   | UiHelpUpdateData [Doc]
 

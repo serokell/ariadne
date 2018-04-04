@@ -42,6 +42,7 @@ library
       Ariadne.UI.Vty.Widget.Logs
       Ariadne.UI.Vty.Widget.Menu
       Ariadne.UI.Vty.Widget.Repl
+      Ariadne.UI.Vty.Widget.Status
       Ariadne.UI.Vty.Widget.WalletTree
       Ariadne.UI.Vty.Widget.WalletPane
       Ariadne.UI.Vty.Face
