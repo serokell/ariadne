@@ -53,11 +53,11 @@ knitFaceToUI KnitFace{..} =
     , langParseErrSpans = Knit.parseErrorSpans
     }
 
-commandIdToUI :: Unique -> TaskId -> UiCommandId
-commandIdToUI u (TaskId i) =
+commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
+commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdIdRendered = pack $ '<' : show i ++ ">"
+    , cmdIdRendered = pack $ '<' : maybe "?" (\(TaskId i) -> show i) mi ++ ">"
     }
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
@@ -82,7 +82,7 @@ knitEventToUI = \case
         KnitCommandException e ->
           UiCommandFailure $ PP.text (displayException e)
   KnitCommandOutputEvent commandId taskId doc ->
-    Just $ UiCommandEvent (commandIdToUI commandId taskId) (UiCommandOutput doc)
+    Just $ UiCommandEvent (commandIdToUI commandId (Just taskId)) (UiCommandOutput doc)
 
 putKnitEventToUI
   :: forall components.
