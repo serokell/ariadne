@@ -40,10 +40,15 @@ runCardanoNode :: MVar CardanoContext -> (Text -> IO ()) -> IO ()
 runCardanoNode cardanoContextVar logAction = withCompileInfo $(retrieveCompileTimeInfo) $ do
   let (Success commonArgs) =
         execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc)
-          [ "--system-start", "0"
-          , "--log-config", "log-config.yaml"
+          [ "--db-path", "db-mainnet"
+          , "--log-config", "config/cardano/log-config.yaml"
           , "--no-ntp"
-          , "--configuration-file", "cardano-config.yaml"
+          , "--configuration-file", "config/cardano/cardano-config.yaml"
+          , "--topology", "config/cardano/topology.yaml"
+          , "--logs-prefix", "logs/mainnet"
+          , "--node-id", "node0"
+          , "--keyfile", "secret-mainnet.key"
+          , "--configuration-key", "mainnet_full"
           ]
       loggingParams = CLI.loggingParams "ariadne" commonArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
