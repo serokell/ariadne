@@ -25,15 +25,15 @@ type Components components =
   )
 
 createKnitBackend
-  :: forall components.
+  :: forall components commandid.
      Components components
   => Knit.ExecContext components
-  -> (KnitEvent components -> IO ())
+  -> (KnitEvent components commandid -> IO ())
   -> TaskManagerContext (Knit.Value components)
-  -> IO (KnitFace components)
+  -> IO (KnitFace components commandid)
 createKnitBackend execCtxs putKnitEvent TaskManagerContext{..} = do
   let
-    putCommand expr = spawnTask $ \taskId -> do
+    putCommand commandId expr = spawnTask $ \taskId -> do
       -- We catch asynchronous exceptions intentionally here, as we don't want
       -- a single command to crash the entire app.
       res <- handle (\e -> return $ KnitCommandException e) $
@@ -42,7 +42,7 @@ createKnitBackend execCtxs putKnitEvent TaskManagerContext{..} = do
           Right expr' ->
             either KnitCommandEvalError KnitCommandSuccess <$> do
               Knit.evaluate execCtxs expr'
-      putKnitEvent $ KnitCommandResultEvent taskId res
+      putKnitEvent $ KnitCommandResultEvent commandId taskId  res
       case res of
         KnitCommandProcError _ -> throwIO $ EvalErrorException "meh"
         KnitCommandEvalError e -> throwIO $ EvalErrorException (show $ Knit.ppEvalError e)

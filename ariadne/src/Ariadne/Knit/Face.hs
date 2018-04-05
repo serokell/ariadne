@@ -19,16 +19,16 @@ data KnitCommandResult components
 -- UI-compatible events in the 'Glue' module. They must be independent from the
 -- UI and capture /what the backend can generate/, not what the frontend can
 -- handle.
-data KnitEvent components
-  = KnitCommandResultEvent TaskId (KnitCommandResult components)
-  | KnitCommandOutputEvent TaskId Doc
+data KnitEvent components commandid
+  = KnitCommandResultEvent commandid TaskId (KnitCommandResult components)
+  | KnitCommandOutputEvent commandid TaskId Doc
 
 -- API for the knit interpreter.
-data KnitFace components =
+data KnitFace components commandid =
   KnitFace
     {
       -- Execute a knit expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
-      putKnitCommand :: Knit.Expr Knit.CommandName components -> IO TaskId
+      putKnitCommand :: commandid -> Knit.Expr Knit.CommandName components -> IO TaskId
     }

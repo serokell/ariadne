@@ -20,6 +20,7 @@ import Control.Exception (displayException)
 import Control.Lens (at, non)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
+import Data.Unique
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -41,22 +42,22 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentLitGrammar components) components
      , AllConstrained Knit.ComponentPrinter components
      )
-  => KnitFace components
+  => KnitFace components Unique
   -> UiLangFace
 knitFaceToUI KnitFace{..} =
   UiLangFace
-    { langPutCommand = fmap commandIdToUI . putKnitCommand
+    { langPutCommand = \cid -> fmap (commandIdToUI cid) . putKnitCommand cid
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
     }
 
-commandIdToUI :: TaskId -> UiCommandId
-commandIdToUI (TaskId u) =
+commandIdToUI :: Unique -> TaskId -> UiCommandId
+commandIdToUI u (TaskId i) =
   UiCommandId
-    { cmdIdEqObject = fromIntegral u
-    , cmdIdRendered = pack $ '<' : show u ++ ">"
+    { cmdIdEqObject = fromIntegral (hashUnique u)
+    , cmdIdRendered = pack $ '<' : show i ++ ">"
     }
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
@@ -66,11 +67,11 @@ knitEventToUI
      ( AllConstrained Knit.ComponentPrinter components
      , AllConstrained (Knit.ComponentInflate components) components
      )
-  => KnitEvent components
+  => KnitEvent components Unique
   -> Maybe UiEvent
 knitEventToUI = \case
-  KnitCommandResultEvent commandId commandResult ->
-    Just $ UiCommandEvent (commandIdToUI commandId) $
+  KnitCommandResultEvent commandId taskId commandResult ->
+    Just $ UiCommandEvent (commandIdToUI commandId taskId) $
       case commandResult of
         KnitCommandSuccess v ->
           UiCommandSuccess $ Knit.ppValue v
@@ -80,8 +81,8 @@ knitEventToUI = \case
           UiCommandFailure $ Knit.ppResolveErrors e
         KnitCommandException e ->
           UiCommandFailure $ PP.text (displayException e)
-  KnitCommandOutputEvent commandId doc ->
-    Just $ UiCommandEvent (commandIdToUI commandId) (UiCommandOutput doc)
+  KnitCommandOutputEvent commandId taskId doc ->
+    Just $ UiCommandEvent (commandIdToUI commandId taskId) (UiCommandOutput doc)
 
 putKnitEventToUI
   :: forall components.
@@ -89,7 +90,7 @@ putKnitEventToUI
      , AllConstrained (Knit.ComponentInflate components) components
      )
   => UiFace
-  -> KnitEvent components
+  -> KnitEvent components Unique
   -> IO ()
 putKnitEventToUI UiFace{..} ev =
   whenJust (knitEventToUI ev) putUiEvent

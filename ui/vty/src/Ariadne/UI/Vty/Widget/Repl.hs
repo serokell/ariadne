@@ -8,6 +8,7 @@ import Data.Function (fix, on)
 import Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Text as Text
+import Data.Unique
 import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
   deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
@@ -39,7 +40,7 @@ data OutputElement
 -- recomputation in 'mkReplParseResult'.
 data ReplParseResult
   = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
-  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO UiCommandId }
+  | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: Unique -> IO UiCommandId }
 
 data ReplWidgetState =
   ReplWidgetState
@@ -66,7 +67,7 @@ mkReplParseResult UiLangFace{..} t =
     Right expr ->
       ReplParseSuccess
         { rpfExprDoc = langPpExpr expr
-        , rpfPutCommand = langPutCommand expr
+        , rpfPutCommand = flip langPutCommand expr
         }
 
 replReparse :: Monad m => UiLangFace -> StateT ReplWidgetState m ()
@@ -267,7 +268,7 @@ handleReplInputEvent langFace = fix $ \go -> \case
         let out = OutputInfo $ \(Width w) -> pprDoc w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
-        commandId <- liftIO rpfPutCommand
+        commandId <- liftIO $ rpfPutCommand =<< newUnique
         zoom replWidgetTextZipperL $ modify $ clearZipper
         let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
