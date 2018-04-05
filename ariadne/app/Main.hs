@@ -27,7 +27,7 @@ main = do
     uiAction, knitAction, cardanoAction :: IO ()
     uiAction = mkUiAction (knitFaceToUI knitFace)
     knitAction = mkKnitAction knitExecContext (putKnitEventToUI uiFace)
-    cardanoAction = mkCardanoAction (putLogMessage uiFace)
+    cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
 
     walletFace :: WalletFace
     walletFace = mkWalletFace runCardanoMode (putWalletEventToUI uiFace)

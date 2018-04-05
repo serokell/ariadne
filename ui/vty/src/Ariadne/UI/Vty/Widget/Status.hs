@@ -1,10 +1,10 @@
 module Ariadne.UI.Vty.Widget.Status where
 
-import Control.Lens
-import Control.Monad.Trans.State as State
-import Data.Text (Text)
-import Prelude
+import Control.Lens (makeLensesWith, zoom)
+import Data.Text as Text
+import Universum
 
+import qualified Control.Monad.Trans.State as State
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
@@ -12,16 +12,18 @@ import IiExtras
 
 data StatusWidgetState =
   StatusWidgetState
-    {
-      statusWidgetContent :: Text
+    { statusWidgetTipHeaderHash :: Text
+    , statusWidgetTipSlot :: Text
+    , statusWidgetSlot :: Text
     }
 
 makeLensesWith postfixLFields ''StatusWidgetState
 
 initStatusWidget :: StatusWidgetState
 initStatusWidget = StatusWidgetState
-    {
-      statusWidgetContent = "Here be status"
+    { statusWidgetTipHeaderHash = "<unknown>"
+    , statusWidgetTipSlot = "<unknown>"
+    , statusWidgetSlot = "<unknown>"
     }
 
 drawStatusWidget
@@ -37,10 +39,7 @@ drawStatusWidget statusWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        (leftPad, rightPad) =
-          integralDistribExcess
-            (rdrCtx ^. B.availWidthL)
-            (V.imageWidth img)
+        pad = (rdrCtx ^. B.availWidthL) - (V.imageWidth img)
 
         backStatusAttr =
           V.defAttr
@@ -49,20 +48,29 @@ drawStatusWidget statusWidgetState =
 
         fill n = V.charFill @Int backStatusAttr ' ' n 1
 
-        img = V.text' backStatusAttr $ statusWidgetContent statusWidgetState
+        img = V.text' backStatusAttr content
 
-        img' =
-          V.horizCat [fill leftPad, img, fill rightPad]
+        content = Text.intercalate " │ "
+          [ "Tip hash: " <> (statusWidgetState ^. statusWidgetTipHeaderHashL)
+          , "Tip slot: " <> (statusWidgetState ^. statusWidgetTipSlotL)
+          , "Current slot: " <> (statusWidgetState ^. statusWidgetSlotL)]
+
+        img' = V.horizCat [img, fill pad]
 
       return $
         B.emptyResult
           & B.imageL .~ img'
 
 data StatusWidgetEvent
-  = StatusUpdateEvent Text
+  = StatusUpdateTipEvent Text Text
+  | StatusUpdateSlotEvent Text
 
 handleStatusWidgetEvent
   :: StatusWidgetEvent
-  -> StateT StatusWidgetState IO ()
+  -> State.StateT StatusWidgetState IO ()
 handleStatusWidgetEvent = \case
-  StatusUpdateEvent text -> zoom statusWidgetContentL $ State.modify $ const text
+  StatusUpdateTipEvent headerHash slot -> do
+    zoom statusWidgetTipHeaderHashL $ State.modify $ const headerHash
+    zoom statusWidgetTipSlotL $ State.modify $ const slot
+  StatusUpdateSlotEvent slot -> do
+    zoom statusWidgetSlotL $ State.modify $ const slot

@@ -41,7 +41,8 @@ data UiCommandEvent
 -- Update current displayed slot, chain difficulty, etc
 data UiCardanoEvent
   = UiCardanoLogEvent Text
-  | UiCardanoStatusEvent Text
+  | UiCardanoStatusTipEvent Text Text
+  | UiCardanoStatusSlotEvent Text
 
 data UiWalletEvent
   = UiWalletTreeUpdate [UiWalletTree] (Maybe UiWalletTreeSelection)

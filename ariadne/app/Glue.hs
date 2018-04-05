@@ -7,7 +7,7 @@ module Glue
        , putKnitEventToUI
 
          -- * Cardano ↔ Vty
-       , putLogMessage
+       , putCardanoEventToUI
 
          -- * Wallet ↔ Vty
        , walletEventToUI
@@ -18,7 +18,7 @@ import Universum
 
 import Control.Exception (displayException)
 import Control.Lens (at, non)
-import Data.Text (pack)
+import Data.Text as T (pack, intercalate)
 import Data.Tree (Tree(..))
 import Data.Unique
 import IiExtras
@@ -105,9 +105,30 @@ putKnitEventToUI UiFace{..} ev =
 -- Glue between the Cardano backend and Vty frontend
 ----------------------------------------------------------------------------
 
-putLogMessage :: UiFace -> Text -> IO ()
-putLogMessage UiFace{..} message =
-  putUiEvent (UiCardanoEvent $ UiCardanoLogEvent message)
+-- The 'Maybe' here is not used for now, but in the future might be, if some
+-- event couldn't be mapped to a UI event.
+cardanoEventToUI :: CardanoEvent -> Maybe UiEvent
+cardanoEventToUI = \case
+  CardanoLogEvent message ->
+    Just $ UiCardanoEvent $
+      UiCardanoLogEvent message
+  CardanoTipUpdateEvent headerHash epochOrSlot ->
+    Just $ UiCardanoEvent $
+      UiCardanoStatusTipEvent (pretty headerHash) (eosToText epochOrSlot)
+  CardanoNewSlotEvent slotId ->
+    Just $ UiCardanoEvent $
+      UiCardanoStatusSlotEvent $ slotToText slotId
+  where
+    slotToText (SlotId ep sl) = T.intercalate ", "
+      [ "epoch #" <> (pretty $ getEpochIndex ep)
+      , "slot " <> pretty sl]
+    eosToText eos = case unEpochOrSlot eos of
+      (Left ep) -> "epoch #" <> (pretty $ getEpochIndex ep)
+      (Right sl) -> slotToText sl
+
+putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
+putCardanoEventToUI UiFace{..} ev =
+  whenJust (cardanoEventToUI ev) putUiEvent
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Vty frontend

@@ -11,11 +11,13 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Protocol (toAction)
+import Pos.Communication.Protocol (WorkerSpec, OutSpecs, toAction, onNewSlotWorker, worker)
+import Pos.Core (headerHash, epochOrSlotG)
+import qualified Pos.DB.BlockIndex as DB
 import Pos.Launcher
 import Pos.Update (updateTriggerWorker)
-import Pos.Util (logException)
-import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
+import Pos.Util (logException, sleep)
+import Pos.Util.CompileInfo (HasCompileInfo, retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
 
 import System.Wlog
@@ -24,7 +26,7 @@ import System.Wlog
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: IO (CardanoMode :~> IO, (Text -> IO ()) -> IO ())
+createCardanoBackend :: IO (CardanoMode :~> IO, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend = do
   cardanoContextVar <- newEmptyMVar
   return
@@ -36,8 +38,8 @@ runCardanoMode cardanoContextVar act = do
   cardanoContext <- readMVar cardanoContextVar
   runProduction $ runReaderT act cardanoContext
 
-runCardanoNode :: MVar CardanoContext -> (Text -> IO ()) -> IO ()
-runCardanoNode cardanoContextVar logAction = withCompileInfo $(retrieveCompileTimeInfo) $ do
+runCardanoNode :: MVar CardanoContext -> (CardanoEvent -> IO ()) -> IO ()
+runCardanoNode cardanoContextVar sendCardanoEvent = withCompileInfo $(retrieveCompileTimeInfo) $ do
   let (Success commonArgs) =
         execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc)
           [ "--system-start", "0"
@@ -51,7 +53,7 @@ runCardanoNode cardanoContextVar logAction = withCompileInfo $(retrieveCompileTi
           let cfgBuilder = showTidB
                         <> showTimeB
                         <> maybeLogsDirB lpHandlerPrefix
-                        <> consoleActionB (const logAction)
+                        <> consoleActionB (\_ message -> sendCardanoEvent $ CardanoLogEvent message)
           cfg <- readLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
       nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
@@ -63,4 +65,26 @@ runCardanoNode cardanoContextVar logAction = withCompileInfo $(retrieveCompileTi
       nodeParams <- CLI.getNodeParams "ariadne" commonArgs nodeArgs
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
-      runNodeReal nodeParams sscParams (updateTriggerWorker <> extractionWorker)
+      let workers = updateTriggerWorker
+                 <> extractionWorker
+                 <> statusReportingWorker sendCardanoEvent
+                 <> tipPollingWorker sendCardanoEvent
+      runNodeReal nodeParams sscParams workers
+
+statusReportingWorker
+  :: (HasConfigurations, HasCompileInfo)
+  => (CardanoEvent -> IO ())
+  -> ([WorkerSpec CardanoMode], OutSpecs)
+statusReportingWorker sendCardanoEvent =
+  first pure $ onNewSlotWorker True mempty $ \slotId _ ->
+    liftIO $ sendCardanoEvent $ CardanoNewSlotEvent slotId
+
+tipPollingWorker
+  :: (HasConfigurations)
+  => (CardanoEvent -> IO ())
+  -> ([WorkerSpec CardanoMode], OutSpecs)
+tipPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
+  forever $ do
+    tipHeader <- DB.getTipHeader
+    liftIO $ sendCardanoEvent $ CardanoTipUpdateEvent (headerHash tipHeader) (tipHeader ^. epochOrSlotG)
+    sleep 1.0
