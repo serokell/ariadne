@@ -29,5 +29,7 @@ node-db/
 logs/*
 secret.key
 secret.key.lock
+secret-mainnet.key
+secret-mainnet.key.lock
 ariadne_history
-
+db-mainnet
