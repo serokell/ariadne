@@ -25,8 +25,9 @@ main :: IO ()
 main = do
   (uiFace, mkUiAction) <- createAriadneUI
   (runCardanoMode, mkCardanoAction) <- createCardanoBackend
-  mkWallet <- createWalletBackend
-  (a, b) <- createTaskManagerBackend
+  (runTaskManagerM, taskManagerContext) <- createTaskManagerBackend
+  mkWalletFace <- createWalletBackend
+
   let
     walletFace :: WalletFace
     walletInitAction :: IO ()
@@ -44,9 +45,9 @@ main = do
       Knit.CoreExecCtx :&
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx walletFace :&
-      Knit.TaskManagerExecCtx a :&
+      Knit.TaskManagerExecCtx (runNat runTaskManagerM) :&
       RNil
-  knitFace <- createKnitBackend knitExecContext (putKnitEventToUI uiFace) b
+  knitFace <- createKnitBackend knitExecContext (putKnitEventToUI uiFace) taskManagerContext
 
   let
     uiAction, knitAction, cardanoAction :: IO ()

@@ -38,7 +38,7 @@ data instance ComponentCommandRepr components TaskManager
   | CommandAction (TaskManagerM (Value components) (Value components))
 
 newtype instance ComponentExecContext components TaskManager =
-  TaskManagerExecCtx (TaskManagerM (Value components) :~> IO)
+  TaskManagerExecCtx (TaskManagerM (Value components) ~> IO)
 
 data instance ComponentLit TaskManager
   = LitTaskId TaskId
@@ -80,7 +80,7 @@ instance ComponentPrinter TaskManager where
     TokenTaskId _ -> "task id"
 
 instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components TaskManager where
-  componentCommandExec (TaskManagerExecCtx (Nat natTransform)) = \case
+  componentCommandExec (TaskManagerExecCtx natTransform) = \case
     CommandPure val -> return val
     CommandAction action -> liftIO . natTransform $ action
 
@@ -112,7 +112,7 @@ instance
                 case mTask of
                   Nothing -> do
                     mCache <- lookupCache tid
-                    maybe (throwIO NoTaskException) (either (\_ -> throwIO Overflow) return) mCache
+                    maybe (throwIO NoTaskException) (either (\_ -> throwIO NoTaskException) return) mCache
                   Just task -> wait task
               return ret
           , cpHelp = "wait for a specific task to finish"
