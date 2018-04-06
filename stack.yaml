@@ -11,8 +11,8 @@ packages:
 - ./util/
 
 - location:
-    git: https://github.com/input-output-hk/cardano-sl.git
-    commit: b632695b07270b27aba807afa96d81e3337f328e # master
+    git: https://github.com/serokell/cardano-sl.git
+    commit: b632695b07270b27aba807afa96d81e3337f328e # ariadne branch
   extra-dep: true
   subdirs:
   - binary
