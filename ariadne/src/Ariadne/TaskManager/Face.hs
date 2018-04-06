@@ -3,7 +3,6 @@ module Ariadne.TaskManager.Face where
 import Universum
 
 import Control.Concurrent.Async
-import Control.Monad.Trans.Reader (ReaderT)
 import Control.Exception (Exception, SomeException)
 
 -- | This type reperesents a unique command identifier.
@@ -20,14 +19,12 @@ data CommandResult v
 
 -- | The process manager context is a map from CommandId to an async object that
 -- returns the result of that command.
-data TaskManagerContext v
-  = TaskManagerContext
+data TaskManagerFace v
+  = TaskManagerFace
   { spawnTask :: (TaskId -> IO v) -> IO TaskId
   , lookupTask :: TaskId -> IO (Maybe (Async v))
   , lookupCache :: TaskId -> IO (Maybe (Either SomeException v))
   }
-
-newtype TaskManagerM v a = TaskManagerM (ReaderT (TaskManagerContext v) IO a)
 
 newtype EvalErrorException = EvalErrorException Text
   deriving Show

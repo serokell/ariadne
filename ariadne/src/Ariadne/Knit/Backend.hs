@@ -25,13 +25,13 @@ type Components components =
   )
 
 createKnitBackend
-  :: forall components commandid.
+  :: forall commandid components.
      Components components
   => Knit.ExecContext components
-  -> (KnitEvent components commandid -> IO ())
-  -> TaskManagerContext (Knit.Value components)
-  -> IO (KnitFace components commandid)
-createKnitBackend execCtxs putKnitEvent TaskManagerContext{..} = do
+  -> (KnitEvent commandid components -> IO ())
+  -> TaskManagerFace (Knit.Value components)
+  -> KnitFace commandid components
+createKnitBackend execCtxs putKnitEvent TaskManagerFace{..} =
   let
     putCommand commandId expr = case resolveProcNames expr of
       Left e -> do
@@ -39,8 +39,8 @@ createKnitBackend execCtxs putKnitEvent TaskManagerContext{..} = do
           KnitCommandProcError e
         return Nothing
       Right expr' -> fmap Just . spawnTask $ \taskId -> do
-        -- We catch asynchronous exceptions intentionally here, as we don't want
-        -- a single command to crash the entire app.
+        -- We catch asynchronous exceptions intentionally here to send them to UI and
+        -- rethrow them afterwards.
         res <- handle (\e -> return $ KnitCommandException e) $
           either KnitCommandEvalError KnitCommandSuccess <$> do
             Knit.evaluate execCtxs expr'
@@ -51,7 +51,7 @@ createKnitBackend execCtxs putKnitEvent TaskManagerContext{..} = do
           KnitCommandException e -> throwIO e
           -- This case is impossible because procedure names are resolved outside of this code.
           KnitCommandProcError _ -> error "impossible happened"
-  return $ KnitFace putCommand
+  in KnitFace putCommand
   where
     commandProcs = Knit.commandProcs @components
     resolveProcNames =

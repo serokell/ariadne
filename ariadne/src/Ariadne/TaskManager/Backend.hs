@@ -1,55 +1,57 @@
-module Ariadne.TaskManager.Backend (createTaskManagerBackend) where
+module Ariadne.TaskManager.Backend (createTaskManagerFace) where
 
 import Universum
 
+import Control.Lens as L
 import Data.Map as Map
 import Control.Concurrent.Async
 
-import IiExtras
 import Ariadne.TaskManager.Face
 
 newTaskIdGenerator :: IO (IO TaskId)
 newTaskIdGenerator = do
   taskIdVar <- newIORef 0
   let
-    newTaskId = TaskId <$> atomicModifyIORef' taskIdVar (\tid -> (succ tid, tid))
+    newTaskId = atomicModifyIORef' taskIdVar (\tid -> (succ tid, TaskId tid))
   return newTaskId
 
-createTaskManagerContext :: forall v. IO (TaskManagerContext v)
-createTaskManagerContext = do
+data TaskMap v = TaskMap
+  { _resultCacheMap :: Map TaskId (Either SomeException v)
+  , _taskAsyncMap :: Map TaskId (Async v)
+  }
+makeLenses 'TaskMap
+
+createTaskManagerFace :: forall v. IO (TaskManagerFace v)
+createTaskManagerFace = do
   idGen <- newTaskIdGenerator
-  taskMapVar <- newIORef Map.empty
-  cacheMapVar <- newIORef Map.empty
+  taskMapVar <- newIORef (TaskMap Map.empty Map.empty)
   let
+    spawnTask :: (TaskId -> IO v) -> IO TaskId
     spawnTask action = do
       taskId <- idGen
       a <- async $ action taskId
-      atomicModifyIORef' taskMapVar (\taskMap -> (insert taskId a taskMap, ()))
+      runStateIORef taskMapVar $ taskAsyncMap . at taskId .= Just a
       -- Wait for the task to finish and clean it up
       void . async $ do
         r <- waitCatch a
         removeTask taskId r
       return taskId
 
-    lookupTask taskId = Map.lookup taskId <$> readIORef taskMapVar
+    lookupTask :: TaskId -> IO (Maybe (Async v))
+    lookupTask taskId = (Map.lookup taskId . _taskAsyncMap) <$> readIORef taskMapVar
 
-    removeTask taskId r = do
-      atomicModifyIORef' taskMapVar (\taskMap -> (delete taskId taskMap, ()))
-      taskMap <- readIORef taskMapVar
+    removeTask :: TaskId -> (Either SomeException v) -> IO ()
+    removeTask taskId r = runStateIORef taskMapVar $ do
+      taskMap <- taskAsyncMap <%= delete taskId
       if Map.null taskMap
-      then clearCache
-      else insertCache taskId r
+      then resultCacheMap .= Map.empty
+      else resultCacheMap . at taskId .= Just r
 
-    insertCache taskId val =
-      atomicModifyIORef' cacheMapVar (\cacheMap -> (insert taskId val cacheMap, ()))
+    lookupCache :: TaskId -> IO (Maybe (Either SomeException v))
+    lookupCache taskId = (Map.lookup taskId . _resultCacheMap) <$> readIORef taskMapVar
 
-    lookupCache taskId = Map.lookup taskId <$> readIORef cacheMapVar
-
-    clearCache =
-      atomicModifyIORef' cacheMapVar (\_ -> (Map.empty, ()))
-  return TaskManagerContext{..}
-
-createTaskManagerBackend :: IO (TaskManagerM v :~> IO, TaskManagerContext v)
-createTaskManagerBackend = do
-  ctx <- createTaskManagerContext
-  return (Nat $ \(TaskManagerM m) -> flip runReaderT ctx m, ctx)
+  return TaskManagerFace{..}
+  where
+    runStateIORef :: IORef s -> State s a -> IO a
+    runStateIORef ref m = atomicModifyIORef' ref (swapTuple . runState m)
+    swapTuple (x, y) = (y, x)

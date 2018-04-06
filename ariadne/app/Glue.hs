@@ -42,7 +42,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentLitGrammar components) components
      , AllConstrained Knit.ComponentPrinter components
      )
-  => KnitFace components Unique
+  => KnitFace Unique components
   -> UiLangFace
 knitFaceToUI KnitFace{..} =
   UiLangFace
@@ -67,7 +67,7 @@ knitEventToUI
      ( AllConstrained Knit.ComponentPrinter components
      , AllConstrained (Knit.ComponentInflate components) components
      )
-  => KnitEvent components Unique
+  => KnitEvent Unique components
   -> Maybe UiEvent
 knitEventToUI = \case
   KnitCommandResultEvent commandId taskId commandResult ->
@@ -90,7 +90,7 @@ putKnitEventToUI
      , AllConstrained (Knit.ComponentInflate components) components
      )
   => UiFace
-  -> KnitEvent components Unique
+  -> KnitEvent Unique components
   -> IO ()
 putKnitEventToUI UiFace{..} ev =
   whenJust (knitEventToUI ev) putUiEvent

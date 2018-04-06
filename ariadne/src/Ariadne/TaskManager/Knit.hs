@@ -35,10 +35,10 @@ instance
 
 data instance ComponentCommandRepr components TaskManager
   = CommandPure (Value components)
-  | CommandAction (TaskManagerM (Value components) (Value components))
+  | CommandAction (TaskManagerFace (Value components) -> IO (Value components))
 
 newtype instance ComponentExecContext components TaskManager =
-  TaskManagerExecCtx (TaskManagerM (Value components) ~> IO)
+  TaskManagerExecCtx (TaskManagerFace (Value components))
 
 data instance ComponentLit TaskManager
   = LitTaskId TaskId
@@ -80,9 +80,9 @@ instance ComponentPrinter TaskManager where
     TokenTaskId _ -> "task id"
 
 instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components TaskManager where
-  componentCommandExec (TaskManagerExecCtx natTransform) = \case
+  componentCommandExec (TaskManagerExecCtx face) = \case
     CommandPure val -> return val
-    CommandAction action -> liftIO . natTransform $ action
+    CommandAction action -> liftIO $ action face
 
 instance
   ( AllConstrained (Elem components) '[TaskManager, Core]
@@ -93,11 +93,9 @@ instance
           { cpName = "kill"
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyTaskId "id"
-          , cpRepr = \tid -> CommandAction . TaskManagerM $ do
-              TaskManagerContext {..} <- ask
-              liftIO $ do
-                mTask <- lookupTask tid
-                whenJust mTask cancel
+          , cpRepr = \tid -> CommandAction $ \TaskManagerFace{..} -> do
+              mTask <- lookupTask tid
+              whenJust mTask cancel
               return . toValue $ ValueUnit
           , cpHelp = "kill a task with a specified id"
           }
@@ -105,24 +103,21 @@ instance
           { cpName = "wait"
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyTaskId "id"
-          , cpRepr = \tid -> CommandAction . TaskManagerM $ do
-              TaskManagerContext{..} <- ask
-              ret <- liftIO $ do
-                mTask <- lookupTask tid
-                case mTask of
-                  Nothing -> do
-                    mCache <- lookupCache tid
-                    maybe (throwIO NoTaskException) (either (\_ -> throwIO NoTaskException) return) mCache
-                  Just task -> wait task
-              return ret
+          , cpRepr = \tid -> CommandAction $ \TaskManagerFace{..} -> do
+              mTask <- lookupTask tid
+              case mTask of
+                Nothing -> do
+                  mCache <- lookupCache tid
+                  maybe (throwIO NoTaskException) (either (\_ -> throwIO NoTaskException) return) mCache
+                Just task -> wait task
           , cpHelp = "wait for a specific task to finish"
           }
       , CommandProc
           { cpName = "sleep"
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyInt "time"
-          , cpRepr = \ms -> CommandAction . TaskManagerM $ do
-              liftIO $ threadDelay ms
+          , cpRepr = \ms -> CommandAction . const $ do
+              threadDelay ms
               return . toValue $ ValueUnit
           , cpHelp = "delay the execution for specified amount of microseconds"
           }
