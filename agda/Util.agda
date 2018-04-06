@@ -20,10 +20,10 @@ Variable = String
 AtomicType : Set
 AtomicType = String
 
-data Seq (A : Set) : Set where
-  !_! : A → Seq A
-  _**_ : A → Seq A → Seq A
+data NonEmpty (A : Set) : Set where
+  !_! : A → NonEmpty A
+  _**_ : A → NonEmpty A → NonEmpty A
 
-mapSeq : {A B : Set} → (A → B) → Seq A → Seq B
+mapSeq : {A B : Set} → (A → B) → NonEmpty A → NonEmpty B
 mapSeq f ! x ! = ! f x !
 mapSeq f (x ** l) = f x ** mapSeq f l
