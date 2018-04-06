@@ -4,7 +4,7 @@ module Ariadne.Wallet.Backend
   ) where
 
 import Control.Exception (Exception(displayException))
-import Control.Lens (ix)
+import Control.Lens (ix, (.=), (<>=))
 import Data.List (findIndex)
 import Universum
 
@@ -47,11 +47,6 @@ instance Exception NoWalletSelection where
   displayException NoWalletSelection =
     "Select or specify a wallet to perform this operation."
 
-data AtMost1WalletSupported = AtMost1WalletSupported
-  deriving (Eq, Show)
-
-instance Exception AtMost1WalletSupported
-
 data WalletDoesNotExist = WalletDoesNotExist Text
   deriving (Eq, Show)
 
@@ -73,7 +68,7 @@ resolveWalletRef walletSelRef runCardanoMode = \case
       Just WalletSelection{..} -> return wsWalletIndex
   WalletRefByName name -> do
     us <- runCardanoMode getSecretDefault
-    case findIndex (\w -> w ^. wusWalletName == name) (toList (us ^. usWallet)) of
+    case findIndex (\w -> w ^. wdName == name) (us ^. usWallets) of
       Just i -> return (fromIntegral i)
       Nothing -> throwM $ WalletDoesNotExist name
   WalletRefByIndex i -> return i
@@ -99,26 +94,35 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef accountName = do
   wsWalletIndex <- resolveWalletRef walletSelRef runCardanoMode walletRef
   runCardanoMode $ do
     us <- getSecretDefault
-    case toList (us ^. usWallet) ^? ix (fromIntegral wsWalletIndex) of
+    case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> throwM $ WalletDoesNotExist (show wsWalletIndex)
-      Just wus -> do
-        let
-          addAccountPure :: [(Word32, Text)] -> [(Word32, Text)]
-          addAccountPure accounts =
-            accounts <> [(fromIntegral (length accounts), accountName)]
-          wus' = wus & wusAccounts %~ addAccountPure
-        modifySecretDefault $ usWallet .~ Just wus'
+      Just wd -> do
+        let addAccountPure :: Vector AccountData -> Vector AccountData
+            addAccountPure accounts =
+                accounts <>
+                one
+                    (AccountData
+                            { _adName = accountName
+                            , _adPath = fromIntegral (length accounts)
+                            , _adAddresses = mempty
+                            })
+            wd' = wd & wdAccounts %~ addAccountPure
+        modifySecretDefault $
+            usWallets . ix (fromIntegral wsWalletIndex) .= wd'
   walletRefreshUserSecret
 
 addWallet :: WalletFace -> (CardanoMode ~> IO) -> Text -> IO ()
 addWallet WalletFace{..} runCardanoMode walletName = do
-  runCardanoMode $ do
-    us <- getSecretDefault
-    let (newUS, added) = ensureWalletExists walletName us
-    if added
-      then modifySecretDefault (const newUS)
-      else throwM AtMost1WalletSupported
-  walletRefreshUserSecret
+    runCardanoMode $ modifySecretDefault (usWallets <>= one emptyWallet)
+    walletRefreshUserSecret
+  where
+    emptyWallet :: WalletData
+    emptyWallet =
+        WalletData
+            { _wdRootKey = noPassEncrypt $ runGen arbitrary
+            , _wdName = walletName
+            , _wdAccounts = mempty
+            }
 
 select
   :: WalletFace
@@ -135,18 +139,3 @@ select WalletFace{..} walletSelRef runCardanoMode mWalletRef wsPath = do
       atomicWriteIORef walletSelRef $ Just $
         WalletSelection { wsPath, wsWalletIndex }
   walletRefreshUserSecret
-
-ensureWalletExists :: Text -> UserSecret -> (UserSecret, Bool)
-ensureWalletExists walletName us =
-    case us ^. usWallet of
-        Just _ -> (us, False)
-        Nothing -> (us & usWallet .~ Just emptyWallet, True)
-  where
-    emptyWallet :: WalletUserSecret
-    emptyWallet =
-        WalletUserSecret
-            { _wusRootKey = noPassEncrypt $ runGen arbitrary
-            , _wusWalletName = walletName
-            , _wusAccounts = []
-            , _wusAddrs = []
-            }
