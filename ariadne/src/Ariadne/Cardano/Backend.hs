@@ -11,11 +11,11 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Protocol (WorkerSpec, OutSpecs, toAction, worker)
-import Pos.Core (headerHash, epochOrSlotG)
+import Pos.Communication.Protocol (OutSpecs, WorkerSpec, toAction, worker)
+import Pos.Core (epochOrSlotG, headerHash)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.Launcher
-import Pos.Slotting (MonadSlots (getCurrentSlot, getCurrentSlotInaccurate))
+import Pos.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Update (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)

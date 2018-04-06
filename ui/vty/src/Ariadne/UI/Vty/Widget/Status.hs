@@ -4,8 +4,8 @@ import Control.Lens (makeLensesWith, (.=))
 import Data.Text as Text
 import Universum
 
-import qualified Control.Monad.Trans.State as State
 import qualified Brick as B
+import qualified Control.Monad.Trans.State as State
 import qualified Graphics.Vty as V
 
 import IiExtras

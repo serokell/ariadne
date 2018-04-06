@@ -19,7 +19,7 @@ import Universum
 
 import Control.Monad.Trans.Reader (ReaderT)
 import Mockable (Production)
-import Pos.Core (EpochOrSlot(..), EpochIndex(..), SlotId(..), HeaderHash)
+import Pos.Core (EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..))
 import Pos.Util.UserSecret (UserSecret, WalletUserSecret(..), usWallet)
 import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
 
