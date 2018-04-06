@@ -9,6 +9,7 @@ import Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Text as Text
 import Data.Unique
+import Data.Monoid
 import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
   deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
@@ -111,16 +112,16 @@ drawReplOutputWidget _hasFocus replWidgetState =
           mkImg $ Width width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
           let
-            cmdInfo = drawCommandId commandId
+            cmdInfo = maybe "" (<> " ") (cmdIdRendered commandId)
+            prompt = V.text' V.defAttr "> "
           in
             V.vertCat
               [ V.horizCat
-                [ cmdInfo
-                , V.text' V.defAttr " "
-                , commandSrc (width - V.imageWidth cmdInfo - 1)
+                [ prompt
+                , commandSrc (width - V.imageWidth prompt)
                 ]
               , case mCommandOut of
-                  Nothing -> V.text' V.defAttr "<waiting for output>"
+                  Nothing -> V.text' V.defAttr $ cmdInfo <> "Waiting for result..."
                   Just mkImg -> mkImg $ Width width
               ]
       return $
@@ -174,9 +175,6 @@ inSpans spans (row, column) = inSpan
       Loc.fromTo
         (Loc.loc (fromIntegral row) (fromIntegral column))
         (Loc.loc (fromIntegral row) (fromIntegral column + 1))
-
-drawCommandId :: UiCommandId -> V.Image
-drawCommandId (UiCommandId _ t) = V.text' V.defAttr t
 
 data NavAction
   = NavArrowLeft

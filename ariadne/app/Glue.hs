@@ -57,7 +57,7 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdIdRendered = pack $ '<' : maybe "?" (\(TaskId i) -> show i) mi ++ ">"
+    , cmdIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
     }
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some

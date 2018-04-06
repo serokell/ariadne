@@ -31,7 +31,7 @@ data UiCommandId =
     -- mapping from actual command identifiers to text need not be injective,
     -- but it would be very unfair to the user, as different command identifiers
     -- would appear the same to her.
-    cmdIdRendered :: Text
+    cmdIdRendered :: Maybe Text
   }
 
 -- A REPL command has either finished or sent some information.
