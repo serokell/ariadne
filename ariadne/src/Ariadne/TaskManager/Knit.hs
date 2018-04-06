@@ -25,17 +25,12 @@ data instance ComponentValue _ TaskManager
 
 makePrisms 'ValueTaskId
 
-instance
-  ( Elem components TaskManager
-  , Elem components Core , AllConstrained (ComponentInflate components) components
-  ) => ComponentInflate components TaskManager
-  where
-    componentInflate (ValueTaskId cid)
-      = ExprLit $ toLit (LitTaskId cid)
+instance Elem components TaskManager => ComponentInflate components TaskManager where
+  componentInflate (ValueTaskId cid) =
+    ExprLit $ toLit (LitTaskId cid)
 
 data instance ComponentCommandRepr components TaskManager
-  = CommandPure (Value components)
-  | CommandAction (TaskManagerFace (Value components) -> IO (Value components))
+  = CommandAction (TaskManagerFace (Value components) -> IO (Value components))
 
 newtype instance ComponentExecContext _ components TaskManager =
   TaskManagerExecCtx (TaskManagerFace (Value components))
@@ -80,9 +75,8 @@ instance ComponentPrinter TaskManager where
   componentPpToken = \case
     TokenTaskId _ -> "task id"
 
-instance (MonadIO m, Show (Value components)) => ComponentCommandExec m components TaskManager where
+instance MonadIO m => ComponentCommandExec m components TaskManager where
   componentCommandExec (TaskManagerExecCtx face) = \case
-    CommandPure val -> return val
     CommandAction action -> liftIO $ action face
 
 instance
