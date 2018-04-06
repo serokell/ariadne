@@ -7,7 +7,7 @@ module Glue
        , putKnitEventToUI
 
          -- * Cardano ↔ Vty
-       , putLogMessage
+       , putCardanoEventToUI
 
          -- * Wallet ↔ Vty
        , walletEventToUI
@@ -105,9 +105,25 @@ putKnitEventToUI UiFace{..} ev =
 -- Glue between the Cardano backend and Vty frontend
 ----------------------------------------------------------------------------
 
-putLogMessage :: UiFace -> Text -> IO ()
-putLogMessage UiFace{..} message =
-  putUiEvent (UiCardanoLogEvent message)
+-- The 'Maybe' here is not used for now, but in the future might be, if some
+-- event couldn't be mapped to a UI event.
+cardanoEventToUI :: CardanoEvent -> Maybe UiEvent
+cardanoEventToUI = \case
+  CardanoLogEvent message ->
+    Just $ UiCardanoEvent $
+      UiCardanoLogEvent message
+  CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
+    Just $ UiCardanoEvent $
+      UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+        { tipHeaderHash = pretty tipHeaderHash
+        , tipSlot = pretty tipEpochOrSlot
+        , currentSlot = pretty currentSlot
+                     <> if isInaccurate then " (inaccurate)" else ""
+        }
+
+putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
+putCardanoEventToUI UiFace{..} ev =
+  whenJust (cardanoEventToUI ev) putUiEvent
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Vty frontend
