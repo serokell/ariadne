@@ -46,7 +46,11 @@ drawLogsWidget logsWidgetState =
           cropScrolling viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $
           V.vertCat $
           fmap drawLogMessage outElems
-        drawLogMessage (LogMessage message) = V.cropRight width (csiToVty message)
+        drawLogMessage (LogMessage message) =
+          V.cropRight width $
+          V.vertCat $
+          fmap csiToVty $
+          Text.lines message
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -62,4 +66,4 @@ handleLogsWidgetEvent = \case
   LogsScrollingEvent event -> do
     zoom logsWidgetScrollingOffsetL $ modify $ handleScrollingEvent event
   LogsMessage message -> do
-    zoom logsWidgetMessagesL $ modify (LogMessage message:)
+    zoom logsWidgetMessagesL $ modify $ (Prelude.take 1000) . (LogMessage message:)
