@@ -7,7 +7,6 @@ import Universum hiding (atomically)
 
 import Control.Exception
 import Data.Vinyl.TypeLevel
-import Control.Exception (handle)
 import IiExtras
 
 import Ariadne.Knit.Face
@@ -41,16 +40,16 @@ createKnitBackend execCtxs putKnitEvent TaskManagerFace{..} =
       Right expr' -> fmap Just . spawnTask $ \taskId -> do
         -- We catch asynchronous exceptions intentionally here to send them to UI and
         -- rethrow them afterwards.
-        res <- handle (\e -> return $ KnitCommandException e) $
-          either KnitCommandEvalError KnitCommandSuccess <$> do
-            Knit.evaluate execCtxs expr'
-        putKnitEvent $ KnitCommandResultEvent commandId (Just taskId) res
+        res <- try $ Knit.evaluate execCtxs expr'
+        let event = KnitCommandResultEvent commandId (Just taskId)
         case res of
-          KnitCommandEvalError e -> throwIO $ EvalErrorException (show $ Knit.ppEvalError e)
-          KnitCommandSuccess v -> return v
-          KnitCommandException e -> throwIO e
-          -- This case is impossible because procedure names are resolved outside of this code.
-          KnitCommandProcError _ -> error "impossible happened"
+          Left e -> do
+            putKnitEvent . event $ KnitCommandException e
+            throwIO e
+          Right (Left e) -> do
+            putKnitEvent . event $ KnitCommandEvalError e
+            throwIO $ EvalErrorException (show $ Knit.ppEvalError e)
+          Right (Right v) -> return v
   in KnitFace putCommand
   where
     commandProcs = Knit.commandProcs @components
