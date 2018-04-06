@@ -12,7 +12,7 @@ packages:
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: b632695b07270b27aba807afa96d81e3337f328e # ariadne branch
+    commit: 41702e06c319d698dbdeacb9bbe523632b9e9127 # ariadne branch
   extra-dep: true
   subdirs:
   - binary
@@ -102,6 +102,11 @@ packages:
     git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
+
+# Fix for EVP_CIPHER_CTX_init under OpenSSL 1.1
+- location:
+    git: https://github.com/serokell/cryptonite-openssl.git
+    commit: 5e91d14b54fbed5ef3fa7751f9e12c996458fdda
 
 extra-deps:
 
