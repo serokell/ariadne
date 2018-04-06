@@ -239,14 +239,10 @@ handleAppEvent langFace ev = do
           zoom appStateLogsL $
             handleLogsWidgetEvent $
               LogsMessage message
-        UiCardanoStatusTipEvent headerHash slot ->
+        UiCardanoStatusUpdateEvent statusUpdate ->
           zoom appStateStatusL $
             handleStatusWidgetEvent $
-              StatusUpdateTipEvent headerHash slot
-        UiCardanoStatusSlotEvent slot ->
-          zoom appStateStatusL $
-            handleStatusWidgetEvent $
-              StatusUpdateSlotEvent slot
+              StatusUpdateEvent statusUpdate
       return AppInProgress
     B.AppEvent (UiHelpUpdateData doc) -> do
         zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc

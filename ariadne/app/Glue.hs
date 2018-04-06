@@ -18,7 +18,7 @@ import Universum
 
 import Control.Exception (displayException)
 import Control.Lens (at, non)
-import Data.Text as T (pack, intercalate)
+import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
 import IiExtras
@@ -112,19 +112,14 @@ cardanoEventToUI = \case
   CardanoLogEvent message ->
     Just $ UiCardanoEvent $
       UiCardanoLogEvent message
-  CardanoTipUpdateEvent headerHash epochOrSlot ->
+  CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
     Just $ UiCardanoEvent $
-      UiCardanoStatusTipEvent (pretty headerHash) (eosToText epochOrSlot)
-  CardanoNewSlotEvent slotId ->
-    Just $ UiCardanoEvent $
-      UiCardanoStatusSlotEvent $ slotToText slotId
-  where
-    slotToText (SlotId ep sl) = T.intercalate ", "
-      [ "epoch #" <> (pretty $ getEpochIndex ep)
-      , "slot " <> pretty sl]
-    eosToText eos = case unEpochOrSlot eos of
-      (Left ep) -> "epoch #" <> (pretty $ getEpochIndex ep)
-      (Right sl) -> slotToText sl
+      UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+        { tipHeaderHash = pretty tipHeaderHash
+        , tipSlot = pretty tipEpochOrSlot
+        , currentSlot = pretty currentSlot
+                     <> if isInaccurate then " (inaccurate)" else ""
+        }
 
 putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
 putCardanoEventToUI UiFace{..} ev =

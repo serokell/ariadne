@@ -1,6 +1,6 @@
 module Ariadne.UI.Vty.Widget.Status where
 
-import Control.Lens (makeLensesWith, zoom)
+import Control.Lens (makeLensesWith, (.=))
 import Data.Text as Text
 import Universum
 
@@ -9,6 +9,8 @@ import qualified Brick as B
 import qualified Graphics.Vty as V
 
 import IiExtras
+
+import Ariadne.UI.Vty.Face
 
 data StatusWidgetState =
   StatusWidgetState
@@ -62,15 +64,13 @@ drawStatusWidget statusWidgetState =
           & B.imageL .~ img'
 
 data StatusWidgetEvent
-  = StatusUpdateTipEvent Text Text
-  | StatusUpdateSlotEvent Text
+  = StatusUpdateEvent UiCardanoStatusUpdate
 
 handleStatusWidgetEvent
   :: StatusWidgetEvent
   -> State.StateT StatusWidgetState IO ()
 handleStatusWidgetEvent = \case
-  StatusUpdateTipEvent headerHash slot -> do
-    zoom statusWidgetTipHeaderHashL $ State.modify $ const headerHash
-    zoom statusWidgetTipSlotL $ State.modify $ const slot
-  StatusUpdateSlotEvent slot -> do
-    zoom statusWidgetSlotL $ State.modify $ const slot
+  StatusUpdateEvent UiCardanoStatusUpdate{..} -> do
+    statusWidgetTipHeaderHashL .= tipHeaderHash
+    statusWidgetTipSlotL .= tipSlot
+    statusWidgetSlotL .= currentSlot

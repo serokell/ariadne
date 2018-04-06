@@ -11,13 +11,14 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Protocol (WorkerSpec, OutSpecs, toAction, onNewSlotWorker, worker)
+import Pos.Communication.Protocol (WorkerSpec, OutSpecs, toAction, worker)
 import Pos.Core (headerHash, epochOrSlotG)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.Launcher
+import Pos.Slotting (MonadSlots (getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Update (updateTriggerWorker)
 import Pos.Util (logException, sleep)
-import Pos.Util.CompileInfo (HasCompileInfo, retrieveCompileTimeInfo, withCompileInfo)
+import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
 
 import System.Wlog
@@ -72,24 +73,22 @@ runCardanoNode cardanoContextVar sendCardanoEvent = withCompileInfo $(retrieveCo
       let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
       let workers = updateTriggerWorker
                  <> extractionWorker
-                 <> statusReportingWorker sendCardanoEvent
-                 <> tipPollingWorker sendCardanoEvent
+                 <> statusPollingWorker sendCardanoEvent
       runNodeReal nodeParams sscParams workers
 
-statusReportingWorker
-  :: (HasConfigurations, HasCompileInfo)
-  => (CardanoEvent -> IO ())
-  -> ([WorkerSpec CardanoMode], OutSpecs)
-statusReportingWorker sendCardanoEvent =
-  first pure $ onNewSlotWorker True mempty $ \slotId _ ->
-    liftIO $ sendCardanoEvent $ CardanoNewSlotEvent slotId
-
-tipPollingWorker
+statusPollingWorker
   :: (HasConfigurations)
   => (CardanoEvent -> IO ())
   -> ([WorkerSpec CardanoMode], OutSpecs)
-tipPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
+statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
   forever $ do
+    currentSlot <- getCurrentSlot
+    currentSlotInaccurate <- getCurrentSlotInaccurate
     tipHeader <- DB.getTipHeader
-    liftIO $ sendCardanoEvent $ CardanoTipUpdateEvent (headerHash tipHeader) (tipHeader ^. epochOrSlotG)
+    liftIO $ sendCardanoEvent $ CardanoStatusUpdateEvent CardanoStatusUpdate
+      { tipHeaderHash = headerHash tipHeader
+      , tipEpochOrSlot = tipHeader ^. epochOrSlotG
+      , currentSlot = fromMaybe currentSlotInaccurate currentSlot
+      , isInaccurate = isNothing currentSlot
+      }
     sleep 1.0
