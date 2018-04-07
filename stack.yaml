@@ -111,6 +111,15 @@ packages:
     git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
+- location:
+    git: git@github.com:serokell/qtah.git
+    commit: 4486765dac00783f856d25f97dc4e2cb75427d2c
+  extra-dep: true
+  subdirs:
+  - qtah-generator
+  - qtah-cpp
+  - qtah
+
 
 extra-deps:
 
@@ -167,10 +176,7 @@ extra-deps:
 - named-0.1.0.0
 
 # Ariadne Qt GUI
-- qtah-qt5-0.4.0
 - hoppy-runtime-0.4.0
-- qtah-cpp-qt5-0.4.0
-- qtah-generator-0.4.0
 - hoppy-generator-0.4.0
 - hoppy-std-0.4.0
 - haskell-src-1.0.2.0   # https://github.com/commercialhaskell/stack/issues/3151
@@ -180,3 +186,9 @@ extra-package-dbs: []
 nix:
   shell-file: shell.nix
   pure: true
+
+flags:
+  qtah:
+    qt5: true
+  qtah-cpp:
+    qt5: true

@@ -18,16 +18,27 @@ library
   build-depends:
       base >=4.7 && <5
     , universum
+    , text
     , ansi-wl-pprint
-    , brick
     , containers
     , hoppy-runtime
     , loc
-    , qtah-qt5
+    , qtah
+    , stm
+    , extra
+    , ansi-terminal
+    , formatting
+    , lens
+    , ii-extras
 
   exposed-modules:
       Ariadne.UI.Qt
       Ariadne.UI.Qt.Face
+  other-modules:
+      Ariadne.UI.Qt.MainWindow
+      Ariadne.UI.Qt.MainWindow.Ui
+      Ariadne.UI.Qt.MainWindow.Slots
+      Ariadne.UI.Qt.MainWindow.Events
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
