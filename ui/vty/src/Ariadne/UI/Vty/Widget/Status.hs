@@ -45,8 +45,7 @@ drawStatusWidget statusWidgetState =
 
         backStatusAttr =
           V.defAttr
-            `V.withForeColor` V.black
-            `V.withBackColor` V.white
+            `V.withStyle` V.reverseVideo
 
         fill n = V.charFill @Int backStatusAttr ' ' n 1
 
