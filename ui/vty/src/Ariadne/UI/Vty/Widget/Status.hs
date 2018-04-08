@@ -32,7 +32,7 @@ drawStatusWidget
   :: StatusWidgetState
   -> B.Widget name
 drawStatusWidget statusWidgetState =
-  B.Widget
+  B.padTop (B.Pad 1) B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render

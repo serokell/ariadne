@@ -147,7 +147,6 @@ drawAppWidget AppState{..} =
     drawDefaultView =
       B.vBox
         [ drawMenu
-        , drawStatus
         , B.hBox
             [ padLR drawWalletTree
             , B.vBorder
@@ -155,15 +154,16 @@ drawAppWidget AppState{..} =
             ]
         , B.hBorder
         , drawRepl
+        , drawStatus
         ]
     drawHelp =
       drawHelpWidget appStateHelp
     drawHelpView =
-      B.vBox [drawMenu, drawStatus, drawHelp]
+      B.vBox [drawMenu, drawHelp, drawStatus]
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
-      B.vBox [drawMenu, drawStatus, drawLogs]
+      B.vBox [drawMenu, drawLogs, drawStatus]
   in
     case (menuWidgetSel appStateMenu) of
       AppSelectorHelp -> [drawHelpView]

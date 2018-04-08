@@ -28,7 +28,7 @@ initHelpWidget = HelpWidgetState
 
 drawHelpWidget :: HelpWidgetState -> B.Widget name
 drawHelpWidget helpWidgetState =
-  B.Widget
+  B.padBottom B.Max $ B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
@@ -37,7 +37,7 @@ drawHelpWidget helpWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        viewportHeight = (rdrCtx ^. B.availHeightL) - 1
+        viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
           cropScrolling viewportHeight (helpWidgetState ^. helpWidgetScrollingOffsetL) $

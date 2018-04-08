@@ -89,7 +89,7 @@ drawReplOutputWidget
   -> ReplWidgetState
   -> B.Widget name
 drawReplOutputWidget _hasFocus replWidgetState =
-  B.Widget
+  B.padBottom B.Max B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
@@ -99,7 +99,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        viewportHeight = (rdrCtx ^. B.availHeightL) - 1
+        viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
           cropScrolling viewportHeight (replWidgetState ^. replWidgetScrollingOffsetL) $
