@@ -30,7 +30,7 @@ initLogsWidget = LogsWidgetState
 
 drawLogsWidget :: LogsWidgetState -> B.Widget name
 drawLogsWidget logsWidgetState =
-  B.Widget
+  B.padTop B.Max $ B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
@@ -40,7 +40,7 @@ drawLogsWidget logsWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        viewportHeight = (rdrCtx ^. B.availHeightL) - 1
+        viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
           cropScrolling viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $

@@ -32,7 +32,7 @@ drawStatusWidget
   :: StatusWidgetState
   -> B.Widget name
 drawStatusWidget statusWidgetState =
-  B.Widget
+  B.padTop (B.Pad 1) B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render
@@ -45,8 +45,7 @@ drawStatusWidget statusWidgetState =
 
         backStatusAttr =
           V.defAttr
-            `V.withForeColor` V.black
-            `V.withBackColor` V.white
+            `V.withStyle` V.reverseVideo
 
         fill n = V.charFill @Int backStatusAttr ' ' n 1
 

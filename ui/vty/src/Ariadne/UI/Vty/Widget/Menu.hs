@@ -72,18 +72,14 @@ drawMenuWidget appStateNavigationMode textElem menuWidgetState =
         drawElemSelectMode j x =
           let
             attr
-              | i == j =
-                V.defAttr
-                  `V.withForeColor` V.white
-                  `V.withBackColor` V.black
+              | i == j = V.defAttr
               | otherwise = backMenuAttr
           in
             V.text' attr (textElem x)
 
         backMenuAttr =
           V.defAttr
-            `V.withForeColor` V.black
-            `V.withBackColor` V.white
+            `V.withStyle` V.reverseVideo
 
         fill n = V.charFill @Int backMenuAttr ' ' n 1
 
