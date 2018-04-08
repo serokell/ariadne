@@ -149,10 +149,10 @@ drawAppWidget AppState{..} =
         [ drawMenu
         , B.hBox
             [ padLR drawWalletTree
-            , B.vBorder
+            , B.joinBorders B.vBorder
             , padLR drawWalletPane
             ]
-        , B.hBorder
+        , B.joinBorders B.hBorder
         , drawRepl
         , drawStatus
         ]
