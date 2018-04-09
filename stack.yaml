@@ -12,7 +12,7 @@ packages:
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: 41702e06c319d698dbdeacb9bbe523632b9e9127 # ariadne branch
+    commit: 3c074adc20afb1bfa43e8fa510a3a158e5e24867 # ariadne branch
   extra-dep: true
   subdirs:
   - binary
@@ -103,11 +103,6 @@ packages:
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
 
-# Fix for EVP_CIPHER_CTX_init under OpenSSL 1.1
-- location:
-    git: https://github.com/serokell/cryptonite-openssl.git
-    commit: 5e91d14b54fbed5ef3fa7751f9e12c996458fdda
-
 extra-deps:
 
 # Cardano SL
@@ -147,6 +142,8 @@ extra-deps:
 - lens-sop-0.2.0.2
 - json-sop-0.2.0.3
 - servant-generic-0.1.0.1
+- cryptonite-openssl-0.7
+- basement-0.0.7
 
 # Ariadne
 - loc-0.1.3.2
