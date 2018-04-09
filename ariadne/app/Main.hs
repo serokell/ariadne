@@ -3,6 +3,7 @@ module Main where
 import Control.Concurrent.Async
 import IiExtras
 import Prelude
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
 import Ariadne.Help
@@ -22,7 +23,7 @@ main = do
   (uiFace, mkUiAction) <- createAriadneUI
   (knitFace, mkKnitAction) <- createKnitBackend
   (runCardanoMode, mkCardanoAction) <- createCardanoBackend
-  mkWalletFace <- createWalletBackend
+  mkWallet <- createWalletBackend
   let
     uiAction, knitAction, cardanoAction :: IO ()
     uiAction = mkUiAction (knitFaceToUI knitFace)
@@ -30,9 +31,15 @@ main = do
     cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
 
     walletFace :: WalletFace
-    walletFace = mkWalletFace runCardanoMode (putWalletEventToUI uiFace)
+    walletInitAction :: IO ()
+    (walletFace, walletInitAction) =
+      mkWallet runCardanoMode (putWalletEventToUI uiFace)
 
+    helpData :: [Doc]
     helpData = generateKnitHelp $ relemsproxy knitExecContext
+
+    helpInitAction :: IO ()
+    helpInitAction = putUiEvent uiFace $ UiHelpUpdateData helpData
 
     knitExecContext :: Rec Knit.ComponentExecContext _
     knitExecContext =
@@ -41,5 +48,10 @@ main = do
       Knit.WalletExecCtx walletFace :&
       RNil
 
-  putUiEvent uiFace $ UiHelpUpdateData helpData
-  uiAction `race_` knitAction `race_` cardanoAction
+    initAction :: IO ()
+    initAction = concurrently_ walletInitAction helpInitAction
+
+    serviceAction :: IO ()
+    serviceAction = uiAction `race_` knitAction `race_` cardanoAction
+
+  concurrently_ initAction serviceAction

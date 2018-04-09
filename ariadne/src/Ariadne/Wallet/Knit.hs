@@ -66,30 +66,47 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-           walletRefreshUserSecret
-           return $ toValue ValueUnit
+            walletRefreshUserSecret
+            return $ toValue ValueUnit
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
         { cpName = "add-account"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-           walletAddAccount
-           return $ toValue ValueUnit
+        , cpArgumentConsumer = do
+            walletRef <-
+              maybe WalletRefSelection (either WalletRefByName WalletRefByIndex) <$>
+              getArgOpt (tyString `tyEither` tyWord) "wallet"
+            name <- fromMaybe "new account" <$> getArgOpt tyString "name"
+            pure (walletRef, name)
+        , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
+            walletAddAccount walletRef name
+            return $ toValue ValueUnit
         , cpHelp = "Add an account to the specified wallet. When no wallet \
                    \is specified, uses the selected wallet."
+        }
+    , CommandProc
+        { cpName = "add-wallet"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer =
+            fromMaybe "new wallet" <$> getArgOpt tyString "name"
+        , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
+            walletAddWallet name
+            return $ toValue ValueUnit
+        , cpHelp = "Create a new wallet."
         }
     , CommandProc
         { cpName = "select"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            wsaWalletIndex <- getArg tyWord "wallet"
-            wsaPath <- getArgMany tyWord "a" -- account or address
-            return WalletSelectByIndex{..}
-        , cpRepr = \wsa -> CommandAction $ \WalletFace{..} -> do
-            walletSelect wsa
+            walletRef <-
+              either WalletRefByName WalletRefByIndex <$>
+              getArg (tyString `tyEither` tyWord) "wallet"
+            path <- getArgMany tyWord "a" -- account or address
+            return (walletRef, path)
+        , cpRepr = \(walletRef, path) -> CommandAction $ \WalletFace{..} -> do
+            walletSelect (Just walletRef) path
             return $ toValue ValueUnit
-        , cpHelp = "Select a wallet by index."
+        , cpHelp = "Select a wallet, account, or address."
         }
     ]

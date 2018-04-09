@@ -232,6 +232,9 @@ tyBool = TyProjection "Bool" (preview _ValueBool <=< fromValue)
 tyFilePath :: Elem components Core => TyProjection components FilePath
 tyFilePath = TyProjection "FilePath" (preview _ValueFilePath <=< fromValue)
 
+tyString :: Elem components Core => TyProjection components Text
+tyString = TyProjection "String" (preview _ValueString <=< fromValue)
+
 tyInt :: Elem components Core => TyProjection components Int
 tyInt = TyProjection "Int" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
 

@@ -104,6 +104,7 @@ library
       PolyKinds
       RankNTypes
       RecordWildCards
+      NamedFieldPuns
       RecursiveDo
       ScopedTypeVariables
       StandaloneDeriving
@@ -167,6 +168,7 @@ executable ariadne
       PolyKinds
       RankNTypes
       RecordWildCards
+      NamedFieldPuns
       RecursiveDo
       ScopedTypeVariables
       StandaloneDeriving
