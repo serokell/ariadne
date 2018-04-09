@@ -18,18 +18,31 @@ import IiExtras
 
 data MenuWidgetState a =
   MenuWidgetState
-    { menuWidgetElems :: Vector a
+    { menuWidgetElems :: Vector (MenuWidgetItem a)
     , menuWidgetSelection :: Int -- invariant: (`mod` length xs)
     }
 
+data MenuWidgetItem a =
+  MenuWidgetItem
+    { menuWidgetItemSelector :: a
+    , menuWidgetItemText :: Text
+    , menuWidgetItemKey :: Char
+    }
+
 makeLensesWith postfixLFields ''MenuWidgetState
+makeLensesWith postfixLFields ''MenuWidgetItem
 
 menuWidgetSel :: MenuWidgetState a -> a
 menuWidgetSel MenuWidgetState{..} =
   -- the lookup is safe due to the invariant on 'menuWidgetSelection'
-  menuWidgetElems Vector.! menuWidgetSelection
+  menuWidgetItemSelector $ menuWidgetElems Vector.! menuWidgetSelection
 
-initMenuWidget :: NonEmpty a -> Int -> MenuWidgetState a
+menuWidgetCharToSel :: Char -> MenuWidgetState a -> Maybe a
+menuWidgetCharToSel key MenuWidgetState{..} =
+  view menuWidgetItemSelectorL <$> Vector.find ((== key) . menuWidgetItemKey) menuWidgetElems
+
+
+initMenuWidget :: NonEmpty (MenuWidgetItem a) -> Int -> MenuWidgetState a
 initMenuWidget xs i =
   fix $ \this -> MenuWidgetState
     { menuWidgetElems = Vector.fromList (NonEmpty.toList xs)
@@ -38,10 +51,9 @@ initMenuWidget xs i =
 
 drawMenuWidget
   :: Bool
-  -> (a -> Text)
   -> MenuWidgetState a
   -> B.Widget name
-drawMenuWidget appStateNavigationMode textElem menuWidgetState =
+drawMenuWidget appStateNavigationMode menuWidgetState =
   B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
@@ -61,7 +73,7 @@ drawMenuWidget appStateNavigationMode textElem menuWidgetState =
 
         drawElemNavMode _ x =
           let
-            selectorText = textElem x
+            selectorText = menuWidgetItemText x
             firstLetter
               | T.null selectorText = error "Bug: empty title"
               | otherwise = (T.singleton . T.head) selectorText
@@ -75,7 +87,7 @@ drawMenuWidget appStateNavigationMode textElem menuWidgetState =
               | i == j = V.defAttr
               | otherwise = backMenuAttr
           in
-            V.text' attr (textElem x)
+            V.text' attr (menuWidgetItemText x)
 
         backMenuAttr =
           V.defAttr
@@ -116,5 +128,5 @@ handleMenuWidgetEvent ev = do
     MenuNextEvent -> modifySelection succ
     MenuPrevEvent -> modifySelection pred
     MenuSelectEvent p -> do
-      mI <- uses menuWidgetElemsL (Vector.findIndex p)
+      mI <- uses menuWidgetElemsL (Vector.findIndex (p . menuWidgetItemSelector))
       for_ mI (menuWidgetSelectionL .=)
