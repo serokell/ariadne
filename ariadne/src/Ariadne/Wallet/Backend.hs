@@ -3,6 +3,7 @@ module Ariadne.Wallet.Backend
   , createWalletBackend
   ) where
 
+import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
 import Data.List (findIndex)
 import Universum
@@ -42,17 +43,21 @@ createWalletBackend = do
 data NoWalletSelection = NoWalletSelection
   deriving (Eq, Show)
 
-instance Exception NoWalletSelection
+instance Exception NoWalletSelection where
+  displayException NoWalletSelection =
+    "Select or specify a wallet to perform this operation."
 
 data AtMost1WalletSupported = AtMost1WalletSupported
   deriving (Eq, Show)
 
 instance Exception AtMost1WalletSupported
 
-data WalletDoesNotExist = WalletDoesNotExist
+data WalletDoesNotExist = WalletDoesNotExist Text
   deriving (Eq, Show)
 
-instance Exception WalletDoesNotExist
+instance Exception WalletDoesNotExist where
+  displayException (WalletDoesNotExist t) =
+    "The wallet " ++ show t ++ " does not exist."
 
 -- | Get the wallet index by name or using current selection.
 resolveWalletRef
@@ -70,7 +75,7 @@ resolveWalletRef walletSelRef runCardanoMode = \case
     us <- runCardanoMode getSecretDefault
     case findIndex (\w -> w ^. wusWalletName == name) (toList (us ^. usWallet)) of
       Just i -> return (fromIntegral i)
-      Nothing -> throwM WalletDoesNotExist
+      Nothing -> throwM $ WalletDoesNotExist name
   WalletRefByIndex i -> return i
 
 refreshUserSecret
@@ -95,7 +100,7 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef accountName = do
   runCardanoMode $ do
     us <- getSecretDefault
     case toList (us ^. usWallet) ^? ix (fromIntegral wsWalletIndex) of
-      Nothing -> throwM WalletDoesNotExist
+      Nothing -> throwM $ WalletDoesNotExist (show wsWalletIndex)
       Just wus -> do
         let
           addAccountPure :: [(Word32, Text)] -> [(Word32, Text)]
