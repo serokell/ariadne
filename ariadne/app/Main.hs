@@ -48,10 +48,10 @@ main = do
       Knit.TaskManagerExecCtx taskManagerFace :&
       RNil
 
-    knitFace = createKnitBackend knitExecContext (putKnitEventToUI uiFace) taskManagerFace
+    knitFace = createKnitBackend knitExecContext taskManagerFace
 
     uiAction, cardanoAction :: IO ()
-    uiAction = mkUiAction (knitFaceToUI knitFace)
+    uiAction = mkUiAction (knitFaceToUI uiFace knitFace)
     cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
 
     initAction :: IO ()

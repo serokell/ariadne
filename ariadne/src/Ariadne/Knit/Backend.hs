@@ -24,30 +24,27 @@ type Components components =
   )
 
 createKnitBackend
-  :: forall commandid components.
+  :: forall components.
      Components components
   => Knit.ExecContext components
-  -> (KnitEvent commandid components -> IO ())
   -> TaskManagerFace (Knit.Value components)
-  -> KnitFace commandid components
-createKnitBackend execCtxs putKnitEvent TaskManagerFace{..} =
+  -> KnitFace components
+createKnitBackend execCtxs TaskManagerFace{..} =
   let
-    putCommand commandId expr = case resolveProcNames expr of
+    putCommand KnitCommandHandle{..} expr = case resolveProcNames expr of
       Left e -> do
-        putKnitEvent $ KnitCommandResultEvent commandId Nothing $
-          KnitCommandProcError e
+        putCommandResult Nothing $ KnitCommandProcError e
         return Nothing
       Right expr' -> fmap Just . spawnTask $ \taskId -> do
         -- We catch asynchronous exceptions intentionally here to send them to UI and
         -- rethrow them afterwards.
         res <- try $ Knit.evaluate execCtxs expr'
-        let event = KnitCommandResultEvent commandId (Just taskId)
         case res of
           Left e -> do
-            putKnitEvent . event $ KnitCommandException e
+            putCommandResult (Just taskId) $ KnitCommandException e
             throwIO e
           Right (Left e) -> do
-            putKnitEvent . event $ KnitCommandEvalError e
+            putCommandResult (Just taskId) $ KnitCommandEvalError e
             throwIO $ EvalErrorException (show $ Knit.ppEvalError e)
           Right (Right v) -> return v
   in KnitFace putCommand

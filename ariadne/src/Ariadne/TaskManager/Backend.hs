@@ -5,6 +5,7 @@ import Universum
 import Control.Lens as L
 import Data.Map as Map
 import Control.Concurrent.Async
+import IiExtras
 
 import Ariadne.TaskManager.Face
 
@@ -30,7 +31,7 @@ createTaskManagerFace = do
     spawnTask action = do
       taskId <- idGen
       a <- async $ action taskId
-      runStateIORef taskMapVar $ taskAsyncMap . at taskId .= Just a
+      atomicRunStateIORef' taskMapVar $ taskAsyncMap . at taskId .= Just a
       -- Wait for the task to finish and clean it up
       void . async $ do
         r <- waitCatch a
@@ -41,7 +42,7 @@ createTaskManagerFace = do
     lookupTask taskId = (Map.lookup taskId . _taskAsyncMap) <$> readIORef taskMapVar
 
     removeTask :: TaskId -> (Either SomeException v) -> IO ()
-    removeTask taskId r = runStateIORef taskMapVar $ do
+    removeTask taskId r = atomicRunStateIORef' taskMapVar $ do
       taskMap <- taskAsyncMap <%= delete taskId
       if Map.null taskMap
       then resultCacheMap .= Map.empty
@@ -51,7 +52,3 @@ createTaskManagerFace = do
     lookupCache taskId = (Map.lookup taskId . _resultCacheMap) <$> readIORef taskMapVar
 
   return TaskManagerFace{..}
-  where
-    runStateIORef :: IORef s -> State s a -> IO a
-    runStateIORef ref m = atomicModifyIORef' ref (swapTuple . runState m)
-    swapTuple (x, y) = (y, x)
