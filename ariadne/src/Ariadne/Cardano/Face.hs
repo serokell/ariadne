@@ -3,6 +3,7 @@ module Ariadne.Cardano.Face
        , CardanoMode
        , CardanoStatusUpdate (..)
        , CardanoEvent (..)
+       , CardanoFace (..)
 
        -- * Re-exports from Cardano
        , EpochOrSlot (..)
@@ -10,6 +11,10 @@ module Ariadne.Cardano.Face
        , SlotId (..)
        , HeaderHash
        , Address
+       , TxOut (..)
+       , PassPhrase
+       , HasConfigurations
+       , HasCompileInfo
 
        , AccountData (..)
        , WalletData (..)
@@ -20,9 +25,15 @@ module Ariadne.Cardano.Face
 import Universum
 
 import Control.Monad.Trans.Reader (ReaderT)
+import Data.Constraint (Dict(..))
+import IiExtras
 import Mockable (Production)
+import Pos.Communication.Protocol (SendActions)
 import Pos.Core
-  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..))
+  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxOut(..))
+import Pos.Crypto (PassPhrase)
+import Pos.Launcher (HasConfigurations)
+import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.UserSecret
   (AccountData(..), UserSecret, WalletData(..), usWallets)
 import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
@@ -45,3 +56,10 @@ data CardanoEvent
 type CardanoContext = RealModeContext EmptyMempoolExt
 
 type CardanoMode = ReaderT CardanoContext Production
+
+data CardanoFace = CardanoFace
+    { cardanoRunCardanoMode :: CardanoMode :~> IO
+    , cardanoConfigurations :: Dict HasConfigurations
+    , cardanoCompileInfo :: Dict HasCompileInfo
+    , cardanoGetSendActions :: CardanoMode (SendActions CardanoMode)
+    }

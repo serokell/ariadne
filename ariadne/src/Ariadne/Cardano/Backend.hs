@@ -2,6 +2,7 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 
 import Universum
 
+import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import IiExtras
 import Mockable (runProduction)
@@ -11,7 +12,8 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Protocol (OutSpecs, WorkerSpec, toAction, worker)
+import Pos.Communication.Protocol
+  (OutSpecs, SendActions, WorkerSpec, toAction, worker)
 import Pos.Core (epochOrSlotG, headerHash)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.Launcher
@@ -27,20 +29,8 @@ import System.Wlog
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: IO (CardanoMode :~> IO, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend :: IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend = do
-  cardanoContextVar <- newEmptyMVar
-  return
-    ( Nat (runCardanoMode cardanoContextVar)
-    , runCardanoNode cardanoContextVar )
-
-runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
-runCardanoMode cardanoContextVar act = do
-  cardanoContext <- readMVar cardanoContextVar
-  runProduction $ runReaderT act cardanoContext
-
-runCardanoNode :: MVar CardanoContext -> (CardanoEvent -> IO ()) -> IO ()
-runCardanoNode cardanoContextVar sendCardanoEvent = withCompileInfo $(retrieveCompileTimeInfo) $ do
   let (Success commonArgs) =
         execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc)
           [ "--db-path", "db-mainnet"
@@ -53,7 +43,33 @@ runCardanoNode cardanoContextVar sendCardanoEvent = withCompileInfo $(retrieveCo
           , "--keyfile", "secret-mainnet.key"
           , "--configuration-key", "mainnet_full"
           ]
-      loggingParams = CLI.loggingParams "ariadne" commonArgs
+  cardanoContextVar <- newEmptyMVar
+  sendActionsVar <- newEmptyMVar
+  runProduction $
+      withCompileInfo $(retrieveCompileTimeInfo) $
+      withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $
+      return (CardanoFace
+          { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
+          , cardanoConfigurations = Dict
+          , cardanoCompileInfo = Dict
+          , cardanoGetSendActions = getSendActions sendActionsVar
+          }
+          , runCardanoNode cardanoContextVar sendActionsVar commonArgs)
+
+runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
+runCardanoMode cardanoContextVar act = do
+  cardanoContext <- readMVar cardanoContextVar
+  runProduction $ runReaderT act cardanoContext
+
+runCardanoNode ::
+       (HasConfigurations, HasCompileInfo)
+    => MVar CardanoContext
+    -> MVar (SendActions CardanoMode)
+    -> CLI.CommonNodeArgs
+    -> (CardanoEvent -> IO ())
+    -> IO ()
+runCardanoNode cardanoContextVar sendActionsVar commonArgs sendCardanoEvent = do
+  let loggingParams = CLI.loggingParams "ariadne" commonArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
           let cfgBuilder = showTidB
@@ -64,10 +80,11 @@ runCardanoNode cardanoContextVar sendCardanoEvent = withCompileInfo $(retrieveCo
           pure $ cfg <> cfgBuilder
       nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
       extractionWorker =
-        ( [toAction $ \_sendActions -> ask >>= putMVar cardanoContextVar]
+        ( [toAction $ \sendActions -> do
+              ask >>= putMVar cardanoContextVar
+              putMVar sendActionsVar sendActions]
         , mempty )
-  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ runProduction $
-    withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $ do
+  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ runProduction $ do
       nodeParams <- CLI.getNodeParams "ariadne" commonArgs nodeArgs
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
@@ -92,3 +109,7 @@ statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
       , isInaccurate = isNothing currentSlot
       }
     sleep 1.0
+
+getSendActions ::
+       MVar (SendActions CardanoMode) -> CardanoMode (SendActions CardanoMode)
+getSendActions = readMVar

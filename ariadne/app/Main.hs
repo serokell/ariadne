@@ -6,17 +6,17 @@ import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
-
-import Ariadne.TaskManager.Backend
+import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Help
 import Ariadne.Knit.Backend
+import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
-import qualified Ariadne.Wallet.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
+import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
 import Glue
@@ -24,7 +24,9 @@ import Glue
 main :: IO ()
 main = do
   (uiFace, mkUiAction) <- createAriadneUI
-  (runCardanoMode, mkCardanoAction) <- createCardanoBackend
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend
+  let CardanoFace { cardanoRunCardanoMode = runCardanoMode
+                  } = cardanoFace
   taskManagerFace <- createTaskManagerFace
   mkWallet <- createWalletBackend
 
@@ -32,7 +34,7 @@ main = do
     walletFace :: WalletFace
     walletInitAction :: IO ()
     (walletFace, walletInitAction) =
-      mkWallet runCardanoMode (putWalletEventToUI uiFace)
+      mkWallet cardanoFace (putWalletEventToUI uiFace)
 
     helpData :: [Doc]
     helpData = generateKnitHelp $ relemsproxy knitExecContext
