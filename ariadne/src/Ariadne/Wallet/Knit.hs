@@ -103,12 +103,15 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = "add-wallet"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer =
-            fromMaybe "new wallet" <$> getArgOpt tyString "name"
-        , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
-            walletAddWallet name
-            return $ toValue ValueUnit
-        , cpHelp = "Create a new wallet."
+        , cpArgumentConsumer = do
+            passPhrase <- getPassPhraseArg
+            name <- fromMaybe "new wallet" <$> getArgOpt tyString "name"
+            return (passPhrase, name)
+        , cpRepr = \(passPhrase, name) -> CommandAction $ \WalletFace{..} -> do
+            mnemonic <- walletAddWallet passPhrase name
+            return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
+        , cpHelp = "Create a new wallet. \
+                   \The result is the mnemonic to restore this wallet."
         }
     , CommandProc
         { cpName = "select"

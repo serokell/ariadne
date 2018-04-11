@@ -27,9 +27,8 @@ import IiExtras
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
 import Pos.Crypto
-import Pos.Util (eitherToThrow, maybeThrow, runGen)
+import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
-import Test.QuickCheck (arbitrary)
 
 import Ariadne.Wallet.Face
 
@@ -206,18 +205,20 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef accountName = do
             usWallets . ix (fromIntegral wsWalletIndex) .= wd'
   walletRefreshUserSecret
 
-addWallet :: WalletFace -> (CardanoMode ~> IO) -> Text -> IO ()
-addWallet WalletFace{..} runCardanoMode walletName = do
+addWallet :: WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Text -> IO [Text]
+addWallet WalletFace{..} runCardanoMode pp walletName = do
+    let mnemonic = ["patak"]
+    seed <- secureRandomBS 32  -- TODO: use mnemonic!
+    let (_, esk) = safeDeterministicKeyGen seed pp
+    let emptyWallet :: WalletData
+        emptyWallet =
+            WalletData
+                { _wdRootKey = esk
+                , _wdName = walletName
+                , _wdAccounts = mempty
+                }
     runCardanoMode $ modifySecretDefault (usWallets <>= one emptyWallet)
-    walletRefreshUserSecret
-  where
-    emptyWallet :: WalletData
-    emptyWallet =
-        WalletData
-            { _wdRootKey = noPassEncrypt $ runGen arbitrary
-            , _wdName = walletName
-            , _wdAccounts = mempty
-            }
+    mnemonic <$ walletRefreshUserSecret
 
 select
   :: WalletFace
