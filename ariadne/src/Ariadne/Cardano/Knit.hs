@@ -337,7 +337,7 @@ instance ComponentLitToValue components Cardano where
     LitHash x -> ValueHash x
     LitBlockVersion x -> ValueBlockVersion x
 
-newtype instance ComponentExecContext Cardano =
+newtype instance ComponentExecContext _ Cardano =
   CardanoExecCtx (CardanoMode ~> IO)
 
 instance MonadIO m => ComponentCommandExec m components Cardano where

@@ -5,7 +5,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-import Ariadne.CommandId
+import Ariadne.TaskManager.Face
 import qualified Knit
 
 -- The result of executing a knit command.
@@ -19,16 +19,19 @@ data KnitCommandResult components
 -- UI-compatible events in the 'Glue' module. They must be independent from the
 -- UI and capture /what the backend can generate/, not what the frontend can
 -- handle.
-data KnitEvent components
-  = KnitCommandResultEvent CommandId (KnitCommandResult components)
-  | KnitCommandOutputEvent CommandId Doc
+
+data KnitCommandHandle components
+  = KnitCommandHandle
+  { putCommandResult :: (Maybe TaskId) -> KnitCommandResult components -> IO ()
+  , putCommandOutput :: TaskId -> Doc -> IO ()
+  }
 
 -- API for the knit interpreter.
-data KnitFace components =
+newtype KnitFace components =
   KnitFace
     {
       -- Execute a knit expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
-      putKnitCommand :: Knit.Expr Knit.CommandName components -> IO CommandId
+      putKnitCommand :: KnitCommandHandle components -> Knit.Expr Knit.CommandName components -> IO (Maybe TaskId)
     }

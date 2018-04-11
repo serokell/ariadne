@@ -6,6 +6,8 @@ import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
+
+import Ariadne.TaskManager.Backend
 import Ariadne.Help
 import Ariadne.Knit.Backend
 import Ariadne.UI.Vty
@@ -14,6 +16,7 @@ import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
+import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Knit
 
 import Glue
@@ -21,15 +24,11 @@ import Glue
 main :: IO ()
 main = do
   (uiFace, mkUiAction) <- createAriadneUI
-  (knitFace, mkKnitAction) <- createKnitBackend
   (runCardanoMode, mkCardanoAction) <- createCardanoBackend
+  taskManagerFace <- createTaskManagerFace
   mkWallet <- createWalletBackend
-  let
-    uiAction, knitAction, cardanoAction :: IO ()
-    uiAction = mkUiAction (knitFaceToUI knitFace)
-    knitAction = mkKnitAction knitExecContext (putKnitEventToUI uiFace)
-    cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
 
+  let
     walletFace :: WalletFace
     walletInitAction :: IO ()
     (walletFace, walletInitAction) =
@@ -41,17 +40,24 @@ main = do
     helpInitAction :: IO ()
     helpInitAction = putUiEvent uiFace $ UiHelpUpdateData helpData
 
-    knitExecContext :: Rec Knit.ComponentExecContext _
+    knitExecContext :: Rec (Knit.ComponentExecContext _) _
     knitExecContext =
       Knit.CoreExecCtx :&
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx walletFace :&
+      Knit.TaskManagerExecCtx taskManagerFace :&
       RNil
+
+    knitFace = createKnitBackend knitExecContext taskManagerFace
+
+    uiAction, cardanoAction :: IO ()
+    uiAction = mkUiAction (knitFaceToUI uiFace knitFace)
+    cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
 
     initAction :: IO ()
     initAction = concurrently_ walletInitAction helpInitAction
 
     serviceAction :: IO ()
-    serviceAction = uiAction `race_` knitAction `race_` cardanoAction
+    serviceAction = uiAction `race_` cardanoAction
 
   concurrently_ initAction serviceAction

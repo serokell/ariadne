@@ -55,6 +55,7 @@ library
     , stm
     , text
     , temporary
+    , ii-extras
     , universum
     , vector
     , word-wrap
@@ -71,6 +72,9 @@ library
     , ii-extras
     , QuickCheck
   exposed-modules:
+      Ariadne.TaskManager.Knit
+      Ariadne.TaskManager.Backend
+      Ariadne.TaskManager.Face
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
@@ -79,7 +83,6 @@ library
       Ariadne.Wallet.Face
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
-      Ariadne.CommandId
       Ariadne.Help
   default-extensions:
       ApplicativeDo
