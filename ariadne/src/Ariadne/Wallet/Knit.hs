@@ -1,9 +1,15 @@
 module Ariadne.Wallet.Knit where
 
-import IiExtras
-import Text.Earley
 import Universum
 
+import qualified Data.ByteArray as ByteArray
+
+import IiExtras
+import Pos.Crypto.Hashing (hashRaw)
+import Pos.Crypto.Signing (emptyPassphrase)
+import Text.Earley
+
+import Ariadne.Cardano.Knit (Cardano, tyTxOut)
 import Ariadne.Wallet.Face
 
 import Knit
@@ -58,7 +64,8 @@ instance MonadIO m => ComponentCommandExec m components Wallet where
   componentCommandExec (WalletExecCtx walletFace) (CommandAction act) =
     liftIO $ act walletFace
 
-instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs components Wallet where
+instance (Elem components Wallet, Elem components Core, Elem components Cardano) =>
+         ComponentCommandProcs components Wallet where
   componentCommandProcs =
     [
       CommandProc
@@ -74,9 +81,7 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         { cpName = "add-account"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <-
-              maybe WalletRefSelection (either WalletRefByName WalletRefByIndex) <$>
-              getArgOpt (tyString `tyEither` tyWord) "wallet"
+            walletRef <- getWalletRefArgOpt
             name <- fromMaybe "new account" <$> getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
@@ -99,9 +104,7 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
         { cpName = "select"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <-
-              either WalletRefByName WalletRefByIndex <$>
-              getArg (tyString `tyEither` tyWord) "wallet"
+            walletRef <- getWalletRefArg
             path <- getArgMany tyWord "a" -- account or address
             return (walletRef, path)
         , cpRepr = \(walletRef, path) -> CommandAction $ \WalletFace{..} -> do
@@ -109,4 +112,40 @@ instance (Elem components Wallet, Elem components Core) => ComponentCommandProcs
             return $ toValue ValueUnit
         , cpHelp = "Select a wallet, account, or address."
         }
+    , CommandProc
+        { cpName = "send"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            walletRef <- getWalletRefArgOpt
+            passPhrase <- getPassPhraseArg
+            outs <- getArgSome tyTxOut "out"
+            return (walletRef, passPhrase, outs)
+        , cpRepr = \(walletRef, passPhrase, outs) -> CommandAction $ \WalletFace{..} -> do
+            walletSend passPhrase walletRef outs
+            return $ toValue ValueUnit
+        , cpHelp = "Send a transaction from the specified wallet. When no wallet \
+                   \is specified, uses the selected wallet."
+        }
     ]
+
+-- Maybe "wallet" shouldn't be hardcoded here, but currently it's
+-- always "wallet", we can move it outside if it appears to be
+-- necessary.
+getWalletRefArgOpt ::
+       Elem components Core => ArgumentConsumer components WalletReference
+getWalletRefArgOpt =
+    fromMaybe WalletRefSelection <$> getArgOpt tyWalletRef "wallet"
+
+getWalletRefArg ::
+       Elem components Core => ArgumentConsumer components WalletReference
+getWalletRefArg = getArg tyWalletRef "wallet"
+
+tyWalletRef :: Elem components Core => TyProjection components WalletReference
+tyWalletRef =
+    either WalletRefByName WalletRefByIndex <$> tyString `tyEither` tyWord
+
+mkPassPhrase :: Maybe Text -> PassPhrase
+mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)
+
+getPassPhraseArg :: Elem components Core => ArgumentConsumer components PassPhrase
+getPassPhraseArg = mkPassPhrase <$> getArgOpt tyString "pass"

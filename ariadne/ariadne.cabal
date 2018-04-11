@@ -18,6 +18,7 @@ library
   build-depends:
       base >=4.7 && <5
     , ansi-terminal
+    , ansi-wl-pprint
     , async
     , cardano-sl
     , cardano-sl-block
@@ -32,45 +33,46 @@ library
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
-    , scientific
-    , cpphs
+    , conduit
     , constraints
+    , containers
+    , cpphs
+    , data-default
     , directory
     , formatting
     , kademlia
+    , knit
     , lens
-    , vinyl
-    , mtl
-    , mmorph
-    , conduit
-    , resourcet
-    , data-default
-    , network-transport-tcp
     , log-warper
+    , megaparsec
+    , memory
+    , mmorph
+    , mtl
+    , resourcet
+    , network-transport-tcp
     , optparse-applicative
     , plutus-prototype
     , raw-strings-qq
     , rocksdb-haskell-ng
     , safe-exceptions
+    , scientific
     , stm
     , text
+    , text-format
     , temporary
-    , ii-extras
-    , universum
-    , vector
-    , word-wrap
     , transformers
-    , ansi-wl-pprint
     , loc
     , Earley
-    , megaparsec
     , bytestring
-    , containers
     , time-units
     , serokell-util
-    , knit
     , ii-extras
     , QuickCheck
+    , universum
+    , unordered-containers
+    , vector
+    , vinyl
+    , word-wrap
   exposed-modules:
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend
@@ -80,6 +82,9 @@ library
       Ariadne.Cardano.Face
       Ariadne.Wallet.Knit
       Ariadne.Wallet.Backend
+      Ariadne.Wallet.Backend.KeyStorage
+      Ariadne.Wallet.Backend.Mode
+      Ariadne.Wallet.Backend.Tx
       Ariadne.Wallet.Face
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
