@@ -20,6 +20,7 @@ library
     , ansi-terminal
     , ansi-wl-pprint
     , async
+    , bytestring
     , cardano-sl
     , cardano-sl-block
     , cardano-sl-client
@@ -39,6 +40,7 @@ library
     , cpphs
     , data-default
     , directory
+    , exceptions
     , formatting
     , kademlia
     , knit
@@ -63,7 +65,6 @@ library
     , transformers
     , loc
     , Earley
-    , bytestring
     , time-units
     , serokell-util
     , ii-extras

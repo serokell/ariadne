@@ -26,7 +26,8 @@ createWalletBackend = do
       withDicts = withDict cardanoConfigurations . withDict cardanoCompileInfo
       walletFace =
          withDicts $ fix $ \this -> WalletFace
-          { walletAddAccount = addAccount this walletSelRef runCardanoMode
+          { walletAddAddress = addAddress this walletSelRef runCardanoMode
+          , walletAddAccount = addAccount this walletSelRef runCardanoMode
           , walletAddWallet = addWallet this runCardanoMode
           , walletRefreshUserSecret =
               refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
