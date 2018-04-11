@@ -16,7 +16,6 @@ module Ariadne.UI.Vty.Face
 
 import Universum
 
-import Data.Unique
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
@@ -66,7 +65,7 @@ data UiEvent
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
   forall err expr. UiLangFace
-  { langPutCommand :: Unique -> expr -> IO UiCommandId
+  { langPutCommand :: expr -> IO UiCommandId
   , langParse :: Text -> Either err expr
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc

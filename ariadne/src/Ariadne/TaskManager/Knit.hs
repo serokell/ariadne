@@ -108,7 +108,7 @@ instance
               case mTask of
                 Nothing -> do
                   mCache <- lookupCache tid
-                  maybe (throwIO NoTaskException) (either (\_ -> throwIO NoTaskException) return) mCache
+                  maybe (throwIO NoTaskException) (either throwIO return) mCache
                 Just task -> wait task
           , cpHelp = "wait for a specific task to finish"
           }

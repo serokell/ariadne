@@ -5,17 +5,11 @@ import Universum
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)
 
--- | This type reperesents a unique command identifier.
+-- | This type reperesents a unique task identifier.
 -- The uniqueness is handled by the backend: each time a command is spawned
--- it is assigned a new unique CommandId
+-- it is assigned a new unique TaskId
 data TaskId = TaskId Int
   deriving (Eq, Ord, Show)
-
--- | Possible outcomes of running a command. It either returns a value to us
--- or fails with an exception
-data CommandResult v
-  = CommandSuccess v
-  | CommandFailure SomeException
 
 -- | The process manager context is a map from CommandId to an async object that
 -- returns the result of that command.

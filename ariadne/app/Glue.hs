@@ -47,7 +47,9 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = \cid -> fmap (commandIdToUI cid) . putKnitCommand (commandHandle cid)
+    { langPutCommand = \expr -> do
+        cid <- newUnique
+        fmap (commandIdToUI cid) . putKnitCommand (commandHandle cid) $ expr
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
