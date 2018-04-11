@@ -46,7 +46,9 @@ createKnitBackend execCtxs TaskManagerFace{..} =
           Right (Left e) -> do
             putCommandResult (Just taskId) $ KnitCommandEvalError e
             throwIO $ EvalErrorException (show $ Knit.ppEvalError e)
-          Right (Right v) -> return v
+          Right (Right v) -> do
+            putCommandResult (Just taskId) $ KnitCommandSuccess v
+            return v
   in KnitFace putCommand
   where
     commandProcs = Knit.commandProcs @components
