@@ -159,7 +159,7 @@ instance ComponentLitToValue components Core where
     LitString x -> ValueString x
     LitFilePath x -> ValueFilePath x
 
-data instance ComponentExecContext Core = CoreExecCtx
+data instance ComponentExecContext _ Core = CoreExecCtx
 
 instance Applicative m => ComponentCommandExec m components Core where
   componentCommandExec CoreExecCtx (CommandIdentity v) = pure v

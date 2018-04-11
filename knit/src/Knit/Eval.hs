@@ -19,13 +19,13 @@ deriving instance (Show (Value components)) => Show (EvalError components)
 
 type EvalT components = ExceptT (EvalError components)
 
-type ExecContext = Rec ComponentExecContext
+type ExecContext components = Rec (ComponentExecContext components) components
 
-data family ComponentExecContext component
+data family ComponentExecContext (components :: [*]) component
 
 class ComponentCommandExec m components component where
   componentCommandExec
-    :: ComponentExecContext component
+    :: ComponentExecContext components component
     -> ComponentCommandRepr components component
     -> m (Value components)
 
@@ -88,7 +88,7 @@ componentEvalProcCall
      , Monad m
      , Ord (Value components)
      )
-  => ComponentExecContext component
+  => ComponentExecContext components component
   -> ProcCall (CommandProc components component) (Value components)
   -> EvalT components m (Value components)
 componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
