@@ -16,7 +16,6 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
-import Control.Lens (at, non)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -141,38 +140,31 @@ putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
 userSecretToTree :: UserSecret -> [UiWalletTree]
-userSecretToTree = map toTree . maybeToList . view usWallet
+userSecretToTree = map toTree . view usWallets
   where
-    toTree :: WalletUserSecret -> UiWalletTree
-    toTree WalletUserSecret {..} =
+    toTree :: WalletData -> UiWalletTree
+    toTree WalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _wusWalletName) [] False
-            , subForest = map toAccountNode _wusAccounts
+            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
+            , subForest = toList $ map toAccountNode _wdAccounts
             }
       where
-        foldlStep ::
-               Map Word32 [Word32] -> (Word32, Word32) -> Map Word32 [Word32]
-        foldlStep m (acc, addr) = m & at acc . non [] %~ (addr :)
-        addrsMap :: Map Word32 [Word32]
-        addrsMap = foldl' foldlStep mempty _wusAddrs
-        toAccountNode :: (Word32, Text) -> UiWalletTree
-        toAccountNode (accIdx, accName) =
+        toAccountNode :: AccountData -> UiWalletTree
+        toAccountNode AccountData {..} =
             Node
                 { rootLabel =
                       UiWalletTreeItem
-                          { wtiLabel = Just accName
-                          , wtiPath = [fromIntegral accIdx]
+                          { wtiLabel = Just _adName
+                          , wtiPath = [fromIntegral _adPath]
                           , wtiShowPath = True
                           }
-                , subForest =
-                      map (toAddressNode accIdx) $ addrsMap ^. at accIdx .
-                      non []
+                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
                 }
-        toAddressNode :: Word32 -> Word32 -> UiWalletTree
-        toAddressNode accIdx addrIdx =
+        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
+        toAddressNode accIdx (addrIdx, address) =
             pure $
             UiWalletTreeItem
-                { wtiLabel = Nothing
+                { wtiLabel = Just (pretty address)
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }

@@ -12,7 +12,7 @@ packages:
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: 78ba04fcce596489a6c6343532982d72e63ca878 # ariadne branch
+    commit: ce86798e4ab10239f05138aafd47803804341e76 # ariadne branch
   extra-dep: true
   subdirs:
   - binary

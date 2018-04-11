@@ -9,18 +9,22 @@ module Ariadne.Cardano.Face
        , EpochIndex (..)
        , SlotId (..)
        , HeaderHash
+       , Address
 
-       , WalletUserSecret (..)
+       , AccountData (..)
+       , WalletData (..)
        , UserSecret
-       , usWallet
+       , usWallets
        ) where
 
 import Universum
 
 import Control.Monad.Trans.Reader (ReaderT)
 import Mockable (Production)
-import Pos.Core (EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..))
-import Pos.Util.UserSecret (UserSecret, WalletUserSecret(..), usWallet)
+import Pos.Core
+  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..))
+import Pos.Util.UserSecret
+  (AccountData(..), UserSecret, WalletData(..), usWallets)
 import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
 
 data CardanoStatusUpdate = CardanoStatusUpdate
