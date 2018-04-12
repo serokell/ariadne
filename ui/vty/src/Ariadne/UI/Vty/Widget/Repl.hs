@@ -7,8 +7,8 @@ import Data.Char as Char
 import Data.Function (fix, on)
 import Data.List as List
 import Data.Maybe (fromMaybe)
-import Data.Text as Text
 import Data.Monoid
+import Data.Text as Text
 import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
   deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,

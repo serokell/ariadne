@@ -14,12 +14,12 @@ import Prelude
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
-import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -76,11 +76,11 @@ initialAppState langFace history =
     , appStateWalletPane = initWalletPaneWidget
     }
   where
-    appSelectors :: NonEmpty (MenuWidgetItem AppSelector)
+    appSelectors :: NonEmpty (MenuWidgetElem AppSelector)
     appSelectors
-      = MenuWidgetItem AppSelectorWallet "Wallet" 'w' :|
-      [ MenuWidgetItem AppSelectorHelp "Help" 'h'
-      , MenuWidgetItem AppSelectorLogs "Logs" 'l'
+      = MenuWidgetElem AppSelectorWallet "Wallet" 'w' :|
+      [ MenuWidgetElem AppSelectorHelp "Help" 'h'
+      , MenuWidgetElem AppSelectorLogs "Logs" 'l'
       ]
 
 data AppCompleted = AppCompleted | AppInProgress
@@ -114,9 +114,8 @@ app langFace = B.App{..} where
   appStartEvent :: AppState -> B.EventM Void AppState
   appStartEvent = return
 
-  -- We do not use this feature of Brick.
   appAttrMap :: AppState -> B.AttrMap
-  appAttrMap _ = B.attrMap V.defAttr []
+  appAttrMap = const defaultAttrMap
 
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
