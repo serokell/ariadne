@@ -219,11 +219,15 @@ handleAppEvent langFace ev = do
         AppSelectorLogs <- sel -> do
             zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
+      | Just walletTreeEv <- toWalletTreeEv vtyEv,
+        AppSelectorWalletTree <- sel -> do
+            zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
+            return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
         UiWalletUpdate{..} -> do
           zoom appStateWalletTreeL $
-            handleWalletTreeWidgetEvent $
+            handleWalletTreeWidgetEvent langFace $
               WalletTreeUpdateEvent wuTrees wuSelection
           zoom appStateWalletPaneL $
             handleWalletPaneWidgetEvent $
@@ -289,4 +293,10 @@ toReplInputEv = \case
     Just $ ReplCommandNavigationEvent PrevCommand
   V.EvKey (V.KChar c) _ ->
     Just $ ReplInputModifyEvent (InsertChar c)
+  _ -> Nothing
+
+toWalletTreeEv :: V.Event -> Maybe WalletTreeWidgetEvent
+toWalletTreeEv = \case
+  V.EvKey V.KUp [] -> Just WalletNavigationUp
+  V.EvKey V.KDown [] -> Just WalletNavigationDown
   _ -> Nothing

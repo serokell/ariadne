@@ -144,13 +144,20 @@ drawWalletTreeWidget _hasFocus wtws  =
 
 data WalletTreeWidgetEvent
   = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
+  | WalletNavigationUp
+  | WalletNavigationDown
 
 handleWalletTreeWidgetEvent
-  :: WalletTreeWidgetEvent
+  :: UiLangFace
+  -> WalletTreeWidgetEvent
   -> StateT WalletTreeWidgetState IO ()
-handleWalletTreeWidgetEvent ev = do
-  case ev of
-    WalletTreeUpdateEvent wallets wselection -> do
-      walletTreeInitializedL .= True
-      walletTreeWalletsL .= wallets
-      walletTreeSelectionL .= wselection
+handleWalletTreeWidgetEvent UiLangFace{..} = \case
+  WalletTreeUpdateEvent wallets wselection -> do
+    walletTreeInitializedL .= True
+    walletTreeWalletsL .= wallets
+    walletTreeSelectionL .= wselection
+  WalletNavigationUp -> void . liftIO $ langPutCommand exprPrev
+  WalletNavigationDown -> void . liftIO $ langPutCommand exprNext
+  where
+    exprPrev = either (const $ error "impossible") identity (langParse "select-prev")
+    exprNext = either (const $ error "impossible") identity (langParse "select-next")
