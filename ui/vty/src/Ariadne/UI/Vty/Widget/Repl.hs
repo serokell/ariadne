@@ -335,5 +335,5 @@ ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
   , "              Press <Enter> to send a command,"
   , "        <Backslash> <Enter> to insert a line break,"
   , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
-  , "           <Ctrl+G> to switch to navigation mode."
+  , "               <Esc> to navigate main menu."
   ]

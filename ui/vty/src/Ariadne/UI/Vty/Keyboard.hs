@@ -50,6 +50,9 @@ vtyToKey navMode editMode
     EvKey (KChar 'c')  [MCtrl] -> KeyExit
     EvKey KEsc         []      -> KeyNavigation
 
+    EvKey (KChar '\t') [MCtrl] -> KeyFocusNext
+    EvKey KBackTab     [MCtrl] -> KeyFocusPrev
+
     EvKey (KChar c)    []      -> KeyChar c
     _                          -> KeyUnknown
   | editMode = \case

@@ -199,13 +199,14 @@ handleAppEvent langFace = \case
             appStateFocusL .= restoreFocus newSel focus
             appStateNavigationModeL .= False
             return AppInProgress
-        | navModeEnabled ->
-            return AppInProgress
         | key `elem`
           [ KeyFocusNext
           , KeyFocusPrev] -> do
+            appStateNavigationModeL .= False
             appStateEditorModeL .= False
             appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+            return AppInProgress
+        | navModeEnabled ->
             return AppInProgress
         | Just scrollAction <- eventToScrollingAction key,
           AppSelectorWallet <- sel,
@@ -273,9 +274,9 @@ handleAppEvent langFace = \case
 
 focusesBySel :: AppSelector -> [AppFocus]
 focusesBySel = \case
-  AppSelectorWallet -> [AppFocusMenu, AppFocusWalletTree, AppFocusWalletPane, AppFocusRepl]
-  AppSelectorHelp -> [AppFocusMenu, AppFocusHelp, AppFocusRepl]
-  AppSelectorLogs -> [AppFocusMenu, AppFocusLogs, AppFocusRepl]
+  AppSelectorWallet -> [AppFocusWalletTree, AppFocusWalletPane, AppFocusRepl]
+  AppSelectorHelp -> [AppFocusHelp, AppFocusRepl]
+  AppSelectorLogs -> [AppFocusLogs, AppFocusRepl]
 
 rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
 rotateFocus selector focus back = dropWhile (/= focus) focuses !! 1
