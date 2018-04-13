@@ -48,6 +48,7 @@ library
     , knit
     , lens
     , log-warper
+    , loot-crypto
     , megaparsec
     , memory
     , mmorph
