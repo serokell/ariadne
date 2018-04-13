@@ -50,7 +50,9 @@ vtyToKey navMode editMode
     EvKey (KChar 'c')  [MCtrl] -> KeyExit
     EvKey KEsc         []      -> KeyNavigation
 
+    EvKey (KChar '\t') []      -> KeyFocusNext
     EvKey (KChar '\t') [MCtrl] -> KeyFocusNext
+    EvKey KBackTab     []      -> KeyFocusPrev
     EvKey KBackTab     [MCtrl] -> KeyFocusPrev
 
     EvKey (KChar c)    []      -> KeyChar c
