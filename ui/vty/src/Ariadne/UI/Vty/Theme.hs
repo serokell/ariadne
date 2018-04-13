@@ -11,4 +11,6 @@ defaultAttrMap = attrMap
   , ("menu" <> "key", fg red)
   , ("menu" <> "selected", white `on` black)
   , ("menu" <> "selected" <> "key", fg red)
+  , ("status", black `on` white)
+  , ("status" <> "content", fg blue)
   ]
