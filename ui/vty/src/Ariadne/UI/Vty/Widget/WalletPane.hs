@@ -1,50 +1,65 @@
 module Ariadne.UI.Vty.Widget.WalletPane where
 
+import Universum hiding (StateT, (.~))
+
 import Control.Lens
 import Control.Monad.Trans.State
-import Prelude
+import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
-data WalletPaneWidgetState = WalletPaneWidgetState
+import Ariadne.UI.Vty.Face
+
+data WalletPaneWidgetState =
+  WalletPaneWidgetState
+    { walletPaneItemInfo :: Maybe UiWalletPaneInfo
+    , walletPaneInitialized :: Bool
+    }
+
+makeLensesWith postfixLFields ''WalletPaneWidgetState
 
 initWalletPaneWidget :: WalletPaneWidgetState
-initWalletPaneWidget = WalletPaneWidgetState
+initWalletPaneWidget = WalletPaneWidgetState Nothing False
 
 drawWalletPaneWidget
   :: Bool
   -> WalletPaneWidgetState
   -> B.Widget name
-drawWalletPaneWidget _hasFocus WalletPaneWidgetState =
+drawWalletPaneWidget _hasFocus wpws =
   B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
     }
   where
+    WalletPaneWidgetState{..} = wpws
     render = do
       let
-        img = V.text' V.defAttr " Wallet info pane."
+        img = case walletPaneItemInfo of
+          Nothing ->
+            V.text' V.defAttr "Select a wallet, an account, or an address"
+          Just (UiWalletPaneWalletInfo name) ->
+            V.text' V.defAttr ("Wallet " <> pretty name)
+          Just (UiWalletPaneAccountInfo name) ->
+            V.text' V.defAttr ("Account " <> pretty name)
+          Just UiWalletPaneAddressInfo ->
+            V.text' V.defAttr "Address"
+        imgOrLoading
+          | walletPaneInitialized = img
+          | otherwise = V.text V.defAttr "Loading..."
       return $
         B.emptyResult
-          & B.imageL .~ img
-
-data WalletPaneCompleted = WalletPaneCompleted | WalletPaneInProgress
+          & B.imageL .~ imgOrLoading
 
 data WalletPaneWidgetEvent
-  = WalletPaneExit
-  | WalletPaneScrollDown
-  | WalletPaneScrollUp
+  = WalletPaneUpdateEvent (Maybe UiWalletPaneInfo)
 
 handleWalletPaneWidgetEvent
   :: WalletPaneWidgetEvent
-  -> StateT WalletPaneWidgetState IO WalletPaneCompleted
+  -> StateT WalletPaneWidgetState IO ()
 handleWalletPaneWidgetEvent ev = do
   case ev of
-    WalletPaneExit ->
-      return WalletPaneCompleted
-    WalletPaneScrollUp ->
-      return WalletPaneInProgress
-    WalletPaneScrollDown ->
-      return WalletPaneInProgress
+    WalletPaneUpdateEvent itemInfo -> do
+      walletPaneInitializedL .= True
+      walletPaneItemInfoL .= itemInfo
