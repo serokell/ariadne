@@ -198,6 +198,13 @@ handleAppEvent langFace = \case
             appStateFocusL .= restoreFocus newSel focus
             appStateNavigationModeL .= False
             return AppInProgress
+        | key `elem` [KeyLeft, KeyRight],
+          navModeEnabled -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent $
+              if key == KeyLeft then MenuPrevEvent else MenuNextEvent
+            newMenuState <- use appStateMenuL
+            appStateFocusL .= restoreFocus (menuWidgetSel newMenuState) focus
+            return AppInProgress
         | key `elem`
           [ KeyFocusNext
           , KeyFocusPrev] -> do
