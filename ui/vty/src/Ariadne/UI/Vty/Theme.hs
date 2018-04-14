@@ -1,7 +1,6 @@
 module Ariadne.UI.Vty.Theme where
 
 import Brick
-import Data.Semigroup
 import Graphics.Vty
 
 defaultAttrMap :: AttrMap
@@ -13,5 +12,5 @@ defaultAttrMap = attrMap
   , ("menu.selected", white `on` black)
   , ("menu.key", currentAttr `withForeColor` red)
   , ("status", black `on` white)
-  , ("status" <> "content", fg blue)
+  , ("status.content", currentAttr `withForeColor` blue)
   ]

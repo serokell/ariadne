@@ -51,8 +51,8 @@ drawStatusWidget statusWidgetState =
 
     drawItem :: (Text, Text) -> B.Widget name
     drawItem (title, content) = B.padLeftRight 1 $ B.hBox
-      [ B.withAttr ("status" <> "title") $ B.txt $ title <> ": "
-      , B.withAttr ("status" <> "content") $ B.txt content
+      [ B.txt $ title <> ": "
+      , B.withAttr "status.content" $ B.txt content
       ]
 
 data StatusWidgetEvent
