@@ -123,6 +123,7 @@ drawAppWidget AppState{..} =
     defAttr :: AppFocus -> B.AttrName
     defAttr focus = if appStateFocus == focus then "focused" else "default"
 
+    drawBG = B.withAttr "default" $ B.fill ' '
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
@@ -146,7 +147,7 @@ drawAppWidget AppState{..} =
       B.withAttr (defAttr AppFocusWalletPane) $
         drawWalletPaneWidget appStateWalletPane
     drawDefaultView =
-      B.vBox
+      B.withAttr "default" $ B.vBox
         [ drawMenu
         , B.hBox
             [ drawWalletTree
@@ -160,16 +161,28 @@ drawAppWidget AppState{..} =
     drawHelp =
       drawHelpWidget appStateHelp
     drawHelpView =
-      B.vBox [drawMenu, drawHelp, B.hBorder, drawReplInput, drawStatus]
+      B.withAttr "default" $ B.vBox
+        [ drawMenu
+        , drawHelp
+        , B.hBorder
+        , drawReplInput
+        , drawStatus
+        ]
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
-      B.vBox [drawMenu, drawLogs, B.hBorder, drawReplInput, drawStatus]
+      B.withAttr "default" $ B.vBox
+        [ drawMenu
+        , drawLogs
+        , B.hBorder
+        , drawReplInput
+        , drawStatus
+        ]
   in
     case menuWidgetSel appStateMenu of
-      AppSelectorHelp -> [drawHelpView]
-      AppSelectorLogs -> [drawLogsView]
-      _ -> [drawDefaultView]
+      AppSelectorHelp -> [drawHelpView, drawBG]
+      AppSelectorLogs -> [drawLogsView, drawBG]
+      _ -> [drawDefaultView, drawBG]
 
 handleAppEvent
   :: UiLangFace
