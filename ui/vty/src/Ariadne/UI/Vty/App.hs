@@ -140,11 +140,10 @@ drawAppWidget AppState{..} =
         , drawReplInput
         ]
     drawWalletTree =
-      drawWalletTreeWidget
-        (appStateFocus == AppFocusWalletTree)
-        appStateWalletTree
+      B.withAttr (defAttr AppFocusWalletTree) $
+        drawWalletTreeWidget appStateWalletTree
     drawWalletPane =
-      B.withDefAttr (defAttr AppFocusWalletPane) $
+      B.withAttr (defAttr AppFocusWalletPane) $
         drawWalletPaneWidget appStateWalletPane
     drawDefaultView =
       B.vBox
