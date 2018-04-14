@@ -15,6 +15,7 @@ module Glue
 
 import Universum
 
+import Control.Lens (ix)
 import Control.Exception (displayException)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
@@ -126,14 +127,14 @@ walletEventToUI :: WalletEvent -> Maybe UiEvent
 walletEventToUI = \case
   WalletUserSecretSetEvent us sel ->
     Just $ UiWalletEvent $
-      UiWalletTreeUpdate
+      UiWalletUpdate
         (userSecretToTree us)
         (walletSelectionToUI <$> sel)
+        (userSecretToPane us <$> sel)
 
 walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
 walletSelectionToUI WalletSelection{..} =
   UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
-
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
@@ -168,3 +169,19 @@ userSecretToTree = map toTree . view usWallets
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
+
+userSecretToPane :: UserSecret -> WalletSelection -> UiWalletPaneInfo
+userSecretToPane us WalletSelection{..} =
+  case wsPath of
+    [] ->
+      let
+        walletName =
+          case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
+            Nothing ->
+              "FIXME: Internal invariant violated. We should prevent \
+              \selection of non-existent wallets"
+            Just wd -> _wdName wd
+      in
+        UiWalletPaneWalletInfo walletName
+    [i] -> UiWalletPaneAccountInfo (pretty i)
+    _ -> UiWalletPaneAddressInfo
