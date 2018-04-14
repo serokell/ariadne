@@ -262,12 +262,12 @@ handleReplInputEvent langFace = fix $ \go -> \case
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
-        let out = OutputInfo $ \(Width w) -> pprDoc w rpfParseErrDoc
+        let out = OutputInfo $ \(Width w) -> pprDoc V.defAttr w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
         commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
+        let out = OutputCommand commandId (\w -> pprDoc V.defAttr w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
     return ReplInProgress
@@ -312,17 +312,14 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \(Width w) -> pprDoc w doc
+          Just $ \(Width w) -> pprDoc V.defAttr w doc
         UiCommandFailure doc ->
-          Just $ \(Width w) -> pprDoc w doc   -- TODO: highlight as an error
+          Just $ \(Width w) -> pprDoc V.defAttr w doc   -- TODO: highlight as an error
         UiCommandOutput _ ->
           -- TODO: create a new field in 'OutputCommand' and append
           -- the 'doc' there.
           oldResultImage
 updateCommandResult _ _ outCmd = outCmd
-
-pprDoc :: Int -> PP.Doc -> V.Image
-pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
 
 ariadneBanner :: Width -> V.Image
 ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
