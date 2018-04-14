@@ -11,6 +11,7 @@ module Ariadne.UI.Vty.Face
        , UiWalletTreeItem (..)
        , UiWalletTree
        , UiWalletTreeSelection(..)
+       , UiWalletPaneInfo(..)
        , TreePath
        ) where
 
@@ -50,8 +51,12 @@ data UiCardanoEvent
   = UiCardanoLogEvent Text
   | UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
 
-data UiWalletEvent
-  = UiWalletTreeUpdate [UiWalletTree] (Maybe UiWalletTreeSelection)
+data UiWalletEvent =
+  UiWalletUpdate
+    { wuTrees :: [UiWalletTree]
+    , wuSelection :: Maybe UiWalletTreeSelection
+    , wuPaneInfo :: Maybe UiWalletPaneInfo
+    }
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and
@@ -110,3 +115,12 @@ data UiWalletTreeSelection =
     { wtsWalletIdx :: Word
     , wtsPath :: TreePath
     }
+
+----------------------------------------------------------------------------
+-- Wallet pane widget model
+----------------------------------------------------------------------------
+
+data UiWalletPaneInfo
+  = UiWalletPaneWalletInfo Text
+  | UiWalletPaneAccountInfo Text
+  | UiWalletPaneAddressInfo

@@ -249,10 +249,13 @@ handleAppEvent langFace = \case
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
-        UiWalletTreeUpdate wallets wselection ->
+        UiWalletUpdate{..} -> do
           zoom appStateWalletTreeL $
             handleWalletTreeWidgetEvent $
-              WalletTreeUpdateEvent wallets wselection
+              WalletTreeUpdateEvent wuTrees wuSelection
+          zoom appStateWalletPaneL $
+            handleWalletPaneWidgetEvent $
+              WalletPaneUpdateEvent wuPaneInfo
       return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
