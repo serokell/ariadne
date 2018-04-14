@@ -121,7 +121,7 @@ drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
     defAttr :: AppFocus -> B.AttrName
-    defAttr focus = if appStateFocus == focus then "focused" else mempty
+    defAttr focus = if appStateFocus == focus then "focused" else "default"
 
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus

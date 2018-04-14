@@ -15,6 +15,7 @@ import Prelude
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
 import qualified Data.Text as T
+import qualified Graphics.Vty as V
 
 import IiExtras
 
@@ -56,32 +57,50 @@ drawMenuWidget
   -> MenuWidgetState a
   -> B.Widget name
 drawMenuWidget appStateNavigationMode menuWidgetState =
-  B.withAttr "menu" $ B.hCenter $ B.hBox $ List.intersperse (B.txt " ") elemWidgets
+  B.withAttr "menu" $ B.hCenter B.Widget
+    { B.hSize = B.Fixed
+    , B.vSize = B.Fixed
+    , B.render = render
+    }
   where
-    menuElems = Vector.toList (menuWidgetElems menuWidgetState)
-    i = menuWidgetSelection menuWidgetState
+    render = do
+      rdrCtx <- B.getContext
 
-    elemWidgets = List.zipWith drawElem [0..] menuElems
+      let
+        defAttr = rdrCtx ^. B.attrL
+        attrMap = rdrCtx ^. B.ctxAttrMapL
 
-    drawElem j menuElem = B.withAttr attr drawText
-      where
-        attr = if i == j then "menu" <> "selected" else "menu"
-        keyAttr = if appStateNavigationMode then attr <> "key" else attr
+        menuElems = Vector.toList (menuWidgetElems menuWidgetState)
+        i = menuWidgetSelection menuWidgetState
 
-        elemText = menuWidgetElemText menuElem
-        elemKey = menuWidgetElemKey menuElem
-
-        (beforeKey, atKey) = T.break ((== elemKey) . toLower) elemText
-        (key, afterKey)
-          | T.null atKey = (elemKey, atKey)
-          | toLower (T.head atKey) == elemKey = (T.head atKey, T.tail atKey)
-          | otherwise = (elemKey, atKey)
-
-        drawText = B.hBox
-          [ B.txt $ " " <> beforeKey
-          , B.withAttr keyAttr $ B.txt $ T.singleton key
-          , B.txt $ afterKey <> " "
+        drawElem j menuElem = V.horizCat
+          [ V.text' elemAttr $ " " <> beforeKey
+          , V.text' keyAttr $ T.singleton key
+          , V.text' elemAttr $ afterKey <> " "
           ]
+          where
+            elemAttr = if i == j
+              then defAttr <> B.attrMapLookup "menu.selected" attrMap
+              else defAttr
+            keyAttr = if appStateNavigationMode
+              then elemAttr <> B.attrMapLookup "menu.key" attrMap
+              else elemAttr
+            elemText = menuWidgetElemText menuElem
+            elemKey = menuWidgetElemKey menuElem
+            (beforeKey, atKey) = T.break ((== elemKey) . toLower) elemText
+            (key, afterKey)
+              | T.null atKey = (elemKey, atKey)
+              | toLower (T.head atKey) == elemKey = (T.head atKey, T.tail atKey)
+              | otherwise = (elemKey, atKey)
+
+        img =
+          V.horizCat $
+          List.intersperse (V.text' defAttr " ") $
+          List.zipWith drawElem [0..] menuElems
+
+      return $
+        B.emptyResult
+          & B.imageL .~ img
 
 data MenuWidgetEvent a
   = MenuNextEvent
