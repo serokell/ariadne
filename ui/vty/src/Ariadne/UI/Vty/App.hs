@@ -120,6 +120,9 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
+    defAttr :: AppFocus -> B.AttrName
+    defAttr focus = if appStateFocus == focus then "focused" else mempty
+
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
@@ -141,18 +144,15 @@ drawAppWidget AppState{..} =
         (appStateFocus == AppFocusWalletTree)
         appStateWalletTree
     drawWalletPane =
-      drawWalletPaneWidget
-        (appStateFocus == AppFocusWalletPane)
-        appStateWalletPane
-    padLR =
-      B.padLeft (B.Pad 1) . B.padRight (B.Pad 1)
+      B.withDefAttr (defAttr AppFocusWalletPane) $
+        drawWalletPaneWidget appStateWalletPane
     drawDefaultView =
       B.vBox
         [ drawMenu
         , B.hBox
-            [ padLR drawWalletTree
+            [ drawWalletTree
             , B.joinBorders B.vBorder
-            , padLR drawWalletPane
+            , drawWalletPane
             ]
         , B.joinBorders B.hBorder
         , drawRepl

@@ -7,7 +7,8 @@ import Graphics.Vty
 defaultAttrMap :: AttrMap
 defaultAttrMap = attrMap
   (white `on` black)
-  [ ("menu", black `on` white)
+  [ ("focused", white `on` black `withStyle` bold)
+  , ("menu", black `on` white)
   , ("menu" <> "key", fg red)
   , ("menu" <> "selected", white `on` black)
   , ("menu" <> "selected" <> "key", fg red)
