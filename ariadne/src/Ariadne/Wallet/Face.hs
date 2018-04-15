@@ -3,6 +3,7 @@ module Ariadne.Wallet.Face
   , WalletFace(..)
   , WalletEvent(..)
   , WalletReference(..)
+  , AccountReference(..)
   , WalletSelection(..)
   ) where
 
@@ -21,10 +22,16 @@ data WalletReference
   | WalletRefByIndex Word
   | WalletRefByName Text
 
+data AccountReference
+  = AccountRefSelection
+  | AccountRefByIndex !Word32 !WalletReference
+  | AccountRefByName !Text !WalletReference
+
 data WalletFace =
   WalletFace
-    { walletAddAccount :: WalletReference -> Text -> IO ()
-    , walletAddWallet :: Text -> IO ()
+    { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
+    , walletAddAccount :: WalletReference -> Text -> IO ()
+    , walletAddWallet :: PassPhrase -> Text -> IO [Text]
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO ()

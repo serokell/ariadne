@@ -78,6 +78,16 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
+        { cpName = "add-address"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
+        , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
+            walletAddAddress accountRef passphrase
+            return $ toValue ValueUnit
+        , cpHelp = "Add an account to the specified wallet. When no wallet \
+                   \is specified, uses the selected wallet."
+        }
+    , CommandProc
         { cpName = "add-account"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
@@ -93,12 +103,15 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = "add-wallet"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer =
-            fromMaybe "new wallet" <$> getArgOpt tyString "name"
-        , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
-            walletAddWallet name
-            return $ toValue ValueUnit
-        , cpHelp = "Create a new wallet."
+        , cpArgumentConsumer = do
+            passPhrase <- getPassPhraseArg
+            name <- fromMaybe "new wallet" <$> getArgOpt tyString "name"
+            return (passPhrase, name)
+        , cpRepr = \(passPhrase, name) -> CommandAction $ \WalletFace{..} -> do
+            mnemonic <- walletAddWallet passPhrase name
+            return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
+        , cpHelp = "Create a new wallet. \
+                   \The result is the mnemonic to restore this wallet."
         }
     , CommandProc
         { cpName = "select"
@@ -139,6 +152,24 @@ getWalletRefArgOpt =
 getWalletRefArg ::
        Elem components Core => ArgumentConsumer components WalletReference
 getWalletRefArg = getArg tyWalletRef "wallet"
+
+-- Maybe "account" shouldn't be hardcoded here, but currently it's
+-- always "account", we can move it outside if it appears to be
+-- necessary.
+getAccountRefArgOpt ::
+       Elem components Core => ArgumentConsumer components AccountReference
+getAccountRefArgOpt =
+    convert <$> getWalletRefArgOpt <*>
+    getArgOpt (tyString `tyEither` tyWord32) "account"
+  where
+    convert :: WalletReference -> Maybe (Either Text Word32) -> AccountReference
+    convert walletRef = \case
+        Nothing -> AccountRefSelection
+        Just e -> (either
+            (flip AccountRefByName walletRef)
+            (flip AccountRefByIndex walletRef)
+                  ) e
+
 
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
 tyWalletRef =
