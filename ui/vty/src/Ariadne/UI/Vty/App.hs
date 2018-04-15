@@ -123,6 +123,8 @@ drawAppWidget AppState{..} =
     defAttr :: AppFocus -> B.AttrName
     defAttr focus = if appStateFocus == focus then "focused" else "default"
 
+    -- Widgets don't always fill the screen, so we need a background widget
+    -- in case default terminal background differs from our theme background
     drawBG = B.withAttr "default" $ B.fill ' '
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
