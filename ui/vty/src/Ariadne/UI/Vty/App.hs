@@ -127,13 +127,9 @@ drawAppWidget AppState{..} =
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
-      drawReplInputWidget
-        (appStateFocus == AppFocusRepl && appStateEditorMode)
-        appStateRepl
-    drawReplOutput =
-      drawReplOutputWidget
-        (appStateFocus == AppFocusRepl)
-        appStateRepl
+      B.withAttr (defAttr AppFocusRepl) $
+        drawReplInputWidget appStateEditorMode appStateRepl
+    drawReplOutput = drawReplOutputWidget appStateRepl
     drawRepl =
       B.vBox
         [ drawReplOutput
@@ -296,8 +292,8 @@ handleAppEvent langFace = \case
 focusesBySel :: AppSelector -> [AppFocus]
 focusesBySel = \case
   AppSelectorWallet -> [AppFocusWalletTree, AppFocusWalletPane, AppFocusRepl]
-  AppSelectorHelp -> [AppFocusHelp, AppFocusRepl]
-  AppSelectorLogs -> [AppFocusLogs, AppFocusRepl]
+  AppSelectorHelp -> [AppFocusRepl]
+  AppSelectorLogs -> [AppFocusRepl]
 
 rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
 rotateFocus selector focus back = dropWhile (/= focus) focuses !! 1

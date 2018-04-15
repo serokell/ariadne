@@ -113,16 +113,12 @@ vtyToKey navMode editMode
 
     EvKey KLeft        []      -> KeyLeft
     EvKey KLeft        [MCtrl] -> KeyLeft
-    EvKey (KChar 'h')  []      -> KeyLeft
     EvKey KRight       []      -> KeyRight
     EvKey KRight       [MCtrl] -> KeyRight
-    EvKey (KChar 'l')  []      -> KeyRight
     EvKey KUp          []      -> KeyUp
     EvKey KUp          [MCtrl] -> KeyUp
-    EvKey (KChar 'k')  []      -> KeyUp
     EvKey KDown        []      -> KeyDown
     EvKey KDown        [MCtrl] -> KeyDown
-    EvKey (KChar 'j')  []      -> KeyDown
     EvKey KPageUp      []      -> KeyPageUp
     EvKey KPageUp      [MCtrl] -> KeyPageUp
     EvKey KPageDown    []      -> KeyPageDown
