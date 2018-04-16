@@ -1,4 +1,8 @@
-module Ariadne.UI.Vty.Keyboard where
+module Ariadne.UI.Vty.Keyboard
+     ( KeyboardEvent(..)
+     , vtyToKey
+     , vtyToEditKey
+     ) where
 
 import Universum
 
@@ -44,65 +48,11 @@ data KeyboardEvent
   | KeyUnknown
   deriving (Eq)
 
-vtyToKey :: Bool -> Bool -> Event -> KeyboardEvent
-vtyToKey navMode editMode
-  | navMode = \case
+vtyToKey :: Event -> KeyboardEvent
+vtyToKey = \case
     EvKey (KChar 'c')  [MCtrl] -> KeyExit
-    EvKey KEsc         []      -> KeyNavigation
-    EvKey KEnter       []      -> KeyNavigation
-
-    EvKey (KChar '\t') []      -> KeyFocusNext
-    EvKey (KChar '\t') [MCtrl] -> KeyFocusNext
-    EvKey KBackTab     []      -> KeyFocusPrev
-    EvKey KBackTab     [MCtrl] -> KeyFocusPrev
-
-    EvKey KLeft        []      -> KeyLeft
-    EvKey KRight       []      -> KeyRight
-
-    EvKey (KChar c)    []      -> KeyChar c
-    _                          -> KeyUnknown
-  | editMode = \case
     EvKey (KChar 'd')  [MCtrl] -> KeyExit
-    EvKey KEsc         []      -> KeyNavigation
-
-    EvKey (KChar '\t') [MCtrl] -> KeyFocusNext
-    EvKey KBackTab     [MCtrl] -> KeyFocusPrev
-
-    EvKey KUp          [MCtrl] -> KeyUp
-    EvKey KDown        [MCtrl] -> KeyDown
-    EvKey KPageUp      []      -> KeyPageUp
-    EvKey KPageUp      [MCtrl] -> KeyPageUp
-    EvKey KPageDown    []      -> KeyPageDown
-    EvKey KPageDown    [MCtrl] -> KeyPageDown
-    EvKey KHome        [MCtrl] -> KeyHome
-    EvKey KEnd         [MCtrl] -> KeyEnd
-
-    EvKey KLeft        []      -> KeyEditLeft
-    EvKey KRight       []      -> KeyEditRight
-    EvKey KLeft        [MCtrl] -> KeyEditLeftWord
-    EvKey KRight       [MCtrl] -> KeyEditRightWord
-    EvKey KHome        []      -> KeyEditHome
-    EvKey KEnd         []      -> KeyEditEnd
-
-    EvKey KBS          []      -> KeyEditDelLeft
-    EvKey (KChar 'h')  [MCtrl] -> KeyEditDelLeft
-    EvKey KBS          [MCtrl] -> KeyEditDelLeftWord
-    EvKey (KChar 'w')  [MCtrl] -> KeyEditDelLeftWord
-    EvKey KDel         []      -> KeyEditDelRight
-    EvKey KDel         [MCtrl] -> KeyEditDelRightWord
-
-    EvKey (KChar '\t') []      -> KeyEditAutocomplete
-    EvKey KUp          []      -> KeyEditPrev
-    EvKey KDown        []      -> KeyEditNext
-    EvKey KEnter       [MCtrl] -> KeyEditNewLine
-    EvKey KEnter       []      -> KeyEditSend
-    EvKey (KChar 'c')  [MCtrl] -> KeyEditCancel
-
-    EvKey (KChar c)    []      -> KeyChar c
-    _                          -> KeyUnknown
-
-  | otherwise = \case
-    EvKey (KChar 'c')  [MCtrl] -> KeyExit
+    EvKey (KChar 'q')  [MCtrl] -> KeyExit
     EvKey KEsc         []      -> KeyNavigation
 
     EvKey (KChar '\t') []      -> KeyFocusNext
@@ -127,6 +77,32 @@ vtyToKey navMode editMode
     EvKey KHome        [MCtrl] -> KeyHome
     EvKey KEnd         []      -> KeyEnd
     EvKey KEnd         [MCtrl] -> KeyEnd
+
+    EvKey (KChar c)    []      -> KeyChar c
+    _                          -> KeyUnknown
+
+vtyToEditKey :: Event -> KeyboardEvent
+vtyToEditKey = \case
+    EvKey KLeft        []      -> KeyEditLeft
+    EvKey KRight       []      -> KeyEditRight
+    EvKey KLeft        [MCtrl] -> KeyEditLeftWord
+    EvKey KRight       [MCtrl] -> KeyEditRightWord
+    EvKey KHome        []      -> KeyEditHome
+    EvKey KEnd         []      -> KeyEditEnd
+
+    EvKey KBS          []      -> KeyEditDelLeft
+    EvKey (KChar 'h')  [MCtrl] -> KeyEditDelLeft
+    EvKey KBS          [MCtrl] -> KeyEditDelLeftWord
+    EvKey (KChar 'w')  [MCtrl] -> KeyEditDelLeftWord
+    EvKey KDel         []      -> KeyEditDelRight
+    EvKey KDel         [MCtrl] -> KeyEditDelRightWord
+
+    EvKey (KChar '\t') []      -> KeyEditAutocomplete
+    EvKey KUp          []      -> KeyEditPrev
+    EvKey KDown        []      -> KeyEditNext
+    EvKey KEnter       [MCtrl] -> KeyEditNewLine
+    EvKey KEnter       []      -> KeyEditSend
+    EvKey (KChar 'c')  [MCtrl] -> KeyEditCancel
 
     EvKey (KChar c)    []      -> KeyChar c
     _                          -> KeyUnknown

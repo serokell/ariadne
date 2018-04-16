@@ -47,7 +47,6 @@ data AppState =
   AppState
     { appStateFocus :: AppFocus
     , appStateEditorMode :: Bool
-    , appStateNavigationMode :: Bool
 
     , appStateRepl :: ReplWidgetState
     , appStateMenu :: MenuWidgetState AppSelector
@@ -65,7 +64,6 @@ initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusRepl
     , appStateEditorMode = False
-    , appStateNavigationMode = False
 
     , appStateRepl = initReplWidget langFace history
     , appStateMenu = initMenuWidget appSelectors 0
@@ -124,14 +122,14 @@ drawAppWidget AppState{..} =
     defAttr = "default"
     focusAttr :: AppFocus -> B.AttrName
     focusAttr focus =
-      if not appStateNavigationMode && appStateFocus == focus
+      if not (appStateMenu ^. menuWidgetNavModeL) && appStateFocus == focus
         then "focused"
         else defAttr
 
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
     drawBG = B.withAttr defAttr $ B.fill ' '
-    drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
+    drawMenu = drawMenuWidget appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
       B.withAttr (focusAttr AppFocusRepl) $
@@ -191,45 +189,53 @@ handleAppEvent
   :: UiLangFace
   -> B.BrickEvent Void UiEvent
   -> StateT AppState IO AppCompleted
-handleAppEvent langFace = \case
+handleAppEvent langFace ev =
+  case ev of
     B.VtyEvent vtyEv -> do
-      sel <- uses appStateMenuL menuWidgetSel
-      focus <- use appStateFocusL
       menuState <- use appStateMenuL
-      navModeEnabled <- use appStateNavigationModeL
+      focus <- use appStateFocusL
       editorModeEnabled <- use appStateEditorModeL
       replEmpty <- uses appStateReplL replWidgetEmpty
-      let key = vtyToKey navModeEnabled (editorModeEnabled && not replEmpty) vtyEv
+      let
+        sel = menuWidgetSel menuState
+        navMode = menuState ^. menuWidgetNavModeL
+        key = vtyToKey vtyEv
+        editKey = vtyToEditKey vtyEv
       if
         | KeyExit <- key ->
             return AppCompleted
+
+        -- Navigation mode related events
+        | navMode ->
+            case keyToMenuWidgetEvent menuState key of
+              Just event -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent event
+                newSel <- uses appStateMenuL menuWidgetSel
+                appStateFocusL .= restoreFocus newSel focus
+                return AppInProgress
+              Nothing -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent MenuExitEvent
+                -- Handle event once again in non-nav mode
+                handleAppEvent langFace ev
         | KeyNavigation <- key -> do
-            appStateNavigationModeL .= not navModeEnabled
+            zoom appStateMenuL $ handleMenuWidgetEvent MenuEnterEvent
             appStateEditorModeL .= False
             return AppInProgress
-        | KeyChar c <- key,
-          Just newSel <- menuWidgetCharToSel c menuState,
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== newSel)
-            appStateFocusL .= restoreFocus newSel focus
-            appStateNavigationModeL .= False
-            return AppInProgress
-        | key `elem` [KeyLeft, KeyRight],
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent $
-              if key == KeyLeft then MenuPrevEvent else MenuNextEvent
-            newMenuState <- use appStateMenuL
-            appStateFocusL .= restoreFocus (menuWidgetSel newMenuState) focus
-            return AppInProgress
-        | key `elem`
-          [ KeyFocusNext
-          , KeyFocusPrev] -> do
-            appStateNavigationModeL .= False
+
+        | key `elem` [KeyFocusNext, KeyFocusPrev],
+          not editorModeEnabled || replEmpty || editKey == KeyUnknown -> do
             appStateEditorModeL .= False
             appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
-        | navModeEnabled ->
-            return AppInProgress
+
+        | Just replEv <- toReplInputEv editKey,
+          AppFocusRepl <- focus,
+          editorModeEnabled -> do
+            completed <- zoom appStateReplL $
+              handleReplInputEvent langFace replEv
+            return $ case completed of
+              ReplCompleted -> AppCompleted
+              ReplInProgress -> AppInProgress
         | Just scrollAction <- eventToScrollingAction key,
           AppSelectorWallet <- sel,
           AppFocusRepl <- focus -> do
@@ -253,7 +259,7 @@ handleAppEvent langFace = \case
         | KeyEditExit <- key -> do
             appStateEditorModeL .= False
             return AppInProgress
-        | Just replEv <- toReplInputEv key,
+        | Just replEv <- toReplInputEv editKey,
           AppFocusRepl <- focus -> do
             appStateEditorModeL .= True
             completed <- zoom appStateReplL $
