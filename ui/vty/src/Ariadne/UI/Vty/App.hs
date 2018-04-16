@@ -229,6 +229,13 @@ handleAppEvent langFace ev =
             appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
 
+        -- Process events for widgets other than REPL
+        | Just walletTreeEv <- keyToWalletTreeEvent key,
+          AppFocusWalletTree <- focus -> do
+            zoom appStateWalletTreeL $
+              handleWalletTreeWidgetEvent langFace walletTreeEv
+            return AppInProgress
+
         -- REPL in editor mode
         | Just replEv <- keyToReplInputEvent editKey,
           AppFocusRepl <- focus,
@@ -269,10 +276,6 @@ handleAppEvent langFace ev =
               ReplInProgress -> AppInProgress
 
         | otherwise ->
-            return AppInProgress
-      | Just walletTreeEv <- toWalletTreeEv vtyEv,
-        AppSelectorWalletTree <- sel -> do
-            zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
@@ -323,11 +326,3 @@ restoreFocus :: AppSelector -> AppFocus -> AppFocus
 restoreFocus selector focus =
   if focus `elem` focuses then focus else head focuses
   where focuses = focusesBySel selector
-
-toWalletTreeEv :: V.Event -> Maybe WalletTreeWidgetEvent
-toWalletTreeEv = \case
-  V.EvKey V.KUp [] -> Just WalletNavigationUp
-  V.EvKey V.KDown [] -> Just WalletNavigationDown
-  V.EvKey V.KLeft [] -> Just WalletNavigationLeft
-  V.EvKey V.KRight [] -> Just WalletNavigationRight
-  _ -> Nothing

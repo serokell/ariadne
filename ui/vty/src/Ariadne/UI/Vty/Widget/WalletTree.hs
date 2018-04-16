@@ -5,6 +5,7 @@ module Ariadne.UI.Vty.Widget.WalletTree
        , initWalletTreeWidget
        , drawWalletTreeWidget
        , WalletTreeWidgetEvent(..)
+       , keyToWalletTreeEvent
        , handleWalletTreeWidgetEvent
        ) where
 
@@ -23,6 +24,7 @@ import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 
 ----------------------------------------------------------------------------
 -- General (should probably be moved somewhere at later stage)
@@ -159,6 +161,16 @@ data WalletTreeWidgetEvent
   | WalletNavigationDown
   | WalletNavigationLeft
   | WalletNavigationRight
+
+keyToWalletTreeEvent
+  :: KeyboardEvent
+  -> Maybe WalletTreeWidgetEvent
+keyToWalletTreeEvent = \case
+  KeyUp -> Just WalletNavigationUp
+  KeyDown -> Just WalletNavigationDown
+  KeyLeft -> Just WalletNavigationLeft
+  KeyRight -> Just WalletNavigationRight
+  _ -> Nothing
 
 handleWalletTreeWidgetEvent
   :: UiLangFace
