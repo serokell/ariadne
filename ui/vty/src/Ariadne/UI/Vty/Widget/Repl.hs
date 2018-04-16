@@ -56,6 +56,9 @@ makeLensesWith postfixLFields ''ReplWidgetState
 replWidgetText :: ReplWidgetState -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
+replWidgetEmpty :: ReplWidgetState -> Bool
+replWidgetEmpty = Text.null . Text.unwords . getText . replWidgetTextZipper
+
 mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
 mkReplParseResult UiLangFace{..} t =
   case langParse t of

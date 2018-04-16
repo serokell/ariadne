@@ -198,7 +198,8 @@ handleAppEvent langFace = \case
       menuState <- use appStateMenuL
       navModeEnabled <- use appStateNavigationModeL
       editorModeEnabled <- use appStateEditorModeL
-      let key = vtyToKey navModeEnabled editorModeEnabled vtyEv
+      replEmpty <- uses appStateReplL replWidgetEmpty
+      let key = vtyToKey navModeEnabled (editorModeEnabled && not replEmpty) vtyEv
       if
         | KeyExit <- key ->
             return AppCompleted
