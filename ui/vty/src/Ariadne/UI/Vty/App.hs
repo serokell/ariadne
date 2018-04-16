@@ -120,16 +120,21 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget Void]
 drawAppWidget AppState{..} =
   let
-    defAttr :: AppFocus -> B.AttrName
-    defAttr focus = if appStateFocus == focus then "focused" else "default"
+    defAttr :: B.AttrName
+    defAttr = "default"
+    focusAttr :: AppFocus -> B.AttrName
+    focusAttr focus =
+      if not appStateNavigationMode && appStateFocus == focus
+        then "focused"
+        else defAttr
 
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
-    drawBG = B.withAttr "default" $ B.fill ' '
+    drawBG = B.withAttr defAttr $ B.fill ' '
     drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
-      B.withAttr (defAttr AppFocusRepl) $
+      B.withAttr (focusAttr AppFocusRepl) $
         drawReplInputWidget appStateEditorMode appStateRepl
     drawReplOutput = drawReplOutputWidget appStateRepl
     drawRepl =
@@ -139,13 +144,13 @@ drawAppWidget AppState{..} =
         , drawReplInput
         ]
     drawWalletTree =
-      B.withAttr (defAttr AppFocusWalletTree) $
+      B.withAttr (focusAttr AppFocusWalletTree) $
         drawWalletTreeWidget appStateWalletTree
     drawWalletPane =
-      B.withAttr (defAttr AppFocusWalletPane) $
+      B.withAttr (focusAttr AppFocusWalletPane) $
         drawWalletPaneWidget appStateWalletPane
     drawDefaultView =
-      B.withAttr "default" $ B.vBox
+      B.withAttr defAttr $ B.vBox
         [ drawMenu
         , B.hBox
             [ drawWalletTree
@@ -159,7 +164,7 @@ drawAppWidget AppState{..} =
     drawHelp =
       drawHelpWidget appStateHelp
     drawHelpView =
-      B.withAttr "default" $ B.vBox
+      B.withAttr defAttr $ B.vBox
         [ drawMenu
         , drawHelp
         , B.hBorder
@@ -169,7 +174,7 @@ drawAppWidget AppState{..} =
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
-      B.withAttr "default" $ B.vBox
+      B.withAttr defAttr $ B.vBox
         [ drawMenu
         , drawLogs
         , B.hBorder
