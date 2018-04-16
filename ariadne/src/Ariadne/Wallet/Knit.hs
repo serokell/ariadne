@@ -8,7 +8,6 @@ import IiExtras
 import Pos.Crypto.Hashing (hashRaw)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Text.Earley
-import qualified Data.List.NonEmpty as L
 
 import Ariadne.Cardano.Knit (Cardano, tyTxOut)
 import Ariadne.Wallet.Face
@@ -140,40 +139,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Send a transaction from the specified wallet. When no wallet \
                    \is specified, uses the selected wallet."
         }
-    ] ++ (
-    let
-      applyToLast :: (Word -> Word) -> Maybe WalletSelection -> (Maybe WalletReference, [Word])
-      applyToLast f = \case
-          Just WalletSelection{..} -> case L.nonEmpty wsPath of
-            Nothing -> (Just . WalletRefByIndex $ f wsWalletIndex, [])
-            (Just wsPath') -> (Just $ WalletRefByIndex wsWalletIndex, L.init wsPath' ++ [f (L.last wsPath')])
-          Nothing -> (Just $ WalletRefByIndex 0, [])
-      boundedPred x = if minBound == x then x else pred x
-      boundedSucc x = if maxBound == x then x else succ x
-    in
-    [ CommandProc
-        { cpName = "select-next"
-        , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            selection <- walletSelection
-            let (ref, path) = applyToLast boundedSucc selection
-            walletSelect ref path
-            return $ toValue ValueUnit
-        , cpHelp = "Select the next wallet"
-        }
-    , CommandProc
-        { cpName = "select-prev"
-        , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            selection <- walletSelection
-            let (ref, path) = applyToLast boundedPred selection
-            walletSelect ref path
-            return $ toValue ValueUnit
-        , cpHelp = "Select the next wallet"
-        }
-    ])
+    ]
 
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's
 -- always "wallet", we can move it outside if it appears to be

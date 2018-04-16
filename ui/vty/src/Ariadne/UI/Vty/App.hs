@@ -299,4 +299,6 @@ toWalletTreeEv :: V.Event -> Maybe WalletTreeWidgetEvent
 toWalletTreeEv = \case
   V.EvKey V.KUp [] -> Just WalletNavigationUp
   V.EvKey V.KDown [] -> Just WalletNavigationDown
+  V.EvKey V.KLeft [] -> Just WalletNavigationLeft
+  V.EvKey V.KRight [] -> Just WalletNavigationRight
   _ -> Nothing

@@ -8,7 +8,7 @@ module Ariadne.UI.Vty.Widget.WalletTree
        , handleWalletTreeWidgetEvent
        ) where
 
-import Universum hiding (StateT, (.~))
+import Universum hiding (StateT, (.~), get)
 
 import Control.Lens
 import Control.Monad.Trans.State
@@ -16,6 +16,7 @@ import Data.List (intersperse)
 import Data.Tree (Tree(..))
 import IiExtras
 import Serokell.Util (enumerate)
+import qualified Data.List.NonEmpty as NE
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -146,6 +147,8 @@ data WalletTreeWidgetEvent
   = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
   | WalletNavigationUp
   | WalletNavigationDown
+  | WalletNavigationLeft
+  | WalletNavigationRight
 
 handleWalletTreeWidgetEvent
   :: UiLangFace
@@ -156,8 +159,29 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
     walletTreeInitializedL .= True
     walletTreeWalletsL .= wallets
     walletTreeSelectionL .= wselection
-  WalletNavigationUp -> void . liftIO $ langPutCommand exprPrev
-  WalletNavigationDown -> void . liftIO $ langPutCommand exprNext
+  WalletNavigationUp -> defaultSelection $ \selection -> do
+      let boundedPred x = if minBound == x then x else pred x
+          expr = selectExpr (applyToLast boundedPred selection)
+      void . liftIO $ langPutCommand expr
+  WalletNavigationDown -> defaultSelection $ \selection -> do
+      let boundedSucc x = if maxBound == x then x else succ x
+          expr = selectExpr (applyToLast boundedSucc selection)
+      void . liftIO $ langPutCommand expr
+  WalletNavigationLeft -> defaultSelection $ \UiWalletTreeSelection{..} ->
+      whenJust (nonEmpty wtsPath) $ \path -> do
+        let expr = selectExpr (wtsWalletIdx : NE.init path)
+        void . liftIO $ langPutCommand expr
+  WalletNavigationRight -> defaultSelection $ \UiWalletTreeSelection{..} -> do
+      let expr = selectExpr (wtsWalletIdx : (wtsPath ++ [0]))
+      void . liftIO $ langPutCommand expr
   where
-    exprPrev = either (const $ error "impossible") identity (langParse "select-prev")
-    exprNext = either (const $ error "impossible") identity (langParse "select-next")
+    applyToLast :: (Word -> Word) -> UiWalletTreeSelection -> [Word]
+    applyToLast f UiWalletTreeSelection{..} = case nonEmpty wtsPath of
+      Nothing -> f wtsWalletIdx : []
+      Just xs -> wtsWalletIdx : (NE.init xs ++ [f (NE.last xs)])
+    -- [AD-70] TODO: Here we are manually constructing the expression string with 'unwords' and then parse it
+    -- When some sort of UI AST is implemented this has to be changed.
+    selectExpr ws = either (const $ error "impossible") identity (langParse . unwords . ("select":) . map pretty $ ws)
+    defaultSelection m = fmap walletTreeSelection get >>= \case
+      Nothing -> void . liftIO $ langPutCommand (selectExpr [0])
+      Just selection -> m selection
