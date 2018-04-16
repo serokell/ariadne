@@ -42,7 +42,6 @@ data KeyboardEvent
   | KeyEditNewLine
   | KeyEditSend
   | KeyEditCancel
-  | KeyEditExit
 
   | KeyChar Char
   | KeyUnknown

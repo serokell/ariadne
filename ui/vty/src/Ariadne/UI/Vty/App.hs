@@ -222,13 +222,15 @@ handleAppEvent langFace ev =
             appStateEditorModeL .= False
             return AppInProgress
 
+        -- Switch focus between widgets, unless we do autocomplete
         | key `elem` [KeyFocusNext, KeyFocusPrev],
           not editorModeEnabled || replEmpty || editKey == KeyUnknown -> do
             appStateEditorModeL .= False
             appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
 
-        | Just replEv <- toReplInputEv editKey,
+        -- REPL in editor mode
+        | Just replEv <- keyToReplInputEvent editKey,
           AppFocusRepl <- focus,
           editorModeEnabled -> do
             completed <- zoom appStateReplL $
@@ -236,30 +238,28 @@ handleAppEvent langFace ev =
             return $ case completed of
               ReplCompleted -> AppCompleted
               ReplInProgress -> AppInProgress
+
+        -- Scroll widgets while REPL is in focus
         | Just scrollAction <- eventToScrollingAction key,
-          AppSelectorWallet <- sel,
           AppFocusRepl <- focus -> do
-            zoom appStateReplL $ handleReplOutputEvent $
-              ReplOutputScrollingEvent scrollAction
+            case sel of
+              AppSelectorWallet ->
+                zoom appStateReplL $ handleReplOutputEvent $
+                  ReplOutputScrollingEvent scrollAction
+              AppSelectorHelp ->
+                zoom appStateHelpL $ handleHelpWidgetEvent $
+                  HelpScrollingEvent scrollAction
+              AppSelectorLogs ->
+                zoom appStateLogsL $ handleLogsWidgetEvent $
+                  LogsScrollingEvent scrollAction
             return AppInProgress
-        | Just scrollAction <- eventToScrollingAction key,
-          AppSelectorHelp <- sel -> do
-            zoom appStateHelpL $ handleHelpWidgetEvent $
-              HelpScrollingEvent scrollAction
-            return AppInProgress
-        | Just scrollAction <- eventToScrollingAction key,
-          AppSelectorLogs <- sel -> do
-            zoom appStateLogsL $ handleLogsWidgetEvent $
-              LogsScrollingEvent scrollAction
-            return AppInProgress
+
+        -- Enter REPL editor mode
         | KeyEnter <- key,
           AppFocusRepl <- focus -> do
             appStateEditorModeL .= True
             return AppInProgress
-        | KeyEditExit <- key -> do
-            appStateEditorModeL .= False
-            return AppInProgress
-        | Just replEv <- toReplInputEv editKey,
+        | Just replEv <- keyToReplInputEvent editKey,
           AppFocusRepl <- focus -> do
             appStateEditorModeL .= True
             completed <- zoom appStateReplL $
@@ -267,6 +267,7 @@ handleAppEvent langFace ev =
             return $ case completed of
               ReplCompleted -> AppCompleted
               ReplInProgress -> AppInProgress
+
         | otherwise ->
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
@@ -318,25 +319,3 @@ restoreFocus :: AppSelector -> AppFocus -> AppFocus
 restoreFocus selector focus =
   if focus `elem` focuses then focus else head focuses
   where focuses = focusesBySel selector
-
-toReplInputEv :: KeyboardEvent -> Maybe ReplInputEvent
-toReplInputEv = \case
-  KeyEditLeft ->
-    Just $ ReplInputNavigationEvent NavArrowLeft
-  KeyEditRight ->
-    Just $ ReplInputNavigationEvent NavArrowRight
-  KeyEditDelLeft ->
-    Just $ ReplInputModifyEvent DeleteBackwards
-  KeyEditDelLeftWord ->
-    Just $ ReplInputModifyEvent DeleteWordBackwards
-  KeyEditDelRight ->
-    Just $ ReplInputModifyEvent DeleteForwards
-  KeyEditSend ->
-    Just $ ReplSmartEnterEvent
-  KeyEditNext ->
-    Just $ ReplCommandNavigationEvent NextCommand
-  KeyEditPrev ->
-    Just $ ReplCommandNavigationEvent PrevCommand
-  KeyChar c ->
-    Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
