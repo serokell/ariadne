@@ -1,12 +1,13 @@
 module Ariadne.UI.Vty.Widget.Status where
 
 import Control.Lens (makeLensesWith, (.=))
+import Data.List as List
 import Data.Text as Text
 import Universum
 
 import qualified Brick as B
+import qualified Brick.Widgets.Border as B
 import qualified Control.Monad.Trans.State as State
-import qualified Graphics.Vty as V
 
 import IiExtras
 
@@ -32,35 +33,27 @@ drawStatusWidget
   :: StatusWidgetState
   -> B.Widget name
 drawStatusWidget statusWidgetState =
-  B.padTop (B.Pad 1) B.Widget
-    { B.hSize = B.Greedy
-    , B.vSize = B.Fixed
-    , B.render = render
-    }
+  B.padTop (B.Pad 1) $
+    B.updateAttrMap (B.mapAttrName "status" B.borderAttr) $
+    B.withAttr "status" $
+    B.vLimit 1 $
+    B.padRight B.Max $
+    B.hBox $
+    List.intersperse B.vBorder $
+    List.map drawItem items
   where
-    render = do
-      rdrCtx <- B.getContext
-      let
-        pad = (rdrCtx ^. B.availWidthL) - (V.imageWidth img)
+    items :: [(Text, Text)]
+    items =
+      [ ("Tip hash", statusWidgetState ^. statusWidgetTipHeaderHashL)
+      , ("Tip slot", statusWidgetState ^. statusWidgetTipSlotL)
+      , ("Current slot", statusWidgetState ^. statusWidgetSlotL)
+      ]
 
-        backStatusAttr =
-          V.defAttr
-            `V.withStyle` V.reverseVideo
-
-        fill n = V.charFill @Int backStatusAttr ' ' n 1
-
-        img = V.text' backStatusAttr content
-
-        content = Text.intercalate " │ "
-          [ "Tip hash: " <> (statusWidgetState ^. statusWidgetTipHeaderHashL)
-          , "Tip slot: " <> (statusWidgetState ^. statusWidgetTipSlotL)
-          , "Current slot: " <> (statusWidgetState ^. statusWidgetSlotL)]
-
-        img' = V.horizCat [img, fill pad]
-
-      return $
-        B.emptyResult
-          & B.imageL .~ img'
+    drawItem :: (Text, Text) -> B.Widget name
+    drawItem (title, content) = B.padLeftRight 1 $ B.hBox
+      [ B.txt $ title <> ": "
+      , B.withAttr "status.content" $ B.txt content
+      ]
 
 data StatusWidgetEvent
   = StatusUpdateEvent UiCardanoStatusUpdate

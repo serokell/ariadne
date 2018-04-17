@@ -37,19 +37,17 @@ drawHelpWidget helpWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
+        attr = rdrCtx ^. B.attrL
         viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
           cropScrolling viewportHeight (helpWidgetState ^. helpWidgetScrollingOffsetL) $
           V.vertCat $
           fmap drawDoc (helpWidgetState ^. helpWidgetDataL)
-        drawDoc = pprDoc width
+        drawDoc = pprDoc attr width
       return $
         B.emptyResult
           & B.imageL .~ img
-
-pprDoc :: Int -> PP.Doc -> V.Image
-pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
 
 data HelpCompleted = HelpCompleted | HelpInProgress
 

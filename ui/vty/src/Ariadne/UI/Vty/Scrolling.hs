@@ -9,6 +9,8 @@ module Ariadne.UI.Vty.Scrolling
 
 import Universum
 
+import Ariadne.UI.Vty.Keyboard
+
 import qualified Graphics.Vty as V
 
 data ScrollingOffsetData
@@ -42,14 +44,12 @@ cropScrolling viewportHeight mkPos image =
     OffsetFixed pos ->
       V.cropBottom viewportHeight $ V.cropTop (imageHeight - pos) image
 
-eventToScrollingAction :: V.Event -> Maybe ScrollingAction
+eventToScrollingAction :: KeyboardEvent -> Maybe ScrollingAction
 eventToScrollingAction = \case
-  V.EvKey V.KUp         [] -> Just ScrollingLineUp
-  V.EvKey (V.KChar 'k') [] -> Just ScrollingLineUp
-  V.EvKey V.KDown       [] -> Just ScrollingLineDown
-  V.EvKey (V.KChar 'j') [] -> Just ScrollingLineDown
-  V.EvKey V.KPageUp     [] -> Just ScrollingPgUp
-  V.EvKey V.KPageDown   [] -> Just ScrollingPgDown
+  KeyUp       -> Just ScrollingLineUp
+  KeyDown     -> Just ScrollingLineDown
+  KeyPageUp   -> Just ScrollingPgUp
+  KeyPageDown -> Just ScrollingPgDown
   _ -> Nothing
 
 handleScrollingEvent :: ScrollingAction -> ScrollingOffset -> ScrollingOffset

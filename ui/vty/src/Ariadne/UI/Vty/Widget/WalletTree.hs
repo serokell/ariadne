@@ -5,24 +5,26 @@ module Ariadne.UI.Vty.Widget.WalletTree
        , initWalletTreeWidget
        , drawWalletTreeWidget
        , WalletTreeWidgetEvent(..)
+       , keyToWalletTreeEvent
        , handleWalletTreeWidgetEvent
        ) where
 
-import Universum hiding (StateT, (.~), get)
+import Universum hiding (StateT, get, (.~), (^.))
 
 import Control.Lens
 import Control.Monad.Trans.State
 import Data.List (intersperse)
+import qualified Data.List.NonEmpty as NE
 import Data.Tree (Tree(..))
 import IiExtras
 import Serokell.Util (enumerate)
-import qualified Data.List.NonEmpty as NE
 
 import qualified Brick as B
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 
 ----------------------------------------------------------------------------
 -- General (should probably be moved somewhere at later stage)
@@ -36,10 +38,12 @@ data SelectionFlag
 renderTree ::
        forall a.
        Maybe TreePath
-    -> (SelectionFlag -> TreePath -> a -> V.Image)
+    -> (SelectionFlag -> TreePath -> V.Attr -> V.Attr -> a -> V.Image)
+    -> V.Attr
+    -> V.Attr
     -> Tree a
     -> V.Image
-renderTree selection toImg = go [] []
+renderTree selection toImg defAttr selAttr = go [] []
   where
     map' :: (from -> Bool -> to) -> [from] -> [to]
     map' _ [] = []
@@ -51,7 +55,7 @@ renderTree selection toImg = go [] []
     prefixPart False False = "    "
     prefixPart False True  = "└── "
     prefix :: [Bool] -> V.Image
-    prefix prefixLines = V.text' V.defAttr $ mconcat $ map' prefixPart prefixLines
+    prefix prefixLines = V.text' defAttr $ mconcat $ map' prefixPart prefixLines
     selectionFlag :: TreePath -> SelectionFlag
     selectionFlag curPath
         | Just curPath == selection = Selected
@@ -60,7 +64,7 @@ renderTree selection toImg = go [] []
     go curPath prefixLines Node {..} =
         V.vertCat
         ( V.horizJoin (prefix prefixLines)
-                      (toImg (selectionFlag curPath) curPath rootLabel)
+                      (toImg (selectionFlag curPath) curPath defAttr selAttr rootLabel)
         : map' (\(i, child) isLast -> go (curPath ++ [i]) (prefixLines ++ [not isLast]) child) (enumerate subForest)
         )
 
@@ -86,8 +90,15 @@ initWalletTreeWidget = WalletTreeWidgetState [] (Just (UiWalletTreeSelection 0 [
 -- View
 ----------------------------------------------------------------------------
 
-renderWalletTreeItem :: SelectionFlag -> TreePath -> UiWalletTreeItem -> V.Image
-renderWalletTreeItem selection _ UiWalletTreeItem {..} = V.text' attr toDisplay
+renderWalletTreeItem
+  :: SelectionFlag
+  -> TreePath
+  -> V.Attr
+  -> V.Attr
+  -> UiWalletTreeItem
+  -> V.Image
+renderWalletTreeItem selection _ defAttr selAttr UiWalletTreeItem {..} =
+  V.text' attr toDisplay
   where
     toDisplay =
         case wtiLabel of
@@ -99,17 +110,15 @@ renderWalletTreeItem selection _ UiWalletTreeItem {..} = V.text' attr toDisplay
                 | otherwise -> label
     attr =
         case selection of
-            NotSelected -> V.defAttr
+            NotSelected -> defAttr
             Selected -> selAttr
-    selAttr = V.defAttr `V.withForeColor` V.black `V.withBackColor` V.white
     pathText = T.intercalate "-" $ map pretty wtiPath
 
 drawWalletTreeWidget
-  :: Bool
-  -> WalletTreeWidgetState
+  :: WalletTreeWidgetState
   -> B.Widget name
-drawWalletTreeWidget _hasFocus wtws  =
-  B.Widget
+drawWalletTreeWidget wtws  =
+  B.padAll 1 B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Greedy
     , B.render = render
@@ -117,10 +126,13 @@ drawWalletTreeWidget _hasFocus wtws  =
   where
     WalletTreeWidgetState wallets mSelection initialized = wtws
     render = do
+      c <- B.getContext
       let
+        attr = c ^. B.attrL
+        selAttr = attr <> B.attrMapLookup "selected" (c ^. B.ctxAttrMapL)
         renderOneTree :: (Word, UiWalletTree) -> V.Image
         renderOneTree (walletIdx, walletTree) =
-            renderTree selection renderWalletTreeItem walletTree
+            renderTree selection renderWalletTreeItem attr selAttr walletTree
           where
             selection :: Maybe TreePath
             selection = do
@@ -129,13 +141,13 @@ drawWalletTreeWidget _hasFocus wtws  =
         walletImages :: [V.Image]
         walletImages = map renderOneTree $ enumerate wallets
         separator :: V.Image
-        separator = V.text V.defAttr ""
+        separator = V.text attr ""
         img
-          | null walletImages = V.text V.defAttr "No wallets"
+          | null walletImages = V.text attr "No wallets"
           | otherwise = V.vertCat $ intersperse separator walletImages
         imgOrLoading
           | initialized = img
-          | otherwise = V.text V.defAttr "Loading..."
+          | otherwise = V.text attr "Loading..."
       return $ B.emptyResult
              & B.imageL .~ imgOrLoading
 
@@ -149,6 +161,16 @@ data WalletTreeWidgetEvent
   | WalletNavigationDown
   | WalletNavigationLeft
   | WalletNavigationRight
+
+keyToWalletTreeEvent
+  :: KeyboardEvent
+  -> Maybe WalletTreeWidgetEvent
+keyToWalletTreeEvent = \case
+  KeyUp -> Just WalletNavigationUp
+  KeyDown -> Just WalletNavigationDown
+  KeyLeft -> Just WalletNavigationLeft
+  KeyRight -> Just WalletNavigationRight
+  _ -> Nothing
 
 handleWalletTreeWidgetEvent
   :: UiLangFace
