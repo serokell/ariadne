@@ -1,6 +1,6 @@
 module Ariadne.UI.Vty.Widget.WalletPane where
 
-import Universum hiding (StateT, (.~), (^.))
+import Universum hiding (StateT, (.~))
 
 import Control.Lens
 import Control.Monad.Trans.State
@@ -23,10 +23,11 @@ initWalletPaneWidget :: WalletPaneWidgetState
 initWalletPaneWidget = WalletPaneWidgetState Nothing False
 
 drawWalletPaneWidget
-  :: WalletPaneWidgetState
+  :: Bool
+  -> WalletPaneWidgetState
   -> B.Widget name
-drawWalletPaneWidget wpws =
-  B.padAll 1 B.Widget
+drawWalletPaneWidget _hasFocus wpws =
+  B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
@@ -34,21 +35,19 @@ drawWalletPaneWidget wpws =
   where
     WalletPaneWidgetState{..} = wpws
     render = do
-      c <- B.getContext
       let
-        attr = c ^. B.attrL
         img = case walletPaneItemInfo of
           Nothing ->
-            V.text' attr "Select a wallet, an account, or an address"
+            V.text' V.defAttr "Select a wallet, an account, or an address"
           Just (UiWalletPaneWalletInfo name) ->
-            V.text' attr ("Wallet " <> pretty name)
+            V.text' V.defAttr ("Wallet " <> pretty name)
           Just (UiWalletPaneAccountInfo name) ->
-            V.text' attr ("Account " <> pretty name)
+            V.text' V.defAttr ("Account " <> pretty name)
           Just UiWalletPaneAddressInfo ->
-            V.text' attr "Address"
+            V.text' V.defAttr "Address"
         imgOrLoading
           | walletPaneInitialized = img
-          | otherwise = V.text attr "Loading..."
+          | otherwise = V.text V.defAttr "Loading..."
       return $
         B.emptyResult
           & B.imageL .~ imgOrLoading
@@ -59,7 +58,8 @@ data WalletPaneWidgetEvent
 handleWalletPaneWidgetEvent
   :: WalletPaneWidgetEvent
   -> StateT WalletPaneWidgetState IO ()
-handleWalletPaneWidgetEvent = \case
-  WalletPaneUpdateEvent itemInfo -> do
-    walletPaneInitializedL .= True
-    walletPaneItemInfoL .= itemInfo
+handleWalletPaneWidgetEvent ev = do
+  case ev of
+    WalletPaneUpdateEvent itemInfo -> do
+      walletPaneInitializedL .= True
+      walletPaneItemInfoL .= itemInfo

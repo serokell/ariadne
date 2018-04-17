@@ -1,4 +1,4 @@
-module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty, pprDoc) where
+module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty) where
 
 import Prelude
 
@@ -10,11 +10,8 @@ import qualified Graphics.Vty as V
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as Ppr.A
 
-ansiToVty
-  :: V.Attr
-  -> Ppr.A.SimpleDoc
-  -> V.Image
-ansiToVty defAttr = V.vertCat . execWriter . go defAttr id
+ansiToVty :: Ppr.A.SimpleDoc -> V.Image
+ansiToVty = V.vertCat . execWriter . go V.defAttr id
   where
     go
       :: V.Attr
@@ -54,13 +51,10 @@ getColor xs = case colors of
       AT.SetColor _ _ _ -> True
       _ -> False
 
-csiToVty
-  :: V.Attr
-  -> T.Text
-  -> V.Image
-csiToVty defAttr text = V.horizCat $ uncurry V.text' <$> split
+csiToVty :: T.Text -> V.Image
+csiToVty text = V.horizCat $ uncurry V.text' <$> split
   where
-    split = readString defAttr "" $ T.unpack text
+    split = readString V.defAttr "" $ T.unpack text
 
     readString :: V.Attr -> String -> String -> [(V.Attr, T.Text)]
     readString attr acc ('\x1b':'[':xs) = (attr, T.pack $ reverse acc) : readAttr attr "" xs
@@ -78,8 +72,8 @@ csiToVty defAttr text = V.horizCat $ uncurry V.text' <$> split
     csiToAttr _ _ attr = attr
 
     sgrToAttr attr = \case
-      "" -> defAttr
-      "0" -> defAttr
+      "" -> V.defAttr
+      "0" -> V.defAttr
 
       "30" -> attr `V.withForeColor` V.black
       "31" -> attr `V.withForeColor` V.red
@@ -100,10 +94,3 @@ csiToVty defAttr text = V.horizCat $ uncurry V.text' <$> split
       "97" -> attr `V.withForeColor` V.brightWhite
 
       _ -> attr
-
-pprDoc
-  :: V.Attr
-  -> Int
-  -> Ppr.A.Doc
-  -> V.Image
-pprDoc defAttr w s = ansiToVty defAttr $ Ppr.A.renderSmart 0.985 w s

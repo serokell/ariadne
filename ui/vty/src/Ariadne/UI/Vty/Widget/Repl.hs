@@ -7,13 +7,12 @@ import Data.Char as Char
 import Data.Function (fix, on)
 import Data.List as List
 import Data.Maybe (fromMaybe)
-import Data.Monoid
 import Data.Text as Text
+import Data.Monoid
 import Data.Text.Zipper
-  (TextZipper, breakLine, clearZipper, currentChar, currentLine,
-  cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
-  insertChar, insertMany, killToBOL, moveDown, moveLeft, moveRight, moveUp,
-  previousChar, textZipper)
+  (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
+  deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
+  moveRight, moveUp, previousChar, textZipper)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -27,15 +26,14 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
-import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
 newtype Width = Width { unWidth :: Int }
 
 data OutputElement
-  = OutputCommand UiCommandId (V.Attr -> Int -> V.Image) (Maybe (V.Attr -> Width -> V.Image))
-  | OutputInfo (V.Attr -> Width -> V.Image)
+  = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Width -> V.Image))
+  | OutputInfo (Width -> V.Image)
 
 -- Note that fields here are lazy, so we can afford to put all results we might
 -- need and discard the existential from 'UiLangFace' without causing excessive
@@ -57,9 +55,6 @@ makeLensesWith postfixLFields ''ReplWidgetState
 
 replWidgetText :: ReplWidgetState -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
-
-replWidgetEmpty :: ReplWidgetState -> Bool
-replWidgetEmpty = Text.null . Text.unwords . getText . replWidgetTextZipper
 
 mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
 mkReplParseResult UiLangFace{..} t =
@@ -91,10 +86,11 @@ initReplWidget langFace history =
     }
 
 drawReplOutputWidget
-  :: ReplWidgetState
+  :: Bool
+  -> ReplWidgetState
   -> B.Widget name
-drawReplOutputWidget replWidgetState =
-  B.padLeftRight 1 $ B.padBottom B.Max B.Widget
+drawReplOutputWidget _hasFocus replWidgetState =
+  B.padBottom B.Max B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render
@@ -104,8 +100,7 @@ drawReplOutputWidget replWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
-        defAttr = rdrCtx ^. B.attrL
-        viewportHeight = rdrCtx ^. B.availHeightL
+        viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
           cropScrolling viewportHeight (replWidgetState ^. replWidgetScrollingOffsetL) $
@@ -113,20 +108,20 @@ drawReplOutputWidget replWidgetState =
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg defAttr $ Width width
+          mkImg $ Width width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
           let
             cmdInfo = maybe "" (<> " ") (cmdIdRendered commandId)
-            prompt = V.text' defAttr "> "
+            prompt = V.text' V.defAttr "> "
           in
             V.vertCat
               [ V.horizCat
                 [ prompt
-                , commandSrc defAttr (width - V.imageWidth prompt)
+                , commandSrc (width - V.imageWidth prompt)
                 ]
               , case mCommandOut of
-                  Nothing -> V.text' defAttr $ cmdInfo <> "Waiting for result..."
-                  Just mkImg -> mkImg defAttr $ Width width
+                  Nothing -> V.text' V.defAttr $ cmdInfo <> "Waiting for result..."
+                  Just mkImg -> mkImg $ Width width
               ]
       return $
         B.emptyResult
@@ -136,17 +131,15 @@ drawReplInputWidget
   :: Bool
   -> ReplWidgetState
   -> B.Widget name
-drawReplInputWidget editMode replWidgetState =
-  B.padLeftRight 1 $ B.Widget
+drawReplInputWidget hasFocus replWidgetState =
+  B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
     render = do
-      rdrCtx <- B.getContext
       let
-        defAttr = rdrCtx ^. B.attrL
         attrFn :: (Int, Int) -> V.Attr -> V.Attr
         attrFn loc =
           case replWidgetParseResult replWidgetState of
@@ -157,10 +150,10 @@ drawReplInputWidget editMode replWidgetState =
         img =
           V.vertCat $
           List.zipWith V.horizJoin
-            (V.string defAttr "knit> " :
-              List.repeat (V.string defAttr "  ... "))
+            (V.string V.defAttr "knit> " :
+              List.repeat (V.string V.defAttr "  ... "))
             [ V.horizCat
-              [ V.char (attrFn (row, column) defAttr) char
+              [ V.char (attrFn (row, column) V.defAttr) char
               | (column, char) <- List.zip [1..] (unpack line)
               ]
             | (row, line) <- List.zip [1..] (getText zipper)
@@ -171,7 +164,7 @@ drawReplInputWidget editMode replWidgetState =
       return $
         B.emptyResult
           & B.imageL .~ img
-          & B.cursorsL .~ [curLoc | editMode]
+          & B.cursorsL .~ [curLoc | hasFocus]
 
 inSpans :: [Loc.Span] -> (Int, Int) -> Bool
 inSpans spans (row, column) = inSpan
@@ -183,14 +176,10 @@ inSpans spans (row, column) = inSpan
         (Loc.loc (fromIntegral row) (fromIntegral column + 1))
 
 data NavAction
-  = NavLeft
-  | NavLeftWord
-  | NavRight
-  | NavRightWord
-  | NavUp
-  | NavDown
-  | NavHome
-  | NavEnd
+  = NavArrowLeft
+  | NavArrowRight
+  | NavArrowUp
+  | NavArrowDown
 
 data CommandAction
   = NextCommand
@@ -200,9 +189,7 @@ data InputModification
   = InsertChar Char
   | DeleteBackwards
   | DeleteWordBackwards
-  | DeleteAllBackwards
   | DeleteForwards
-  | DeleteWordForwards
   | BreakLine
   | ReplaceBreakLine
 
@@ -220,44 +207,6 @@ data ReplOutputEvent
 
 data ReplCompleted = ReplCompleted | ReplInProgress
 
-keyToReplInputEvent
-  :: KeyboardEditEvent
-  -> Maybe ReplInputEvent
-keyToReplInputEvent = \case
-  KeyEditLeft ->
-    Just $ ReplInputNavigationEvent NavLeft
-  KeyEditLeftWord ->
-    Just $ ReplInputNavigationEvent NavLeftWord
-  KeyEditRight ->
-    Just $ ReplInputNavigationEvent NavRight
-  KeyEditRightWord ->
-    Just $ ReplInputNavigationEvent NavRightWord
-  KeyEditHome ->
-    Just $ ReplInputNavigationEvent NavHome
-  KeyEditEnd ->
-    Just $ ReplInputNavigationEvent NavEnd
-  KeyEditDelLeft ->
-    Just $ ReplInputModifyEvent DeleteBackwards
-  KeyEditDelLeftWord ->
-    Just $ ReplInputModifyEvent DeleteWordBackwards
-  KeyEditDelLeftAll ->
-    Just $ ReplInputModifyEvent DeleteAllBackwards
-  KeyEditDelRight ->
-    Just $ ReplInputModifyEvent DeleteForwards
-  KeyEditDelRightWord ->
-    Just $ ReplInputModifyEvent DeleteWordForwards
-  KeyEditNewLine ->
-    Just $ ReplInputModifyEvent BreakLine
-  KeyEditSend ->
-    Just $ ReplSmartEnterEvent
-  KeyEditNext ->
-    Just $ ReplCommandNavigationEvent NextCommand
-  KeyEditPrev ->
-    Just $ ReplCommandNavigationEvent PrevCommand
-  KeyEditChar c ->
-    Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
-
 handleReplInputEvent
   :: UiLangFace
   -> ReplInputEvent
@@ -269,10 +218,8 @@ handleReplInputEvent langFace = fix $ \go -> \case
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
-        DeleteWordBackwards -> byWord deletePrevChar previousChar
-        DeleteAllBackwards -> killToBOL
+        DeleteWordBackwards -> deletePrevWord
         DeleteForwards -> deleteChar
-        DeleteWordForwards -> byWord deleteChar currentChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse langFace
@@ -283,14 +230,10 @@ handleReplInputEvent langFace = fix $ \go -> \case
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
       case nav of
-        NavLeft -> moveLeft
-        NavLeftWord -> byWord moveLeft previousChar
-        NavRight -> moveRight
-        NavRightWord -> byWord moveRight currentChar
-        NavUp -> moveUp
-        NavDown -> moveDown
-        NavHome -> gotoBOL
-        NavEnd -> gotoEOL
+        NavArrowLeft -> moveLeft
+        NavArrowRight -> moveRight
+        NavArrowUp -> moveUp
+        NavArrowDown -> moveDown
     return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
     -- TODO: handle multi-line commands
@@ -319,12 +262,12 @@ handleReplInputEvent langFace = fix $ \go -> \case
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
-        let out = OutputInfo $ \defAttr (Width w) -> pprDoc defAttr w rpfParseErrDoc
+        let out = OutputInfo $ \(Width w) -> pprDoc w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
         commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (\defAttr w -> pprDoc defAttr w rpfExprDoc) Nothing
+        let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
     return ReplInProgress
@@ -346,31 +289,11 @@ smartBreakLine tz =
   let indentation = Text.takeWhile Char.isSpace (currentLine tz)
   in insertMany indentation (breakLine tz)
 
-byWord
-  :: (TextZipper Text -> TextZipper Text)
-  -> (TextZipper Text -> Maybe Char)
-  -> TextZipper Text
-  -> TextZipper Text
-byWord move check = go Char.isSpace . go (not . Char.isSpace)
-  where
-    go p = until (nothingLeft p) move
-    nothingLeft p tz = case check tz of
-      Nothing -> True
-      Just c -> p c
-
 deletePrevWord :: TextZipper Text -> TextZipper Text
 deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
   where
     deletePrevChars p = until (nothingLeft p) deletePrevChar
     nothingLeft p tz = case previousChar tz of
-      Nothing -> True
-      Just c -> p c
-
-deleteWord :: TextZipper Text -> TextZipper Text
-deleteWord = deleteChars Char.isSpace . deleteChars (not . Char.isSpace)
-  where
-    deleteChars p = until (nothingLeft p) deleteChar
-    nothingLeft p tz = case currentChar tz of
       Nothing -> True
       Just c -> p c
 
@@ -389,17 +312,20 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \defAttr (Width w) -> pprDoc defAttr w doc
+          Just $ \(Width w) -> pprDoc w doc
         UiCommandFailure doc ->
-          Just $ \defAttr (Width w) -> pprDoc defAttr w doc   -- TODO: highlight as an error
+          Just $ \(Width w) -> pprDoc w doc   -- TODO: highlight as an error
         UiCommandOutput _ ->
           -- TODO: create a new field in 'OutputCommand' and append
           -- the 'doc' there.
           oldResultImage
 updateCommandResult _ _ outCmd = outCmd
 
-ariadneBanner :: V.Attr -> Width -> V.Image
-ariadneBanner defAttr _ = V.vertCat $ List.map (V.text' defAttr)
+pprDoc :: Int -> PP.Doc -> V.Image
+pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
+
+ariadneBanner :: Width -> V.Image
+ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___ _____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
@@ -408,5 +334,6 @@ ariadneBanner defAttr _ = V.vertCat $ List.map (V.text' defAttr)
   , ""
   , "              Press <Enter> to send a command,"
   , "        <Backslash> <Enter> to insert a line break,"
-  , "               <Esc> to navigate main menu."
+  , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
+  , "           <Ctrl+G> to switch to navigation mode."
   ]

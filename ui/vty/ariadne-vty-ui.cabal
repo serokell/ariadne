@@ -47,8 +47,6 @@ library
       Ariadne.UI.Vty.Widget.WalletPane
       Ariadne.UI.Vty.Face
       Ariadne.UI.Vty.Scrolling
-      Ariadne.UI.Vty.Keyboard
-      Ariadne.UI.Vty.Theme
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
