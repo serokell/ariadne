@@ -40,6 +40,7 @@ drawLogsWidget logsWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
+        attr = rdrCtx ^. B.attrL
         viewportHeight = (rdrCtx ^. B.availHeightL)
         width = rdrCtx ^. B.availWidthL
         img =
@@ -49,7 +50,7 @@ drawLogsWidget logsWidgetState =
         drawLogMessage (LogMessage message) =
           V.cropRight width $
           V.vertCat $
-          fmap csiToVty $
+          fmap (csiToVty attr) $
           Text.lines message
       return $
         B.emptyResult
