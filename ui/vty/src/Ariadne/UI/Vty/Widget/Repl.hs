@@ -10,9 +10,10 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Text as Text
 import Data.Text.Zipper
-  (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
-  deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
-  moveRight, moveUp, previousChar, textZipper)
+  (TextZipper, breakLine, clearZipper, currentChar, currentLine,
+  cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
+  insertChar, insertMany, killToBOL, moveDown, moveLeft, moveRight, moveUp,
+  previousChar, textZipper)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -182,10 +183,14 @@ inSpans spans (row, column) = inSpan
         (Loc.loc (fromIntegral row) (fromIntegral column + 1))
 
 data NavAction
-  = NavArrowLeft
-  | NavArrowRight
-  | NavArrowUp
-  | NavArrowDown
+  = NavLeft
+  | NavLeftWord
+  | NavRight
+  | NavRightWord
+  | NavUp
+  | NavDown
+  | NavHome
+  | NavEnd
 
 data CommandAction
   = NextCommand
@@ -195,7 +200,9 @@ data InputModification
   = InsertChar Char
   | DeleteBackwards
   | DeleteWordBackwards
+  | DeleteAllBackwards
   | DeleteForwards
+  | DeleteWordForwards
   | BreakLine
   | ReplaceBreakLine
 
@@ -218,15 +225,29 @@ keyToReplInputEvent
   -> Maybe ReplInputEvent
 keyToReplInputEvent = \case
   KeyEditLeft ->
-    Just $ ReplInputNavigationEvent NavArrowLeft
+    Just $ ReplInputNavigationEvent NavLeft
+  KeyEditLeftWord ->
+    Just $ ReplInputNavigationEvent NavLeftWord
   KeyEditRight ->
-    Just $ ReplInputNavigationEvent NavArrowRight
+    Just $ ReplInputNavigationEvent NavRight
+  KeyEditRightWord ->
+    Just $ ReplInputNavigationEvent NavRightWord
+  KeyEditHome ->
+    Just $ ReplInputNavigationEvent NavHome
+  KeyEditEnd ->
+    Just $ ReplInputNavigationEvent NavEnd
   KeyEditDelLeft ->
     Just $ ReplInputModifyEvent DeleteBackwards
   KeyEditDelLeftWord ->
     Just $ ReplInputModifyEvent DeleteWordBackwards
+  KeyEditDelLeftAll ->
+    Just $ ReplInputModifyEvent DeleteAllBackwards
   KeyEditDelRight ->
     Just $ ReplInputModifyEvent DeleteForwards
+  KeyEditDelRightWord ->
+    Just $ ReplInputModifyEvent DeleteWordForwards
+  KeyEditNewLine ->
+    Just $ ReplInputModifyEvent BreakLine
   KeyEditSend ->
     Just $ ReplSmartEnterEvent
   KeyEditNext ->
@@ -248,8 +269,10 @@ handleReplInputEvent langFace = fix $ \go -> \case
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
-        DeleteWordBackwards -> deletePrevWord
+        DeleteWordBackwards -> byWord deletePrevChar previousChar
+        DeleteAllBackwards -> killToBOL
         DeleteForwards -> deleteChar
+        DeleteWordForwards -> byWord deleteChar currentChar
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse langFace
@@ -260,10 +283,14 @@ handleReplInputEvent langFace = fix $ \go -> \case
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
       case nav of
-        NavArrowLeft -> moveLeft
-        NavArrowRight -> moveRight
-        NavArrowUp -> moveUp
-        NavArrowDown -> moveDown
+        NavLeft -> moveLeft
+        NavLeftWord -> byWord moveLeft previousChar
+        NavRight -> moveRight
+        NavRightWord -> byWord moveRight currentChar
+        NavUp -> moveUp
+        NavDown -> moveDown
+        NavHome -> gotoBOL
+        NavEnd -> gotoEOL
     return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
     -- TODO: handle multi-line commands
@@ -319,11 +346,31 @@ smartBreakLine tz =
   let indentation = Text.takeWhile Char.isSpace (currentLine tz)
   in insertMany indentation (breakLine tz)
 
+byWord
+  :: (TextZipper Text -> TextZipper Text)
+  -> (TextZipper Text -> Maybe Char)
+  -> TextZipper Text
+  -> TextZipper Text
+byWord move check = go Char.isSpace . go (not . Char.isSpace)
+  where
+    go p = until (nothingLeft p) move
+    nothingLeft p tz = case check tz of
+      Nothing -> True
+      Just c -> p c
+
 deletePrevWord :: TextZipper Text -> TextZipper Text
 deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
   where
     deletePrevChars p = until (nothingLeft p) deletePrevChar
     nothingLeft p tz = case previousChar tz of
+      Nothing -> True
+      Just c -> p c
+
+deleteWord :: TextZipper Text -> TextZipper Text
+deleteWord = deleteChars Char.isSpace . deleteChars (not . Char.isSpace)
+  where
+    deleteChars p = until (nothingLeft p) deleteChar
+    nothingLeft p tz = case currentChar tz of
       Nothing -> True
       Just c -> p c
 

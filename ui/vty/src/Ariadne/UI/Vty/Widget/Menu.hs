@@ -44,7 +44,7 @@ menuWidgetSel MenuWidgetState{..} =
 
 menuWidgetCharToSel :: Char -> MenuWidgetState a -> Maybe a
 menuWidgetCharToSel key MenuWidgetState{..} =
-  view menuWidgetElemSelectorL <$> Vector.find ((== key) . menuWidgetElemKey) menuWidgetElems
+  view menuWidgetElemSelectorL <$> Vector.find ((== toLower key) . menuWidgetElemKey) menuWidgetElems
 
 
 initMenuWidget :: NonEmpty (MenuWidgetElem a) -> Int -> MenuWidgetState a

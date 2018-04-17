@@ -39,6 +39,7 @@ data KeyboardEditEvent
   | KeyEditEnd
   | KeyEditDelLeft
   | KeyEditDelLeftWord
+  | KeyEditDelLeftAll
   | KeyEditDelRight
   | KeyEditDelRightWord
 
@@ -66,22 +67,14 @@ vtyToKey = \case
     EvKey KBackTab     [MCtrl] -> KeyFocusPrev
     EvKey KEnter       []      -> KeyEnter
 
-    EvKey KLeft        []      -> KeyLeft
-    EvKey KLeft        [MCtrl] -> KeyLeft
-    EvKey KRight       []      -> KeyRight
-    EvKey KRight       [MCtrl] -> KeyRight
-    EvKey KUp          []      -> KeyUp
-    EvKey KUp          [MCtrl] -> KeyUp
-    EvKey KDown        []      -> KeyDown
-    EvKey KDown        [MCtrl] -> KeyDown
-    EvKey KPageUp      []      -> KeyPageUp
-    EvKey KPageUp      [MCtrl] -> KeyPageUp
-    EvKey KPageDown    []      -> KeyPageDown
-    EvKey KPageDown    [MCtrl] -> KeyPageDown
-    EvKey KHome        []      -> KeyHome
-    EvKey KHome        [MCtrl] -> KeyHome
-    EvKey KEnd         []      -> KeyEnd
-    EvKey KEnd         [MCtrl] -> KeyEnd
+    EvKey KLeft        _       -> KeyLeft
+    EvKey KRight       _       -> KeyRight
+    EvKey KUp          _       -> KeyUp
+    EvKey KDown        _       -> KeyDown
+    EvKey KPageUp      _       -> KeyPageUp
+    EvKey KPageDown    _       -> KeyPageDown
+    EvKey KHome        _       -> KeyHome
+    EvKey KEnd         _       -> KeyEnd
 
     EvKey (KChar c)    []      -> KeyChar c
     _                          -> KeyUnknown
@@ -99,13 +92,13 @@ vtyToEditKey = \case
     EvKey (KChar 'h')  [MCtrl] -> KeyEditDelLeft
     EvKey KBS          [MCtrl] -> KeyEditDelLeftWord
     EvKey (KChar 'w')  [MCtrl] -> KeyEditDelLeftWord
+    EvKey (KChar 'u')  [MCtrl] -> KeyEditDelLeftAll
     EvKey KDel         []      -> KeyEditDelRight
     EvKey KDel         [MCtrl] -> KeyEditDelRightWord
 
     EvKey (KChar '\t') []      -> KeyEditAutocomplete
     EvKey KUp          []      -> KeyEditPrev
     EvKey KDown        []      -> KeyEditNext
-    EvKey KEnter       [MCtrl] -> KeyEditNewLine
     EvKey KEnter       []      -> KeyEditSend
     EvKey (KChar 'c')  [MCtrl] -> KeyEditCancel
 
