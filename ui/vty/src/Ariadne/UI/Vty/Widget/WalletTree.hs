@@ -102,7 +102,7 @@ renderWalletTreeItem selection _ UiWalletTreeItem {..} = V.text' attr toDisplay
             NotSelected -> V.defAttr
             Selected -> selAttr
     selAttr = V.defAttr `V.withForeColor` V.black `V.withBackColor` V.white
-    pathText = T.intercalate "-" $ map (pretty . succ) wtiPath
+    pathText = T.intercalate "-" $ map pretty wtiPath
 
 drawWalletTreeWidget
   :: Bool
