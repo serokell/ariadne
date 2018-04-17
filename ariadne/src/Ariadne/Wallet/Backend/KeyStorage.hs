@@ -60,6 +60,20 @@ instance Exception AccountDoesNotExist where
   displayException (AccountDoesNotExist t) =
     "The account " ++ show t ++ " does not exist."
 
+data AddressDoesNotExist = AddressDoesNotExist Text
+  deriving (Eq, Show)
+
+instance Exception AddressDoesNotExist where
+  displayException (AddressDoesNotExist t) =
+    "The address " ++ show t ++ " does not exist."
+
+data SelectIsTooDeep = SelectIsTooDeep
+  deriving (Eq, Show)
+
+instance Exception SelectIsTooDeep where
+  displayException SelectIsTooDeep =
+    "The selection path is too deep"
+
 data AddressGenerationFailed = AGFailedIncorrectPassPhrase
   deriving (Eq, Show)
 
@@ -232,6 +246,29 @@ select WalletFace{..} walletSelRef runCardanoMode mWalletRef wsPath = do
     Nothing -> atomicWriteIORef walletSelRef Nothing
     Just walletRef -> do
       wsWalletIndex <- resolveWalletRef walletSelRef runCardanoMode walletRef
+      us <- runCardanoMode getSecretDefault
+      -- validate wallet
+      wallet <- maybeThrow
+        (WalletDoesNotExist $ pretty wsWalletIndex)
+        (us ^? usWallets . ix (fromIntegral wsWalletIndex))
+      case nonEmpty wsPath of
+        Nothing -> return ()
+        Just (accIdx :| acPath) -> do
+
+          -- validate account
+          account <- maybeThrow
+            (AccountDoesNotExist $ pretty accIdx)
+            (wallet ^? wdAccounts . ix (fromIntegral accIdx))
+
+          case nonEmpty acPath of
+            Nothing -> return ()
+            Just (addrIdx :| []) -> do
+              -- validate address
+              void $ maybeThrow
+                (AddressDoesNotExist $ pretty addrIdx)
+                (account ^? adAddresses . ix (fromIntegral addrIdx))
+            Just (_ :| _) -> throwM SelectIsTooDeep
+
       atomicWriteIORef walletSelRef $ Just $
         WalletSelection { wsPath, wsWalletIndex }
   walletRefreshUserSecret
