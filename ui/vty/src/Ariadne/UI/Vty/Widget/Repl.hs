@@ -25,8 +25,8 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.CommandHistory
-import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
@@ -214,7 +214,7 @@ data ReplOutputEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 keyToReplInputEvent
-  :: KeyboardEvent
+  :: KeyboardEditEvent
   -> Maybe ReplInputEvent
 keyToReplInputEvent = \case
   KeyEditLeft ->
@@ -233,7 +233,7 @@ keyToReplInputEvent = \case
     Just $ ReplCommandNavigationEvent NextCommand
   KeyEditPrev ->
     Just $ ReplCommandNavigationEvent PrevCommand
-  KeyChar c ->
+  KeyEditChar c ->
     Just $ ReplInputModifyEvent (InsertChar c)
   _ -> Nothing
 

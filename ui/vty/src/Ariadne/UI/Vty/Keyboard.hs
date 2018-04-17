@@ -1,5 +1,6 @@
 module Ariadne.UI.Vty.Keyboard
      ( KeyboardEvent(..)
+     , KeyboardEditEvent(..)
      , vtyToKey
      , vtyToEditKey
      ) where
@@ -25,7 +26,12 @@ data KeyboardEvent
   | KeyHome
   | KeyEnd
 
-  | KeyEditLeft
+  | KeyChar Char
+  | KeyUnknown
+  deriving (Eq)
+
+data KeyboardEditEvent
+  = KeyEditLeft
   | KeyEditRight
   | KeyEditLeftWord
   | KeyEditRightWord
@@ -43,8 +49,8 @@ data KeyboardEvent
   | KeyEditSend
   | KeyEditCancel
 
-  | KeyChar Char
-  | KeyUnknown
+  | KeyEditChar Char
+  | KeyEditUnknown
   deriving (Eq)
 
 vtyToKey :: Event -> KeyboardEvent
@@ -80,7 +86,7 @@ vtyToKey = \case
     EvKey (KChar c)    []      -> KeyChar c
     _                          -> KeyUnknown
 
-vtyToEditKey :: Event -> KeyboardEvent
+vtyToEditKey :: Event -> KeyboardEditEvent
 vtyToEditKey = \case
     EvKey KLeft        []      -> KeyEditLeft
     EvKey KRight       []      -> KeyEditRight
@@ -103,5 +109,5 @@ vtyToEditKey = \case
     EvKey KEnter       []      -> KeyEditSend
     EvKey (KChar 'c')  [MCtrl] -> KeyEditCancel
 
-    EvKey (KChar c)    []      -> KeyChar c
-    _                          -> KeyUnknown
+    EvKey (KChar c)    []      -> KeyEditChar c
+    _                          -> KeyEditUnknown

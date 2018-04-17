@@ -7,13 +7,13 @@ module Ariadne.UI.Vty.App
 import Control.Lens
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State
-import Data.List.NonEmpty (NonEmpty(..))
 import Data.Void
 import IiExtras
 import Prelude
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Data.List.NonEmpty as NE
 
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
@@ -74,10 +74,10 @@ initialAppState langFace history =
     , appStateWalletPane = initWalletPaneWidget
     }
   where
-    appSelectors :: NonEmpty (MenuWidgetElem AppSelector)
-    appSelectors
-      = MenuWidgetElem AppSelectorWallet "Wallet" 'w' :|
-      [ MenuWidgetElem AppSelectorHelp "Help" 'h'
+    appSelectors :: NE.NonEmpty (MenuWidgetElem AppSelector)
+    appSelectors = NE.fromList
+      [ MenuWidgetElem AppSelectorWallet "Wallet" 'w'
+      , MenuWidgetElem AppSelectorHelp "Help" 'h'
       , MenuWidgetElem AppSelectorLogs "Logs" 'l'
       ]
 
@@ -224,7 +224,7 @@ handleAppEvent langFace ev =
 
         -- Switch focus between widgets, unless we do autocomplete
         | key `elem` [KeyFocusNext, KeyFocusPrev],
-          not editorModeEnabled || replEmpty || editKey == KeyUnknown -> do
+          not editorModeEnabled || replEmpty || editKey == KeyEditUnknown -> do
             appStateEditorModeL .= False
             appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
@@ -311,18 +311,18 @@ handleAppEvent langFace ev =
     _ ->
       return AppInProgress
 
-focusesBySel :: AppSelector -> [AppFocus]
-focusesBySel = \case
+focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
+focusesBySel sel = NE.fromList $ case sel of
   AppSelectorWallet -> [AppFocusWalletTree, AppFocusWalletPane, AppFocusRepl]
   AppSelectorHelp -> [AppFocusRepl]
   AppSelectorLogs -> [AppFocusRepl]
 
 rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
-rotateFocus selector focus back = dropWhile (/= focus) focuses !! 1
+rotateFocus selector focus back = NE.dropWhile (/= focus) focuses !! 1
   where
-    focuses = cycle $ (if back then reverse . focusesBySel else focusesBySel) selector
+    focuses = NE.cycle $ (if back then NE.reverse . focusesBySel else focusesBySel) selector
 
 restoreFocus :: AppSelector -> AppFocus -> AppFocus
 restoreFocus selector focus =
-  if focus `elem` focuses then focus else head focuses
+  if focus `elem` focuses then focus else NE.head focuses
   where focuses = focusesBySel selector
