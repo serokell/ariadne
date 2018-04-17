@@ -33,6 +33,7 @@ createWalletBackend = do
               refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
           , walletSelect = select this walletSelRef runCardanoMode
           , walletSend = sendTx this cf walletSelRef
+          , walletSelection = readIORef walletSelRef
           }
       initWalletAction =
         walletRefreshUserSecret walletFace
