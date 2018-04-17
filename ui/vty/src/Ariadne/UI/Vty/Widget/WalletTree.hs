@@ -112,7 +112,7 @@ renderWalletTreeItem selection _ defAttr selAttr UiWalletTreeItem {..} =
         case selection of
             NotSelected -> defAttr
             Selected -> selAttr
-    pathText = T.intercalate "-" $ map (pretty . succ) wtiPath
+    pathText = T.intercalate "-" $ map pretty wtiPath
 
 drawWalletTreeWidget
   :: WalletTreeWidgetState
