@@ -56,10 +56,12 @@ main = do
     knitExecContext putCommandOutput =
       Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
-      Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
+      Knit.WalletExecCtx walletFace :&
       Knit.TaskManagerExecCtx taskManagerFace :&
-      Knit.UiExecCtx uiFace :&
+      Knit.UiExecCtx uiFace (uiGetSelectedItem walletFace) :&
       RNil
+      where
+        walletFace = mkWalletFace putCommandOutput
 
     knitFace = createKnitBackend knitExecContext taskManagerFace
 

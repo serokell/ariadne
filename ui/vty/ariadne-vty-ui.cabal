@@ -16,31 +16,33 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
-    , universum
-    , serokell-util
-    , containers
+      ansi-wl-pprint
+    , ansi-terminal
+    , base >=4.7 && <5
     , brick
+    , containers
+    , directory
+    , Hclip
     , vty
     , text
     , lens
     , transformers
     , loc
     , text-zipper
-    , ansi-wl-pprint
-    , ansi-terminal
+    , serokell-util
     , vector
     , ii-extras
-    , directory
     , named
     -- UI is independent of Knit, but provides Knit command bindings
     , knit
     , Earley
+    , universum
 
   exposed-modules:
       Ariadne.UI.Vty
       Ariadne.UI.Vty.App
       Ariadne.UI.Vty.AnsiToVty
+      Ariadne.UI.Vty.Clipboard
       Ariadne.UI.Vty.CommandHistory
       Ariadne.UI.Vty.Widget.Help
       Ariadne.UI.Vty.Widget.Logs

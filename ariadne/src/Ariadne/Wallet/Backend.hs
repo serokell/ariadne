@@ -9,6 +9,8 @@ import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
+import Pos.Client.KeyStorage (getSecretDefault)
+
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
@@ -41,7 +43,8 @@ createWalletBackend walletConfig = do
           , walletSelect = select this walletSelRef runCardanoMode
           , walletSend =
               sendTx this cf walletSelRef putCommandOutput
-          , walletSelection = readIORef walletSelRef
+          , walletGetSelection =
+              (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
           , walletBalance = do
               addrs <- getSelectedAddresses this walletSelRef runCardanoMode
               runCardanoMode $ getBalance addrs

@@ -193,6 +193,7 @@ executable ariadne
     , containers
     , ansi-wl-pprint
     , text
+    , vector
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
