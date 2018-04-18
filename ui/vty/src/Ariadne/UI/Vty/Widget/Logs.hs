@@ -3,6 +3,8 @@ module Ariadne.UI.Vty.Widget.Logs where
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
 import Control.Lens
+import Control.Monad
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Data.Text as Text
 import IiExtras
@@ -13,44 +15,46 @@ import qualified Graphics.Vty as V
 
 newtype LogMessage = LogMessage Text
 
-data LogsWidgetState =
+data LogsWidgetState n =
   LogsWidgetState
     { logsWidgetMessages :: [LogMessage]
-    , logsWidgetScrollingOffset :: ScrollingOffset
+    , logsWidgetLineCount :: Int
+    , logsWidgetScrolled :: Bool
+    , logsWidgetBrickName :: (Ord n, Show n) => n
     }
 
 makeLensesWith postfixLFields ''LogsWidgetState
 
-initLogsWidget :: LogsWidgetState
-initLogsWidget = LogsWidgetState
-  {
-    logsWidgetMessages = []
-  , logsWidgetScrollingOffset = scrollingOffsetFollowing
+initLogsWidget :: n -> LogsWidgetState n
+initLogsWidget name = LogsWidgetState
+  { logsWidgetMessages = []
+  , logsWidgetLineCount = 0
+  , logsWidgetScrolled = False
+  , logsWidgetBrickName = name
   }
 
-drawLogsWidget :: LogsWidgetState -> B.Widget name
+drawLogsWidget
+  :: (Ord n, Show n)
+  => LogsWidgetState n
+  -> B.Widget n
 drawLogsWidget logsWidgetState =
-  B.padTop B.Max $ B.Widget
-    { B.hSize = B.Greedy
-    , B.vSize = B.Greedy
-    , B.render = render
-    }
+  B.viewport name B.Both $
+    B.cached name B.Widget
+      { B.hSize = B.Fixed
+      , B.vSize = B.Fixed
+      , B.render = render
+      }
   where
+    name = logsWidgetState ^. logsWidgetBrickNameL
     outElems = Prelude.reverse (logsWidgetMessages logsWidgetState)
     render = do
-      rdrCtx <- B.getContext
       let
-        viewportHeight = (rdrCtx ^. B.availHeightL)
-        width = rdrCtx ^. B.availWidthL
         img =
-          cropScrolling viewportHeight (logsWidgetState ^. logsWidgetScrollingOffsetL) $
           V.vertCat $
           fmap drawLogMessage outElems
         drawLogMessage (LogMessage message) =
-          V.cropRight width $
           V.vertCat $
-          fmap csiToVty $
-          Text.lines message
+          csiToVty <$> Text.lines message
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -60,10 +64,22 @@ data LogsWidgetEvent
   | LogsMessage Text
 
 handleLogsWidgetEvent
-  :: LogsWidgetEvent
-  -> StateT LogsWidgetState IO ()
-handleLogsWidgetEvent = \case
-  LogsScrollingEvent event -> do
-    zoom logsWidgetScrollingOffsetL $ modify $ handleScrollingEvent event
-  LogsMessage message -> do
-    zoom logsWidgetMessagesL $ modify $ (Prelude.take 1000) . (LogMessage message:)
+  :: (Ord n, Show n)
+  => LogsWidgetEvent
+  -> StateT (LogsWidgetState n) (B.EventM n) ()
+handleLogsWidgetEvent ev = do
+  name <- use logsWidgetBrickNameL
+  case ev of
+    LogsScrollingEvent action -> do
+      lift $ handleScrollingEvent name action
+      logsWidgetScrolledL .= True
+    LogsMessage message -> do
+      lineCount <- use logsWidgetLineCountL
+      scrolled <- use logsWidgetScrolledL
+      lift $ if scrolled
+        then keepScrollingToEnd name lineCount
+        else scrollToEnd name
+
+      zoom logsWidgetMessagesL $ modify (LogMessage message:)
+      logsWidgetLineCountL += Prelude.length (Text.lines message)
+      lift $ B.invalidateCacheEntry name

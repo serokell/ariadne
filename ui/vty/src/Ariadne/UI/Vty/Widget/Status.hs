@@ -67,7 +67,7 @@ data StatusWidgetEvent
 
 handleStatusWidgetEvent
   :: StatusWidgetEvent
-  -> State.StateT StatusWidgetState IO ()
+  -> State.StateT StatusWidgetState (B.EventM n) ()
 handleStatusWidgetEvent = \case
   StatusUpdateEvent UiCardanoStatusUpdate{..} -> do
     statusWidgetTipHeaderHashL .= tipHeaderHash
