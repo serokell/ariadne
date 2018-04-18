@@ -1,6 +1,6 @@
 module Ariadne.UI.Vty.Scrolling
      ( ScrollingAction(..)
-     , eventToScrollingAction
+     , keyToScrollingAction
      , handleScrollingEvent
      , scrollToEnd
      , keepScrollingToEnd
@@ -8,8 +8,9 @@ module Ariadne.UI.Vty.Scrolling
 
 import Universum
 
+import Ariadne.UI.Vty.Keyboard
+
 import qualified Brick as B
-import qualified Graphics.Vty as V
 
 data ScrollingAction
   = ScrollingLineUp
@@ -21,20 +22,20 @@ data ScrollingAction
   | ScrollingLeft
   | ScrollingRight
 
-eventToScrollingAction :: V.Event -> Maybe ScrollingAction
-eventToScrollingAction = \case
-  V.EvKey V.KUp         [] -> Just ScrollingLineUp
-  V.EvKey (V.KChar 'k') [] -> Just ScrollingLineUp
-  V.EvKey V.KDown       [] -> Just ScrollingLineDown
-  V.EvKey (V.KChar 'j') [] -> Just ScrollingLineDown
-  V.EvKey V.KPageUp     [] -> Just ScrollingPgUp
-  V.EvKey V.KPageDown   [] -> Just ScrollingPgDown
-  V.EvKey V.KHome       [] -> Just ScrollingHome
-  V.EvKey V.KEnd        [] -> Just ScrollingEnd
-  V.EvKey V.KLeft       [] -> Just ScrollingLeft
-  V.EvKey (V.KChar 'h') [] -> Just ScrollingLeft
-  V.EvKey V.KRight      [] -> Just ScrollingRight
-  V.EvKey (V.KChar 'l') [] -> Just ScrollingRight
+keyToScrollingAction :: KeyboardEvent -> Maybe ScrollingAction
+keyToScrollingAction = \case
+  KeyUp       -> Just ScrollingLineUp
+  KeyDown     -> Just ScrollingLineDown
+  KeyPageUp   -> Just ScrollingPgUp
+  KeyPageDown -> Just ScrollingPgDown
+  KeyHome     -> Just ScrollingHome
+  KeyEnd      -> Just ScrollingEnd
+  KeyLeft     -> Just ScrollingLeft
+  KeyRight    -> Just ScrollingRight
+  KeyChar 'h' -> Just ScrollingLeft
+  KeyChar 'j' -> Just ScrollingLineDown
+  KeyChar 'k' -> Just ScrollingLineUp
+  KeyChar 'l' -> Just ScrollingRight
   _ -> Nothing
 
 handleScrollingEvent :: n -> ScrollingAction -> B.EventM n ()
