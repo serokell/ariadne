@@ -51,13 +51,15 @@ drawLogsWidget logsWidgetState =
     name = logsWidgetState ^. logsWidgetBrickNameL
     outElems = Prelude.reverse (logsWidgetMessages logsWidgetState)
     render = do
+      rdrCtx <- B.getContext
       let
+        attr = rdrCtx ^. B.attrL
         img =
           V.vertCat $
           fmap drawLogMessage outElems
         drawLogMessage (LogMessage message) =
           V.vertCat $
-          csiToVty <$> Text.lines message
+          csiToVty attr <$> Text.lines message
       return $
         B.emptyResult
           & B.imageL .~ img

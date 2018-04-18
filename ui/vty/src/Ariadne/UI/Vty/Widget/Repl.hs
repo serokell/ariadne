@@ -8,8 +8,8 @@ import Data.Char as Char
 import Data.Function (fix, on)
 import Data.List as List
 import Data.Maybe (fromMaybe)
-import Data.Text as Text
 import Data.Monoid
+import Data.Text as Text
 import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
   deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
@@ -33,8 +33,8 @@ import Ariadne.UI.Vty.Scrolling
 newtype Width = Width { unWidth :: Int }
 
 data OutputElement
-  = OutputCommand UiCommandId (Int -> V.Image) (Maybe (Width -> V.Image))
-  | OutputInfo (Width -> V.Image)
+  = OutputCommand UiCommandId (V.Attr -> Int -> V.Image) (Maybe (V.Attr -> Width -> V.Image))
+  | OutputInfo (V.Attr -> Width -> V.Image)
 
 -- Note that fields here are lazy, so we can afford to put all results we might
 -- need and discard the existential from 'UiLangFace' without causing excessive
@@ -98,7 +98,8 @@ drawReplOutputWidget
   -> B.Widget n
 drawReplOutputWidget _hasFocus replWidgetState =
   B.viewport name B.Vertical $
-    B.cached name B.Widget
+    B.cached name $
+    B.padLeftRight 1 B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -109,26 +110,27 @@ drawReplOutputWidget _hasFocus replWidgetState =
     render = do
       rdrCtx <- B.getContext
       let
+        defAttr = rdrCtx ^. B.attrL
         width = rdrCtx ^. B.availWidthL
         img =
           V.vertCat $
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg $ Width width
+          mkImg defAttr $ Width width
         drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
           let
             cmdInfo = maybe "" (<> " ") (cmdIdRendered commandId)
-            prompt = V.text' V.defAttr "> "
+            prompt = V.text' defAttr "> "
           in
             V.vertCat
               [ V.horizCat
                 [ prompt
-                , commandSrc (width - V.imageWidth prompt)
+                , commandSrc defAttr (width - V.imageWidth prompt)
                 ]
               , case mCommandOut of
-                  Nothing -> V.text' V.defAttr $ cmdInfo <> "Waiting for result..."
-                  Just mkImg -> mkImg $ Width width
+                  Nothing -> V.text' defAttr $ cmdInfo <> "Waiting for result..."
+                  Just mkImg -> mkImg defAttr $ Width width
               ]
       return $
         B.emptyResult
@@ -139,14 +141,16 @@ drawReplInputWidget
   -> ReplWidgetState n
   -> B.Widget n
 drawReplInputWidget hasFocus replWidgetState =
-  B.Widget
+  B.padLeftRight 1 B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
     render = do
+      rdrCtx <- B.getContext
       let
+        defAttr = rdrCtx ^. B.attrL
         attrFn :: (Int, Int) -> V.Attr -> V.Attr
         attrFn loc =
           case replWidgetParseResult replWidgetState of
@@ -157,10 +161,10 @@ drawReplInputWidget hasFocus replWidgetState =
         img =
           V.vertCat $
           List.zipWith V.horizJoin
-            (V.string V.defAttr "knit> " :
-              List.repeat (V.string V.defAttr "  ... "))
+            (V.string defAttr "knit> " :
+              List.repeat (V.string defAttr "  ... "))
             [ V.horizCat
-              [ V.char (attrFn (row, column) V.defAttr) char
+              [ V.char (attrFn (row, column) defAttr) char
               | (column, char) <- List.zip [1..] (unpack line)
               ]
             | (row, line) <- List.zip [1..] (getText zipper)
@@ -270,12 +274,12 @@ handleReplInputEvent langFace = fix $ \go -> \case
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
-        let out = OutputInfo $ \(Width w) -> pprDoc w rpfParseErrDoc
+        let out = OutputInfo $ \defAttr (Width w) -> pprDoc defAttr w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
         commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (\w -> pprDoc w rpfExprDoc) Nothing
+        let out = OutputCommand commandId (\defAttr w -> pprDoc defAttr w rpfExprDoc) Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
     name <- use replWidgetBrickNameL
@@ -331,20 +335,17 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \(Width w) -> pprDoc w doc
+          Just $ \defAttr (Width w) -> pprDoc defAttr w doc
         UiCommandFailure doc ->
-          Just $ \(Width w) -> pprDoc w doc   -- TODO: highlight as an error
+          Just $ \defAttr (Width w) -> pprDoc defAttr w doc   -- TODO: highlight as an error
         UiCommandOutput _ ->
           -- TODO: create a new field in 'OutputCommand' and append
           -- the 'doc' there.
           oldResultImage
 updateCommandResult _ _ outCmd = outCmd
 
-pprDoc :: Int -> PP.Doc -> V.Image
-pprDoc w s = ansiToVty $ PP.renderSmart 0.985 w s
-
-ariadneBanner :: Width -> V.Image
-ariadneBanner _ = V.vertCat $ List.map (V.text' V.defAttr)
+ariadneBanner :: V.Attr -> Width -> V.Image
+ariadneBanner defAttr _ = V.vertCat $ List.map (V.text' defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___ _____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
