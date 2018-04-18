@@ -57,7 +57,7 @@ data WalletPaneWidgetEvent
 
 handleWalletPaneWidgetEvent
   :: WalletPaneWidgetEvent
-  -> StateT WalletPaneWidgetState IO ()
+  -> StateT WalletPaneWidgetState (B.EventM n) ()
 handleWalletPaneWidgetEvent ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do

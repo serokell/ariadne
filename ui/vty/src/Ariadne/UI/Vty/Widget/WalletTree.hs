@@ -153,7 +153,7 @@ data WalletTreeWidgetEvent
 handleWalletTreeWidgetEvent
   :: UiLangFace
   -> WalletTreeWidgetEvent
-  -> StateT WalletTreeWidgetState IO ()
+  -> StateT WalletTreeWidgetState (B.EventM n) ()
 handleWalletTreeWidgetEvent UiLangFace{..} = \case
   WalletTreeUpdateEvent wallets wselection -> do
     walletTreeInitializedL .= True

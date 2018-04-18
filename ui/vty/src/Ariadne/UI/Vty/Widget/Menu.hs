@@ -106,7 +106,7 @@ data MenuWidgetEvent a
 
 handleMenuWidgetEvent
   :: MenuWidgetEvent a
-  -> StateT (MenuWidgetState a) IO ()
+  -> StateT (MenuWidgetState a) (B.EventM n) ()
 handleMenuWidgetEvent ev = do
   len <- uses menuWidgetElemsL Vector.length
   let

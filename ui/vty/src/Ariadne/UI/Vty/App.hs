@@ -5,10 +5,8 @@ module Ariadne.UI.Vty.App
   ) where
 
 import Control.Lens
-import Control.Monad.IO.Class
 import Control.Monad.Trans.State
 import Data.List.NonEmpty
-import Data.Void
 import IiExtras
 import Prelude
 
@@ -36,14 +34,20 @@ data AppSelector
   | AppSelectorLogs
   deriving (Eq)
 
+data AppBrickName
+  = AppBrickReplOutput
+  | AppBrickHelp
+  | AppBrickLogs
+  deriving (Eq, Ord, Show)
+
 data AppState =
   AppState
-    { appStateRepl :: ReplWidgetState
+    { appStateRepl :: ReplWidgetState AppBrickName
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
     , appStateNavigationMode :: Bool
-    , appStateHelp :: HelpWidgetState
-    , appStateLogs :: LogsWidgetState
+    , appStateHelp :: HelpWidgetState AppBrickName
+    , appStateLogs :: LogsWidgetState AppBrickName
     , appStateWalletTree :: WalletTreeWidgetState
     , appStateWalletPane :: WalletPaneWidgetState
     }
@@ -53,12 +57,12 @@ makeLensesWith postfixLFields ''AppState
 initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
-    { appStateRepl = initReplWidget langFace history
+    { appStateRepl = initReplWidget langFace history AppBrickReplOutput
     , appStateMenu = initMenuWidget appSelectors 0
     , appStateStatus = initStatusWidget
     , appStateNavigationMode = False
-    , appStateHelp = initHelpWidget
-    , appStateLogs = initLogsWidget
+    , appStateHelp = initHelpWidget AppBrickHelp
+    , appStateLogs = initLogsWidget AppBrickLogs
     , appStateWalletTree = initWalletTreeWidget
     , appStateWalletPane = initWalletPaneWidget
     }
@@ -75,39 +79,39 @@ initialAppState langFace history =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: UiLangFace -> B.App AppState UiEvent Void
+app :: UiLangFace -> B.App AppState UiEvent AppBrickName
 app langFace = B.App{..} where
 
-  appDraw :: AppState -> [B.Widget Void]
+  appDraw :: AppState -> [B.Widget AppBrickName]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
   appChooseCursor
     :: AppState
-    -> [B.CursorLocation Void]
-    -> Maybe (B.CursorLocation Void)
+    -> [B.CursorLocation AppBrickName]
+    -> Maybe (B.CursorLocation AppBrickName)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent Void UiEvent
-    -> B.EventM Void (B.Next AppState)
+    -> B.BrickEvent AppBrickName UiEvent
+    -> B.EventM AppBrickName (B.Next AppState)
   appHandleEvent appState ev = do
-    (completed, appState') <- liftIO $
+    (completed, appState') <-
       runStateT (handleAppEvent langFace ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState -> B.EventM Void AppState
+  appStartEvent :: AppState -> B.EventM AppBrickName AppState
   appStartEvent = return
 
   -- We do not use this feature of Brick.
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap _ = B.attrMap V.defAttr []
 
-drawAppWidget :: AppState -> [B.Widget Void]
+drawAppWidget :: AppState -> [B.Widget AppBrickName]
 drawAppWidget AppState{..} =
   let
     drawMenu = drawMenuWidget appStateNavigationMode
@@ -172,8 +176,8 @@ drawAppWidget AppState{..} =
 
 handleAppEvent
   :: UiLangFace
-  -> B.BrickEvent Void UiEvent
-  -> StateT AppState IO AppCompleted
+  -> B.BrickEvent AppBrickName UiEvent
+  -> StateT AppState (B.EventM AppBrickName) AppCompleted
 handleAppEvent langFace ev = do
   sel <- uses appStateMenuL menuWidgetSel
   navModeEnabled <- use appStateNavigationModeL
