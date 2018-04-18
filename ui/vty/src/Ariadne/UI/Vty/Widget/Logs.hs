@@ -20,12 +20,15 @@ data LogsWidgetState n =
     { logsWidgetMessages :: [LogMessage]
     , logsWidgetLineCount :: Int
     , logsWidgetScrolled :: Bool
-    , logsWidgetBrickName :: (Ord n, Show n) => n
+    , logsWidgetBrickName :: n
     }
 
 makeLensesWith postfixLFields ''LogsWidgetState
 
-initLogsWidget :: n -> LogsWidgetState n
+initLogsWidget
+  :: (Ord n, Show n)
+  => n
+  -> LogsWidgetState n
 initLogsWidget name = LogsWidgetState
   { logsWidgetMessages = []
   , logsWidgetLineCount = 0

@@ -15,12 +15,15 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 data HelpWidgetState n =
   HelpWidgetState
     { helpWidgetData :: [PP.Doc]
-    , helpWidgetBrickName :: (Ord n, Show n) => n
+    , helpWidgetBrickName :: n
     }
 
 makeLensesWith postfixLFields ''HelpWidgetState
 
-initHelpWidget :: n -> HelpWidgetState n
+initHelpWidget
+  :: (Ord n, Show n)
+  => n
+  -> HelpWidgetState n
 initHelpWidget name = HelpWidgetState
   { helpWidgetData = []
   , helpWidgetBrickName = name

@@ -49,7 +49,7 @@ data ReplWidgetState n =
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     , replWidgetHistory :: CommandHistory
-    , replWidgetBrickName :: (Ord n, Show n) => n
+    , replWidgetBrickName :: n
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -76,7 +76,12 @@ replReparse langFace = do
   t <- gets replWidgetText
   replWidgetParseResultL .= mkReplParseResult langFace t
 
-initReplWidget :: UiLangFace -> CommandHistory -> n -> ReplWidgetState n
+initReplWidget
+  :: (Ord n, Show n)
+  => UiLangFace
+  -> CommandHistory
+  -> n
+  -> ReplWidgetState n
 initReplWidget langFace history name =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
