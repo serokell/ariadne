@@ -72,8 +72,8 @@ vtyToEditKey = \case
 
     EvKey KLeft        []       -> KeyEditLeft
     EvKey KRight       []       -> KeyEditRight
-    EvKey KUp          []       -> KeyEditLeft
-    EvKey KDown        []       -> KeyEditRight
+    EvKey KUp          []       -> KeyEditUp
+    EvKey KDown        []       -> KeyEditDown
 
     EvKey KBS          []       -> KeyEditDelLeft
     EvKey (KChar 'h')  [MCtrl]  -> KeyEditDelLeft
