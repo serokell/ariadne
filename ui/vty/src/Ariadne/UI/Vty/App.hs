@@ -6,17 +6,18 @@ module Ariadne.UI.Vty.App
 
 import Control.Lens
 import Control.Monad.Trans.State
-import Data.List.NonEmpty
 import IiExtras
 import Prelude
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Data.List.NonEmpty as NE
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -58,7 +59,7 @@ initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
     { appStateRepl = initReplWidget langFace history AppBrickReplOutput
-    , appStateMenu = initMenuWidget appSelectors 0
+    , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
     , appStateNavigationMode = False
     , appStateHelp = initHelpWidget AppBrickHelp
@@ -67,14 +68,15 @@ initialAppState langFace history =
     , appStateWalletPane = initWalletPaneWidget
     }
   where
-    appSelectors :: NonEmpty AppSelector
-    appSelectors =
-      AppSelectorReplInput  :|
-      AppSelectorReplOutput :
-      AppSelectorWalletTree :
-      AppSelectorWalletPane :
-      AppSelectorHelp       :
-      AppSelectorLogs       : []
+    menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
+    menuItems = NE.fromList
+      [ MenuWidgetElem AppSelectorReplInput "REPL" 'r'
+      , MenuWidgetElem AppSelectorReplOutput "Output" 'o'
+      , MenuWidgetElem AppSelectorWalletTree "Tree" 't'
+      , MenuWidgetElem AppSelectorWalletPane "Pane" 'p'
+      , MenuWidgetElem AppSelectorHelp "Help" 'h'
+      , MenuWidgetElem AppSelectorLogs "Logs" 'l'
+      ]
 
 data AppCompleted = AppCompleted | AppInProgress
 
@@ -107,22 +109,19 @@ app langFace = B.App{..} where
   appStartEvent :: AppState -> B.EventM AppBrickName AppState
   appStartEvent = return
 
-  -- We do not use this feature of Brick.
   appAttrMap :: AppState -> B.AttrMap
-  appAttrMap _ = B.attrMap V.defAttr []
+  appAttrMap = const defaultAttrMap
 
 drawAppWidget :: AppState -> [B.Widget AppBrickName]
 drawAppWidget AppState{..} =
   let
-    drawMenu = drawMenuWidget appStateNavigationMode
-          (\case
-            AppSelectorReplInput -> "REPL"
-            AppSelectorReplOutput -> "Output"
-            AppSelectorWalletTree -> "Tree"
-            AppSelectorWalletPane -> "Pane"
-            AppSelectorHelp -> "Help"
-            AppSelectorLogs -> "Logs")
-          appStateMenu
+    defAttr :: B.AttrName
+    defAttr = "default"
+
+    -- Widgets don't always fill the screen, so we need a background widget
+    -- in case default terminal background differs from our theme background
+    drawBG = B.withAttr defAttr $ B.fill ' '
+    drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
       drawReplInputWidget
@@ -146,15 +145,13 @@ drawAppWidget AppState{..} =
       drawWalletPaneWidget
         (menuWidgetSel appStateMenu == AppSelectorWalletPane)
         appStateWalletPane
-    padLR =
-      B.padLeft (B.Pad 1) . B.padRight (B.Pad 1)
     drawDefaultView =
-      B.vBox
+      B.withAttr defAttr $ B.vBox
         [ drawMenu
         , B.hBox
-            [ padLR drawWalletTree
+            [ drawWalletTree
             , B.joinBorders B.vBorder
-            , padLR drawWalletPane
+            , drawWalletPane
             ]
         , B.joinBorders B.hBorder
         , drawRepl
@@ -163,16 +160,24 @@ drawAppWidget AppState{..} =
     drawHelp =
       drawHelpWidget appStateHelp
     drawHelpView =
-      B.vBox [drawMenu, drawHelp, drawStatus]
+      B.withAttr defAttr $ B.vBox
+        [ drawMenu
+        , drawHelp
+        , drawStatus
+        ]
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
-      B.vBox [drawMenu, drawLogs, drawStatus]
+      B.withAttr defAttr $ B.vBox
+        [ drawMenu
+        , drawLogs
+        , drawStatus
+        ]
   in
-    case (menuWidgetSel appStateMenu) of
-      AppSelectorHelp -> [drawHelpView]
-      AppSelectorLogs -> [drawLogsView]
-      _ -> [drawDefaultView]
+    case menuWidgetSel appStateMenu of
+      AppSelectorHelp -> [drawHelpView, drawBG]
+      AppSelectorLogs -> [drawLogsView, drawBG]
+      _ -> [drawDefaultView, drawBG]
 
 handleAppEvent
   :: UiLangFace
