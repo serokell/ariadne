@@ -177,7 +177,7 @@ addAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
             -- FIXME: support not only bootstrap era
             addr <-
                 case deriveLvl2KeyPair
-                         (IsBootstrapEraAddr False)
+                         (IsBootstrapEraAddr True)
                          (ShouldCheckPassphrase True)
                          pp
                          (walletData ^. wdRootKey)
