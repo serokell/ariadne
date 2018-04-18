@@ -27,6 +27,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 
 -- TODO (thatguy): use the fancy `named` library suggested by @int-index.
@@ -217,6 +218,36 @@ data ReplOutputEvent
   = ReplOutputScrollingEvent ScrollingAction
 
 data ReplCompleted = ReplCompleted | ReplInProgress
+
+keyToReplInputEvent
+  :: KeyboardEditEvent
+  -> Maybe ReplInputEvent
+keyToReplInputEvent = \case
+  KeyEditLeft ->
+    Just $ ReplInputNavigationEvent NavArrowLeft
+  KeyEditRight ->
+    Just $ ReplInputNavigationEvent NavArrowRight
+  KeyEditUp ->
+    Just $ ReplInputNavigationEvent NavArrowUp
+  KeyEditDown ->
+    Just $ ReplInputNavigationEvent NavArrowDown
+  KeyEditDelLeft ->
+    Just $ ReplInputModifyEvent DeleteBackwards
+  KeyEditDelLeftWord ->
+    Just $ ReplInputModifyEvent DeleteWordBackwards
+  KeyEditDelRight ->
+    Just $ ReplInputModifyEvent DeleteForwards
+  KeyEditSend ->
+    Just ReplSmartEnterEvent
+  KeyEditQuit ->
+    Just ReplQuitEvent
+  KeyEditNext ->
+    Just $ ReplCommandNavigationEvent NextCommand
+  KeyEditPrev ->
+    Just $ ReplCommandNavigationEvent PrevCommand
+  KeyEditChar c ->
+    Just $ ReplInputModifyEvent (InsertChar c)
+  _ -> Nothing
 
 handleReplInputEvent
   :: (Ord n, Show n)

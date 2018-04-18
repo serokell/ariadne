@@ -12,10 +12,10 @@ import Prelude
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 import qualified Data.List.NonEmpty as NE
-import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.Widget.Help
@@ -183,54 +183,60 @@ handleAppEvent
   :: UiLangFace
   -> B.BrickEvent AppBrickName UiEvent
   -> StateT AppState (B.EventM AppBrickName) AppCompleted
-handleAppEvent langFace ev = do
-  sel <- uses appStateMenuL menuWidgetSel
-  navModeEnabled <- use appStateNavigationModeL
+handleAppEvent langFace ev =
   case ev of
-    B.VtyEvent vtyEv
-      | V.EvKey (V.KChar 'c') [V.MCtrl] <- vtyEv ->
-          return AppCompleted
-      | V.EvKey (V.KChar '\t') [] <- vtyEv,
-        navModeEnabled -> do
-          zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
-          return AppInProgress
-      | V.EvKey V.KBackTab [] <- vtyEv,
-        navModeEnabled -> do
-          zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
-          return AppInProgress
-      | V.EvKey (V.KChar c) [] <- vtyEv,
-        navModeEnabled,
-        Just appSel <- charAppSel c -> do
-          appStateNavigationModeL .= False
-          zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
-          return AppInProgress
-      | V.EvKey (V.KChar 'g') [V.MCtrl] <- vtyEv ->
-        do
-            appStateNavigationModeL .= True
+    B.VtyEvent vtyEv -> do
+      sel <- uses appStateMenuL menuWidgetSel
+      navModeEnabled <- use appStateNavigationModeL
+      let
+        key = vtyToKey vtyEv
+        editKey = vtyToEditKey vtyEv
+      if
+        | KeyQuit <- key ->
+            return AppCompleted
+        | KeyNavNext <- key,
+          navModeEnabled -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
             return AppInProgress
-      | navModeEnabled -> return AppInProgress
-      | Just replEv <- toReplInputEv vtyEv,
-        AppSelectorReplInput <- sel -> do
-          completed <- zoom appStateReplL $
-            handleReplInputEvent langFace replEv
-          return $ case completed of
-            ReplCompleted -> AppCompleted
-            ReplInProgress -> AppInProgress
-      | Just scrollAction <- eventToScrollingAction vtyEv,
-        AppSelectorReplOutput <- sel -> do
+        | KeyNavPrev <- key,
+          navModeEnabled -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
+            return AppInProgress
+        | KeyChar c <- key,
+          navModeEnabled,
+          Just appSel <- charAppSel c -> do
+            appStateNavigationModeL .= False
+            zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
+            return AppInProgress
+        | KeyNavigation <- key ->
+          do
+              appStateNavigationModeL .= True
+              return AppInProgress
+        | navModeEnabled -> return AppInProgress
+        | Just replEv <- keyToReplInputEvent editKey,
+          AppSelectorReplInput <- sel -> do
+            completed <- zoom appStateReplL $
+              handleReplInputEvent langFace replEv
+            return $ case completed of
+              ReplCompleted -> AppCompleted
+              ReplInProgress -> AppInProgress
+        | Just scrollAction <- keyToScrollingAction key,
+          AppSelectorReplOutput <- sel -> do
             zoom appStateReplL $ handleReplOutputEvent $ ReplOutputScrollingEvent scrollAction
             return AppInProgress
-      | Just scrollAction <- eventToScrollingAction vtyEv,
-        AppSelectorHelp <- sel -> do
+        | Just scrollAction <- keyToScrollingAction key,
+          AppSelectorHelp <- sel -> do
             zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
             return AppInProgress
-      | Just scrollAction <- eventToScrollingAction vtyEv,
-        AppSelectorLogs <- sel -> do
+        | Just scrollAction <- keyToScrollingAction key,
+          AppSelectorLogs <- sel -> do
             zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
-      | Just walletTreeEv <- toWalletTreeEv vtyEv,
-        AppSelectorWalletTree <- sel -> do
+        | Just walletTreeEv <- keyToWalletTreeEvent key,
+          AppSelectorWalletTree <- sel -> do
             zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
+            return AppInProgress
+        | otherwise ->
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
@@ -274,40 +280,4 @@ charAppSel = \case
   'p' -> Just AppSelectorWalletPane
   'h' -> Just AppSelectorHelp
   'l' -> Just AppSelectorLogs
-  _ -> Nothing
-
-toReplInputEv :: V.Event -> Maybe ReplInputEvent
-toReplInputEv = \case
-  V.EvKey V.KLeft [] ->
-    Just $ ReplInputNavigationEvent NavArrowLeft
-  V.EvKey V.KRight [] ->
-    Just $ ReplInputNavigationEvent NavArrowRight
-  V.EvKey V.KUp [] ->
-    Just $ ReplInputNavigationEvent NavArrowUp
-  V.EvKey V.KDown [] ->
-    Just $ ReplInputNavigationEvent NavArrowDown
-  V.EvKey V.KBS [] ->
-    Just $ ReplInputModifyEvent DeleteBackwards
-  V.EvKey (V.KChar 'w') [V.MCtrl] ->
-    Just $ ReplInputModifyEvent DeleteWordBackwards
-  V.EvKey V.KDel [] ->
-    Just $ ReplInputModifyEvent DeleteForwards
-  V.EvKey V.KEnter [] ->
-    Just $ ReplSmartEnterEvent
-  V.EvKey (V.KChar 'd') [V.MCtrl] ->
-    Just ReplQuitEvent
-  V.EvKey (V.KChar 'n') [V.MCtrl] ->
-    Just $ ReplCommandNavigationEvent NextCommand
-  V.EvKey (V.KChar 'p') [V.MCtrl] ->
-    Just $ ReplCommandNavigationEvent PrevCommand
-  V.EvKey (V.KChar c) _ ->
-    Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
-
-toWalletTreeEv :: V.Event -> Maybe WalletTreeWidgetEvent
-toWalletTreeEv = \case
-  V.EvKey V.KUp [] -> Just WalletNavigationUp
-  V.EvKey V.KDown [] -> Just WalletNavigationDown
-  V.EvKey V.KLeft [] -> Just WalletNavigationLeft
-  V.EvKey V.KRight [] -> Just WalletNavigationRight
   _ -> Nothing
