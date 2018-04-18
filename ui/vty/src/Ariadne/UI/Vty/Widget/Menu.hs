@@ -17,12 +17,15 @@ import qualified Brick.Widgets.Center as B
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
+import Ariadne.UI.Vty.Keyboard
+
 import IiExtras
 
 data MenuWidgetState a =
   MenuWidgetState
     { menuWidgetElems :: Vector (MenuWidgetElem a)
     , menuWidgetSelection :: Int -- invariant: (`mod` length xs)
+    , menuWidgetNavMode :: Bool
     }
 
 data MenuWidgetElem a =
@@ -40,18 +43,22 @@ menuWidgetSel MenuWidgetState{..} =
   -- the lookup is safe due to the invariant on 'menuWidgetSelection'
   menuWidgetElemSelector $ menuWidgetElems Vector.! menuWidgetSelection
 
+menuWidgetCharToSel :: Char -> MenuWidgetState a -> Maybe a
+menuWidgetCharToSel key MenuWidgetState{..} =
+  view menuWidgetElemSelectorL <$> Vector.find ((== toLower key) . menuWidgetElemKey) menuWidgetElems
+
 initMenuWidget :: NonEmpty (MenuWidgetElem a) -> Int -> MenuWidgetState a
 initMenuWidget xs i =
   fix $ \this -> MenuWidgetState
     { menuWidgetElems = Vector.fromList (NonEmpty.toList xs)
     , menuWidgetSelection = i `mod` Vector.length (menuWidgetElems this)
+    , menuWidgetNavMode = False
     }
 
 drawMenuWidget
-  :: Bool
-  -> MenuWidgetState a
+  :: MenuWidgetState a
   -> B.Widget name
-drawMenuWidget appStateNavigationMode menuWidgetState =
+drawMenuWidget menuWidgetState =
   B.withAttr "menu" $ B.hCenter B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
@@ -76,7 +83,7 @@ drawMenuWidget appStateNavigationMode menuWidgetState =
             elemAttr = if i == j
               then defAttr <> B.attrMapLookup "menu.selected" attrMap
               else defAttr
-            keyAttr = if appStateNavigationMode
+            keyAttr = if menuWidgetState ^. menuWidgetNavModeL
               then elemAttr <> B.attrMapLookup "menu.key" attrMap
               else elemAttr
             elemText = menuWidgetElemText menuElem
@@ -100,6 +107,23 @@ data MenuWidgetEvent a
   = MenuNextEvent
   | MenuPrevEvent
   | MenuSelectEvent (a -> Bool)
+  | MenuEnterEvent
+  | MenuExitEvent
+
+keyToMenuWidgetEvent
+  :: Eq a
+  => MenuWidgetState a
+  -> KeyboardEvent
+  -> Maybe (MenuWidgetEvent a)
+keyToMenuWidgetEvent menuWidgetState = \case
+  KeyNavigation -> Just MenuExitEvent
+  KeyEnter -> Just MenuExitEvent
+  KeyChar c
+    | Just sel <- menuWidgetCharToSel c menuWidgetState -> Just $ MenuSelectEvent (== sel)
+    | otherwise -> Just MenuEnterEvent -- Stay in menu
+  KeyLeft -> Just MenuPrevEvent
+  KeyRight -> Just MenuNextEvent
+  _ -> Nothing -- Exit menu and leave key processing to other widgets
 
 handleMenuWidgetEvent
   :: MenuWidgetEvent a
@@ -112,6 +136,9 @@ handleMenuWidgetEvent ev = do
   case ev of
     MenuNextEvent -> modifySelection succ
     MenuPrevEvent -> modifySelection pred
+    MenuEnterEvent -> menuWidgetNavModeL .= True
+    MenuExitEvent -> menuWidgetNavModeL .= False
     MenuSelectEvent p -> do
       mI <- uses menuWidgetElemsL (Vector.findIndex (p . menuWidgetElemSelector))
       for_ mI (menuWidgetSelectionL .=)
+      menuWidgetNavModeL .= False

@@ -16,6 +16,7 @@ data KeyboardEvent
   | KeyNavigation
   | KeyFocusNext
   | KeyFocusPrev
+  | KeyEnter
 
   | KeyLeft
   | KeyRight
@@ -55,6 +56,7 @@ vtyToKey = \case
     EvKey KEsc         []       -> KeyNavigation
     EvKey (KChar '\t') []       -> KeyFocusNext
     EvKey KBackTab     []       -> KeyFocusPrev
+    EvKey KEnter       []       -> KeyEnter
 
     EvKey KLeft        _        -> KeyLeft
     EvKey KRight       _        -> KeyRight

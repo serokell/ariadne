@@ -53,7 +53,6 @@ data AppState =
     , appStateRepl :: ReplWidgetState AppBrickName
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
-    , appStateNavigationMode :: Bool
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
     , appStateWalletTree :: WalletTreeWidgetState
@@ -69,7 +68,6 @@ initialAppState langFace history =
     , appStateRepl = initReplWidget langFace history AppBrickReplOutput
     , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
-    , appStateNavigationMode = False
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
     , appStateWalletTree = initWalletTreeWidget
@@ -124,14 +122,14 @@ drawAppWidget AppState{..} =
     defAttr = "default"
     focusAttr :: AppFocus -> B.AttrName
     focusAttr focus =
-      if not appStateNavigationMode && appStateFocus == focus
+      if not (menuWidgetNavMode appStateMenu) && appStateFocus == focus
         then "focused"
         else defAttr
 
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
     drawBG = B.withAttr defAttr $ B.fill ' '
-    drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
+    drawMenu = drawMenuWidget appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
       B.withAttr (focusAttr AppFocusReplInput) $
@@ -199,43 +197,37 @@ handleAppEvent
 handleAppEvent langFace ev =
   case ev of
     B.VtyEvent vtyEv -> do
-      sel <- uses appStateMenuL menuWidgetSel
       focus <- use appStateFocusL
-      navModeEnabled <- use appStateNavigationModeL
+      menuState <- use appStateMenuL
       let
+        sel = menuWidgetSel menuState
+        navMode = menuWidgetNavMode menuState
         key = vtyToKey vtyEv
         editKey = vtyToEditKey vtyEv
       if
         | KeyQuit <- key ->
             return AppCompleted
 
-        -- Switch focus between widgets
-        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
-            appStateNavigationModeL .= False
-            appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+        -- Navigation mode related events
+        | navMode ->
+            case keyToMenuWidgetEvent menuState key of
+              Just event -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent event
+                newSel <- uses appStateMenuL menuWidgetSel
+                appStateFocusL .= restoreFocus newSel focus
+                return AppInProgress
+              Nothing -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent MenuExitEvent
+                -- Handle event once again in non-nav mode
+                handleAppEvent langFace ev
+        | KeyNavigation <- key -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent MenuEnterEvent
             return AppInProgress
 
-        -- Navigation mode related events
-        | KeyRight <- key,
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
+        -- Switch focus between widgets
+        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
+            appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
-        | KeyLeft <- key,
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
-            return AppInProgress
-        | KeyChar c <- key,
-          navModeEnabled,
-          Just appSel <- charAppSel c -> do
-            appStateNavigationModeL .= False
-            zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
-            appStateFocusL .= restoreFocus appSel focus
-            return AppInProgress
-        | KeyNavigation <- key -> do
-            appStateNavigationModeL .= not navModeEnabled
-            appStateFocusL .= restoreFocus sel focus
-            return AppInProgress
-        | navModeEnabled -> return AppInProgress
 
         -- REPL editor events
         | Just replEv <- keyToReplInputEvent editKey,
@@ -301,13 +293,6 @@ handleAppEvent langFace ev =
         return AppInProgress
     _ ->
       return AppInProgress
-
-charAppSel :: Char -> Maybe AppSelector
-charAppSel = \case
-  'w' -> Just AppSelectorWallet
-  'h' -> Just AppSelectorHelp
-  'l' -> Just AppSelectorLogs
-  _ -> Nothing
 
 focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
 focusesBySel sel = NE.fromList $ case sel of
