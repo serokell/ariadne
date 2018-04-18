@@ -1,12 +1,11 @@
 module Ariadne.UI.Vty.Widget.Help where
 
+import Universum
+
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
-import Control.Lens
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
+import Control.Lens (makeLensesWith, zoom)
 import IiExtras
-import Prelude
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

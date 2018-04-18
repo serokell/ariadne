@@ -1,8 +1,9 @@
 module Main where
 
+import Universum
+
 import Control.Concurrent.Async
 import IiExtras
-import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend

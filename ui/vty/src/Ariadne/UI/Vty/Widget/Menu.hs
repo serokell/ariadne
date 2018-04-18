@@ -1,16 +1,14 @@
 module Ariadne.UI.Vty.Widget.Menu where
 
-import Control.Lens
-import Control.Monad.Trans.State as State
-import Data.Char
-import Data.Foldable
+import Universum
+
+import Control.Lens (makeLensesWith, uses, zoom, (.=))
+import Control.Monad.Trans.State.Strict as State (modify)
+import Data.Char (toLower)
 import Data.Function (fix)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
-import Data.Monoid ((<>))
-import Data.Text (Text)
 import Data.Vector as Vector
-import Prelude
 
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
@@ -141,5 +139,6 @@ handleMenuWidgetEvent ev = do
     MenuExitEvent -> menuWidgetNavModeL .= False
     MenuSelectEvent p -> do
       mI <- uses menuWidgetElemsL (Vector.findIndex (p . menuWidgetElemSelector))
-      for_ mI (menuWidgetSelectionL .=)
+      whenJust mI $ \i ->
+        menuWidgetSelectionL .= i
       menuWidgetNavModeL .= False

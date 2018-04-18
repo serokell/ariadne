@@ -9,15 +9,14 @@ module Ariadne.UI.Vty.Widget.WalletTree
        , handleWalletTreeWidgetEvent
        ) where
 
-import Universum hiding (StateT, get, (.~), (^.))
+import Universum
 
-import Control.Lens
-import Control.Monad.Trans.State
+import Control.Lens (makeLensesWith, (.=))
 import Data.List (intersperse)
+import qualified Data.List.NonEmpty as NE
 import Data.Tree (Tree(..))
 import IiExtras
 import Serokell.Util (enumerate)
-import qualified Data.List.NonEmpty as NE
 
 import qualified Brick as B
 import qualified Data.Text as T

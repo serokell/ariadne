@@ -3,8 +3,9 @@ module Ariadne.UI.Vty
   , createAriadneUI
   ) where
 
+import Universum
+
 import Control.Monad (void)
-import Prelude
 
 import qualified Brick as B
 import Brick.BChan

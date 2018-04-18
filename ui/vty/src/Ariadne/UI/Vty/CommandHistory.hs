@@ -7,12 +7,12 @@ module Ariadne.UI.Vty.CommandHistory
     , toPrevCommand
     ) where
 
+import Universum
+
 import Control.Monad (unless, when)
-import Data.IORef
 import Data.Maybe (isNothing)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Prelude
 import System.Directory (doesFileExist, renameFile)
 
 data CommandHistory =
@@ -51,7 +51,7 @@ changeCommand ch counterChange = do
     let prefix = T.strip prefix'
     count <- readIORef $ counter ch
     file <- readFile $ historyFile ch
-    let result = maybeIndex count . filter (prefix `T.isPrefixOf`) . map T.pack . lines $ file
+    let result = maybeIndex count . filter (prefix `T.isPrefixOf`) . lines $ file
     when (isNothing result) $ modifyIORef (counter ch) (subtract counterChange)
     return result
 
@@ -75,5 +75,5 @@ startNewCommand ch = do
     unless (command == "\n") $ do
       file <- readFile $ historyFile ch
       let temp = historyFile ch ++ ".tmp"
-      writeFile temp $ T.unpack command ++ file
+      writeFile temp $ command <> toText file
       renameFile temp $ historyFile ch

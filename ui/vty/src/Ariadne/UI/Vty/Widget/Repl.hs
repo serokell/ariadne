@@ -1,22 +1,20 @@
 module Ariadne.UI.Vty.Widget.Repl where
 
-import Control.Lens
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
+import Prelude (until)
+import Universum
+
+import Control.Lens (makeLensesWith, traversed, uses, zoom, (.=))
 import Data.Char as Char
 import Data.Function (fix, on)
-import Data.List as List
+import qualified Data.List as List
 import Data.Maybe (fromMaybe)
-import Data.Monoid
-import Data.Text as Text
+import qualified Data.Text as Text
 import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentChar, currentLine,
   cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
-  insertChar, insertMany, killToBOL, moveDown, moveLeft, moveRight, moveUp,
-  previousChar, textZipper, lineLengths)
+  insertChar, insertMany, killToBOL, lineLengths, moveDown, moveLeft,
+  moveRight, moveUp, previousChar, textZipper)
 import IiExtras
-import Prelude hiding (unlines)
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
@@ -108,7 +106,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
       }
   where
     name = replWidgetState ^. replWidgetBrickNameL
-    outElems = Prelude.reverse (replWidgetOut replWidgetState)
+    outElems = reverse (replWidgetOut replWidgetState)
     render = do
       rdrCtx <- B.getContext
       let
@@ -158,7 +156,7 @@ drawReplInputWidget hasFocus replWidgetState =
           case replWidgetParseResult replWidgetState of
             ReplParseFailure{..} | inSpans rpfParseErrSpans loc ->
               (`V.withBackColor` V.red)
-            _ -> id
+            _ -> identity
         zipper = replWidgetTextZipper replWidgetState
         img =
           V.vertCat $
@@ -167,7 +165,7 @@ drawReplInputWidget hasFocus replWidgetState =
               List.repeat (V.string defAttr "  ... "))
             [ V.horizCat
               [ V.char (attrFn (row, column) defAttr) char
-              | (column, char) <- List.zip [1..] (unpack line)
+              | (column, char) <- List.zip [1..] (toString line)
               ]
             | (row, line) <- List.zip [1..] (getText zipper)
             ]
@@ -280,7 +278,7 @@ keyToReplInputEvent ReplWidgetState{..} = \case
     Just $ ReplInputModifyEvent (InsertChar c)
   _ -> Nothing
   where
-    isMultiline = Prelude.length (lineLengths replWidgetTextZipper) > 1
+    isMultiline = length (lineLengths replWidgetTextZipper) > 1
     isEmpty = Text.null $ Text.unwords $ getText replWidgetTextZipper
 
 handleReplInputEvent
