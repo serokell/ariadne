@@ -31,7 +31,7 @@ defaultAttrMap = attrMap
   , ("selected", currentAttr `withStyle` standout)
   , ("menu", black `on` white)
   , ("menu.selected", white `on` black)
-  , ("menu.key", currentAttr `withForeColor` red)
+  , ("menu.key", currentAttr `withForeColor` red `withStyle` underline)
   , ("status", black `on` white)
   , ("status.content", currentAttr `withForeColor` blue)
   ]
