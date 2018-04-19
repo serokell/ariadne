@@ -36,15 +36,22 @@ data KeyboardEditEvent
 
   | KeyEditLeft
   | KeyEditRight
+  | KeyEditLeftWord
+  | KeyEditRightWord
+  | KeyEditHome
+  | KeyEditEnd
   | KeyEditUp
   | KeyEditDown
   | KeyEditDelLeft
   | KeyEditDelLeftWord
+  | KeyEditDelLeftAll
   | KeyEditDelRight
+  | KeyEditDelRightWord
 
   | KeyEditPrev
   | KeyEditNext
   | KeyEditSend
+  | KeyEditCancel
 
   | KeyEditChar Char
   deriving (Eq)
@@ -76,6 +83,10 @@ vtyToEditKey = \case
 
     EvKey KLeft        []       -> KeyEditLeft
     EvKey KRight       []       -> KeyEditRight
+    EvKey KLeft        [MCtrl]  -> KeyEditLeftWord
+    EvKey KRight       [MCtrl]  -> KeyEditRightWord
+    EvKey KHome        []       -> KeyEditHome
+    EvKey KEnd         []       -> KeyEditEnd
     EvKey KUp          []       -> KeyEditUp
     EvKey KDown        []       -> KeyEditDown
 
@@ -83,11 +94,14 @@ vtyToEditKey = \case
     EvKey (KChar 'h')  [MCtrl]  -> KeyEditDelLeft
     EvKey KBS          [MCtrl]  -> KeyEditDelLeftWord
     EvKey (KChar 'w')  [MCtrl]  -> KeyEditDelLeftWord
+    EvKey (KChar 'u')  [MCtrl]  -> KeyEditDelLeftAll
     EvKey KDel         []       -> KeyEditDelRight
+    EvKey KDel         [MCtrl]  -> KeyEditDelRightWord
 
     EvKey (KChar 'p')  [MCtrl]  -> KeyEditPrev
     EvKey (KChar 'n')  [MCtrl]  -> KeyEditNext
     EvKey KEnter       []       -> KeyEditSend
+    EvKey (KChar 'c')  [MCtrl]  -> KeyEditCancel
 
     EvKey (KChar c)    []       -> KeyEditChar c
     _                           -> KeyEditUnknown

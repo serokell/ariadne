@@ -118,6 +118,7 @@ keyToMenuWidgetEvent
 keyToMenuWidgetEvent menuWidgetState = \case
   KeyNavigation -> Just MenuExitEvent
   KeyEnter -> Just MenuExitEvent
+  KeyChar ' ' -> Just MenuExitEvent
   KeyChar c
     | Just sel <- menuWidgetCharToSel c menuWidgetState -> Just $ MenuSelectEvent (== sel)
     | otherwise -> Just MenuEnterEvent -- Stay in menu
