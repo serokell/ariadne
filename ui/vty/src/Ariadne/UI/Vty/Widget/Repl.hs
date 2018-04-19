@@ -244,6 +244,7 @@ keyToReplInputEvent ReplWidgetState{..} = \case
     Just $ ReplInputNavigationEvent NavRightWord
   KeyEditEnd ->
     Just $ ReplInputNavigationEvent NavEnd
+  -- TODO: go to prev/next command, when we are on first/last line
   KeyEditUp
     | isMultiline ->
         Just $ ReplInputNavigationEvent NavUp
