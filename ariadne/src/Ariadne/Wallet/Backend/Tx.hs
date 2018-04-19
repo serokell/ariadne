@@ -18,9 +18,9 @@ import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Communication.Protocol (SendActions(..))
-import Pos.Core.Txp (TxOutAux(..))
+import Pos.Core.Txp (TxAux(..), TxOutAux(..))
 import Pos.Crypto
-  (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches)
+  (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
 import Pos.Crypto.HD (ShouldCheckPassphrase(..), deriveHDSecretKey)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
@@ -58,13 +58,13 @@ sendTx ::
     -> PassPhrase
     -> WalletReference
     -> NonEmpty TxOut
-    -> IO ()
+    -> IO TxId
 sendTx WalletFace {..} CardanoFace {..} walletSelRef pp walletRef outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
     runCardanoMode $ sendTxDo walletIdx =<< cardanoGetSendActions
   where
-    sendTxDo :: Word -> SendActions CardanoMode -> CardanoMode ()
+    sendTxDo :: Word -> SendActions CardanoMode -> CardanoMode TxId
     sendTxDo walletIdx sendActions = do
         wallets <- view usWallets <$> getSecretDefault
         wd <-
@@ -95,7 +95,8 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef pp walletRef outs = do
                 ourAddresses
                 (map TxOutAux outs)
                 ourAddress
-        () <$ submitTxRaw (enqueueMsg sendActions) txAux
+        let txId = hash (taTx txAux)
+        txId <$ submitTxRaw (enqueueMsg sendActions) txAux
 
 -- Assumes the passphrase is correct!
 walletSigners :: PassPhrase -> WalletData -> HashMap Address SafeSigner

@@ -5,11 +5,11 @@ import Universum
 import qualified Data.ByteArray as ByteArray
 
 import IiExtras
-import Pos.Crypto.Hashing (hashRaw)
+import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Text.Earley
 
-import Ariadne.Cardano.Knit (Cardano, tyTxOut)
+import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Wallet.Face
 
 import Knit
@@ -134,8 +134,8 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             outs <- getArgSome tyTxOut "out"
             return (walletRef, passPhrase, outs)
         , cpRepr = \(walletRef, passPhrase, outs) -> CommandAction $ \WalletFace{..} -> do
-            walletSend passPhrase walletRef outs
-            return $ toValue ValueUnit
+            txId <- walletSend passPhrase walletRef outs
+            return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp = "Send a transaction from the specified wallet. When no wallet \
                    \is specified, uses the selected wallet."
         }
