@@ -2,7 +2,7 @@ let
   nixpkgs = import "${overlay}/nixpkgs.nix";
   overlay = builtins.fetchGit {
     url = "ssh://git@github.com:/serokell/serokell-ops.git";
-    rev = "e6e22f100da2834685246127e064dfa5a321c9df";
+    rev = "f8803d3d1f15c714931f46e096ba28d93448e148";
   };
 in
 
