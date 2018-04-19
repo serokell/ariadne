@@ -119,7 +119,7 @@ drawWalletTreeWidget
   -> WalletTreeWidgetState
   -> B.Widget name
 drawWalletTreeWidget _hasFocus wtws  =
-  B.padAll 1 B.Widget
+  B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Greedy
     , B.render = render

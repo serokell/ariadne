@@ -26,6 +26,8 @@ defaultAttrMap = attrMap
   [ ("default", white `on` black)
   , ("border", white `on` black)
   , ("focused", brightWhite `on` black `withStyle` bold)
+  , ("focus", currentAttr `withForeColor` red)
+  , ("focus.key", currentAttr `withForeColor` red `withStyle` underline)
   , ("selected", currentAttr `withStyle` standout)
   , ("menu", black `on` white)
   , ("menu.selected", white `on` black)

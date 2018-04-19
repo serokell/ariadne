@@ -11,10 +11,12 @@ import Graphics.Vty
 
 data KeyboardEvent
   = KeyUnknown
+
   | KeyQuit
   | KeyNavigation
-  | KeyNavNext
-  | KeyNavPrev
+  | KeyFocusNext
+  | KeyFocusPrev
+  | KeyEnter
 
   | KeyLeft
   | KeyRight
@@ -50,9 +52,11 @@ data KeyboardEditEvent
 vtyToKey :: Event -> KeyboardEvent
 vtyToKey = \case
     EvKey (KChar 'c')  [MCtrl]  -> KeyQuit
-    EvKey (KChar 'g')  [MCtrl]  -> KeyNavigation
-    EvKey (KChar '\t') []       -> KeyNavNext
-    EvKey KBackTab     []       -> KeyNavPrev
+
+    EvKey KEsc         []       -> KeyNavigation
+    EvKey (KChar '\t') []       -> KeyFocusNext
+    EvKey KBackTab     []       -> KeyFocusPrev
+    EvKey KEnter       []       -> KeyEnter
 
     EvKey KLeft        _        -> KeyLeft
     EvKey KRight       _        -> KeyRight

@@ -6,6 +6,7 @@ module Ariadne.UI.Vty.App
 
 import Control.Lens
 import Control.Monad.Trans.State
+import Data.Char
 import IiExtras
 import Prelude
 
@@ -27,12 +28,18 @@ import Ariadne.UI.Vty.Widget.WalletPane
 import Ariadne.UI.Vty.Widget.WalletTree
 
 data AppSelector
-  = AppSelectorReplInput
-  | AppSelectorReplOutput
-  | AppSelectorWalletTree
-  | AppSelectorWalletPane
+  = AppSelectorWallet
   | AppSelectorHelp
   | AppSelectorLogs
+  deriving (Eq)
+
+data AppFocus
+  = AppFocusWalletTree
+  | AppFocusWalletPane
+  | AppFocusReplOutput
+  | AppFocusReplInput
+  | AppFocusHelp
+  | AppFocusLogs
   deriving (Eq)
 
 data AppBrickName
@@ -43,10 +50,10 @@ data AppBrickName
 
 data AppState =
   AppState
-    { appStateRepl :: ReplWidgetState AppBrickName
+    { appStateFocus :: AppFocus
+    , appStateRepl :: ReplWidgetState AppBrickName
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
-    , appStateNavigationMode :: Bool
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
     , appStateWalletTree :: WalletTreeWidgetState
@@ -58,10 +65,10 @@ makeLensesWith postfixLFields ''AppState
 initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
-    { appStateRepl = initReplWidget langFace history AppBrickReplOutput
+    { appStateFocus = AppFocusReplInput
+    , appStateRepl = initReplWidget langFace history AppBrickReplOutput
     , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
-    , appStateNavigationMode = False
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
     , appStateWalletTree = initWalletTreeWidget
@@ -70,10 +77,7 @@ initialAppState langFace history =
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
     menuItems = NE.fromList
-      [ MenuWidgetElem AppSelectorReplInput "REPL" 'r'
-      , MenuWidgetElem AppSelectorReplOutput "Output" 'o'
-      , MenuWidgetElem AppSelectorWalletTree "Tree" 't'
-      , MenuWidgetElem AppSelectorWalletPane "Pane" 'p'
+      [ MenuWidgetElem AppSelectorWallet "Wallet" 'w'
       , MenuWidgetElem AppSelectorHelp "Help" 'h'
       , MenuWidgetElem AppSelectorLogs "Logs" 'l'
       ]
@@ -115,21 +119,50 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget AppBrickName]
 drawAppWidget AppState{..} =
   let
+    navMode = menuWidgetNavMode appStateMenu
     defAttr :: B.AttrName
     defAttr = "default"
+    focusAttr :: AppFocus -> B.AttrName
+    focusAttr focus
+      | not navMode, appStateFocus == focus
+          = "focused"
+      | otherwise
+          = defAttr
+    focusIndicator :: AppFocus -> B.Widget name
+    focusIndicator focus
+      | not navMode, appStateFocus == focus
+          = B.withAttr "focus" $ B.txt "•"
+      | navMode
+          = B.withAttr "focus.key" $ B.txt $
+            case focus of
+              AppFocusWalletTree -> "T"
+              AppFocusWalletPane -> "P"
+              AppFocusReplOutput -> "O"
+              AppFocusReplInput  -> "R"
+              _                  -> " "
+      | otherwise
+          = B.txt " "
+    withFocus :: AppFocus -> B.Widget name -> B.Widget name
+    withFocus focus widget =
+      B.hBox
+        [ focusIndicator focus
+        , B.withAttr (focusAttr focus) $ widget
+        ]
 
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
     drawBG = B.withAttr defAttr $ B.fill ' '
-    drawMenu = drawMenuWidget appStateNavigationMode appStateMenu
+    drawMenu = drawMenuWidget appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
+      withFocus AppFocusReplInput $
       drawReplInputWidget
-        (menuWidgetSel appStateMenu == AppSelectorReplInput)
+        (appStateFocus == AppFocusReplInput)
         appStateRepl
     drawReplOutput =
+      withFocus AppFocusReplOutput $
       drawReplOutputWidget
-        (menuWidgetSel appStateMenu == AppSelectorReplOutput)
+        (appStateFocus == AppFocusReplOutput)
         appStateRepl
     drawRepl =
       B.vBox
@@ -138,12 +171,16 @@ drawAppWidget AppState{..} =
         , drawReplInput
         ]
     drawWalletTree =
+      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
+      withFocus AppFocusWalletTree $
       drawWalletTreeWidget
-        (menuWidgetSel appStateMenu == AppSelectorWalletTree)
+        (appStateFocus == AppFocusWalletTree)
         appStateWalletTree
     drawWalletPane =
+      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
+      withFocus AppFocusWalletPane $
       drawWalletPaneWidget
-        (menuWidgetSel appStateMenu == AppSelectorWalletPane)
+        (appStateFocus == AppFocusWalletPane)
         appStateWalletPane
     drawDefaultView =
       B.withAttr defAttr $ B.vBox
@@ -186,56 +223,73 @@ handleAppEvent
 handleAppEvent langFace ev =
   case ev of
     B.VtyEvent vtyEv -> do
-      sel <- uses appStateMenuL menuWidgetSel
-      navModeEnabled <- use appStateNavigationModeL
+      focus <- use appStateFocusL
+      menuState <- use appStateMenuL
       let
+        sel = menuWidgetSel menuState
+        navMode = menuWidgetNavMode menuState
         key = vtyToKey vtyEv
         editKey = vtyToEditKey vtyEv
       if
         | KeyQuit <- key ->
             return AppCompleted
-        | KeyNavNext <- key,
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent MenuNextEvent
+
+        -- Navigation mode related events
+        | navMode,
+          KeyChar c <- key,
+          Just (newSel, newFocus) <- charToFocus c -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== newSel)
+            appStateFocusL .= newFocus
             return AppInProgress
-        | KeyNavPrev <- key,
-          navModeEnabled -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent MenuPrevEvent
+        | navMode ->
+            case keyToMenuWidgetEvent menuState key of
+              Just event -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent event
+                newSel <- uses appStateMenuL menuWidgetSel
+                appStateFocusL .= restoreFocus newSel focus
+                return AppInProgress
+              Nothing -> do
+                zoom appStateMenuL $ handleMenuWidgetEvent MenuExitEvent
+                -- Handle event once again in non-nav mode
+                handleAppEvent langFace ev
+        | KeyNavigation <- key -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent MenuEnterEvent
             return AppInProgress
-        | KeyChar c <- key,
-          navModeEnabled,
-          Just appSel <- charAppSel c -> do
-            appStateNavigationModeL .= False
-            zoom appStateMenuL $ handleMenuWidgetEvent (MenuSelectEvent (==appSel))
+
+        -- Switch focus between widgets
+        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
+            appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
-        | KeyNavigation <- key ->
-          do
-              appStateNavigationModeL .= True
-              return AppInProgress
-        | navModeEnabled -> return AppInProgress
+
+        -- REPL editor events
         | Just replEv <- keyToReplInputEvent editKey,
-          AppSelectorReplInput <- sel -> do
+          AppFocusReplInput <- focus -> do
             completed <- zoom appStateReplL $
               handleReplInputEvent langFace replEv
             return $ case completed of
               ReplCompleted -> AppCompleted
               ReplInProgress -> AppInProgress
+
+        -- Scrolling events
         | Just scrollAction <- keyToScrollingAction key,
-          AppSelectorReplOutput <- sel -> do
+          focus `elem` [AppFocusReplInput, AppFocusReplOutput]-> do
             zoom appStateReplL $ handleReplOutputEvent $ ReplOutputScrollingEvent scrollAction
             return AppInProgress
         | Just scrollAction <- keyToScrollingAction key,
-          AppSelectorHelp <- sel -> do
+          AppFocusHelp <- focus -> do
             zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
             return AppInProgress
         | Just scrollAction <- keyToScrollingAction key,
-          AppSelectorLogs <- sel -> do
+          AppFocusLogs <- focus -> do
             zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
+
+        -- Widget-specific events
         | Just walletTreeEv <- keyToWalletTreeEvent key,
-          AppSelectorWalletTree <- sel -> do
+          AppFocusWalletTree <- focus -> do
             zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
             return AppInProgress
+
         | otherwise ->
             return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
@@ -272,12 +326,26 @@ handleAppEvent langFace ev =
     _ ->
       return AppInProgress
 
-charAppSel :: Char -> Maybe AppSelector
-charAppSel = \case
-  'r' -> Just AppSelectorReplInput
-  'o' -> Just AppSelectorReplOutput
-  't' -> Just AppSelectorWalletTree
-  'p' -> Just AppSelectorWalletPane
-  'h' -> Just AppSelectorHelp
-  'l' -> Just AppSelectorLogs
-  _ -> Nothing
+charToFocus :: Char -> Maybe (AppSelector, AppFocus)
+charToFocus = \case
+  't' -> Just (AppSelectorWallet, AppFocusWalletTree)
+  'p' -> Just (AppSelectorWallet, AppFocusWalletPane)
+  'o' -> Just (AppSelectorWallet, AppFocusReplOutput)
+  'r' -> Just (AppSelectorWallet, AppFocusReplInput)
+  _   -> Nothing
+
+focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
+focusesBySel sel = NE.fromList $ case sel of
+  AppSelectorWallet -> [AppFocusReplInput, AppFocusWalletTree, AppFocusWalletPane, AppFocusReplOutput]
+  AppSelectorHelp -> [AppFocusHelp]
+  AppSelectorLogs -> [AppFocusLogs]
+
+rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
+rotateFocus selector focus back = NE.dropWhile (/= focus) focuses !! 1
+  where
+    focuses = NE.cycle $ (if back then NE.reverse . focusesBySel else focusesBySel) selector
+
+restoreFocus :: AppSelector -> AppFocus -> AppFocus
+restoreFocus selector focus =
+  if focus `elem` focuses then focus else NE.head focuses
+  where focuses = focusesBySel selector

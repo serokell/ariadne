@@ -100,7 +100,7 @@ drawReplOutputWidget
 drawReplOutputWidget _hasFocus replWidgetState =
   B.viewport name B.Vertical $
     B.cached name $
-    B.padLeftRight 1 B.Widget
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -142,7 +142,7 @@ drawReplInputWidget
   -> ReplWidgetState n
   -> B.Widget n
 drawReplInputWidget hasFocus replWidgetState =
-  B.padLeftRight 1 B.Widget
+  B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render
@@ -386,5 +386,5 @@ ariadneBanner defAttr _ = V.vertCat $ List.map (V.text' defAttr)
   , "              Press <Enter> to send a command,"
   , "        <Backslash> <Enter> to insert a line break,"
   , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
-  , "           <Ctrl+G> to switch to navigation mode."
+  , "       <Tab> to switch between widgets, <Esc> for menu"
   ]
