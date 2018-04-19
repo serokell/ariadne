@@ -225,15 +225,13 @@ handleAppEvent langFace ev =
     B.VtyEvent vtyEv -> do
       focus <- use appStateFocusL
       menuState <- use appStateMenuL
+      replState <- use appStateReplL
       let
         sel = menuWidgetSel menuState
         navMode = menuWidgetNavMode menuState
         key = vtyToKey vtyEv
         editKey = vtyToEditKey vtyEv
       if
-        | KeyQuit <- key ->
-            return AppCompleted
-
         -- Navigation mode related events
         | navMode,
           KeyChar c <- key,
@@ -262,13 +260,17 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         -- REPL editor events
-        | Just replEv <- keyToReplInputEvent editKey,
+        | Just replEv <- keyToReplInputEvent replState editKey,
           AppFocusReplInput <- focus -> do
             completed <- zoom appStateReplL $
               handleReplInputEvent langFace replEv
             return $ case completed of
               ReplCompleted -> AppCompleted
               ReplInProgress -> AppInProgress
+
+        -- This one is here, so that REPL can intercept it and cancel current command
+        | KeyQuit <- key ->
+            return AppCompleted
 
         -- Scrolling events
         | Just scrollAction <- keyToScrollingAction key,

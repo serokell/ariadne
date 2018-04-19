@@ -11,9 +11,10 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Text as Text
 import Data.Text.Zipper
-  (TextZipper, breakLine, clearZipper, currentLine, cursorPosition, deleteChar,
-  deletePrevChar, getText, insertChar, insertMany, moveDown, moveLeft,
-  moveRight, moveUp, previousChar, textZipper)
+  (TextZipper, breakLine, clearZipper, currentChar, currentLine,
+  cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
+  insertChar, insertMany, killToBOL, moveDown, moveLeft, moveRight, moveUp,
+  previousChar, textZipper, lineLengths)
 import IiExtras
 import Prelude hiding (unlines)
 
@@ -188,10 +189,14 @@ inSpans spans (row, column) = inSpan
         (Loc.loc (fromIntegral row) (fromIntegral column + 1))
 
 data NavAction
-  = NavArrowLeft
-  | NavArrowRight
-  | NavArrowUp
-  | NavArrowDown
+  = NavLeft
+  | NavLeftWord
+  | NavHome
+  | NavRight
+  | NavRightWord
+  | NavEnd
+  | NavUp
+  | NavDown
 
 data CommandAction
   = NextCommand
@@ -201,7 +206,10 @@ data InputModification
   = InsertChar Char
   | DeleteBackwards
   | DeleteWordBackwards
+  | DeleteAllBackwards
   | DeleteForwards
+  | DeleteWordForwards
+  | DeleteAll
   | BreakLine
   | ReplaceBreakLine
 
@@ -220,25 +228,48 @@ data ReplOutputEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 keyToReplInputEvent
-  :: KeyboardEditEvent
+  :: ReplWidgetState n
+  -> KeyboardEditEvent
   -> Maybe ReplInputEvent
-keyToReplInputEvent = \case
+keyToReplInputEvent ReplWidgetState{..} = \case
   KeyEditLeft ->
-    Just $ ReplInputNavigationEvent NavArrowLeft
+    Just $ ReplInputNavigationEvent NavLeft
+  KeyEditLeftWord ->
+    Just $ ReplInputNavigationEvent NavLeftWord
+  KeyEditHome ->
+    Just $ ReplInputNavigationEvent NavHome
   KeyEditRight ->
-    Just $ ReplInputNavigationEvent NavArrowRight
-  KeyEditUp ->
-    Just $ ReplInputNavigationEvent NavArrowUp
-  KeyEditDown ->
-    Just $ ReplInputNavigationEvent NavArrowDown
+    Just $ ReplInputNavigationEvent NavRight
+  KeyEditRightWord ->
+    Just $ ReplInputNavigationEvent NavRightWord
+  KeyEditEnd ->
+    Just $ ReplInputNavigationEvent NavEnd
+  -- TODO: go to prev/next command, when we are on first/last line
+  KeyEditUp
+    | isMultiline ->
+        Just $ ReplInputNavigationEvent NavUp
+    | otherwise ->
+        Just $ ReplCommandNavigationEvent PrevCommand
+  KeyEditDown
+    | isMultiline ->
+        Just $ ReplInputNavigationEvent NavDown
+    | otherwise ->
+        Just $ ReplCommandNavigationEvent NextCommand
   KeyEditDelLeft ->
     Just $ ReplInputModifyEvent DeleteBackwards
   KeyEditDelLeftWord ->
     Just $ ReplInputModifyEvent DeleteWordBackwards
+  KeyEditDelLeftAll ->
+    Just $ ReplInputModifyEvent DeleteAllBackwards
   KeyEditDelRight ->
     Just $ ReplInputModifyEvent DeleteForwards
+  KeyEditDelRightWord ->
+    Just $ ReplInputModifyEvent DeleteWordForwards
   KeyEditSend ->
     Just ReplSmartEnterEvent
+  KeyEditCancel
+    | not isEmpty ->
+        Just $ ReplInputModifyEvent DeleteAll
   KeyEditQuit ->
     Just ReplQuitEvent
   KeyEditNext ->
@@ -248,6 +279,9 @@ keyToReplInputEvent = \case
   KeyEditChar c ->
     Just $ ReplInputModifyEvent (InsertChar c)
   _ -> Nothing
+  where
+    isMultiline = Prelude.length (lineLengths replWidgetTextZipper) > 1
+    isEmpty = Text.null $ Text.unwords $ getText replWidgetTextZipper
 
 handleReplInputEvent
   :: (Ord n, Show n)
@@ -261,8 +295,11 @@ handleReplInputEvent langFace = fix $ \go -> \case
       case modification of
         InsertChar c -> insertChar c
         DeleteBackwards -> deletePrevChar
-        DeleteWordBackwards -> deletePrevWord
+        DeleteWordBackwards -> byWord deletePrevChar previousChar
+        DeleteAllBackwards -> killToBOL
         DeleteForwards -> deleteChar
+        DeleteWordForwards -> byWord deleteChar currentChar
+        DeleteAll -> clearZipper
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse langFace
@@ -273,10 +310,14 @@ handleReplInputEvent langFace = fix $ \go -> \case
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
       case nav of
-        NavArrowLeft -> moveLeft
-        NavArrowRight -> moveRight
-        NavArrowUp -> moveUp
-        NavArrowDown -> moveDown
+        NavLeft -> moveLeft
+        NavLeftWord -> byWord moveLeft previousChar
+        NavRight -> moveRight
+        NavRightWord -> byWord moveRight currentChar
+        NavUp -> moveUp
+        NavDown -> moveDown
+        NavHome -> gotoBOL
+        NavEnd -> gotoEOL
     return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
     -- TODO: handle multi-line commands
@@ -343,11 +384,15 @@ smartBreakLine tz =
   let indentation = Text.takeWhile Char.isSpace (currentLine tz)
   in insertMany indentation (breakLine tz)
 
-deletePrevWord :: TextZipper Text -> TextZipper Text
-deletePrevWord = deletePrevChars Char.isSpace . deletePrevChars (not . Char.isSpace)
+byWord
+  :: (TextZipper Text -> TextZipper Text)
+  -> (TextZipper Text -> Maybe Char)
+  -> TextZipper Text
+  -> TextZipper Text
+byWord move check = go Char.isSpace . go (not . Char.isSpace)
   where
-    deletePrevChars p = until (nothingLeft p) deletePrevChar
-    nothingLeft p tz = case previousChar tz of
+    go p = until (nothingLeft p) move
+    nothingLeft p tz = case check tz of
       Nothing -> True
       Just c -> p c
 
