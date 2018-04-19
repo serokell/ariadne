@@ -1,14 +1,12 @@
 module Ariadne.UI.Vty.Widget.Logs where
 
+import Universum
+
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
-import Control.Lens
-import Control.Monad
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
-import Data.Text as Text
+import Control.Lens (makeLensesWith, zoom, (+=), (.=))
+import qualified Data.Text as Text
 import IiExtras
-import Prelude
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -49,7 +47,7 @@ drawLogsWidget logsWidgetState =
       }
   where
     name = logsWidgetState ^. logsWidgetBrickNameL
-    outElems = Prelude.reverse (logsWidgetMessages logsWidgetState)
+    outElems = reverse (logsWidgetMessages logsWidgetState)
     render = do
       rdrCtx <- B.getContext
       let
@@ -86,5 +84,5 @@ handleLogsWidgetEvent ev = do
         else scrollToEnd name
 
       zoom logsWidgetMessagesL $ modify (LogMessage message:)
-      logsWidgetLineCountL += Prelude.length (Text.lines message)
+      logsWidgetLineCountL += length (Text.lines message)
       lift $ B.invalidateCacheEntry name

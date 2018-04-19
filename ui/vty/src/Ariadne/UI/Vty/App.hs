@@ -4,11 +4,11 @@ module Ariadne.UI.Vty.App
   , app
   ) where
 
-import Control.Lens
-import Control.Monad.Trans.State
-import Data.Char
+import Universum
+
+import Control.Lens (makeLensesWith, uses, zoom, (.=))
+import Data.List ((!!))
 import IiExtras
-import Prelude
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B

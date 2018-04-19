@@ -1,8 +1,9 @@
 module Ariadne.Knit.Face where
 
+import Universum
+
 import Control.Exception (SomeException)
 import Data.List.NonEmpty (NonEmpty)
-import Prelude
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.TaskManager.Face

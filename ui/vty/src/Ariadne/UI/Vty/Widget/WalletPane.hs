@@ -1,9 +1,8 @@
 module Ariadne.UI.Vty.Widget.WalletPane where
 
-import Universum hiding (StateT, (.~), (^.))
+import Universum
 
-import Control.Lens
-import Control.Monad.Trans.State
+import Control.Lens (makeLensesWith, (.=))
 import IiExtras
 
 import qualified Brick as B

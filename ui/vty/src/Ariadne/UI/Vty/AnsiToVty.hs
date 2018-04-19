@@ -1,9 +1,8 @@
 module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty, pprDoc) where
 
-import Prelude
+import Universum
 
 import Control.Monad.Trans.Writer
-import Data.List
 
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
@@ -14,7 +13,7 @@ ansiToVty
   :: V.Attr
   -> Ppr.A.SimpleDoc
   -> V.Image
-ansiToVty defAttr = V.vertCat . execWriter . go defAttr id
+ansiToVty defAttr = V.vertCat . execWriter . go defAttr identity
   where
     go
       :: V.Attr

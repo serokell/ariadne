@@ -7,7 +7,6 @@ import Universum
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
-import qualified Control.Monad.Trans.State as State
 
 import IiExtras
 
@@ -60,7 +59,7 @@ data StatusWidgetEvent
 
 handleStatusWidgetEvent
   :: StatusWidgetEvent
-  -> State.StateT StatusWidgetState (B.EventM n) ()
+  -> StateT StatusWidgetState (B.EventM n) ()
 handleStatusWidgetEvent = \case
   StatusUpdateEvent UiCardanoStatusUpdate{..} -> do
     statusWidgetTipHeaderHashL .= tipHeaderHash
