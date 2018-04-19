@@ -154,6 +154,7 @@ extra-deps:
 - validation-0.6.1
 - vinyl-0.8.1.1
 - union-0.1.1.2
+- named-0.1.0.0
 
 extra-package-dbs: []
 

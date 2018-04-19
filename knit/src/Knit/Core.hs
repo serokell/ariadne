@@ -152,6 +152,7 @@ instance ComponentPrinter Core where
 
 data instance ComponentCommandRepr components Core
   = CommandIdentity (Value components)
+  | CommandM (forall m. Monad m => (Value components -> m ()) -> m (Value components))
 
 instance ComponentLitToValue components Core where
   componentLitToValue = \case
@@ -159,10 +160,12 @@ instance ComponentLitToValue components Core where
     LitString x -> ValueString x
     LitFilePath x -> ValueFilePath x
 
-data instance ComponentExecContext _ Core = CoreExecCtx
+data instance ComponentExecContext m components Core =
+  CoreExecCtx { printValue :: Value components -> m () }
 
-instance Applicative m => ComponentCommandExec m components Core where
-  componentCommandExec CoreExecCtx (CommandIdentity v) = pure v
+instance Monad m => ComponentCommandExec m components Core where
+  componentCommandExec _ (CommandIdentity v) = pure v
+  componentCommandExec CoreExecCtx{..} (CommandM m) = m printValue
 
 instance Elem components Core => ComponentCommandProcs components Core where
   componentCommandProcs =
@@ -210,6 +213,15 @@ instance Elem components Core => ComponentCommandProcs components Core where
         , cpArgumentConsumer = getArgMany tyValue "elem"
         , cpRepr = CommandIdentity . toValue . ValueList
         , cpHelp = "Construct a list."
+        }
+    , CommandProc
+        { cpName = "print"
+        , cpArgumentPrepare = id
+        , cpArgumentConsumer = getArg tyValue "value"
+        , cpRepr = \v -> CommandM $ \printValue -> do
+            printValue v
+            return (toValue ValueUnit)
+        , cpHelp = "Print a value."
         }
     ]
 

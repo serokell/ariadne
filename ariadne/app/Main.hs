@@ -22,6 +22,8 @@ import qualified Knit
 
 import Glue
 
+type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
+
 main :: IO ()
 main = do
   (uiFace, mkUiAction) <- createAriadneUI
@@ -38,14 +40,14 @@ main = do
       mkWallet cardanoFace (putWalletEventToUI uiFace)
 
     helpData :: [Doc]
-    helpData = generateKnitHelp $ relemsproxy knitExecContext
+    helpData = generateKnitHelp (Proxy @Components)
 
     helpInitAction :: IO ()
     helpInitAction = putUiEvent uiFace $ UiHelpUpdateData helpData
 
-    knitExecContext :: Rec (Knit.ComponentExecContext _) _
-    knitExecContext =
-      Knit.CoreExecCtx :&
+    knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
+    knitExecContext putCommandOutput =
+      Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx walletFace :&
       Knit.TaskManagerExecCtx taskManagerFace :&
