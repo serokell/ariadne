@@ -27,7 +27,7 @@ drawWalletPaneWidget
   -> WalletPaneWidgetState
   -> B.Widget name
 drawWalletPaneWidget _hasFocus wpws =
-  B.padAll 1 B.Widget
+  B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Greedy
     , B.render = render

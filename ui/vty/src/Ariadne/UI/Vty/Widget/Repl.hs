@@ -100,7 +100,7 @@ drawReplOutputWidget
 drawReplOutputWidget _hasFocus replWidgetState =
   B.viewport name B.Vertical $
     B.cached name $
-    B.padLeftRight 1 B.Widget
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -142,7 +142,7 @@ drawReplInputWidget
   -> ReplWidgetState n
   -> B.Widget n
 drawReplInputWidget hasFocus replWidgetState =
-  B.padLeftRight 1 B.Widget
+  B.Widget
     { B.hSize = B.Greedy
     , B.vSize = B.Fixed
     , B.render = render

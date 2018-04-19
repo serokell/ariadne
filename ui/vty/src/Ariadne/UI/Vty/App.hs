@@ -6,6 +6,7 @@ module Ariadne.UI.Vty.App
 
 import Control.Lens
 import Control.Monad.Trans.State
+import Data.Char
 import IiExtras
 import Prelude
 
@@ -118,13 +119,35 @@ app langFace = B.App{..} where
 drawAppWidget :: AppState -> [B.Widget AppBrickName]
 drawAppWidget AppState{..} =
   let
+    navMode = menuWidgetNavMode appStateMenu
     defAttr :: B.AttrName
     defAttr = "default"
     focusAttr :: AppFocus -> B.AttrName
-    focusAttr focus =
-      if not (menuWidgetNavMode appStateMenu) && appStateFocus == focus
-        then "focused"
-        else defAttr
+    focusAttr focus
+      | not navMode, appStateFocus == focus
+          = "focused"
+      | otherwise
+          = defAttr
+    focusIndicator :: AppFocus -> B.Widget name
+    focusIndicator focus
+      | not navMode, appStateFocus == focus
+          = B.withAttr "focus" $ B.txt "•"
+      | navMode
+          = B.withAttr "focus.key" $ B.txt $
+            case focus of
+              AppFocusWalletTree -> "T"
+              AppFocusWalletPane -> "P"
+              AppFocusReplOutput -> "O"
+              AppFocusReplInput  -> "R"
+              _                  -> " "
+      | otherwise
+          = B.txt " "
+    withFocus :: AppFocus -> B.Widget name -> B.Widget name
+    withFocus focus widget =
+      B.hBox
+        [ focusIndicator focus
+        , B.withAttr (focusAttr focus) $ widget
+        ]
 
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
@@ -132,11 +155,12 @@ drawAppWidget AppState{..} =
     drawMenu = drawMenuWidget appStateMenu
     drawStatus = drawStatusWidget appStateStatus
     drawReplInput =
-      B.withAttr (focusAttr AppFocusReplInput) $
-        drawReplInputWidget
-          (appStateFocus == AppFocusReplInput)
-          appStateRepl
+      withFocus AppFocusReplInput $
+      drawReplInputWidget
+        (appStateFocus == AppFocusReplInput)
+        appStateRepl
     drawReplOutput =
+      withFocus AppFocusReplOutput $
       drawReplOutputWidget
         (appStateFocus == AppFocusReplOutput)
         appStateRepl
@@ -147,12 +171,14 @@ drawAppWidget AppState{..} =
         , drawReplInput
         ]
     drawWalletTree =
-      B.withAttr (focusAttr AppFocusWalletTree) $
+      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
+      withFocus AppFocusWalletTree $
       drawWalletTreeWidget
         (appStateFocus == AppFocusWalletTree)
         appStateWalletTree
     drawWalletPane =
-      B.withAttr (focusAttr AppFocusWalletPane) $
+      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
+      withFocus AppFocusWalletPane $
       drawWalletPaneWidget
         (appStateFocus == AppFocusWalletPane)
         appStateWalletPane
@@ -209,6 +235,12 @@ handleAppEvent langFace ev =
             return AppCompleted
 
         -- Navigation mode related events
+        | navMode,
+          KeyChar c <- key,
+          Just (newSel, newFocus) <- charToFocus c -> do
+            zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== newSel)
+            appStateFocusL .= newFocus
+            return AppInProgress
         | navMode ->
             case keyToMenuWidgetEvent menuState key of
               Just event -> do
@@ -293,6 +325,14 @@ handleAppEvent langFace ev =
         return AppInProgress
     _ ->
       return AppInProgress
+
+charToFocus :: Char -> Maybe (AppSelector, AppFocus)
+charToFocus = \case
+  't' -> Just (AppSelectorWallet, AppFocusWalletTree)
+  'p' -> Just (AppSelectorWallet, AppFocusWalletPane)
+  'o' -> Just (AppSelectorWallet, AppFocusReplOutput)
+  'r' -> Just (AppSelectorWallet, AppFocusReplInput)
+  _   -> Nothing
 
 focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
 focusesBySel sel = NE.fromList $ case sel of
