@@ -37,7 +37,7 @@ data instance ComponentCommandRepr components TaskManager
   = CommandPure (Value components)
   | CommandAction (TaskManagerFace (Value components) -> IO (Value components))
 
-newtype instance ComponentExecContext components TaskManager =
+newtype instance ComponentExecContext _ components TaskManager =
   TaskManagerExecCtx (TaskManagerFace (Value components))
 
 data instance ComponentLit TaskManager

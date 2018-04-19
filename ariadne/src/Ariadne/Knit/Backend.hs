@@ -5,6 +5,7 @@ module Ariadne.Knit.Backend
 
 import Universum hiding (atomically)
 
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Exception
 import Data.Vinyl.TypeLevel
 import IiExtras
@@ -26,16 +27,17 @@ type Components components =
 createKnitBackend
   :: forall components.
      Components components
-  => Knit.ExecContext components
+  => ((Doc -> IO ()) -> Knit.ExecContext IO components)
   -> TaskManagerFace (Knit.Value components)
   -> KnitFace components
-createKnitBackend execCtxs TaskManagerFace{..} =
+createKnitBackend mkExecCtxs TaskManagerFace{..} =
   let
     putCommand KnitCommandHandle{..} expr = case resolveProcNames expr of
       Left e -> do
         putCommandResult Nothing $ KnitCommandProcError e
         return Nothing
       Right expr' -> fmap Just . spawnTask $ \taskId -> do
+        let execCtxs = mkExecCtxs (putCommandOutput taskId)
         -- We catch asynchronous exceptions intentionally here to send them to UI and
         -- rethrow them afterwards.
         res <- try $ Knit.evaluate execCtxs expr'

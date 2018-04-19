@@ -15,6 +15,7 @@ import Data.Text.Zipper
   insertChar, insertMany, killToBOL, lineLengths, moveDown, moveLeft,
   moveRight, moveUp, previousChar, textZipper)
 import IiExtras
+import Named
 
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
@@ -29,12 +30,12 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 
--- TODO (thatguy): use the fancy `named` library suggested by @int-index.
-newtype Width = Width { unWidth :: Int }
+type AdaptiveImage =
+  Named V.Attr "def_attr" -> Named Int "width" -> V.Image
 
 data OutputElement
-  = OutputCommand UiCommandId (V.Attr -> Int -> V.Image) (Maybe (V.Attr -> Width -> V.Image))
-  | OutputInfo (V.Attr -> Width -> V.Image)
+  = OutputCommand UiCommandId AdaptiveImage [AdaptiveImage] (Maybe AdaptiveImage)
+  | OutputInfo AdaptiveImage
 
 -- Note that fields here are lazy, so we can afford to put all results we might
 -- need and discard the existential from 'UiLangFace' without causing excessive
@@ -117,8 +118,8 @@ drawReplOutputWidget _hasFocus replWidgetState =
           List.intersperse (V.backgroundFill 1 1) $
           fmap drawOutputElement outElems
         drawOutputElement (OutputInfo mkImg) =
-          mkImg defAttr $ Width width
-        drawOutputElement (OutputCommand commandId commandSrc mCommandOut) =
+          mkImg ! #def_attr defAttr ! #width width
+        drawOutputElement (OutputCommand commandId commandSrc commandMsgs mCommandOut) =
           let
             cmdInfo = maybe "" (<> " ") (cmdIdRendered commandId)
             prompt = V.text' defAttr "> "
@@ -126,11 +127,15 @@ drawReplOutputWidget _hasFocus replWidgetState =
             V.vertCat
               [ V.horizCat
                 [ prompt
-                , commandSrc defAttr (width - V.imageWidth prompt)
+                , commandSrc
+                    ! #def_attr defAttr
+                    ! #width (width - V.imageWidth prompt)
                 ]
+              , V.vertCat $ reverse commandMsgs <&> \mkImg ->
+                  mkImg ! #def_attr defAttr ! #width width
               , case mCommandOut of
                   Nothing -> V.text' defAttr $ cmdInfo <> "Waiting for result..."
-                  Just mkImg -> mkImg defAttr $ Width width
+                  Just mkImg -> mkImg ! #def_attr defAttr ! #width width
               ]
       return $
         B.emptyResult
@@ -344,12 +349,14 @@ handleReplInputEvent langFace = fix $ \go -> \case
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do
-        let out = OutputInfo $ \defAttr (Width w) -> pprDoc defAttr w rpfParseErrDoc
+        let out = OutputInfo $ \(Named defAttr) (Named w) -> pprDoc defAttr w rpfParseErrDoc
         zoom replWidgetOutL $ modify (out:)
       ReplParseSuccess{..} -> do
         commandId <- liftIO rpfPutCommand
         zoom replWidgetTextZipperL $ modify $ clearZipper
-        let out = OutputCommand commandId (\defAttr w -> pprDoc defAttr w rpfExprDoc) Nothing
+        let
+          commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
+          out = OutputCommand commandId commandSrc [] Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
     name <- use replWidgetBrickNameL
@@ -402,24 +409,31 @@ updateCommandResult
 updateCommandResult
   commandId
   commandEvent
-  (OutputCommand commandId' commandSrc oldResultImage) | eqCommandId commandId commandId'
-  = OutputCommand commandId commandSrc mCommandResultImage
+  (OutputCommand commandId' commandSrc oldMessages oldResultImage) | eqCommandId commandId commandId'
+  = OutputCommand commandId commandSrc messages mCommandResultImage
   where
     eqCommandId = (==) `on` cmdIdEqObject
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \defAttr (Width w) -> pprDoc defAttr w doc
+          Just $ \(Named defAttr) (Named w) -> pprDoc defAttr w doc
         UiCommandFailure doc ->
-          Just $ \defAttr (Width w) -> pprDoc defAttr w doc   -- TODO: highlight as an error
-        UiCommandOutput _ ->
-          -- TODO: create a new field in 'OutputCommand' and append
-          -- the 'doc' there.
-          oldResultImage
+          Just $ \(Named defAttr) (Named w) ->
+            V.vertJoin
+              (V.text' (defAttr `V.withBackColor` V.red) "Error")
+              (pprDoc defAttr w doc)
+        UiCommandOutput _ -> oldResultImage
+    messages =
+      case commandEvent of
+        UiCommandSuccess _ -> oldMessages
+        UiCommandFailure _ -> oldMessages
+        UiCommandOutput doc ->
+          let message (Named defAttr) (Named w) = pprDoc defAttr w doc
+          in message:oldMessages
 updateCommandResult _ _ outCmd = outCmd
 
-ariadneBanner :: V.Attr -> Width -> V.Image
-ariadneBanner defAttr _ = V.vertCat $ List.map (V.text' defAttr)
+ariadneBanner :: AdaptiveImage
+ariadneBanner (Named defAttr) _ = V.vertCat $ List.map (V.text' defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___ _____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"

@@ -32,6 +32,7 @@ library
     , vector
     , ii-extras
     , directory
+    , named
 
   exposed-modules:
       Ariadne.UI.Vty
@@ -68,6 +69,7 @@ library
       MultiWayIf
       NegativeLiterals
       OverloadedStrings
+      OverloadedLabels
       PatternSynonyms
       PolyKinds
       RankNTypes
