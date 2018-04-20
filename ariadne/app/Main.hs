@@ -8,6 +8,8 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
+import Ariadne.Config.Ariadne (AriadneConfig(..))
+import Ariadne.Config.CLI (getConfig)
 import Ariadne.Help
 import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
@@ -26,8 +28,11 @@ type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
 
 main :: IO ()
 main = do
+  ariadneConfig <- getConfig
+  let cardanoConfig = acCardano ariadneConfig
+
   (uiFace, mkUiAction) <- createAriadneUI
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace

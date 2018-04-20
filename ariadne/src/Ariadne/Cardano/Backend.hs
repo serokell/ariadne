@@ -2,12 +2,11 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 
 import Universum
 
+import Ariadne.Config.Cardano (CardanoConfig(..))
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import IiExtras
 import Mockable (runProduction)
-import Options.Applicative hiding (action)
-
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
@@ -22,27 +21,15 @@ import Pos.Update (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
-
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
   showTimeB)
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
-createCardanoBackend = do
-  let (Success commonArgs) =
-        execParserPure defaultPrefs (info CLI.commonNodeArgsParser briefDesc)
-          [ "--db-path", "db-mainnet"
-          , "--log-config", "config/cardano/log-config.yaml"
-          , "--no-ntp"
-          , "--configuration-file", "config/cardano/cardano-config.yaml"
-          , "--topology", "config/cardano/topology.yaml"
-          , "--logs-prefix", "logs/mainnet"
-          , "--node-id", "node0"
-          , "--keyfile", "secret-mainnet.key"
-          , "--configuration-key", "mainnet_full"
-          ]
+createCardanoBackend :: CardanoConfig -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend cardanoConfig = do
+  let commonArgs = getCardanoConfig cardanoConfig
   cardanoContextVar <- newEmptyMVar
   sendActionsVar <- newEmptyMVar
   runProduction $
