@@ -2,18 +2,18 @@ module Ariadne.TaskManager.Knit where
 
 import Universum hiding (preview)
 
-import Control.Lens
-import Data.Vinyl.TypeLevel
-import Control.Exception
 import Control.Concurrent
 import Control.Concurrent.Async
+import Control.Exception
+import Control.Lens
+import Data.Vinyl.TypeLevel
+import Formatting hiding (text)
+import Text.Earley
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
-import Text.Earley
-import Formatting hiding (text)
 
-import IiExtras
 import Ariadne.TaskManager.Face
+import IiExtras
 
 import Knit
 
