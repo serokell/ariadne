@@ -34,7 +34,7 @@ data WalletFace =
     , walletAddWallet :: PassPhrase -> Text -> IO [Text]
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
-    , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO ()
+    , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId
     , walletSelection :: IO (Maybe WalletSelection)
     }
 

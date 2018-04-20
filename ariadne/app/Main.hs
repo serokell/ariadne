@@ -39,9 +39,9 @@ main = do
   mkWallet <- createWalletBackend
 
   let
-    walletFace :: WalletFace
+    mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
-    (walletFace, walletInitAction) =
+    (mkWalletFace, walletInitAction) =
       mkWallet cardanoFace (putWalletEventToUI uiFace)
 
     helpData :: [Doc]
@@ -54,7 +54,7 @@ main = do
     knitExecContext putCommandOutput =
       Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
-      Knit.WalletExecCtx walletFace :&
+      Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
       Knit.TaskManagerExecCtx taskManagerFace :&
       RNil
 

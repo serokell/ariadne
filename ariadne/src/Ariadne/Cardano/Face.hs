@@ -11,6 +11,7 @@ module Ariadne.Cardano.Face
        , SlotId (..)
        , HeaderHash
        , Address
+       , TxId
        , TxOut (..)
        , PassPhrase
        , HasConfigurations
@@ -30,7 +31,8 @@ import IiExtras
 import Mockable (Production)
 import Pos.Communication.Protocol (SendActions)
 import Pos.Core
-  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxOut(..))
+  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxId,
+  TxOut(..))
 import Pos.Crypto (PassPhrase)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util.CompileInfo (HasCompileInfo)
