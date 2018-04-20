@@ -7,6 +7,7 @@ import Universum
 
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Tx
@@ -16,7 +17,7 @@ createWalletBackend :: IO
   (
     CardanoFace ->
     (WalletEvent -> IO ()) ->
-    (WalletFace, IO ())
+    ((Doc -> IO ()) -> WalletFace, IO ())
   )
 createWalletBackend = do
   walletSelRef <- newIORef Nothing
@@ -24,7 +25,7 @@ createWalletBackend = do
     let
       Nat runCardanoMode = cardanoRunCardanoMode
       withDicts = withDict cardanoConfigurations . withDict cardanoCompileInfo
-      walletFace =
+      mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace
           { walletAddAddress = addAddress this walletSelRef runCardanoMode
           , walletAddAccount = addAccount this walletSelRef runCardanoMode
@@ -32,10 +33,11 @@ createWalletBackend = do
           , walletRefreshUserSecret =
               refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
           , walletSelect = select this walletSelRef runCardanoMode
-          , walletSend = sendTx this cf walletSelRef
+          , walletSend =
+              sendTx this cf walletSelRef putCommandOutput
           , walletSelection = readIORef walletSelRef
           }
       initWalletAction =
-        walletRefreshUserSecret walletFace
+        refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
     in
-      (walletFace, initWalletAction)
+      (mkWalletFace, initWalletAction)

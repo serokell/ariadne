@@ -4,27 +4,28 @@ module Ariadne.Wallet.Backend.Tx
        ( sendTx
        ) where
 
-import Universum
+import Universum hiding (list)
 
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
 import Data.Default (def)
-import qualified Data.HashMap.Strict as HM
-import qualified Data.List.NonEmpty as NE
-import Formatting (bprint, int, (%))
+import Formatting (bprint, build, formatToString, int, (%))
 import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Communication.Protocol (SendActions(..))
-import Pos.Core.Txp (TxAux(..), TxOutAux(..))
+import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
 import Pos.Crypto.HD (ShouldCheckPassphrase(..), deriveHDSecretKey)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
 import Pos.Util.UserSecret (usWallets)
+import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage
@@ -55,11 +56,12 @@ sendTx ::
     => WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
+    -> (Doc -> IO ())
     -> PassPhrase
     -> WalletReference
     -> NonEmpty TxOut
     -> IO TxId
-sendTx WalletFace {..} CardanoFace {..} walletSelRef pp walletRef outs = do
+sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
     runCardanoMode $ sendTxDo walletIdx =<< cardanoGetSendActions
@@ -95,8 +97,22 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef pp walletRef outs = do
                 ourAddresses
                 (map TxOutAux outs)
                 ourAddress
-        let txId = hash (taTx txAux)
+        let tx = taTx txAux
+        let txId = hash tx
+        liftIO $ printAction $ formatSubmitTxMsg tx
         txId <$ submitTxRaw (enqueueMsg sendActions) txAux
+    formatToDoc :: forall a. Buildable a => a -> Doc
+    formatToDoc = string . formatToString build
+    formatSubmitTxMsg :: Tx -> Doc
+    formatSubmitTxMsg UnsafeTx {..} = mconcat
+        [ "Submitting Tx with inputs: "
+        , list . toList $ map formatToDoc _txInputs
+        , ","
+        , softline
+        , "outputs: "
+        , list . toList $ map formatToDoc _txOutputs
+        , "…"
+        ]
 
 -- Assumes the passphrase is correct!
 walletSigners :: PassPhrase -> WalletData -> HashMap Address SafeSigner
