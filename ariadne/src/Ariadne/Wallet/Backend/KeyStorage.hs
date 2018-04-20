@@ -9,6 +9,7 @@ module Ariadne.Wallet.Backend.KeyStorage
        , addAccount
        , addWallet
        , select
+       , getSelectedAddresses
 
          -- * Exceptions
        , NoWalletSelection (..)
@@ -350,3 +351,26 @@ select WalletFace{..} walletSelRef runCardanoMode mWalletRef wsPath = do
       atomicWriteIORef walletSelRef $ Just $
         WalletSelection { wsPath, wsWalletIndex }
   walletRefreshUserSecret
+
+getSelectedAddresses :: WalletFace -> IORef (Maybe WalletSelection) -> (CardanoMode ~> IO) -> IO [Address]
+getSelectedAddresses WalletFace{..} walletSelRef runCardanoMode = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> return []
+    Just WalletSelection{..} -> do
+      us <- runCardanoMode getSecretDefault
+      wallet <- maybeThrow
+        (WalletDoesNotExist $ pretty wsWalletIndex)
+        (us ^? usWallets . ix (fromIntegral wsWalletIndex))
+      case nonEmpty wsPath of
+        Nothing -> return (concat . map (toList . map snd . _adAddresses) $ wallet ^. wdAccounts)
+        Just (accIdx :| acPath) -> do
+          account <- maybeThrow
+            (AccountDoesNotExist $ pretty accIdx)
+            (wallet ^? wdAccounts . ix (fromIntegral accIdx))
+          case nonEmpty acPath of
+            Nothing -> return (toList . map snd $ account ^. adAddresses)
+            Just (addrIdx :| []) -> maybeThrow
+              (AddressDoesNotExist $ pretty addrIdx)
+              ((:[]) <$> account ^? adAddresses . ix (fromIntegral addrIdx) . _2)
+            Just (_ :| _) -> throwM SelectIsTooDeep

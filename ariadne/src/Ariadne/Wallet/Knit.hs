@@ -8,6 +8,7 @@ import IiExtras
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Serokell.Data.Memory.Units (fromBytes)
+import Pos.Core (unsafeGetCoin)
 import Text.Earley
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
@@ -140,6 +141,14 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp = "Send a transaction from the specified wallet. When no wallet \
                    \is specified, uses the selected wallet."
+        }
+    , CommandProc
+        { cpName = "balance"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = pure ()
+        , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
+            toValue . ValueNumber . fromIntegral . unsafeGetCoin <$> walletBalance
+        , cpHelp = "Get balance of the current selected item"
         }
     ]
 

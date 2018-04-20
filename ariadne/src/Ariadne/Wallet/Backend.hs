@@ -10,6 +10,7 @@ import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Face
@@ -37,6 +38,9 @@ createWalletBackend walletConfig = do
           , walletSend =
               sendTx this cf walletSelRef putCommandOutput
           , walletSelection = readIORef walletSelRef
+          , walletBalance = do
+              addrs <- getSelectedAddresses this walletSelRef runCardanoMode
+              runCardanoMode $ withDict cardanoConfigurations (getBalance addrs)
           }
       initWalletAction =
         refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
