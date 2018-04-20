@@ -21,6 +21,11 @@ import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (.=), (<>=))
 import Control.Monad.Catch.Pure (CatchT, runCatchT)
 import Data.List (findIndex)
+import Formatting (bprint, int, (%))
+import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
+import Serokell.Data.Memory.Units (Byte)
+
+import qualified Data.Text.Buildable
 import qualified Data.Vector as V (findIndex)
 
 import IiExtras
@@ -219,10 +224,32 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef accountName = do
             usWallets . ix (fromIntegral wsWalletIndex) .= wd'
   walletRefreshUserSecret
 
+-- TODO: make it configurable
+-- should be in {16, 20, 24, 28, 32}
+entropySize :: Byte
+entropySize = 16
+
+data InvalidEntropySize =
+    InvalidEntropySize !Byte
+    deriving (Show)
+
+instance Buildable InvalidEntropySize where
+    build (InvalidEntropySize sz) =
+        bprint ("Invalid size of entropy: "%int%" bytes") sz
+
+instance Exception InvalidEntropySize where
+    displayException = toString . pretty
+
 addWallet :: WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Text -> IO [Text]
 addWallet WalletFace{..} runCardanoMode pp walletName = do
-    let mnemonic = ["patak"]
-    seed <- secureRandomBS 32  -- TODO: use mnemonic!
+    unless (entropySize `elem` [16, 20, 24, 28, 32]) $
+        throwM $ InvalidEntropySize entropySize
+    entropy <- secureRandomBS (fromIntegral entropySize)
+    let mnemonic = entropyToMnemonic entropy
+    -- The empty string below is called a passphrase in BIP-39, but
+    -- it's essentially an extra mnemonic word. We consider it an
+    -- advanced feature and do not provide it for now.
+    let seed = mnemonicToSeed (unwords mnemonic) ""
     let (_, esk) = safeDeterministicKeyGen seed pp
     let emptyWallet :: WalletData
         emptyWallet =
