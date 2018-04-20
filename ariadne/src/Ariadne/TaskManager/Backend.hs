@@ -2,9 +2,9 @@ module Ariadne.TaskManager.Backend (createTaskManagerFace) where
 
 import Universum
 
+import Control.Concurrent.Async
 import Control.Lens as L
 import Data.Map as Map
-import Control.Concurrent.Async
 import IiExtras
 
 import Ariadne.TaskManager.Face

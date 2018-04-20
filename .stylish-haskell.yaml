@@ -36,6 +36,7 @@ language_extensions:
   - NamedFieldPuns
   - NoImplicitPrelude
   - OverloadedStrings
+  - OverloadedLabels
   - RecordWildCards
   - RecursiveDo
   - ExistentialQuantification

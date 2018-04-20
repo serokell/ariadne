@@ -5,10 +5,10 @@ module Ariadne.Knit.Backend
 
 import Universum hiding (atomically)
 
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Exception
 import Data.Vinyl.TypeLevel
 import IiExtras
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face

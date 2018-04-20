@@ -15,8 +15,8 @@ module Glue
 
 import Universum
 
-import Control.Lens (ix)
 import Control.Exception (displayException)
+import Control.Lens (ix)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -24,9 +24,9 @@ import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Knit.Face
+import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
-import Ariadne.TaskManager.Face
 
 import qualified Knit
 
