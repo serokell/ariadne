@@ -92,7 +92,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
-            name <- fromMaybe "new account" <$> getArgOpt tyString "name"
+            name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
             walletAddAccount walletRef name
@@ -105,7 +105,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
-            name <- fromMaybe "new wallet" <$> getArgOpt tyString "name"
+            name <- getArgOpt tyString "name"
             return (passPhrase, name)
         , cpRepr = \(passPhrase, name) -> CommandAction $ \WalletFace{..} -> do
             mnemonic <- walletAddWallet passPhrase name

@@ -30,8 +30,8 @@ data AccountReference
 data WalletFace =
   WalletFace
     { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
-    , walletAddAccount :: WalletReference -> Text -> IO ()
-    , walletAddWallet :: PassPhrase -> Text -> IO [Text]
+    , walletAddAccount :: WalletReference -> Maybe Text -> IO ()
+    , walletAddWallet :: PassPhrase -> Maybe Text -> IO [Text]
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId
