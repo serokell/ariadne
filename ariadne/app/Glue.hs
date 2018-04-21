@@ -20,7 +20,7 @@ import Control.Lens (ix)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
-import IiExtras
+import NType
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Knit.Face

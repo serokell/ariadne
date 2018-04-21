@@ -3,7 +3,8 @@ module Main where
 import Universum
 
 import Control.Concurrent.Async
-import IiExtras
+import Control.Natural
+import NType
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
@@ -52,11 +53,14 @@ main = do
 
     knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
     knitExecContext putCommandOutput =
-      Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
-      Knit.CardanoExecCtx (runNat runCardanoMode) :&
-      Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
-      Knit.TaskManagerExecCtx taskManagerFace :&
-      RNil
+      Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) &:
+      Knit.CardanoExecCtx (runCardanoMode $$) &:
+      Knit.WalletExecCtx (mkWalletFace putCommandOutput) &:
+      Knit.TaskManagerExecCtx taskManagerFace &:
+      Base ()
+      where
+        a &: b = Step (a, b)
+        infixr &:
 
     knitFace = createKnitBackend knitExecContext taskManagerFace
 

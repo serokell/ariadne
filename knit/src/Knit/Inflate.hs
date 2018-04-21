@@ -1,9 +1,8 @@
 module Knit.Inflate where
 
-import IiExtras
-
 import Knit.Syntax
 import Knit.Value
+import Knit.Prelude
 
 class ComponentInflate components component where
   componentInflate
@@ -15,4 +14,4 @@ inflate
      AllConstrained (ComponentInflate components) components
   => Value components
   -> Expr CommandName components
-inflate = ufold @(ComponentInflate components) componentInflate . getValueUnion
+inflate = ufoldConstrained @(ComponentInflate components) componentInflate . getValueUnion

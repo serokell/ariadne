@@ -8,7 +8,6 @@ import Universum
 
 import Control.Lens (makeLensesWith, uses, zoom, (.=))
 import Data.List ((!!))
-import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -19,6 +18,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
+import Ariadne.UI.Vty.Util
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu

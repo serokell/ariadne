@@ -16,8 +16,7 @@ import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Keyboard
-
-import IiExtras
+import Ariadne.UI.Vty.Util
 
 data MenuWidgetState a =
   MenuWidgetState

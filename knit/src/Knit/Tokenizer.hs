@@ -13,15 +13,14 @@ import Data.Loc
 import Data.Maybe
 import Data.Proxy
 import Data.Text as T
-import Data.Union
 import Data.Void
-import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
 import Text.Megaparsec hiding (Token)
 import Text.Megaparsec.Char
 
 import Knit.Name
+import Knit.Prelude
 
 data BracketSide = BracketSideOpening | BracketSideClosing
     deriving (Eq, Ord, Show)
@@ -67,14 +66,14 @@ toToken
      Elem components component
   => ComponentToken component
   -> Token components
-toToken = Token . uliftElem
+toToken = Token . ulift
 
 fromToken
   :: forall components component.
      Elem components component
   => Token components
   -> Maybe (ComponentToken component)
-fromToken = umatchElem <=< preview _Token
+fromToken = umatch <=< preview _Token
 
 tokenRender
   :: forall components.
@@ -82,7 +81,7 @@ tokenRender
   => Token components
   -> Text
 tokenRender = \case
-  Token u -> ufold @ComponentDetokenizer componentTokenRender u
+  Token u -> ufoldConstrained @ComponentDetokenizer componentTokenRender u
   TokenSquareBracket bs -> withBracketSide "[" "]" bs
   TokenParenthesis bs -> withBracketSide "(" ")" bs
   TokenEquals -> "="
@@ -156,8 +155,8 @@ pToken'' = longestMatch (go (knownSpine @components))
          AllConstrained (ComponentTokenizer components) components'
       => Spine components'
       -> [Tokenizer (Token components)]
-    go RNil = []
-    go ((Proxy :: Proxy component) :& xs) =
+    go (Base ()) = []
+    go (Step (Proxy :: Proxy component, xs)) =
       componentTokenizer @_ @component ++ go xs
 
 pPunctuation :: Tokenizer (Token components)
@@ -185,3 +184,22 @@ pLetter = unsafeMkLetter <$> satisfy isAlpha
 
 pSomeAlphaNum :: Tokenizer Text
 pSomeAlphaNum = takeWhile1P (Just "alphanumeric") isAlphaNum
+
+longestMatch :: MonadParsec e s m => [m a] -> m a
+longestMatch ps = do
+  ps' <-
+    for ps $ \p ->
+        optional . try . lookAhead $ do
+            datum <- p
+            position <- getPosition
+            pState <- getParserState
+            return (position, (pState, datum))
+  case nonEmpty (catMaybes ps') of
+    Nothing -> A.empty
+    Just ps'' -> do
+        let tup = snd $ maximumBy (compare `on` fst) ps''
+        applyParser tup
+      where
+        applyParser (pState, datum) = do
+            updateParserState (const pState)
+            return datum

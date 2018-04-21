@@ -20,6 +20,7 @@ module Knit.Argument
        , typeDirectedKwAnn
        ) where
 
+import Prelude
 import Control.Lens
 import Control.Monad
 import Control.Monad.State

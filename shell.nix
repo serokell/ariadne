@@ -40,6 +40,7 @@ nixpkgs.haskell.lib.buildStackProject {
       openssh
       rocksdb
       zlib
+      icu
     ];
   buildPhase = ''
     export LANG=en_US.UTF-8

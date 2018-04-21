@@ -14,7 +14,6 @@ import Data.Text.Zipper
   cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
   insertChar, insertMany, killToBOL, lineLengths, moveDown, moveLeft,
   moveRight, moveUp, previousChar, textZipper)
-import IiExtras
 import Named
 
 import qualified Data.Loc as Loc
@@ -29,6 +28,7 @@ import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.Util
 
 type AdaptiveImage =
   Named V.Attr "def_attr" -> Named Int "width" -> V.Image

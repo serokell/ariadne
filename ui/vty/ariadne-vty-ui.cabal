@@ -30,7 +30,6 @@ library
     , ansi-wl-pprint
     , ansi-terminal
     , vector
-    , ii-extras
     , directory
     , named
 
@@ -50,6 +49,7 @@ library
       Ariadne.UI.Vty.Keyboard
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
+      Ariadne.UI.Vty.Util
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

@@ -4,7 +4,6 @@ import Universum
 
 import qualified Data.ByteArray as ByteArray
 
-import IiExtras
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Text.Earley
@@ -12,7 +11,7 @@ import Text.Earley
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Wallet.Face
 
-import Knit
+import Knit hiding (map)
 
 -- Component type for Knit
 data Wallet

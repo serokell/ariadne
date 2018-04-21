@@ -20,6 +20,7 @@ import Universum
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (.=), (<>=))
 import Control.Monad.Catch.Pure (CatchT, runCatchT)
+import Control.Natural (type (~>))
 import Data.List (findIndex)
 import Formatting (bprint, int, (%))
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
@@ -28,7 +29,6 @@ import Serokell.Data.Memory.Units (Byte)
 import qualified Data.Text.Buildable
 import qualified Data.Vector as V (findIndex)
 
-import IiExtras
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
 import Pos.Crypto

@@ -53,6 +53,8 @@ library
     , memory
     , mmorph
     , mtl
+    , natural-transformation
+    , ntype
     , resourcet
     , network-transport-tcp
     , optparse-applicative
@@ -75,12 +77,10 @@ library
     , Earley
     , time-units
     , serokell-util
-    , ii-extras
     , QuickCheck
     , universum
     , unordered-containers
     , vector
-    , vinyl
     , word-wrap
   exposed-modules:
       Ariadne.TaskManager.Knit
@@ -103,6 +103,7 @@ library
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
       Ariadne.Help
+      Ariadne.Util
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
@@ -155,10 +156,10 @@ executable ariadne
       ariadne
     , ariadne-vty-ui
     , knit
-    , ii-extras
     , base >=4.7 && <5
+    , natural-transformation
+    , ntype
     , async
-    , vinyl
     , universum
     , lens
     , containers
@@ -218,6 +219,7 @@ test-suite ariadne-test
     , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
+    , ntype
     , universum
     , text
     , time-units

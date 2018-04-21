@@ -3,12 +3,12 @@ module Ariadne.UI.Vty.Widget.WalletPane where
 import Universum
 
 import Control.Lens (makeLensesWith, (.=))
-import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Util
 
 data WalletPaneWidgetState =
   WalletPaneWidgetState

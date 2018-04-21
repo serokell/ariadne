@@ -12,9 +12,9 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
+import Control.Natural ((:~>)(..))
 import Data.Default (def)
 import Formatting (bprint, build, formatToString, int, (%))
-import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Communication.Protocol (SendActions(..))
@@ -62,7 +62,7 @@ sendTx ::
     -> NonEmpty TxOut
     -> IO TxId
 sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef outs = do
-    let Nat runCardanoMode = cardanoRunCardanoMode
+    let NT runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
     runCardanoMode $ sendTxDo walletIdx =<< cardanoGetSendActions
   where
