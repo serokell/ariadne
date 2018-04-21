@@ -93,14 +93,14 @@ data DuplicateAccountName = DuplicateAccountName Text
 
 instance Exception DuplicateAccountName where
   displayException (DuplicateAccountName t) =
-    "The accaunt name " ++ show t ++ " is already exists."
+    "The account name " ++ show t ++ " already exists."
 
 data DuplicateWalletName = DuplicateWalletName Text
   deriving (Eq, Show)
 
 instance Exception DuplicateWalletName where
   displayException (DuplicateWalletName t) =
-    "The wallet name " ++ show t ++ " is already exists."
+    "The wallet name " ++ show t ++ " already exists."
 
 -- | Get the wallet index by name or using current selection.
 resolveWalletRef
@@ -210,7 +210,6 @@ addAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
         eitherToThrow
     walletRefreshUserSecret
 
-
 mkUntitled :: Text -> Vector Text -> Text
 mkUntitled untitled namesVec =
   let
@@ -243,11 +242,11 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = 
 
         accountName <- case mbAccountName of
           Nothing ->
-            return (mkUntitled "Untitled_account_" namesVec)
+            return (mkUntitled "Untitled account " namesVec)
           Just accountName_ -> do
             when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName accountName_
             return accountName_
-        usWallets . ix wIdx . wdAccounts %= (addAccountToVec accountName)
+        usWallets . ix wIdx . wdAccounts %= addAccountToVec accountName
 
   runCardanoMode (modifySecretDefault (runCatchT addAccountPure)) >>=
     eitherToThrow
@@ -297,11 +296,11 @@ addWallet WalletFace{..} runCardanoMode pp mbWalletName = do
         let namesList = _wdName <$> wdList
 
         walletName <- case mbWalletName of
-          Nothing -> return (mkUntitled "Untitled_wallet_" (V.fromList namesList))
+          Nothing -> return (mkUntitled "Untitled wallet " (V.fromList namesList))
           Just walletName_ -> do
             when (walletName_ `elem` namesList) $ throwM $ DuplicateWalletName walletName_
             return walletName_
-        usWallets %= (addWalletToList walletName esk)
+        usWallets <>= one (emptyWallet walletName esk)
 
   runCardanoMode (modifySecretDefault (runCatchT addWalletPure)) >>=
     eitherToThrow
@@ -314,9 +313,6 @@ addWallet WalletFace{..} runCardanoMode pp mbWalletName = do
             , _wdName = walletName
             , _wdAccounts = mempty
             }
-
-    addWalletToList :: Text -> EncryptedSecretKey -> [WalletData] -> [WalletData]
-    addWalletToList walletName esk walletDataList = walletDataList <> one (emptyWallet walletName esk)
 
 select
   :: WalletFace
