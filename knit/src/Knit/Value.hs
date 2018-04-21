@@ -1,7 +1,6 @@
 module Knit.Value where
 
-import Data.Union
-import IiExtras
+import Knit.Prelude
 
 data family ComponentValue (components :: [*]) component
 
@@ -19,11 +18,11 @@ toValue
      Elem components component
   => ComponentValue components component
   -> Value components
-toValue = Value . uliftElem
+toValue = Value . ulift
 
 fromValue
   :: forall components component.
      Elem components component
   => Value components
   -> Maybe (ComponentValue components component)
-fromValue = umatchElem . getValueUnion
+fromValue = umatch . getValueUnion

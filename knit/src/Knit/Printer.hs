@@ -6,7 +6,6 @@ import qualified Data.Text as T
 import Data.Text.Buildable (build)
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (toLazyText)
-import IiExtras
 
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -16,6 +15,7 @@ import Knit.Name
 import Knit.Syntax
 import Knit.Tokenizer
 import Knit.Value
+import Knit.Prelude
 
 class ComponentPrinter component where
   componentPpLit :: ComponentLit component -> Doc
@@ -26,7 +26,7 @@ ppLit
      AllConstrained ComponentPrinter components
   => Lit components
   -> Doc
-ppLit = ufold @ComponentPrinter componentPpLit . getLitUnion
+ppLit = ufoldConstrained @ComponentPrinter componentPpLit . getLitUnion
 
 ppToken
   :: forall components.
@@ -34,7 +34,7 @@ ppToken
   => Token components
   -> Doc
 ppToken = \case
-  Token u -> ufold @ComponentPrinter componentPpToken u
+  Token u -> ufoldConstrained @ComponentPrinter componentPpToken u
   TokenSquareBracket _ -> "square bracket"
   TokenParenthesis _ -> "parenthesis"
   TokenEquals -> "equality sign"

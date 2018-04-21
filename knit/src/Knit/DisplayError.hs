@@ -8,8 +8,6 @@ module Knit.DisplayError
     , ppResolveErrors
     ) where
 
-import Prelude hiding (span, (<$>))
-
 import Control.Applicative ((<|>))
 import Control.Lens
 import Data.Either
@@ -23,7 +21,6 @@ import qualified Data.Set as Set
 import Data.String (fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
-import IiExtras
 import Text.Earley (Report(..))
 import Text.PrettyPrint.ANSI.Leijen
   (Doc, bold, char, comma, empty, hcat, indent, punctuate, red, squotes, vcat,
@@ -35,6 +32,7 @@ import Knit.Parser
 import Knit.Printer
 import Knit.Syntax
 import Knit.Tokenizer
+import Knit.Prelude hiding (span, (<$>))
 
 highlight :: Doc -> Doc
 highlight = bold . yellow

@@ -1,8 +1,8 @@
 module Ariadne.Help (generateKnitHelp) where
 
 import qualified Data.Text as T
-import IiExtras
 import qualified Knit
+import NType
 import Pos.Util.Justify (leftAlign)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Universum
@@ -60,7 +60,7 @@ withTypeName (Knit.TypeNameEither tn1 tn2) needWrap =
     t' = withTypeName tn1 DontNeedWrap <> " | " <>
          withTypeName tn2 DontNeedWrap
 
-mkHelpMessage :: [Some (Elem components) (Knit.CommandProc components)] -> Text
+mkHelpMessage :: [Knit.SomeCommandProc components] -> Text
 mkHelpMessage cps =
     "Available commands:\n \n" <>
-    mconcat (map (\(Some cp) -> commandHelp cp <> "\n \n") cps)
+    mconcat (map (\(Knit.SomeCommandProc cp) -> commandHelp cp <> "\n \n") cps)

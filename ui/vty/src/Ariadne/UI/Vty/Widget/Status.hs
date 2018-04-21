@@ -8,9 +8,8 @@ import Universum
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
 
-import IiExtras
-
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Util
 
 data StatusWidgetState =
   StatusWidgetState

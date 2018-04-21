@@ -15,7 +15,6 @@ import Control.Lens (makeLensesWith, (.=))
 import Data.List (intersperse)
 import qualified Data.List.NonEmpty as NE
 import Data.Tree (Tree(..))
-import IiExtras
 import Serokell.Util (enumerate)
 
 import qualified Brick as B
@@ -24,6 +23,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
+import Ariadne.UI.Vty.Util
 
 ----------------------------------------------------------------------------
 -- General (should probably be moved somewhere at later stage)

@@ -3,6 +3,7 @@ module Ariadne.Cardano.Knit where
 import Universum hiding (preview)
 
 import Control.Lens hiding (parts)
+import Control.Natural
 import Data.Coerce (coerce)
 import Data.Fixed
 import Data.List as List
@@ -11,7 +12,6 @@ import Data.Map as Map
 import Data.Scientific
 import Data.Time.Units
 import Formatting (sformat)
-import IiExtras
 import Pos.Core
 import Pos.Core.Txp (TxOut)
 import Pos.Crypto
@@ -25,7 +25,7 @@ import qualified Text.Megaparsec.Char.Lexer as P
 
 import Ariadne.Cardano.Face
 
-import Knit
+import Knit hiding (asum, parts)
 
 data AddrDistrPart = AddrDistrPart
     { adpStakeholderId :: !StakeholderId
@@ -303,11 +303,11 @@ instance ComponentDetokenizer Cardano where
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitAddress <$> tok (_Token . uprismElem . _TokenAddress)
-      , toLit . LitPublicKey <$> tok (_Token . uprismElem . _TokenPublicKey)
-      , toLit . LitStakeholderId <$> tok (_Token . uprismElem . _TokenStakeholderId)
-      , toLit . LitHash <$> tok (_Token . uprismElem . _TokenHash)
-      , toLit . LitBlockVersion <$> tok (_Token . uprismElem . _TokenBlockVersion)
+      [ toLit . LitAddress <$> tok (_Token . uprism . _TokenAddress)
+      , toLit . LitPublicKey <$> tok (_Token . uprism . _TokenPublicKey)
+      , toLit . LitStakeholderId <$> tok (_Token . uprism . _TokenStakeholderId)
+      , toLit . LitHash <$> tok (_Token . uprism . _TokenHash)
+      , toLit . LitBlockVersion <$> tok (_Token . uprism . _TokenBlockVersion)
       ]
 
 instance ComponentPrinter Cardano where

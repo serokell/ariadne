@@ -6,11 +6,11 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Proxy
 import Data.Text
 import Data.Validation as Validation
-import IiExtras
 
 import Knit.Argument
 import Knit.Syntax
 import Knit.Value
+import Knit.Prelude
 
 data family ComponentCommandRepr (components :: [*]) component
 
@@ -25,19 +25,25 @@ data CommandProc components component = forall e. CommandProc
 class Elem components component => ComponentCommandProcs components component where
   componentCommandProcs :: [CommandProc components component]
 
+data SomeCommandProc components where
+  SomeCommandProc
+    :: Elem components component
+    => CommandProc components component
+    -> SomeCommandProc components
+
 commandProcs :: forall components.
      (AllConstrained (ComponentCommandProcs components) components, KnownSpine components)
-  => [Some (Elem components) (CommandProc components)]
+  => [SomeCommandProc components]
 commandProcs = go (knownSpine @components)
   where
     go
       :: forall components'.
          (AllConstrained (ComponentCommandProcs components) components')
       => Spine components'
-      -> [Some (Elem components) (CommandProc components)]
-    go RNil = []
-    go ((Proxy :: Proxy component) :& xs) =
-      List.map Some (componentCommandProcs @_ @component) ++ go xs
+      -> [SomeCommandProc components]
+    go (Base ()) = []
+    go (Step (Proxy :: Proxy component, xs)) =
+      List.map SomeCommandProc (componentCommandProcs @_ @component) ++ go xs
 
 resolveProcNames
   :: Eq name

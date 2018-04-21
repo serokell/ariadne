@@ -1,6 +1,6 @@
 import Data.Text (Text)
 import Data.Void
-import IiExtras (longestMatch)
+import Knit.Tokenizer (longestMatch)
 import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
 import Text.Megaparsec (Parsec, runParser)
 import Text.Megaparsec.Char (string)

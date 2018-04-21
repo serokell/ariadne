@@ -26,8 +26,8 @@ module Ariadne.Cardano.Face
 import Universum
 
 import Control.Monad.Trans.Reader (ReaderT)
+import Control.Natural
 import Data.Constraint (Dict(..))
-import IiExtras
 import Mockable (Production)
 import Pos.Communication.Protocol (SendActions)
 import Pos.Core

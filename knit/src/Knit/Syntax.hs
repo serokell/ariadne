@@ -1,10 +1,9 @@
 module Knit.Syntax where
 
 import Data.String
-import Data.Union
-import IiExtras
 
 import Knit.Name
+import Knit.Prelude
 
 data Operator
   = OpSemicolon
@@ -41,14 +40,14 @@ toLit
      Elem components component
   => ComponentLit component
   -> Lit components
-toLit = Lit . uliftElem
+toLit = Lit . ulift
 
 fromLit
   :: forall components component.
      Elem components component
   => Lit components
   -> Maybe (ComponentLit component)
-fromLit = umatchElem . getLitUnion
+fromLit = umatch . getLitUnion
 
 data ProcCall cmd a = ProcCall cmd [Arg a]
   deriving (Functor, Foldable, Traversable)

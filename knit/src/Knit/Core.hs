@@ -12,7 +12,6 @@ import Data.Scientific
 import Data.String
 import Data.Text
 import Data.Word
-import IiExtras
 import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
@@ -27,6 +26,7 @@ import Knit.Procedure
 import Knit.Syntax
 import Knit.Tokenizer
 import Knit.Value
+import Knit.Prelude
 
 data Core
 
@@ -135,9 +135,9 @@ isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 instance Elem components Core => ComponentLitGrammar components Core where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitNumber <$> tok (_Token . uprismElem . _TokenNumber)
-      , toLit . LitString . pack <$> tok (_Token . uprismElem . _TokenString)
-      , toLit . LitFilePath <$> tok (_Token . uprismElem . _TokenFilePath)
+      [ toLit . LitNumber <$> tok (_Token . uprism . _TokenNumber)
+      , toLit . LitString . pack <$> tok (_Token . uprism . _TokenString)
+      , toLit . LitFilePath <$> tok (_Token . uprism . _TokenFilePath)
       ]
 
 instance ComponentPrinter Core where

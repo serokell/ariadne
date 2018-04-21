@@ -3,9 +3,9 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 import Universum
 
 import Ariadne.Config.Cardano (CardanoConfig(..))
+import Control.Natural
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
-import IiExtras
 import Mockable (runProduction)
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
@@ -36,7 +36,7 @@ createCardanoBackend cardanoConfig = do
       withCompileInfo $(retrieveCompileTimeInfo) $
       withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $
       return (CardanoFace
-          { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
+          { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
           , cardanoCompileInfo = Dict
           , cardanoGetSendActions = getSendActions sendActionsVar

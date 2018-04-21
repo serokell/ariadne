@@ -8,7 +8,11 @@ packages:
 - ./ariadne
 - ./ui/vty
 - ./knit
-- ./util/
+
+- location:
+    git: https://github.com/int-index/ntype.git
+    commit: 6e3b1d848dc1a45af146a3d8f8691175d2c7cc2a
+  extra-dep: true
 
 - location:
     git: git@github.com:serokell/lootbox.git
@@ -164,6 +168,7 @@ extra-deps:
 - vinyl-0.8.1.1
 - union-0.1.1.2
 - named-0.1.0.0
+- natural-transformation-0.4
 
 extra-package-dbs: []
 

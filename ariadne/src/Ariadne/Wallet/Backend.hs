@@ -5,8 +5,8 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
+import Control.Natural ((:~>)(..))
 import Data.Constraint (withDict)
-import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Wallet.Backend.KeyStorage
@@ -23,7 +23,7 @@ createWalletBackend = do
   walletSelRef <- newIORef Nothing
   return $ \cf@CardanoFace {..} sendWalletEvent ->
     let
-      Nat runCardanoMode = cardanoRunCardanoMode
+      NT runCardanoMode = cardanoRunCardanoMode
       withDicts = withDict cardanoConfigurations . withDict cardanoCompileInfo
       mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace

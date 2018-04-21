@@ -4,9 +4,9 @@ import Universum
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.Util
 import Control.Lens (makeLensesWith, zoom, (+=), (.=))
 import qualified Data.Text as Text
-import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

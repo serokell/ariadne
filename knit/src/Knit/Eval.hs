@@ -1,15 +1,13 @@
 module Knit.Eval where
 
 import Data.Type.Equality
-import Data.Union
-import IiExtras
+import Control.Monad.Except
 
 import Knit.Argument
 import Knit.Procedure
 import Knit.Syntax
 import Knit.Value
-
-import Control.Monad.Except
+import Knit.Prelude
 
 data EvalError components = InvalidArguments CommandName (ProcError components)
 
@@ -41,7 +39,7 @@ evaluate
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (Some (Elem components) (CommandProc components)) components
+  -> Expr (SomeCommandProc components) components
   -> m (Either (EvalError components) (Value components))
 evaluate ctxs expr = runExceptT (eval ctxs expr)
 
@@ -52,7 +50,7 @@ eval
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (Some (Elem components) (CommandProc components)) components
+  -> Expr (SomeCommandProc components) components
   -> EvalT components m (Value components)
 eval ctxs = \case
   ExprLit l -> return (literalToValue l)
@@ -66,10 +64,10 @@ evalProcCall
      , Ord (Value components)
      )
   => ExecContext m components
-  -> ProcCall (Some (Elem components) (CommandProc components)) (Value components)
+  -> ProcCall (SomeCommandProc components) (Value components)
   -> EvalT components m (Value components)
-evalProcCall ctxs (ProcCall (Some commandProc) args) =
-  componentEvalProcCall (rgetElem ctxs) (ProcCall commandProc args)
+evalProcCall ctxs (ProcCall (SomeCommandProc commandProc) args) =
+  componentEvalProcCall (rget ctxs) (ProcCall commandProc args)
 
 literalToValue
   :: forall components.
@@ -103,5 +101,6 @@ componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
       => Union ((:~:) component) components'
       -> ComponentCommandRepr components component
       -> m (Value components)
-    commandExec (This Refl) = componentCommandExec ctx
-    commandExec (That i) = commandExec i
+    commandExec (Base v) = absurd v
+    commandExec (Step (Left Refl)) = componentCommandExec ctx
+    commandExec (Step (Right i)) = commandExec i
