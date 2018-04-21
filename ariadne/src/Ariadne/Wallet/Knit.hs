@@ -7,6 +7,7 @@ import qualified Data.ByteArray as ByteArray
 import IiExtras
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
+import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
@@ -106,9 +107,10 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
             name <- getArgOpt tyString "name"
-            return (passPhrase, name)
-        , cpRepr = \(passPhrase, name) -> CommandAction $ \WalletFace{..} -> do
-            mnemonic <- walletAddWallet passPhrase name
+            mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
+            return (passPhrase, name, mbEntropySize)
+        , cpRepr = \(passPhrase, name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
+            mnemonic <- walletAddWallet passPhrase name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
         , cpHelp = "Create a new wallet. \
                    \The result is the mnemonic to restore this wallet."

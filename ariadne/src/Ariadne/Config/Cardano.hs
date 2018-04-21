@@ -75,7 +75,7 @@ instance D.Inject CardanoConfig where
   injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
 parseFieldCardano :: Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
-parseFieldCardano dhallRec name type_ = Map.lookup (cardanoFieldModifier name) dhallRec >>= D.extract type_
+parseFieldCardano = parseField cardanoFieldModifier
 
 cardanoFieldModifier :: D.Text -> D.Text
 cardanoFieldModifier = f

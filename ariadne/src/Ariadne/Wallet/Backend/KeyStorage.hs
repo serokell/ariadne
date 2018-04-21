@@ -17,23 +17,24 @@ module Ariadne.Wallet.Backend.KeyStorage
 
 import Universum
 
+import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=), (<>=))
 import Control.Monad.Catch.Pure (CatchT, runCatchT)
 import Data.List (findIndex)
-import Formatting (bprint, int, (%))
-import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
-import Serokell.Data.Memory.Units (Byte)
-import qualified Data.Text.Buildable
 import qualified Data.Text as T
+import qualified Data.Text.Buildable
 import qualified Data.Vector as V (findIndex, fromList, mapMaybe)
+import Formatting (bprint, int, (%))
 import IiExtras
+import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Numeric.Natural (Natural)
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
+import Serokell.Data.Memory.Units (Byte)
 
 import Ariadne.Wallet.Face
 
@@ -262,11 +263,6 @@ addAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = 
                     , _adAddresses = mempty
                     }
 
--- TODO: make it configurable
--- should be in {16, 20, 24, 28, 32}
-entropySize :: Byte
-entropySize = 16
-
 data InvalidEntropySize =
     InvalidEntropySize !Byte
     deriving (Show)
@@ -277,9 +273,10 @@ instance Buildable InvalidEntropySize where
 
 instance Exception InvalidEntropySize where
     displayException = toString . pretty
-                    
-addWallet :: WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Maybe Text -> IO [Text]
-addWallet WalletFace{..} runCardanoMode pp mbWalletName = do
+
+addWallet :: WalletConfig -> WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Maybe Text -> Maybe Byte -> IO [Text]
+addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySize = do
+  let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   unless (entropySize `elem` [16, 20, 24, 28, 32]) $
       throwM $ InvalidEntropySize entropySize
   entropy <- secureRandomBS (fromIntegral entropySize)
@@ -313,6 +310,7 @@ addWallet WalletFace{..} runCardanoMode pp mbWalletName = do
             , _wdName = walletName
             , _wdAccounts = mempty
             }
+
 
 select
   :: WalletFace

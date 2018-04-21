@@ -90,6 +90,7 @@ library
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
       Ariadne.Cardano.Orphans
+      Ariadne.Config.Wallet
       Ariadne.Config.Ariadne
       Ariadne.Config.CLI
       Ariadne.Config.Cardano
