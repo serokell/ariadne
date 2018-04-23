@@ -10,7 +10,7 @@
     , report-server = [] : List Text
     , update-server = [] : List Text 
     }
-, db-mainnet = False
+, rebuild-db = False
 , db-path = ["db-mainnet"] : Optional Text
 , dump-configuration = False
 , dump-genesis-data-to = [] : Optional Text

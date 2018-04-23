@@ -1,3 +1,3 @@
 {
-    cardano = ./cardano/cardano-config.dhall
+    cardano = ./config/cardano/cardano-config.dhall
 }

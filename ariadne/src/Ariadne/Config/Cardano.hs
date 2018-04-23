@@ -109,7 +109,7 @@ cardanoFieldModifier = f
     f "statsdSuffix" =  "statsd-suffix"
 
     f "dbPath" = "db-path"
-    f "rebuildDB" = "db-mainnet"
+    f "rebuildDB" = "rebuild-db"
     f "devGenesisSecretI" = "genesis-secret"
     f "keyfilePath" = "keyfile"
     f "networkConfigOpts" = "network-config"
