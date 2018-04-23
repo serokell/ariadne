@@ -40,7 +40,7 @@ createWalletBackend walletConfig = do
           , walletSelection = readIORef walletSelRef
           , walletBalance = do
               addrs <- getSelectedAddresses this walletSelRef runCardanoMode
-              runCardanoMode $ withDict cardanoConfigurations (getBalance addrs)
+              runCardanoMode $ getBalance addrs
           }
       initWalletAction =
         refreshUserSecret walletSelRef runCardanoMode sendWalletEvent

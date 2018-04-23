@@ -301,10 +301,13 @@ handleAppEvent langFace ev =
             handleWalletTreeWidgetEvent langFace $
               WalletTreeUpdateEvent wuTrees wuSelection
           zoom appStateWalletPaneL $
-            handleWalletPaneWidgetEvent $
-              WalletPaneUpdateEvent wuPaneInfo
+            handleWalletPaneWidgetEvent langFace  $
+              WalletPaneUpdateEvent wuPaneInfoUpdate
       return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
+        zoom appStateWalletPaneL $
+          handleWalletPaneCommandEvent $
+            WalletPaneCommandEvent commandId commandEvent
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $
             ReplCommandEvent commandId commandEvent

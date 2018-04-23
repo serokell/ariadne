@@ -12,7 +12,7 @@ module Ariadne.UI.Vty.Face
        , UiWalletTreeItem (..)
        , UiWalletTree
        , UiWalletTreeSelection(..)
-       , UiWalletPaneInfo(..)
+       , UiWalletPaneUpdateInfo(..)
        , TreePath
        ) where
 
@@ -56,7 +56,7 @@ data UiWalletEvent =
   UiWalletUpdate
     { wuTrees :: [UiWalletTree]
     , wuSelection :: Maybe UiWalletTreeSelection
-    , wuPaneInfo :: Maybe UiWalletPaneInfo
+    , wuPaneInfoUpdate :: Maybe UiWalletPaneUpdateInfo
     }
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
@@ -125,7 +125,5 @@ data UiWalletTreeSelection =
 -- Wallet pane widget model
 ----------------------------------------------------------------------------
 
-data UiWalletPaneInfo
-  = UiWalletPaneWalletInfo Text
-  | UiWalletPaneAccountInfo Text
-  | UiWalletPaneAddressInfo
+data UiWalletPaneUpdateInfo
+  = UiWalletPaneRefreshBalance

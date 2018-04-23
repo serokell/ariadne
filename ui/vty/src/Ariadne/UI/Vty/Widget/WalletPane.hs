@@ -2,7 +2,7 @@ module Ariadne.UI.Vty.Widget.WalletPane where
 
 import Universum
 
-import Control.Lens (makeLensesWith, (.=))
+import Control.Lens (makeLensesWith, (.=), to, _Just, _Left)
 import IiExtras
 
 import qualified Brick as B
@@ -10,9 +10,16 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 
+
+data WalletPaneCommandEvent
+  = WalletPaneCommandEvent UiCommandId UiCommandEvent
+
+data WalletPaneInfo
+  = WalletBalance (Either UiCommandId Text)
+
 data WalletPaneWidgetState =
   WalletPaneWidgetState
-    { walletPaneItemInfo :: Maybe UiWalletPaneInfo
+    { walletPaneItemInfo :: Maybe WalletPaneInfo
     , walletPaneInitialized :: Bool
     }
 
@@ -40,12 +47,9 @@ drawWalletPaneWidget _hasFocus wpws =
         img = case walletPaneItemInfo of
           Nothing ->
             V.text' attr "Select a wallet, an account, or an address"
-          Just (UiWalletPaneWalletInfo name) ->
-            V.text' attr ("Wallet " <> pretty name)
-          Just (UiWalletPaneAccountInfo name) ->
-            V.text' attr ("Account " <> pretty name)
-          Just UiWalletPaneAddressInfo ->
-            V.text' attr "Address"
+          Just (WalletBalance e) -> V.text' attr $ "Total balance: " <> case e of
+            Left _ -> "Calculating..."
+            Right bal -> pretty bal
         imgOrLoading
           | walletPaneInitialized = img
           | otherwise = V.text attr "Loading..."
@@ -54,13 +58,38 @@ drawWalletPaneWidget _hasFocus wpws =
           & B.imageL .~ imgOrLoading
 
 data WalletPaneWidgetEvent
-  = WalletPaneUpdateEvent (Maybe UiWalletPaneInfo)
+  = WalletPaneUpdateEvent (Maybe UiWalletPaneUpdateInfo)
+
+handleWalletPaneCommandEvent
+  :: WalletPaneCommandEvent
+  -> StateT WalletPaneWidgetState (B.EventM n) ()
+handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = do
+  commandId' <- (^? walletPaneItemInfoL . _Just . to (\(WalletBalance bal) -> bal) . _Left) <$> get
+
+  when (Just (cmdIdEqObject commandId) == fmap cmdIdEqObject commandId') $ case commandEvent of
+    UiCommandSuccess d -> walletPaneItemInfoL .= Just (WalletBalance $ Right (show d))
+    UiCommandFailure _ -> pure ()
+    UiCommandOutput _ -> pure ()
 
 handleWalletPaneWidgetEvent
-  :: WalletPaneWidgetEvent
+  :: UiLangFace
+  -> WalletPaneWidgetEvent
   -> StateT WalletPaneWidgetState (B.EventM n) ()
-handleWalletPaneWidgetEvent ev = do
+handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
-      walletPaneItemInfoL .= itemInfo
+      case itemInfo of
+        Nothing -> pure ()
+        Just UiWalletPaneRefreshBalance -> do
+          mCommandId <- (^? walletPaneItemInfoL . _Just . to (\(WalletBalance bal) -> bal) . _Left) <$> get
+
+          -- TODO: AD-70
+          let getExpr = either (const $ error "impossible") identity . langParse
+
+          -- Kill previous command
+          whenJust (mCommandId >>= cmdIdRendered) $ \commandId ->
+            void . liftIO . langPutCommand . getExpr $ "kill " <> commandId
+
+          commandId <- liftIO . langPutCommand . getExpr $ "balance"
+          walletPaneItemInfoL .= Just (WalletBalance $ Left commandId)
