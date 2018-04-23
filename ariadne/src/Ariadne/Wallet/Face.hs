@@ -10,6 +10,7 @@ module Ariadne.Wallet.Face
 import Universum
 
 import Ariadne.Cardano.Face
+import Serokell.Data.Memory.Units (Byte)
 
 data WalletSelection =
   WalletSelection
@@ -31,7 +32,7 @@ data WalletFace =
   WalletFace
     { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
     , walletAddAccount :: WalletReference -> Maybe Text -> IO ()
-    , walletAddWallet :: PassPhrase -> Maybe Text -> IO [Text]
+    , walletAddWallet :: PassPhrase -> Maybe Text -> Maybe Byte -> IO [Text]
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId

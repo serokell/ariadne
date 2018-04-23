@@ -1,9 +1,11 @@
 module Ariadne.Config.DhallUtil
     ( defalultIfNothing
+    , parseField
     , interpretFilePath
     , interpretWord16
     , interpretInt
     , interpretBytestringUTF8
+    , interpretByte
     , injectInt
     , injectFilePath
     , injectByteStringUTF8
@@ -17,14 +19,23 @@ import Universum
 
 import Ariadne.Cardano.Orphans ()
 import Data.Functor.Contravariant (Contravariant(..))
+import qualified Data.Map as Map
 import qualified Data.Text.Lazy.Builder as Builder
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
+import Dhall.Parser (Src(..))
+import Dhall.TypeCheck (X)
 import qualified Numeric.Natural as Numeric
+import Serokell.Data.Memory.Units (Byte, fromBytes)
 
 defalultIfNothing :: (Monad m) => a -> m (Maybe a) -> m a
 defalultIfNothing def_ mMba = fromMaybe def_ <$> mMba
+
+type FieldNameModifier = D.Text -> D.Text
+
+parseField :: FieldNameModifier -> Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseField fm dhallRec name type_ = Map.lookup (fm name) dhallRec >>= D.extract type_
 
 interpretFilePath :: D.Type FilePath
 interpretFilePath = toString <$> D.lazyText
@@ -39,6 +50,9 @@ interpretInt = fromIntegral <$> D.integer -- overflow problem?
 -- impementetions for different structures.
 interpretBytestringUTF8 :: D.Type ByteString
 interpretBytestringUTF8 = encodeUtf8 <$> D.strictText
+
+interpretByte :: D.Type Byte
+interpretByte = (fromBytes . toInteger) <$> D.natural
 
 injectInt :: D.InputType Int
 injectInt = D.InputType {..}

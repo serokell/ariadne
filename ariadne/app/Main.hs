@@ -30,13 +30,14 @@ main :: IO ()
 main = do
   ariadneConfig <- getConfig
   let cardanoConfig = acCardano ariadneConfig
+      walletConfig = acWallet ariadneConfig
 
   (uiFace, mkUiAction) <- createAriadneUI
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
-  mkWallet <- createWalletBackend
+  mkWallet <- createWalletBackend walletConfig
 
   let
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
