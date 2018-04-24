@@ -5,6 +5,7 @@ module Ariadne.UI.Vty.Face
        , UiCardanoStatusUpdate (..)
        , UiCardanoEvent (..)
        , UiEvent (..)
+       , UiOperation (..)
        , UiLangFace (..)
        , UiFace (..)
 
@@ -67,6 +68,9 @@ data UiEvent
   | UiWalletEvent UiWalletEvent
   | UiHelpUpdateData [Doc]
 
+data UiOperation
+  = UiSelect [Word]
+
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
   forall err expr. UiLangFace
@@ -75,6 +79,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
+  , langMkExpr :: UiOperation -> expr
   }
 
 -- API for the UI.
