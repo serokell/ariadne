@@ -146,7 +146,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (userSecretToTree us)
         (walletSelectionToUI <$> sel)
-        (UiWalletPaneRefreshBalance <$ sel)
+        (selectionToPane <$> sel)
 
 walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
 walletSelectionToUI WalletSelection{..} =
@@ -185,3 +185,9 @@ userSecretToTree = map toTree . view usWallets
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
+selectionToPane :: WalletSelection -> UiWalletPaneUpdateInfo
+selectionToPane WalletSelection{..} =
+  case wsPath of
+    [] -> UiWalletPaneRefreshWalletBalance
+    [_] -> UiWalletPaneRefreshAccountBalance
+    _ -> UiWalletPaneRefreshAddressBalance

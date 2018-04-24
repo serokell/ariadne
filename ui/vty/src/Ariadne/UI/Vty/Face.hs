@@ -130,4 +130,6 @@ data UiWalletTreeSelection =
 ----------------------------------------------------------------------------
 
 data UiWalletPaneUpdateInfo
-  = UiWalletPaneRefreshBalance
+  = UiWalletPaneRefreshWalletBalance
+  | UiWalletPaneRefreshAccountBalance
+  | UiWalletPaneRefreshAddressBalance
