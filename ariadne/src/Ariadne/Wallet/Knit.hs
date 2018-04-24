@@ -148,7 +148,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
             toValue . ValueNumber . fromIntegral . unsafeGetCoin <$> walletBalance
-        , cpHelp = "Get balance of the current selected item"
+        , cpHelp = "Get balance of the currently selected item"
         }
     ]
 

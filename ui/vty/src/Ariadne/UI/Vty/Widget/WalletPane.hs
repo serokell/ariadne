@@ -2,7 +2,7 @@ module Ariadne.UI.Vty.Widget.WalletPane where
 
 import Universum
 
-import Control.Lens (makeLensesWith, (.=), to, _Just, _Left, (%=))
+import Control.Lens (makeLensesWith, makePrisms, (.=), _Just, zoom, forOf_)
 import IiExtras
 
 import qualified Brick as B
@@ -14,15 +14,18 @@ import Ariadne.UI.Vty.Face
 data WalletPaneCommandEvent
   = WalletPaneCommandEvent UiCommandId UiCommandEvent
 
+data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance Text
+makePrisms ''BalancePromise
+
 data WalletPaneInfo
   = WalletPaneWalletInfo
-    { balance :: Either UiCommandId Text
+    { balance :: BalancePromise
     }
   | WalletPaneAccountInfo
-    { balance :: Either UiCommandId Text
+    { balance :: BalancePromise
     }
   | WalletPaneAddressInfo
-    { balance :: Either UiCommandId Text
+    { balance :: BalancePromise
     }
 
 makeLensesWith postfixLFields ''WalletPaneInfo
@@ -63,8 +66,9 @@ drawWalletPaneWidget _hasFocus wpws =
                 WalletPaneAccountInfo{} -> V.text' attr "Account"
                 WalletPaneAddressInfo{} -> V.text' attr "Address"
             , V.text' attr $ "Total balance: " <> case info ^. balanceL of
-                Left _ -> "Calculating..."
-                Right bal -> pretty (bal)
+                WaitingBalance _ -> "Calculating..."
+                FailedBalance e -> pretty e
+                Balance bal -> pretty bal
             ]
         imgOrLoading
           | walletPaneInitialized = img
@@ -80,12 +84,14 @@ handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
   -> StateT WalletPaneWidgetState (B.EventM n) ()
 handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = do
-  commandId' <- (^? walletPaneItemInfoL . _Just . to (view balanceL) . _Left) <$> get
-
-  when (Just (cmdIdEqObject commandId) == fmap cmdIdEqObject commandId') $ case commandEvent of
-    UiCommandSuccess d -> walletPaneItemInfoL %= fmap (balanceL .~ Right (show d))
-    UiCommandFailure _ -> pure ()
-    UiCommandOutput _ -> pure ()
+ zoom (walletPaneItemInfoL . _Just . balanceL) $ do
+   cmdOrBal <- get
+   forOf_ _WaitingBalance cmdOrBal $ \commandId' ->
+     when (cmdIdEqObject commandId == cmdIdEqObject commandId') $
+       case commandEvent of
+         UiCommandSuccess d -> put $ Balance (show d)
+         UiCommandFailure _ -> put $ FailedBalance "Could not retrieve balance"
+         UiCommandOutput _ -> pure ()
 
 handleWalletPaneWidgetEvent
   :: UiLangFace
@@ -95,14 +101,13 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
-      case itemInfo of
-        Nothing -> pure ()
-        Just UiWalletPaneRefreshWalletBalance -> refreshBalance WalletPaneWalletInfo
-        Just UiWalletPaneRefreshAccountBalance -> refreshBalance WalletPaneAccountInfo
-        Just UiWalletPaneRefreshAddressBalance -> refreshBalance WalletPaneAddressInfo
+      whenJust itemInfo $ \case
+        UiWalletPaneRefreshWalletBalance -> refreshBalance WalletPaneWalletInfo
+        UiWalletPaneRefreshAccountBalance -> refreshBalance WalletPaneAccountInfo
+        UiWalletPaneRefreshAddressBalance -> refreshBalance WalletPaneAddressInfo
   where
     refreshBalance info = do
-      mCommandId <- (^? walletPaneItemInfoL . _Just . to (view balanceL) . _Left) <$> get
+      mCommandId <- (^? walletPaneItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
 
       let putExpr = liftIO . langPutCommand . langMkExpr
 
@@ -110,4 +115,4 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
       whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
       commandId <- putExpr UiBalance
-      walletPaneItemInfoL .= Just (info $ Left commandId)
+      walletPaneItemInfoL .= Just (info $ WaitingBalance commandId)
