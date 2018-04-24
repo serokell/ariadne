@@ -121,7 +121,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
           mkImg ! #def_attr defAttr ! #width width
         drawOutputElement (OutputCommand commandId commandSrc commandMsgs mCommandOut) =
           let
-            cmdInfo = maybe "" (<> " ") (cmdIdRendered commandId)
+            cmdInfo = maybe "" (<> " ") (cmdTaskIdRendered commandId)
             prompt = V.text' defAttr "> "
           in
             V.vertCat

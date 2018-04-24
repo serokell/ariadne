@@ -84,12 +84,10 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
         Just UiWalletPaneRefreshBalance -> do
           mCommandId <- (^? walletPaneItemInfoL . _Just . to (\(WalletBalance bal) -> bal) . _Left) <$> get
 
-          -- TODO: AD-70
-          let getExpr = either (const $ error "impossible") identity . langParse
+          let putExpr = liftIO . langPutCommand . langMkExpr
 
           -- Kill previous command
-          whenJust (mCommandId >>= cmdIdRendered) $ \commandId ->
-            void . liftIO . langPutCommand . getExpr $ "kill " <> commandId
+          whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
-          commandId <- liftIO . langPutCommand . getExpr $ "balance"
+          commandId <- putExpr UiBalance
           walletPaneItemInfoL .= Just (WalletBalance $ Left commandId)
