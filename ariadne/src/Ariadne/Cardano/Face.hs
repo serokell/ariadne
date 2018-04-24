@@ -6,6 +6,7 @@ module Ariadne.Cardano.Face
        , CardanoFace (..)
 
        -- * Re-exports from Cardano
+       , Coin
        , EpochOrSlot (..)
        , EpochIndex (..)
        , SlotId (..)
@@ -31,7 +32,7 @@ import IiExtras
 import Mockable (Production)
 import Pos.Communication.Protocol (SendActions)
 import Pos.Core
-  (Address, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxId,
+  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxId,
   TxOut(..))
 import Pos.Crypto (PassPhrase)
 import Pos.Launcher (HasConfigurations)

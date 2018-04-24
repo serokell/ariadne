@@ -12,7 +12,7 @@ module Ariadne.UI.Vty.Face
        , UiWalletTreeItem (..)
        , UiWalletTree
        , UiWalletTreeSelection(..)
-       , UiWalletPaneInfo(..)
+       , UiWalletPaneUpdateInfo(..)
        , TreePath
        ) where
 
@@ -32,7 +32,9 @@ data UiCommandId =
     -- mapping from actual command identifiers to text need not be injective,
     -- but it would be very unfair to the user, as different command identifiers
     -- would appear the same to her.
-    cmdIdRendered :: Maybe Text
+    cmdTaskIdRendered :: Maybe Text
+    -- Task identifier object.
+  , cmdTaskId :: Maybe Int
   }
 
 -- A REPL command has either finished or sent some information.
@@ -56,7 +58,7 @@ data UiWalletEvent =
   UiWalletUpdate
     { wuTrees :: [UiWalletTree]
     , wuSelection :: Maybe UiWalletTreeSelection
-    , wuPaneInfo :: Maybe UiWalletPaneInfo
+    , wuPaneInfoUpdate :: Maybe UiWalletPaneUpdateInfo
     }
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
@@ -70,6 +72,8 @@ data UiEvent
 
 data UiOperation
   = UiSelect [Word]
+  | UiBalance
+  | UiKill Int
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -125,7 +129,7 @@ data UiWalletTreeSelection =
 -- Wallet pane widget model
 ----------------------------------------------------------------------------
 
-data UiWalletPaneInfo
-  = UiWalletPaneWalletInfo Text
-  | UiWalletPaneAccountInfo Text
-  | UiWalletPaneAddressInfo
+data UiWalletPaneUpdateInfo
+  = UiWalletPaneRefreshWalletBalance
+  | UiWalletPaneRefreshAccountBalance
+  | UiWalletPaneRefreshAddressBalance

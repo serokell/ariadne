@@ -16,7 +16,6 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
-import Control.Lens (ix)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -29,6 +28,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
 
 import qualified Knit
+import qualified Ariadne.TaskManager.Knit as Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
@@ -42,6 +42,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
      , Elem components Knit.Core
+     , Elem components Knit.TaskManager
      )
   => UiFace
   -> KnitFace components
@@ -64,6 +65,12 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall "select"
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
+      UiBalance -> Knit.ExprProcCall (Knit.ProcCall "balance" [])
+      UiKill commandId ->
+        Knit.ExprProcCall
+          (Knit.ProcCall "kill"
+            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+          )
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
@@ -75,7 +82,8 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
+    , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
@@ -138,7 +146,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (userSecretToTree us)
         (walletSelectionToUI <$> sel)
-        (userSecretToPane us <$> sel)
+        (selectionToPane <$> sel)
 
 walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
 walletSelectionToUI WalletSelection{..} =
@@ -177,19 +185,9 @@ userSecretToTree = map toTree . view usWallets
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
-
-userSecretToPane :: UserSecret -> WalletSelection -> UiWalletPaneInfo
-userSecretToPane us WalletSelection{..} =
+selectionToPane :: WalletSelection -> UiWalletPaneUpdateInfo
+selectionToPane WalletSelection{..} =
   case wsPath of
-    [] ->
-      let
-        walletName =
-          case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
-            Nothing ->
-              "FIXME: Internal invariant violated. We should prevent \
-              \selection of non-existent wallets"
-            Just wd -> _wdName wd
-      in
-        UiWalletPaneWalletInfo walletName
-    [i] -> UiWalletPaneAccountInfo (pretty i)
-    _ -> UiWalletPaneAddressInfo
+    [] -> UiWalletPaneRefreshWalletBalance
+    [_] -> UiWalletPaneRefreshAccountBalance
+    _ -> UiWalletPaneRefreshAddressBalance
