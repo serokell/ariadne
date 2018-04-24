@@ -187,27 +187,21 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
     walletTreeSelectionL .= wselection
   WalletNavigationUp -> defaultSelection $ \selection -> do
       let boundedPred x = if minBound == x then x else pred x
-          expr = selectExpr (applyToLast boundedPred selection)
-      void . liftIO $ langPutCommand expr
+      putSelect (applyToLast boundedPred selection)
   WalletNavigationDown -> defaultSelection $ \selection -> do
       let boundedSucc x = if maxBound == x then x else succ x
-          expr = selectExpr (applyToLast boundedSucc selection)
-      void . liftIO $ langPutCommand expr
+      putSelect (applyToLast boundedSucc selection)
   WalletNavigationLeft -> defaultSelection $ \UiWalletTreeSelection{..} ->
-      whenJust (nonEmpty wtsPath) $ \path -> do
-        let expr = selectExpr (wtsWalletIdx : NE.init path)
-        void . liftIO $ langPutCommand expr
-  WalletNavigationRight -> defaultSelection $ \UiWalletTreeSelection{..} -> do
-      let expr = selectExpr (wtsWalletIdx : (wtsPath ++ [0]))
-      void . liftIO $ langPutCommand expr
+      whenJust (nonEmpty wtsPath) $ \path ->
+        putSelect (wtsWalletIdx : NE.init path)
+  WalletNavigationRight -> defaultSelection $ \UiWalletTreeSelection{..} ->
+      putSelect (wtsWalletIdx : (wtsPath ++ [0]))
   where
+    putSelect = void . liftIO . langPutCommand . langMkExpr . UiSelect
     applyToLast :: (Word -> Word) -> UiWalletTreeSelection -> [Word]
     applyToLast f UiWalletTreeSelection{..} = case nonEmpty wtsPath of
-      Nothing -> f wtsWalletIdx : []
+      Nothing -> [f wtsWalletIdx]
       Just xs -> wtsWalletIdx : (NE.init xs ++ [f (NE.last xs)])
-    -- [AD-70] TODO: Here we are manually constructing the expression string with 'unwords' and then parse it
-    -- When some sort of UI AST is implemented this has to be changed.
-    selectExpr ws = either (const $ error "impossible") identity (langParse . unwords . ("select":) . map pretty $ ws)
     defaultSelection m = fmap walletTreeSelection get >>= \case
-      Nothing -> void . liftIO $ langPutCommand (selectExpr [0])
+      Nothing -> putSelect [0]
       Just selection -> m selection

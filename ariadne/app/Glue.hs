@@ -41,6 +41,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentLitGrammar components) components
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
+     , Elem components Knit.Core
      )
   => UiFace
   -> KnitFace components
@@ -54,8 +55,15 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
+    , langMkExpr = convertOperation
     }
   where
+    convertOperation = \case
+      UiSelect ws ->
+        Knit.ExprProcCall
+          (Knit.ProcCall "select"
+           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+          )
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
