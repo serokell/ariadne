@@ -1,5 +1,6 @@
 module Ariadne.Config.Cardano
   ( defaultCardanoConfig
+  , cardanoFieldModifier
   , CardanoConfig (..)
   ) where
 

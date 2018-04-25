@@ -76,6 +76,7 @@ library
     , time-units
     , serokell-util
     , ii-extras
+    , parsec
     , QuickCheck
     , universum
     , unordered-containers
@@ -220,7 +221,9 @@ test-suite ariadne-test
     , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
+    , optparse-applicative
     , universum
+    , serokell-util
     , text
     , time-units
     , QuickCheck
