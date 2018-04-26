@@ -12,7 +12,7 @@ packages:
 - ./util/
 
 - location:
-    git: git@github.com:serokell/lootbox.git
+    git: ssh://git@github.com/serokell/lootbox.git
     commit: 983b19bd438a47c91184b0b71213e76cc9983b03 # gromak/workaround-stack2nix branch
   extra-dep: true
   subdirs:
@@ -112,7 +112,7 @@ packages:
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
 - location:
-    git: git@github.com:serokell/qtah.git
+    git: ssh://git@github.com/serokell/qtah.git
     commit: 4486765dac00783f856d25f97dc4e2cb75427d2c
   extra-dep: true
   subdirs:
