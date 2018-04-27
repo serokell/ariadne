@@ -12,9 +12,10 @@ buildStack {
   package = "ariadne";
   src = lib.cleanSource ./.;
 
-  overrides = final: previous: {
-    ariadne = dependCabal previous.ariadne [ git ];
-    qtah-cpp = nixpkgs.haskell.lib.overrideCabal previous.qtah-cpp (self: {
+  overrides = final: previous: with nixpkgs.haskell.lib; {
+    ariadne = addBuildTool previous.ariadne git;
+    ariadne-qt-ui = disableLibraryProfiling previous.ariadne-qt-ui;
+    qtah-cpp = overrideCabal previous.qtah-cpp (self: {
       librarySystemDepends = (self.librarySystemDepends or []) ++ [ nixpkgs.qt5.qtbase ];
     });
     qtah = final.callPackage
