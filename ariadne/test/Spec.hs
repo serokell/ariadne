@@ -6,19 +6,25 @@ import Ariadne.Config.Cardano (CardanoConfig(..))
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Control.Lens (makeLensesWith)
+import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Launcher
 import Pos.Network.CLI (NetworkConfigOpts(..))
 import Pos.Network.Types (NodeName(..))
-import Pos.Statistics (EkgParams(..))
+import Pos.Statistics (EkgParams(..), StatsdParams(..))
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Property)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
+
+makeLensesWith postfixLFields ''CommonNodeArgs
+makeLensesWith postfixLFields ''AriadneConfig
+makeLensesWith postfixLFields ''CardanoConfig
 
 main :: IO ()
 main = hspec spec
@@ -34,7 +40,7 @@ propHandleCardanoConfig conf = monadicIO $ do
   assert (conf == parsed)
 
 unitTest :: Expectation
-unitTest = (`mergeConfigs` defaultAriadneConfig) . snd <$>
+unitTest = (`mergeConfigs` ariadneConfigSample) . snd <$>
   Opt.getParseResult
     (Opt.execParserPure Opt.defaultPrefs opts cliArgs) `shouldBe` Just expectedAriadneConfig
 
@@ -42,7 +48,7 @@ cliArgs :: [String]
 cliArgs =
   [ "--config", "doesNotMatter"
   , "--cardano:db-path", "new-db-path"
-  , "--cardano:rebuild-db"
+  , "--cardano:rebuild-db", "True"
   , "--cardano:genesis-secret", "111"
   , "--cardano:keyfile", "new-keyfile"
   , "--cardano:topology", "new-topology"
@@ -62,10 +68,10 @@ cliArgs =
   , "--cardano:system-start", "89"
   , "--cardano:configuration-seed", "9"
   , "--cardano:update-latest-path", "new-update-latest-path"
-  , "--cardano:update-with-package"
-  -- , "--cardano:no-ntp", "FALSE" <-- Just to remember that option exists
+  , "--cardano:update-with-package", "True"
+  , "--cardano:no-ntp", "False"
   , "--cardano:route53-health-check", "255.255.255.253:8888"
-  , "--cardano:metrics"
+  , "--cardano:metrics", "True"
   , "--cardano:ekg-params", "255.255.255.252:8888"
   , "--cardano:statsd-server", "255.255.255.251:8888"
   , "--cardano:statsd-interval", "1000"
@@ -111,10 +117,29 @@ expectedAriadneConfig = AriadneConfig
         , route53Params = Just ("255.255.255.253",8888)
         , enableMetrics = True
         , ekgParams = Just (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
-        , statsdParams = Nothing
+        , statsdParams = Just StatsdParams
+          {statsdHost = "255.255.255.251"
+          , statsdPort = 8888
+          , statsdInterval = 1000
+          , statsdDebug = True
+          , statsdPrefix = "new-statsd-prefix"
+          , statsdSuffix = "new-statsd-suffix"
+          }
         , cnaDumpGenesisDataPath = Just "new-dump-genesis-data-to"
         , cnaDumpConfiguration = True
         }
     }
   , acWallet = WalletConfig {wcEntropySize = fromBytes 32}
   }
+
+ariadneConfigSample :: AriadneConfig
+ariadneConfigSample = defaultAriadneConfig & (acCardanoL . getCardanoConfigL . statsdParamsL) .~ statsdSample
+  where
+    statsdSample = Just StatsdParams
+      { statsdHost     = "host"
+      , statsdPort     = 2020
+      , statsdInterval = 1010
+      , statsdDebug    = False
+      , statsdPrefix   = "prefix"
+      , statsdSuffix   = "suffix"
+      }

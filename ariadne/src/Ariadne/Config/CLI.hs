@@ -11,12 +11,12 @@ import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Control.Lens (makeLensesWith)
-import qualified Data.ByteString.Char8 as BS8
 import Data.List (stripPrefix)
 import qualified Data.Text.Lazy.IO as LTIO
 import qualified Dhall as D
 import Formatting (sformat, string, (%))
 import IiExtras (postfixLFields)
+import Named
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..), templateParser)
@@ -25,16 +25,12 @@ import Pos.Launcher
 import Pos.Network.CLI (NetworkConfigOpts(..))
 import Pos.Network.Types (NodeName(..))
 import Pos.Statistics (EkgParams(..), StatsdParams(..))
-import Pos.Util.TimeWarp (NetworkAddress)
+import Pos.Util.TimeWarp (NetworkAddress, addrParser, addrParserNoWildcard)
 import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util (sec)
-import qualified Serokell.Util.Parse as P
-import qualified Text.Parsec as P
-import qualified Text.Parsec.Text as P
-
-import Options.Applicative (ReadM, eitherReader)
+import Serokell.Util.OptParse (fromParsec)
+import Serokell.Util.Parse (byte)
 import System.Directory (doesFileExist)
-import Text.Parsec (Parsec, parse)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
   {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
@@ -145,37 +141,37 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         mbDefaultSp = defaultCna ^. statsdParamsL
 
         mergedCardanoConfig = CardanoConfig CommonNodeArgs
-            { dbPath = mergeMaybe (overrideCna ^. cli_dbPathL) (defaultCna ^. dbPathL)
+            { dbPath = (overrideCna ^. cli_dbPathL) <|> (defaultCna ^. dbPathL)
             , rebuildDB = merge (overrideCna ^. cli_rebuildDBL) (defaultCna ^. rebuildDBL)
-            , devGenesisSecretI = mergeMaybe (overrideCna ^. cli_devGenesisSecretIL) (defaultCna ^. devGenesisSecretIL)
+            , devGenesisSecretI = (overrideCna ^. cli_devGenesisSecretIL) <|> (defaultCna ^. devGenesisSecretIL)
             , keyfilePath = merge (overrideCna ^. cli_keyfilePathL) (defaultCna ^. keyfilePathL)
             , networkConfigOpts = mergedNetworkConfigOpts
-            , jlPath = mergeMaybe (overrideCna ^. cli_jlPathL) (defaultCna ^. jlPathL)
+            , jlPath = (overrideCna ^. cli_jlPathL) <|> (defaultCna ^. jlPathL)
             , commonArgs = mergedCommonArgs
             , updateLatestPath = merge (overrideCna ^. cli_updateLatestPathL) (defaultCna ^. updateLatestPathL)
             , updateWithPackage = merge (overrideCna ^. cli_updateWithPackageL) (defaultCna ^. updateWithPackageL)
             , noNTP = merge (overrideCna ^. cli_noNTPL) (defaultCna ^. noNTPL)
-            , route53Params = mergeMaybe (overrideCna ^. cli_route53ParamsL) (defaultCna ^. route53ParamsL)
+            , route53Params = (overrideCna ^. cli_route53ParamsL) <|> (defaultCna ^. route53ParamsL)
             , enableMetrics = merge (overrideCna ^. cli_enableMetricsL) (defaultCna ^. enableMetricsL)
-            , ekgParams = mergeMaybe (overrideCna ^. cli_ekgParamsL) (defaultCna ^. ekgParamsL)
+            , ekgParams = (overrideCna ^. cli_ekgParamsL) <|> (defaultCna ^. ekgParamsL)
             , statsdParams = mergeStatsdParams
-            , cnaDumpGenesisDataPath = mergeMaybe (overrideCna ^. cli_cnaDumpGenesisDataPathL) (defaultCna ^. cnaDumpGenesisDataPathL)
+            , cnaDumpGenesisDataPath = (overrideCna ^. cli_cnaDumpGenesisDataPathL) <|> (defaultCna ^. cnaDumpGenesisDataPathL)
             , cnaDumpConfiguration = merge (overrideCna ^. cli_cnaDumpConfigurationL) (defaultCna ^. cnaDumpConfigurationL)
             }
 
         mergedNetworkConfigOpts = NetworkConfigOpts
-            { ncoTopology  = mergeMaybe (overrideNco ^. cli_ncoTopologyL) (defaultNco ^. ncoTopologyL)
-            , ncoKademlia = mergeMaybe (overrideNco ^. cli_ncoKademliaL) (defaultNco ^. ncoKademliaL)
-            , ncoSelf = mergeMaybe (overrideNco ^. cli_ncoSelfL) (defaultNco ^. ncoSelfL)
+            { ncoTopology  = (overrideNco ^. cli_ncoTopologyL) <|> (defaultNco ^. ncoTopologyL)
+            , ncoKademlia = (overrideNco ^. cli_ncoKademliaL) <|> (defaultNco ^. ncoKademliaL)
+            , ncoSelf = (overrideNco ^. cli_ncoSelfL) <|> (defaultNco ^. ncoSelfL)
             , ncoPort = merge (overrideNco ^. cli_ncoPortL) (defaultNco ^. ncoPortL)
-            , ncoPolicies = mergeMaybe (overrideNco ^. cli_ncoPoliciesL) (defaultNco ^. ncoPoliciesL)
-            , ncoBindAddress = mergeMaybe (overrideNco ^. cli_ncoBindAddressL) (defaultNco ^. ncoBindAddressL)
-            , ncoExternalAddress = mergeMaybe (overrideNco ^. cli_ncoExternalAddressL) (defaultNco ^. ncoExternalAddressL)
+            , ncoPolicies = (overrideNco ^. cli_ncoPoliciesL) <|> (defaultNco ^. ncoPoliciesL)
+            , ncoBindAddress = (overrideNco ^. cli_ncoBindAddressL) <|> (defaultNco ^. ncoBindAddressL)
+            , ncoExternalAddress = (overrideNco ^. cli_ncoExternalAddressL) <|> (defaultNco ^. ncoExternalAddressL)
             }
 
         mergedCommonArgs = CommonArgs
-            { logConfig = mergeMaybe (overrideCa ^. cli_logConfigL) (defaultCa ^. logConfigL)
-            , logPrefix = mergeMaybe (overrideCa ^. cli_logPrefixL) (defaultCa ^. logPrefixL)
+            { logConfig = (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL)
+            , logPrefix = (overrideCa ^. cli_logPrefixL) <|> (defaultCa ^. logPrefixL)
             , reportServers = merge (overrideCa ^. cli_reportServersL) (defaultCa ^. reportServersL)
             , updateServers = merge (overrideCa ^. cli_updateServersL) (defaultCa ^. updateServersL)
             , configurationOptions = mergedConfigurationOptions
@@ -184,8 +180,8 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         mergedConfigurationOptions = ConfigurationOptions
             { cfoFilePath = merge (overrideCo ^. cli_cfoFilePathL) (defaultCo ^. cfoFilePathL)
             , cfoKey = merge (overrideCo ^. cli_cfoKeyL) (defaultCo ^. cfoKeyL)
-            , cfoSystemStart = mergeMaybe (overrideCo ^. cli_cfoSystemStartL) (defaultCo ^. cfoSystemStartL)
-            , cfoSeed = mergeMaybe (overrideCo ^. cli_cfoSeedL) (defaultCo ^. cfoSeedL)
+            , cfoSystemStart = (overrideCo ^. cli_cfoSystemStartL) <|> (defaultCo ^. cfoSystemStartL)
+            , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
             }
 
         mergeStatsdParams = fmap (\defaultSp -> StatsdParams
@@ -196,10 +192,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
                 , statsdPrefix = merge (overrideSp ^. cli_statsdPrefixL) (defaultSp ^. statsdPrefixL)
                 , statsdSuffix = merge (overrideSp ^. cli_statsdSuffixL) (defaultSp ^. statsdSuffixL)
                 }) mbDefaultSp
-
-mergeMaybe :: Maybe a -> Maybe a -> Maybe a
-mergeMaybe (Just override) _ = Just override
-mergeMaybe Nothing def = def
 
 merge :: Maybe a -> a -> a
 merge = flip fromMaybe
@@ -243,11 +235,17 @@ cliAriadneConfigParser = do
 
 cliWalletParser :: Opt.Parser CLI_WalletConfig
 cliWalletParser = do
-    cli_wcEntropySize <- (fmap . fmap) fromBytes $ autoParserWallet
-        "cli_wcEntropySize"
-        "BYTE"
-        "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
+    cli_wcEntropySize <- (fmap . fmap) (fromBytes . fromIntegral) $ optional $ Opt.option parseEntropy
+       (  Opt.long (unnamed $ toOptionNameWallet "cli_wcEntropySize")
+       <> Opt.metavar "BYTE"
+       <> Opt.help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]")
+
     pure CLI_WalletConfig {..}
+  where
+    parseEntropy = fromParsec byte >>= \b -> if b `elem` [16, 20, 24, 28, 32]
+        then return b
+        else err b
+    err inp = Opt.readerError $ "Invalid entropy size " <> (show inp) <> ". Chose one of [16, 20, 24, 28, 32]"
 
 cliCommonNodeArgsParser :: Opt.Parser CLI_CommonNodeArgs
 cliCommonNodeArgsParser = do
@@ -256,10 +254,11 @@ cliCommonNodeArgsParser = do
         "FILEPATH"
         "Path to directory with all DBs used by the node. \
         \If specified path doesn’t exist, a directory will be created."
-    cli_rebuildDB <- optional $ Opt.switch $
-        Opt.long (toOptionNameCardano "cli_rebuildDB") <>
-        Opt.help "If node's database already exists, discard its contents \
-             \and create a new one from scratch."
+    cli_rebuildDB <- autoParserCardano
+        "cli_rebuildDB"
+        "BOOL"
+        "If node's database already exists, discard its contents \
+        \and create a new one from scratch."
     cli_devGenesisSecretI <- autoParserCardano
         "cli_devGenesisSecretI"
         "INT"
@@ -279,22 +278,25 @@ cliCommonNodeArgsParser = do
         "FILEPATH"
         "Path to update installer file, \
         \which should be downloaded by Update System."
-    cli_updateWithPackage <- optional $ Opt.switch $
-        Opt.long (toOptionNameCardano "cli_updateWithPackage") <>
-        Opt.help "Enable updating via installer."
-    cli_noNTP <- optional $ Opt.switch $
-        Opt.long (toOptionNameCardano "cli_noNTP") <>
-        Opt.help "Whether to use real NTP servers to synchronise time or rely on local time"
+    cli_updateWithPackage <- autoParserCardano
+        "cli_updateWithPackage"
+        "BOOL"
+        "Enable updating via installer."
+    cli_noNTP <- autoParserCardano
+        "cli_noNTP"
+        "BOOL"
+        "Whether to use real NTP servers to synchronise time or rely on local time"
 
     cli_route53Params <- optional $ Opt.option (fromParsec addrParser) $
-        Opt.long (toOptionNameCardano "cli_route53Params") <>
+        Opt.long (unnamed (toOptionNameCardano "cli_route53Params")) <>
         Opt.metavar "IP:PORT" <>
         Opt.help "Host and port for the Route53 DNS health check."
-    cli_enableMetrics <- optional $ Opt.switch $
-        Opt.long (toOptionNameCardano "cli_enableMetrics") <>
-        Opt.help "Enable metrics (EKG, statsd)"
+    cli_enableMetrics <- autoParserCardano
+        "cli_enableMetrics"
+        "BOOL"
+        "Enable metrics (EKG, statsd)"
 
-    cli_ekgParams <- optional ekgParamsOption
+    cli_ekgParams <- optional cliEkgParamsOption
     cli_statsdParams <- cliStatsdParamsOption
 
     cli_cnaDumpGenesisDataPath <- stringParserCardano
@@ -309,38 +311,17 @@ cliCommonNodeArgsParser = do
 
     pure CLI_CommonNodeArgs{..}
 
--- Copied from Pos.Statistics.Ekg because it is not in exposed modules
-ekgParamsOption :: Opt.Parser EkgParams
-ekgParamsOption = do
+cliEkgParamsOption :: Opt.Parser EkgParams
+cliEkgParamsOption = do
     addr <- cliEkgServerOption
     pure $ EkgParams
         { ekgHost = fst addr
         , ekgPort = fromIntegral (snd addr)
         }
--- end Copied
-
--- Copied from Pos.Util.TimeWarp because it is not in exposed modules
--- | Parsed for network address in format @host:port@.
-addrParser :: P.Parser NetworkAddress
-addrParser = (,) <$> (encodeUtf8 <$> P.host) <*> (P.char ':' *> P.port) <* P.eof
-
--- | Parses an IPv4 NetworkAddress where the host is not 0.0.0.0.
-addrParserNoWildcard :: P.Parser NetworkAddress
-addrParserNoWildcard = do
-    (host, port) <- addrParser
-    if host == BS8.pack "0.0.0.0" then empty
-    else return (host, port)
--- end Copied
-
--- Copied from Pos.Util.OptParse because it is not in exposed modules
-fromParsec :: Parsec Text () a -> ReadM a
-fromParsec parser =
-    eitherReader $ first show . parse parser "<CLI options>" . toText
--- end Copied
 
 cliEkgServerOption :: Opt.Parser NetworkAddress
 cliEkgServerOption = Opt.option (fromParsec addrParser) $
-    Opt.long (toOptionNameCardano "cli_ekgParams") <>
+    Opt.long (unnamed (toOptionNameCardano "cli_ekgParams")) <>
     Opt.metavar "IP:PORT" <>
     Opt.help "Host and port for the EKG server"
 
@@ -377,7 +358,7 @@ cliStatsdParamsOption = do
 cliStatsdServerOption :: Opt.Parser NetworkAddress
 cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $
     -- cli_statsdAddr is not a fieldName, but I don't want to break cli_fieldName rule
-    Opt.long (toOptionNameCardano "cli_statsdAddr") <>
+    Opt.long (unnamed (toOptionNameCardano "cli_statsdAddr")) <>
     Opt.metavar "IP:PORT" <>
     Opt.help "Host and port for the statsd server"
 
@@ -414,7 +395,7 @@ cliNetworkConfigOption = do
 
 cliExternalNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
 cliExternalNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNoWildcard) $ templateParser
-        (toOptionNameCardano "cli_ncoExternalAddress")
+        (unnamed (toOptionNameCardano "cli_ncoExternalAddress"))
         "IP:PORT"
         "IP and port of external address. \
         \Please make sure these IP and port (on which node is running) are accessible \
@@ -423,7 +404,7 @@ cliExternalNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNo
 
 cliListenNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
 cliListenNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNoWildcard) $ templateParser
-        (toOptionNameCardano "cli_ncoBindAddress")
+        (unnamed (toOptionNameCardano "cli_ncoBindAddress"))
         "IP:PORT"
         "IP and port on which to bind and listen. Please make sure these IP \
         \and port are accessible, otherwise proper work of CSL isn't guaranteed."
@@ -462,48 +443,63 @@ cliCommonArgsParser = do
         fromString <$>
         Opt.strOption
             (templateParser
-                (toOptionNameCardano "cli_reportServers")
+                (unnamed (toOptionNameCardano "cli_reportServers"))
                 "URI"
                 "Reporting server to send crash/error logs on.")
     cli_updateServers <- optional $ many $
         fromString <$>
         Opt.strOption
             (templateParser
-                (toOptionNameCardano "cli_updateServers")
+                (unnamed (toOptionNameCardano "cli_updateServers"))
                 "URI"
                 "Server to download updates from.")
     cli_configurationOptions <- cliConfigurationOptionsParser
     pure CLI_CommonArgs {..}
 
 
-autoParser :: (Read a) => (String -> String) -> String -> String -> String -> Opt.Parser (Maybe a)
+autoParser :: (Read a) =>
+      (String -> Named String "option_name")
+    -> String
+    -> String
+    -> String
+    -> Opt.Parser (Maybe a)
 autoParser toComponentOptionName name meta help =
     Opt.optional $ Opt.option Opt.auto $
         mconcat
-            [ Opt.long $ toComponentOptionName name
+            [ Opt.long (unnamed $ toComponentOptionName name)
             , Opt.metavar meta
             , Opt.help help
             ]
 
-autoParserCardano :: (Read a) => String -> String -> String -> Opt.Parser (Maybe a)
+
+autoParserCardano :: (Read a) =>
+       String
+    -> String
+    -> String
+    -> Opt.Parser (Maybe a)
 autoParserCardano = autoParser toOptionNameCardano
 
-stringParserCardano :: String -> String -> String -> Opt.Parser (Maybe String)
+stringParserCardano ::
+       String
+    -> String
+    -> String
+    -> Opt.Parser (Maybe String)
 stringParserCardano name meta help =
-    optional $ Opt.strOption $ templateParser (toOptionNameCardano name) meta help
+    optional $ Opt.strOption $ templateParser (unnamed $ toOptionNameCardano name) meta help
 
-toOptionName :: String -> (D.Text -> D.Text) -> String -> String
-toOptionName componentPrefix componentFieldModifier name = componentPrefix <> toString (componentFieldModifier (fromString name_))
+toOptionName ::
+       Named String "component_prefix"
+    -> (D.Text -> D.Text)
+    -> String
+    -> Named String "option_name"
+toOptionName componentPrefix componentFieldModifier name = named #option_name ((unnamed componentPrefix) <> toString (componentFieldModifier (fromString name_)))
   where
     name_ = fromMaybe
       (error $ fromString ("Name " <> name <> " should contain cli_ prefix."))
       (stripPrefix "cli_" name)
 
-toOptionNameCardano :: String -> String
-toOptionNameCardano = toOptionName "cardano:" cardanoFieldModifier
+toOptionNameCardano :: String -> Named String "option_name"
+toOptionNameCardano = (toOptionName ! #component_prefix "cardano:") cardanoFieldModifier
 
-toOptionNameWallet :: String -> String
-toOptionNameWallet = toOptionName "wallet:" walletFieldModifier
-
-autoParserWallet :: (Read a) => String -> String -> String -> Opt.Parser (Maybe a)
-autoParserWallet = autoParser toOptionNameWallet
+toOptionNameWallet :: String -> Named String "option_name"
+toOptionNameWallet = (toOptionName ! #component_prefix "wallet:") walletFieldModifier
