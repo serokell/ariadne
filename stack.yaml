@@ -12,7 +12,7 @@ packages:
 
 - location:
     git: git@github.com:serokell/lootbox.git
-    commit: 983b19bd438a47c91184b0b71213e76cc9983b03 # gromak/workaround-stack2nix branch
+    commit: 4654c5d91af683045aca9beb73b448ac0970ace1
   extra-dep: true
   subdirs:
   - code/crypto
