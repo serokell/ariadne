@@ -1,7 +1,7 @@
 let
   nixpkgs = import (fetchTarball {
-    url = "https://github.com/kirelagin/nixpkgs/archive/4d6a0aba0378c1e4a692f6c0a2647b29dde024b2.tar.gz";
-    sha256 = "0j76hjclkn3cjf6kb0w5ywl2asa31qq8010nldgsv5kgsc9lvf9x";
+    url = "https://github.com/kirelagin/nixpkgs/archive/44ce2b7235304dae9a1b3c7d8ab635e6ae6d2305.tar.gz";
+    sha256 = "0hsd3c40ykhh7av8i3ayxj57s8z6y0vxrzvss9rh4996qnw13hwx";
   }) { overlays = [ (import "${overlay}/pkgs") ]; };
   overlay = builtins.fetchGit {
     url = "ssh://git@github.com:/serokell/serokell-ops.git";
