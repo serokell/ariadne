@@ -6,12 +6,13 @@ flags:
 
 packages:
 - ./ariadne
+- ./ui/qt
 - ./ui/vty
 - ./knit
 - ./util/
 
 - location:
-    git: git@github.com:serokell/lootbox.git
+    git: ssh://git@github.com/serokell/lootbox.git
     commit: 983b19bd438a47c91184b0b71213e76cc9983b03 # gromak/workaround-stack2nix branch
   extra-dep: true
   subdirs:
@@ -110,6 +111,15 @@ packages:
     git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
+- location:
+    git: ssh://git@github.com/serokell/qtah.git
+    commit: fa2be32f915cef68930817ee86ef2a0d5d7d1271
+  extra-dep: true
+  subdirs:
+  - qtah-generator
+  - qtah-cpp
+  - qtah
+
 
 extra-deps:
 
@@ -165,8 +175,20 @@ extra-deps:
 - union-0.1.1.2
 - named-0.1.0.0
 
+# Ariadne Qt GUI
+- hoppy-runtime-0.4.0
+- hoppy-generator-0.4.0
+- hoppy-std-0.4.0
+- haskell-src-1.0.2.0   # https://github.com/commercialhaskell/stack/issues/3151
+
 extra-package-dbs: []
 
 nix:
   shell-file: shell.nix
   pure: true
+
+flags:
+  qtah:
+    qt5: true
+  qtah-cpp:
+    qt5: true
