@@ -56,6 +56,7 @@ library
     , resourcet
     , network-transport-tcp
     , optparse-applicative
+    , pandoc
     , plutus-prototype
     , raw-strings-qq
     , rocksdb-haskell-ng
