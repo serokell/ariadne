@@ -40,8 +40,8 @@ nixpkgs.haskell.lib.buildStackProject {
       openssh
       rocksdb
       zlib
+      qt5.qtbase
     ];
-  buildPhase = ''
-    export LANG=en_US.UTF-8
-    '';
-    }
+  LANG="en_US.UTF-8";
+  QT_QPA_PLATFORM_PLUGIN_PATH="${nixpkgs.qt5.qtbase.bin}/lib/qt-5.9/plugins/platforms";
+}
