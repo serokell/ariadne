@@ -19,13 +19,16 @@ makePrisms ''BalancePromise
 
 data WalletPaneInfo
   = WalletPaneWalletInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
   | WalletPaneAccountInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
   | WalletPaneAddressInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
 
 makeLensesWith postfixLFields ''WalletPaneInfo
@@ -65,6 +68,7 @@ drawWalletPaneWidget _hasFocus wpws =
                 WalletPaneWalletInfo{} -> V.text' attr "Wallet"
                 WalletPaneAccountInfo{} -> V.text' attr "Account"
                 WalletPaneAddressInfo{} -> V.text' attr "Address"
+            , V.text' attr $ info ^. labelL
             , V.text' attr $ "Total balance: " <> case info ^. balanceL of
                 WaitingBalance _ -> "Calculating..."
                 FailedBalance e -> pretty e
@@ -78,7 +82,7 @@ drawWalletPaneWidget _hasFocus wpws =
           & B.imageL .~ imgOrLoading
 
 data WalletPaneWidgetEvent
-  = WalletPaneUpdateEvent (Maybe UiWalletPaneUpdateInfo)
+  = WalletPaneUpdateEvent (Maybe UiWalletPaneInfo)
 
 handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
@@ -101,12 +105,16 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
-      whenJust itemInfo $ \case
-        UiWalletPaneRefreshWalletBalance -> refreshBalance WalletPaneWalletInfo
-        UiWalletPaneRefreshAccountBalance -> refreshBalance WalletPaneAccountInfo
-        UiWalletPaneRefreshAddressBalance -> refreshBalance WalletPaneAddressInfo
+      whenJust itemInfo $ \UiWalletPaneInfo{..} -> case wpiType of
+        Just UiWalletPaneInfoWallet -> setInfo WalletPaneWalletInfo wpiLabel
+        Just UiWalletPaneInfoAccount -> setInfo WalletPaneAccountInfo wpiLabel
+        Just UiWalletPaneInfoAddress -> setInfo WalletPaneAddressInfo wpiLabel
+        _ -> walletPaneItemInfoL .= Nothing
   where
-    refreshBalance info = do
+    setInfo info label = do
+      balancePromise <- refreshBalance
+      walletPaneItemInfoL .= Just (info (fromMaybe "" label) balancePromise)
+    refreshBalance = do
       mCommandId <- (^? walletPaneItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
 
       let putExpr = liftIO . langPutCommand . langMkExpr
@@ -115,4 +123,4 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
       whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
       commandId <- putExpr UiBalance
-      walletPaneItemInfoL .= Just (info $ WaitingBalance commandId)
+      return $ WaitingBalance commandId
