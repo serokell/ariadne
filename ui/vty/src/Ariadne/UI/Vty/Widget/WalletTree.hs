@@ -49,10 +49,10 @@ renderTree selection toImg defAttr selAttr = go [] []
     map' f [x] = [f x True]
     map' f (x:xs) = f x False : map' f xs
     prefixPart :: Bool -> Bool -> Text
-    prefixPart True  False = "│   "
-    prefixPart True  True  = "├── "
-    prefixPart False False = "    "
-    prefixPart False True  = "└── "
+    prefixPart True  False = "│  "
+    prefixPart True  True  = "├─ "
+    prefixPart False False = "   "
+    prefixPart False True  = "└─ "
     prefix :: [Bool] -> V.Image
     prefix prefixLines = V.text' defAttr $ mconcat $ map' prefixPart prefixLines
     selectionFlag :: TreePath -> SelectionFlag
@@ -105,13 +105,16 @@ renderWalletTreeItem selection _ defAttr selAttr UiWalletTreeItem {..} =
                 | wtiShowPath -> pathText
                 | otherwise -> "★"
             Just label
-                | wtiShowPath -> label <> " (" <> pathText <> ")"
-                | otherwise -> label
+                | wtiShowPath -> ellipsize label <> " (" <> pathText <> ")"
+                | otherwise -> ellipsize label
     attr =
         case selection of
             NotSelected -> defAttr
             Selected -> selAttr
     pathText = T.intercalate "-" $ map pretty wtiPath
+    ellipsize label
+      | length label > 21 = T.take 9 label <> "..." <> T.takeEnd 9 label
+      | otherwise = label
 
 drawWalletTreeWidget
   :: Bool
