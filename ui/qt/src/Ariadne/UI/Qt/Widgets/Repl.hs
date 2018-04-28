@@ -96,7 +96,11 @@ getColor xs = case colors of
 
 simpleDocToHTML :: PP.SimpleDoc -> Text
 simpleDocToHTML sdoc = toText $
-  format ("<span style=\"white-space: pre-wrap;\"><span>" % string % "</span></span>") $ go sdoc ""
+  format
+    ("<span style='\
+      \font-family: Hack, \"Fira Code\", \"Source Code Pro\", \"DejaVu Sans Mono\", monospace;\
+      \white-space: pre-wrap;'><span>" % string % "</span></span>")
+  $ go sdoc ""
   where
     indentation i = if i <= 0 then "" else replicate i ' '
     go = \case
