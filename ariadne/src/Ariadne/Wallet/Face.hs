@@ -6,6 +6,8 @@ module Ariadne.Wallet.Face
   , AccountReference(..)
   , WalletSelection(..)
   , WalletName(..)
+  , Mnemonic(..)
+  , WalletRestoreType (..)
   ) where
 
 import Universum
@@ -34,11 +36,26 @@ data AccountReference
   | AccountRefByIndex !Word32 !WalletReference
   | AccountRefByName !Text !WalletReference
 
+-- | Single string representing a mnemonic, presumably space-separated
+-- list of words.
+newtype Mnemonic = Mnemonic
+    { unMnemonic :: Text
+    }
+
+-- | We support various types of wallet restoration.
+data WalletRestoreType
+    = WalletRestoreQuick
+    -- ^ Quickly restore a wallet without restoring its accounts and addresses.
+    | WalletRestoreFull
+    -- ^ Restore a wallet fully, find our accounts and addresses.
+
 data WalletFace =
   WalletFace
     { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
     , walletAddAccount :: WalletReference -> Maybe Text -> IO ()
     , walletAddWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
+    , walletRestore ::
+        PassPhrase -> Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId

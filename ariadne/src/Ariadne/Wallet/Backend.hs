@@ -12,6 +12,7 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
+import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Face
 
@@ -31,7 +32,8 @@ createWalletBackend walletConfig = do
          withDicts $ fix $ \this -> WalletFace
           { walletAddAddress = addAddress this walletSelRef runCardanoMode
           , walletAddAccount = addAccount this walletSelRef runCardanoMode
-          , walletAddWallet = addWallet walletConfig this runCardanoMode
+          , walletAddWallet = addNewWallet walletConfig this runCardanoMode
+          , walletRestore = restoreWallet this runCardanoMode
           , walletRefreshUserSecret =
               refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
           , walletSelect = select this walletSelRef runCardanoMode

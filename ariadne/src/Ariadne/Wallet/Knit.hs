@@ -117,6 +117,28 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    \The result is the mnemonic to restore this wallet."
         }
     , CommandProc
+        { cpName = "restore"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            passPhrase <- getPassPhraseArg
+            name <- fmap WalletName <$> getArgOpt tyString "name"
+            mnemonic <- Mnemonic <$> getArg tyString "mnemonic"
+            restoreType <- getArg tyBool "full" <&>
+                \case False -> WalletRestoreQuick
+                      True -> WalletRestoreFull
+            return (passPhrase, name, mnemonic, restoreType)
+        , cpRepr = \(passPhrase, name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} ->
+            toValue ValueUnit <$ walletRestore passPhrase name mnemonic restoreType
+        , cpHelp = "Restore a wallet from mnemonic. " <>
+                   "A passphrase can be specified to encrypt the resulting " <>
+                   "wallet (it doesn't have to be the same as the one used " <>
+                   "to encrypt the old wallet). " <>
+                   "There are two types of restoration: full restoration " <>
+                   "finds all used addresses (and their accounts), but is " <>
+                   "slow, while quick restoration only adds a wallet with " <>
+                   "secret key derived from the specified mnemonic."
+        }
+    , CommandProc
         { cpName = "select"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
