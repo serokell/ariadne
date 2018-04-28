@@ -13,6 +13,7 @@ import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QMainWindow as QMainWindow
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
+import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI

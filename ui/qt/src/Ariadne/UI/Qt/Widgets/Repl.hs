@@ -14,6 +14,7 @@ import IiExtras
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QTextEdit as QTextEdit
@@ -41,7 +42,13 @@ initRepl langFace = do
 
   layout <- QVBoxLayout.new
   QLayout.addWidget layout cmdHistory
-  QLayout.addWidget layout cmdLine
+
+  cmdLineLayout <- QHBoxLayout.new
+  knitPrompt <- QLabel.newWithText ("knit>" :: String)
+  QLayout.addWidget cmdLineLayout knitPrompt
+  QLayout.addWidget cmdLineLayout cmdLine
+
+  QBoxLayout.addLayout layout cmdLineLayout
 
   connectSignal Repl{..} cmdLine QLineEdit.returnPressedSignal $
     returnPressed langFace
