@@ -5,10 +5,10 @@ import Universum
 import qualified Data.ByteArray as ByteArray
 
 import IiExtras
+import Pos.Core (unsafeGetCoin)
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Serokell.Data.Memory.Units (fromBytes)
-import Pos.Core (unsafeGetCoin)
 import Text.Earley
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
@@ -107,7 +107,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
-            name <- getArgOpt tyString "name"
+            name <- fmap WalletName <$> getArgOpt tyString "name"
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
             return (passPhrase, name, mbEntropySize)
         , cpRepr = \(passPhrase, name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
@@ -184,7 +184,8 @@ getAccountRefArgOpt =
 
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
 tyWalletRef =
-    either WalletRefByName WalletRefByIndex <$> tyString `tyEither` tyWord
+    either (WalletRefByName . WalletName) WalletRefByIndex <$>
+    tyString `tyEither` tyWord
 
 mkPassPhrase :: Maybe Text -> PassPhrase
 mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)

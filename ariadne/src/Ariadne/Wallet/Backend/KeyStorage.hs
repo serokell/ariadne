@@ -97,11 +97,11 @@ instance Exception DuplicateAccountName where
   displayException (DuplicateAccountName t) =
     "The account name " ++ show t ++ " already exists."
 
-data DuplicateWalletName = DuplicateWalletName Text
+data DuplicateWalletName = DuplicateWalletName WalletName
   deriving (Eq, Show)
 
 instance Exception DuplicateWalletName where
-  displayException (DuplicateWalletName t) =
+  displayException (DuplicateWalletName (WalletName t)) =
     "The wallet name " ++ show t ++ " already exists."
 
 -- | Get the wallet index by name or using current selection.
@@ -116,7 +116,7 @@ resolveWalletRef walletSelRef runCardanoMode = \case
     case mWalletSelection of
       Nothing -> throwM NoWalletSelection
       Just WalletSelection{..} -> return wsWalletIndex
-  WalletRefByName name -> do
+  WalletRefByName (WalletName name) -> do
     us <- runCardanoMode getSecretDefault
     case findIndex (\w -> w ^. wdName == name) (us ^. usWallets) of
       Just i -> return (fromIntegral i)
@@ -275,7 +275,14 @@ instance Buildable InvalidEntropySize where
 instance Exception InvalidEntropySize where
     displayException = toString . pretty
 
-addWallet :: WalletConfig -> WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Maybe Text -> Maybe Byte -> IO [Text]
+addWallet ::
+       WalletConfig
+    -> WalletFace
+    -> (CardanoMode ~> IO)
+    -> PassPhrase
+    -> Maybe WalletName
+    -> Maybe Byte
+    -> IO [Text]
 addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   unless (entropySize `elem` [16, 20, 24, 28, 32]) $
@@ -294,9 +301,11 @@ addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySi
         let namesList = _wdName <$> wdList
 
         walletName <- case mbWalletName of
-          Nothing -> return (mkUntitled "Untitled wallet " (V.fromList namesList))
+          Nothing ->
+            return (WalletName $ mkUntitled "Untitled wallet " (V.fromList namesList))
           Just walletName_ -> do
-            when (walletName_ `elem` namesList) $ throwM $ DuplicateWalletName walletName_
+            when (unWalletName walletName_ `elem` namesList) $
+              throwM $ DuplicateWalletName walletName_
             return walletName_
         usWallets <>= one (emptyWallet walletName esk)
 
@@ -304,8 +313,8 @@ addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySi
     eitherToThrow
   mnemonic <$ walletRefreshUserSecret
   where
-    emptyWallet :: Text -> EncryptedSecretKey -> WalletData
-    emptyWallet walletName esk =
+    emptyWallet :: WalletName -> EncryptedSecretKey -> WalletData
+    emptyWallet (WalletName walletName) esk =
         WalletData
             { _wdRootKey = esk
             , _wdName = walletName

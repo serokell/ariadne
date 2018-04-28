@@ -5,6 +5,7 @@ module Ariadne.Wallet.Face
   , WalletReference(..)
   , AccountReference(..)
   , WalletSelection(..)
+  , WalletName(..)
   ) where
 
 import Universum
@@ -18,10 +19,15 @@ data WalletSelection =
     , wsPath :: [Word]
     }
 
+-- | Name of a wallet.
+newtype WalletName = WalletName
+    { unWalletName :: Text
+    } deriving (Show, Eq, IsString, Monoid, ToString)
+
 data WalletReference
   = WalletRefSelection
   | WalletRefByIndex Word
-  | WalletRefByName Text
+  | WalletRefByName WalletName
 
 data AccountReference
   = AccountRefSelection
@@ -32,7 +38,7 @@ data WalletFace =
   WalletFace
     { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
     , walletAddAccount :: WalletReference -> Maybe Text -> IO ()
-    , walletAddWallet :: PassPhrase -> Maybe Text -> Maybe Byte -> IO [Text]
+    , walletAddWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId
