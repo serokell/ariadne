@@ -96,8 +96,8 @@ cardanoFieldModifier = f
 
     f "logConfig" = "log-config"
     f "logPrefix" = "log-prefix"
-    f "reportServers" = "report-server"
-    f "updateServers" = "update-server"
+    f "reportServers" = "report-servers"
+    f "updateServers" = "update-servers"
     f "configurationOptions" = "configuration-options"
 
     f "ekgHost" = "host"
