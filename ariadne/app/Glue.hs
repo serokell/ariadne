@@ -97,7 +97,7 @@ knitCommandResultToUI
   => UiCommandId
   -> KnitCommandResult components
   -> Maybe UiEvent
-knitCommandResultToUI commandId = Just . UiCommandEvent commandId . \case
+knitCommandResultToUI commandId = Just . UiCommandResultEvent commandId . \case
   KnitCommandSuccess v ->
     UiCommandSuccess $ Knit.ppValue v
   KnitCommandEvalError e ->
@@ -108,7 +108,7 @@ knitCommandResultToUI commandId = Just . UiCommandEvent commandId . \case
     UiCommandFailure $ PP.text (displayException e)
 
 knitCommandOutputToUI :: UiCommandId -> PP.Doc -> UiEvent
-knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput doc)
+knitCommandOutputToUI commandId doc = UiCommandResultEvent commandId (UiCommandOutput doc)
 
 ----------------------------------------------------------------------------
 -- Glue between the Cardano backend and Vty frontend

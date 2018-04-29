@@ -12,7 +12,7 @@ import Ariadne.UI.Vty.Face
 
 
 data WalletPaneCommandEvent
-  = WalletPaneCommandEvent UiCommandId UiCommandEvent
+  = WalletPaneCommandEvent UiCommandId UiCommandResultEvent
 
 data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance Text
 makePrisms ''BalancePromise

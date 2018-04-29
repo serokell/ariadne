@@ -311,7 +311,7 @@ handleAppEvent langFace ev =
             handleWalletPaneWidgetEvent langFace  $
               WalletPaneUpdateEvent wuPaneInfoUpdate
       return AppInProgress
-    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
+    B.AppEvent (UiCommandResultEvent commandId commandEvent) -> do
         zoom appStateWalletPaneL $
           handleWalletPaneCommandEvent $
             WalletPaneCommandEvent commandId commandEvent
@@ -335,6 +335,18 @@ handleAppEvent langFace ev =
     B.AppEvent (UiHelpUpdateData doc) -> do
         zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
         return AppInProgress
+    B.AppEvent (UiCommandEvent commandEvent) -> do
+      case commandEvent of
+        UiCommandHelp -> do
+          focus <- use appStateFocusL
+          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorHelp)
+          appStateFocusL .= restoreFocus AppSelectorHelp focus
+          return AppInProgress
+        UiCommandLogs -> do
+          focus <- use appStateFocusL
+          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorLogs)
+          appStateFocusL .= restoreFocus AppSelectorLogs focus
+          return AppInProgress
     _ ->
       return AppInProgress
 

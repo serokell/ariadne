@@ -218,7 +218,7 @@ data InputModification
   | ReplaceBreakLine
 
 data ReplInputEvent
-  = ReplCommandEvent UiCommandId UiCommandEvent
+  = ReplCommandEvent UiCommandId UiCommandResultEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplCommandNavigationEvent CommandAction
@@ -405,7 +405,7 @@ byWord move check = go Char.isSpace . go (not . Char.isSpace)
 
 updateCommandResult
   :: UiCommandId
-  -> UiCommandEvent
+  -> UiCommandResultEvent
   -> OutputElement
   -> OutputElement
 updateCommandResult
