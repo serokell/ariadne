@@ -156,7 +156,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , route53Params = (overrideCna ^. cli_route53ParamsL) <|> (defaultCna ^. route53ParamsL)
         , enableMetrics = merge (overrideCna ^. cli_enableMetricsL) (defaultCna ^. enableMetricsL)
         , ekgParams = (overrideCna ^. cli_ekgParamsL) <|> (defaultCna ^. ekgParamsL)
-        , statsdParams = mergeStatsdParams
+        , statsdParams = mergedStatsdParams
         , cnaDumpGenesisDataPath = (overrideCna ^. cli_cnaDumpGenesisDataPathL) <|> (defaultCna ^. cnaDumpGenesisDataPathL)
         , cnaDumpConfiguration = merge (overrideCna ^. cli_cnaDumpConfigurationL) (defaultCna ^. cnaDumpConfigurationL)
         }
@@ -186,7 +186,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
         }
 
-    mergeStatsdParams = fmap (\defaultSp -> StatsdParams
+    mergedStatsdParams = fmap (\defaultSp -> StatsdParams
             { statsdHost = merge (overrideSp ^. cli_statsdHostL) (defaultSp ^. statsdHostL)
             , statsdPort = merge (overrideSp ^. cli_statsdPortL) (defaultSp ^. statsdPortL)
             , statsdInterval = merge (overrideSp ^. cli_statsdIntervalL) (defaultSp ^. statsdIntervalL)
@@ -210,7 +210,6 @@ getConfig = do
     (do
       putText $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return defaultAriadneConfig)
-
   return $ mergeConfigs cli_config config
 
 opts :: Opt.ParserInfo (FilePath, CLI_AriadneConfig)
@@ -238,7 +237,7 @@ cliAriadneConfigParser = do
 cliWalletParser :: Opt.Parser CLI_WalletConfig
 cliWalletParser = do
   cli_wcEntropySize <- (fmap . fmap) (fromBytes . fromIntegral) $ optional $ Opt.option parseEntropy
-     (  Opt.long (unnamed $ toOptionNameWallet "cli_wcEntropySize")
+     (  Opt.long (unnamed $ toOptionNameWallet ! #field_name "cli_wcEntropySize")
      <> Opt.metavar "BYTE"
      <> Opt.help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]")
 
@@ -252,64 +251,64 @@ cliWalletParser = do
 cliCommonNodeArgsParser :: Opt.Parser CLI_CommonNodeArgs
 cliCommonNodeArgsParser = do
   cli_dbPath <- stringParserCardano
-    "cli_dbPath"
-    "FILEPATH"
-    "Path to directory with all DBs used by the node. \
+    ! #field_name "cli_dbPath"
+    ! #meta "FILEPATH"
+    ! #help "Path to directory with all DBs used by the node. \
     \If specified path doesn’t exist, a directory will be created."
   cli_rebuildDB <- autoParserCardano
-    "cli_rebuildDB"
-    "BOOL"
-    "If node's database already exists, discard its contents \
+    ! #field_name "cli_rebuildDB"
+    ! #meta "BOOL"
+    ! #help "If node's database already exists, discard its contents \
     \and create a new one from scratch."
   cli_devGenesisSecretI <- autoParserCardano
-    "cli_devGenesisSecretI"
-    "INT"
-    "Used genesis secret key index."
+    ! #field_name "cli_devGenesisSecretI"
+    ! #meta "INT"
+    ! #help "Used genesis secret key index."
   cli_keyfilePath <- stringParserCardano
-    "cli_keyfilePath"
-    "FILEPATH"
-    "Path to file with secret key (we use it for Daedalus)."
+    ! #field_name "cli_keyfilePath"
+    ! #meta "FILEPATH"
+    ! #help "Path to file with secret key (we use it for Daedalus)."
   cli_networkConfigOpts <- cliNetworkConfigOption
   cli_jlPath <- stringParserCardano
-    "cli_jlPath"
-    "FILEPATH"
-    "Path to JSON log file."
+    ! #field_name "cli_jlPath"
+    ! #meta "FILEPATH"
+    ! #help "Path to JSON log file."
   cli_commonArgs <- cliCommonArgsParser
   cli_updateLatestPath <- stringParserCardano
-    "cli_updateLatestPath"
-    "FILEPATH"
-    "Path to update installer file, \
+    ! #field_name "cli_updateLatestPath"
+    ! #meta "FILEPATH"
+    ! #help "Path to update installer file, \
     \which should be downloaded by Update System."
   cli_updateWithPackage <- autoParserCardano
-    "cli_updateWithPackage"
-    "BOOL"
-    "Enable updating via installer."
+    ! #field_name "cli_updateWithPackage"
+    ! #meta "BOOL"
+    ! #help "Enable updating via installer."
   cli_noNTP <- autoParserCardano
-    "cli_noNTP"
-    "BOOL"
-    "Whether to use real NTP servers to synchronise time or rely on local time"
+    ! #field_name "cli_noNTP"
+    ! #meta "BOOL"
+    ! #help "Whether to use real NTP servers to synchronise time or rely on local time"
 
   cli_route53Params <- optional $ Opt.option (fromParsec addrParser) $
-    Opt.long (unnamed (toOptionNameCardano "cli_route53Params")) <>
+    Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_route53Params")) <>
     Opt.metavar "IP:PORT" <>
     Opt.help "Host and port for the Route53 DNS health check."
   cli_enableMetrics <- autoParserCardano
-    "cli_enableMetrics"
-    "BOOL"
-    "Enable metrics (EKG, statsd)"
+    ! #field_name "cli_enableMetrics"
+    ! #meta "BOOL"
+    ! #help "Enable metrics (EKG, statsd)"
 
   cli_ekgParams <- optional cliEkgParamsOption
   cli_statsdParams <- cliStatsdParamsOption
 
   cli_cnaDumpGenesisDataPath <- stringParserCardano
-    "cli_cnaDumpGenesisDataPath"
-    "FILEPATH"
-    "Dump genesis data in canonical JSON format to this file."
+    ! #field_name "cli_cnaDumpGenesisDataPath"
+    ! #meta "FILEPATH"
+    ! #help "Dump genesis data in canonical JSON format to this file."
 
   cli_cnaDumpConfiguration <- autoParserCardano
-    "cli_cnaDumpConfiguration"
-    "BOOL"
-    "Dump configuration and exit."
+    ! #field_name "cli_cnaDumpConfiguration"
+    ! #meta "BOOL"
+    ! #help "Dump configuration and exit."
 
   pure CLI_CommonNodeArgs{..}
 
@@ -323,7 +322,7 @@ cliEkgParamsOption = do
 
 cliEkgServerOption :: Opt.Parser NetworkAddress
 cliEkgServerOption = Opt.option (fromParsec addrParser) $
-  Opt.long (unnamed (toOptionNameCardano "cli_ekgParams")) <>
+  Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_ekgParams")) <>
   Opt.metavar "IP:PORT" <>
   Opt.help "Host and port for the EKG server"
 
@@ -331,21 +330,21 @@ cliStatsdParamsOption :: Opt.Parser CLI_StatsdParams
 cliStatsdParamsOption = do
   addr <- optional cliStatsdServerOption
   interval <- autoParserCardano
-    "cli_statsdInterval"
-    "MILLISECONDS"
-    "Polling interval for statsd (milliseconds)"
+    ! #field_name "cli_statsdInterval"
+    ! #meta "MILLISECONDS"
+    ! #help "Polling interval for statsd (milliseconds)"
   debug <- autoParserCardano
-    "cli_statsdDebug"
-    "BOOL"
-    "Enable statsd debug mode"
+    ! #field_name "cli_statsdDebug"
+    ! #meta "BOOL"
+    ! #help "Enable statsd debug mode"
   prefix <- stringParserCardano
-    "cli_statsdPrefix"
-    "TEXT"
-    "Prefix for statsd"
+    ! #field_name "cli_statsdPrefix"
+    ! #meta "TEXT"
+    ! #help "Prefix for statsd"
   suffix <- stringParserCardano
-    "cli_statsdSuffix"
-    "TEXT"
-    "Suffix for statsd"
+    ! #field_name "cli_statsdSuffix"
+    ! #meta "TEXT"
+    ! #help "Suffix for statsd"
   pure CLI_StatsdParams
     { -- The network address parser only accepts ByteStrings which are
       -- UTF8 encoded
@@ -360,36 +359,36 @@ cliStatsdParamsOption = do
 cliStatsdServerOption :: Opt.Parser NetworkAddress
 cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $
   -- cli_statsdAddr is not a fieldName, but I don't want to break cli_fieldName rule
-  Opt.long (unnamed (toOptionNameCardano "cli_statsdAddr")) <>
+  Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_statsdAddr")) <>
   Opt.metavar "IP:PORT" <>
   Opt.help "Host and port for the statsd server"
 
 cliNetworkConfigOption :: Opt.Parser CLI_NetworkConfigOpts
 cliNetworkConfigOption = do
   cli_ncoTopology <- stringParserCardano
-    "cli_ncoTopology"
-    "FILEPATH"
-    "Path to a YAML file containing the network topology"
+    ! #field_name "cli_ncoTopology"
+    ! #meta "FILEPATH"
+    ! #help "Path to a YAML file containing the network topology"
 
   cli_ncoKademlia <- stringParserCardano
-    "cli_ncoKademlia"
-    "FILEPATH"
-    "Path to a YAML file containing the kademlia configuration"
+    ! #field_name "cli_ncoKademlia"
+    ! #meta "FILEPATH"
+    ! #help "Path to a YAML file containing the kademlia configuration"
 
   cli_ncoSelf <- stringParserCardano
-    "cli_ncoSelf"
-    "NODE_ID"
-    "Identifier for this node within the network"
+    ! #field_name "cli_ncoSelf"
+    ! #meta "NODE_ID"
+    ! #help "Identifier for this node within the network"
 
   cli_ncoPort <- autoParserCardano
-    "cli_ncoPort"
-    "PORT"
-    "Port number for IP address to node ID translation"
+    ! #field_name "cli_ncoPort"
+    ! #meta "PORT"
+    ! #help "Port number for IP address to node ID translation"
 
   cli_ncoPolicies <- stringParserCardano
-    "cli_ncoPolicies"
-    "FILEPATH"
-    "Path to a YAML file containing the network policies"
+    ! #field_name "cli_ncoPolicies"
+    ! #meta "FILEPATH"
+    ! #help "Path to a YAML file containing the network policies"
 
   cli_ncoExternalAddress <- cliExternalNetworkAddressOption
   cli_ncoBindAddress <- cliListenNetworkAddressOption
@@ -397,7 +396,7 @@ cliNetworkConfigOption = do
 
 cliExternalNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
 cliExternalNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNoWildcard) $ templateParser
-  (unnamed (toOptionNameCardano "cli_ncoExternalAddress"))
+  (unnamed (toOptionNameCardano ! #field_name "cli_ncoExternalAddress"))
   "IP:PORT"
   "IP and port of external address. \
   \Please make sure these IP and port (on which node is running) are accessible \
@@ -406,7 +405,7 @@ cliExternalNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNo
 
 cliListenNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
 cliListenNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNoWildcard) $ templateParser
-  (unnamed (toOptionNameCardano "cli_ncoBindAddress"))
+  (unnamed (toOptionNameCardano ! #field_name "cli_ncoBindAddress"))
   "IP:PORT"
   "IP and port on which to bind and listen. Please make sure these IP \
   \and port are accessible, otherwise proper work of CSL isn't guaranteed."
@@ -414,52 +413,54 @@ cliListenNetworkAddressOption = optional $ Opt.option (fromParsec addrParserNoWi
 cliConfigurationOptionsParser :: Opt.Parser CLI_ConfigurationOptions
 cliConfigurationOptionsParser = do
   cli_cfoFilePath  <- stringParserCardano
-    "cli_cfoFilePath"
-    "FILEPATH"
-    "Path to a yaml configuration file"
+    ! #field_name "cli_cfoFilePath"
+    ! #meta "FILEPATH"
+    ! #help "Path to a yaml configuration file"
   cli_cfoKey <- stringParserCardano
-    "cli_cfoKey"
-    "TEXT"
-    "Key within the configuration file to use"
+    ! #field_name "cli_cfoKey"
+    ! #meta "TEXT"
+    ! #help "Key within the configuration file to use"
   cli_cfoSystemStart <- (fmap . fmap) (Timestamp . sec) $ autoParserCardano
-    "cli_cfoSystemStart"
-    "TIMESTAMP"
-    "System start time. Format - seconds since Unix Epoch."
+    ! #field_name "cli_cfoSystemStart"
+    ! #meta "TIMESTAMP"
+    ! #help "System start time. Format - seconds since Unix Epoch."
   cli_cfoSeed        <- autoParserCardano
-    "cli_cfoSeed"
-    "INTEGER"
-    "Seed for genesis generation. Overrides one from configuration file."
+    ! #field_name "cli_cfoSeed"
+    ! #meta "INTEGER"
+    ! #help "Seed for genesis generation. Overrides one from configuration file."
   return CLI_ConfigurationOptions{..}
 
 cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
 cliCommonArgsParser = do
   cli_logConfig <- stringParserCardano
-    "cli_logConfig"
-    "FILEPATH"
-    "Path to logger configuration."
+    ! #field_name "cli_logConfig"
+    ! #meta "FILEPATH"
+    ! #help "Path to logger configuration."
   cli_logPrefix <- stringParserCardano
-    "cli_logPrefix"
-    "FILEPATH"
-    "Prefix to logger output path."
+    ! #field_name "cli_logPrefix"
+    ! #meta "FILEPATH"
+    ! #help "Prefix to logger output path."
   cli_reportServers <- optional $ Opt.option listParser $
-    Opt.long (unnamed (toOptionNameCardano "cli_reportServers")) <>
+    Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_reportServers")) <>
     Opt.metavar "URI" <>
-    Opt.help "Reporting server to send crash/error logs on."
+    Opt.help "Reporting server to send crash/error logs on. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
+
   cli_updateServers <- optional $ Opt.option listParser $
-    Opt.long (unnamed (toOptionNameCardano "cli_updateServers")) <>
+    Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_updateServers")) <>
     Opt.metavar "URI" <>
-    Opt.help "Server to download updates from."
+    Opt.help "Server to download updates from. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
+
   cli_configurationOptions <- cliConfigurationOptionsParser
   pure CLI_CommonArgs {..}
 
 
 autoParser :: (Read a) =>
       (Named String "field_name" -> Named String "option_name")
-    -> Named String "option_name"
+    -> Named String "field_name"
     -> Named String "meta"
     -> Named String "help"
     -> Opt.Parser (Maybe a)
-autoParser toComponentOptionName name meta help =
+autoParser toComponentOptionName name (Named meta) (Named help) =
   Opt.optional $ Opt.option Opt.auto $
     mconcat
       [ Opt.long (unnamed $ toComponentOptionName name)
@@ -470,34 +471,34 @@ autoParser toComponentOptionName name meta help =
 autoParserCardano :: (Read a) =>
        Named String "field_name"
     -> Named String "meta"
-    -> Named String
+    -> Named String "help"
     -> Opt.Parser (Maybe a)
 autoParserCardano = autoParser toOptionNameCardano
 
 stringParserCardano :: IsString s =>
-       String
-    -> String
-    -> String
+       Named String "field_name"
+    -> Named String "meta"
+    -> Named String "help"
     -> Opt.Parser (Maybe s)
-stringParserCardano name meta help =
+stringParserCardano name (Named meta) (Named help) =
   optional $ (fromString <$> ) $ Opt.strOption $ templateParser (unnamed $ toOptionNameCardano name) meta help
 
 toOptionName ::
        Named String "component_prefix"
     -> (D.Text -> D.Text)
-    -> String
+    -> Named String "field_name"
     -> Named String "option_name"
-toOptionName componentPrefix componentFieldModifier name = named #option_name ((unnamed componentPrefix) <> toString (componentFieldModifier (fromString name_)))
+toOptionName componentPrefix componentFieldModifier (Named fieldName) = named #option_name ((unnamed componentPrefix) <> toString (componentFieldModifier (fromString name_)))
   where
     name_ = fromMaybe
-      (error $ fromString ("Name " <> name <> " should contain cli_ prefix."))
-      (stripPrefix "cli_" name)
+      (error $ fromString ("fieldName " <> fieldName <> " should contain cli_ prefix."))
+      (stripPrefix "cli_" fieldName)
 
-toOptionNameCardano :: String -> Named String "option_name"
+toOptionNameCardano :: Named String "field_name" -> Named String "option_name"
 toOptionNameCardano = (toOptionName ! #component_prefix "cardano:") cardanoFieldModifier
 
-toOptionNameWallet :: String -> Named String "option_name"
+toOptionNameWallet :: Named String "field_name" -> Named String "option_name"
 toOptionNameWallet = (toOptionName ! #component_prefix "wallet:") walletFieldModifier
 
 listParser :: Opt.ReadM [Text]
-listParser = Opt.eitherReader (R.readEither @[Text])
+listParser =  Opt.eitherReader (R.readEither @[Text])

@@ -1,5 +1,7 @@
 import Universum
 
+import qualified Prelude as Pr
+
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..))
@@ -31,7 +33,7 @@ main = hspec spec
 
 spec :: Spec
 spec = describe "Ariadne.Config" $ do
-  it "CLI can override any field" unitTest
+  it "CLI can override any field" overrideConfigUnitTest
   prop "handles any CardanoConfig" propHandleCardanoConfig
 
 propHandleCardanoConfig :: CardanoConfig -> Property
@@ -39,8 +41,8 @@ propHandleCardanoConfig conf = monadicIO $ do
   parsed <- run $ (fromDhall . toDhall) conf
   assert (conf == parsed)
 
-unitTest :: Expectation
-unitTest = (`mergeConfigs` ariadneConfigSample) . snd <$>
+overrideConfigUnitTest :: Expectation
+overrideConfigUnitTest = (`mergeConfigs` ariadneConfigSample) . snd <$>
   Opt.getParseResult
     (Opt.execParserPure Opt.defaultPrefs opts cliArgs) `shouldBe` Just expectedAriadneConfig
 
@@ -61,8 +63,8 @@ cliArgs =
   , "--cardano:json-log", "new-json-log"
   , "--cardano:log-config", "new-log-config"
   , "--cardano:log-prefix", "new-log-prefix"
-  , "--cardano:report-server", "new-report-server-1 new-report-server-2"
-  , "--cardano:update-server", "new-update-server-1 new-update-server-2"
+  , "--cardano:report-servers", "[\"new-report-server-1\", \"new-report-server-2\"]"
+  , "--cardano:update-servers", "[\"new-update-server-1\", \"new-update-server-2\"]"
   , "--cardano:configuration-file", "new-configuration-file"
   , "--cardano:configuration-key", "new-configuration-key"
   , "--cardano:system-start", "89"
@@ -81,6 +83,7 @@ cliArgs =
   , "--cardano:dump-genesis-data-to", "new-dump-genesis-data-to"
   , "--cardano:dump-configuration", "True"
   , "--wallet:entropy-size", "32"]
+
 
 expectedAriadneConfig :: AriadneConfig
 expectedAriadneConfig = AriadneConfig
@@ -103,8 +106,8 @@ expectedAriadneConfig = AriadneConfig
         , commonArgs = CommonArgs
           { logConfig = Just "new-log-config"
           , logPrefix = Just "new-log-prefix"
-          , reportServers = ["new-report-server-1 new-report-server-2"]
-          , updateServers = ["new-update-server-1 new-update-server-2"]
+          , reportServers = ["new-report-server-1", "new-report-server-2"]
+          , updateServers = ["new-update-server-1", "new-update-server-2"]
           , configurationOptions = ConfigurationOptions
             {cfoFilePath = "new-configuration-file"
             , cfoKey = "new-configuration-key"
