@@ -34,6 +34,26 @@ data SelectionFlag
     = NotSelected
     | Selected
 
+data ScrolledImage
+  = ScrolledImage
+      { siImage :: V.Image
+      , siPos :: Maybe Int
+      }
+
+mergeImages :: ScrolledImage -> ScrolledImage -> ScrolledImage
+mergeImages (ScrolledImage image1 mPos1) (ScrolledImage image2 mPos2) =
+  ScrolledImage
+    { siImage = V.vertJoin image1 image2
+    , siPos =
+        if
+          | Just pos <- mPos1 -> Just pos
+          | Just pos <- mPos2 -> Just $ pos + V.imageHeight image1
+          | otherwise -> Nothing
+    }
+
+emptyImage :: ScrolledImage
+emptyImage = ScrolledImage V.emptyImage Nothing
+
 renderTree ::
        forall a.
        Maybe TreePath
@@ -41,7 +61,7 @@ renderTree ::
     -> V.Attr
     -> V.Attr
     -> Tree a
-    -> V.Image
+    -> ScrolledImage
 renderTree selection toImg defAttr selAttr = go [] []
   where
     map' :: (from -> Bool -> to) -> [from] -> [to]
@@ -59,11 +79,17 @@ renderTree selection toImg defAttr selAttr = go [] []
     selectionFlag curPath
         | Just curPath == selection = Selected
         | otherwise = NotSelected
-    go :: TreePath -> [Bool] -> Tree a -> V.Image
+    go :: TreePath -> [Bool] -> Tree a -> ScrolledImage
     go curPath prefixLines Node {..} =
-        V.vertCat
-        ( V.horizJoin (prefix prefixLines)
-                      (toImg (selectionFlag curPath) curPath defAttr selAttr rootLabel)
+      foldr mergeImages emptyImage
+        ( ScrolledImage
+            { siImage = V.horizJoin
+                (prefix prefixLines)
+                (toImg (selectionFlag curPath) curPath defAttr selAttr rootLabel)
+            , siPos = case selectionFlag curPath of
+                Selected -> Just 0
+                NotSelected -> Nothing
+            }
         : map' (\(i, child) isLast -> go (curPath ++ [i]) (prefixLines ++ [not isLast]) child) (enumerate subForest)
         )
 
@@ -73,17 +99,26 @@ renderTree selection toImg defAttr selAttr = go [] []
 
 -- | State of wallet tree widget, basically the data we want to
 -- display (corresponds to a list of wallets).
-data WalletTreeWidgetState =
+data WalletTreeWidgetState n =
   WalletTreeWidgetState
     { walletTreeWallets :: ![UiWalletTree]
     , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
     , walletTreeInitialized :: Bool
+    , walletTreeWidgetBrickName :: n
     }
 
 makeLensesWith postfixLFields ''WalletTreeWidgetState
 
-initWalletTreeWidget :: WalletTreeWidgetState
-initWalletTreeWidget = WalletTreeWidgetState [] (Just (UiWalletTreeSelection 0 [0])) False
+initWalletTreeWidget
+  :: (Ord n, Show n)
+  => n
+  -> WalletTreeWidgetState n
+initWalletTreeWidget name = WalletTreeWidgetState
+  { walletTreeWallets = []
+  , walletTreeSelection = Just $ UiWalletTreeSelection 0 [0]
+  , walletTreeInitialized = False
+  , walletTreeWidgetBrickName = name
+  }
 
 ----------------------------------------------------------------------------
 -- View
@@ -117,23 +152,25 @@ renderWalletTreeItem selection _ defAttr selAttr UiWalletTreeItem {..} =
       | otherwise = label
 
 drawWalletTreeWidget
-  :: Bool
-  -> WalletTreeWidgetState
-  -> B.Widget name
+  :: (Ord n, Show n)
+  => Bool
+  -> WalletTreeWidgetState n
+  -> B.Widget n
 drawWalletTreeWidget _hasFocus wtws  =
-  B.Widget
-    { B.hSize = B.Fixed
-    , B.vSize = B.Greedy
-    , B.render = render
-    }
+  B.viewport name B.Vertical $
+    B.Widget
+      { B.hSize = B.Fixed
+      , B.vSize = B.Fixed
+      , B.render = render
+      }
   where
-    WalletTreeWidgetState wallets mSelection initialized = wtws
+    WalletTreeWidgetState wallets mSelection initialized name = wtws
     render = do
       rdrCtx <- B.getContext
       let
         attr = rdrCtx ^. B.attrL
         selAttr = attr <> B.attrMapLookup "selected" (rdrCtx ^. B.ctxAttrMapL)
-        renderOneTree :: (Word, UiWalletTree) -> V.Image
+        renderOneTree :: (Word, UiWalletTree) -> ScrolledImage
         renderOneTree (walletIdx, walletTree) =
             renderTree selection renderWalletTreeItem attr selAttr walletTree
           where
@@ -141,18 +178,22 @@ drawWalletTreeWidget _hasFocus wtws  =
             selection = do
                 UiWalletTreeSelection{..} <- mSelection
                 wtsPath <$ guard (wtsWalletIdx == walletIdx)
-        walletImages :: [V.Image]
+        walletImages :: [ScrolledImage]
         walletImages = map renderOneTree $ enumerate wallets
-        separator :: V.Image
-        separator = V.text attr ""
-        img
-          | null walletImages = V.text attr "No wallets"
-          | otherwise = V.vertCat $ intersperse separator walletImages
+        separator :: ScrolledImage
+        separator = ScrolledImage (V.text attr "") Nothing
+        ScrolledImage img mPos
+          | null walletImages = ScrolledImage (V.text attr "No wallets") Nothing
+          | otherwise = foldr mergeImages emptyImage $ intersperse separator walletImages
         imgOrLoading
           | initialized = img
           | otherwise = V.text attr "Loading..."
       return $ B.emptyResult
              & B.imageL .~ imgOrLoading
+             & B.visibilityRequestsL .~
+                 case mPos of
+                   Just pos -> [B.VR (B.Location (0, pos)) (1, 1)]
+                   Nothing -> []
 
 ----------------------------------------------------------------------------
 -- Events
@@ -180,9 +221,10 @@ keyToWalletTreeEvent = \case
   _ -> Nothing
 
 handleWalletTreeWidgetEvent
-  :: UiLangFace
+  :: (Ord n, Show n)
+  => UiLangFace
   -> WalletTreeWidgetEvent
-  -> StateT WalletTreeWidgetState (B.EventM n) ()
+  -> StateT (WalletTreeWidgetState n) (B.EventM n) ()
 handleWalletTreeWidgetEvent UiLangFace{..} = \case
   WalletTreeUpdateEvent wallets wselection -> do
     walletTreeInitializedL .= True

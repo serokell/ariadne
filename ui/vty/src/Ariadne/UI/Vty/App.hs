@@ -45,6 +45,7 @@ data AppFocus
 
 data AppBrickName
   = AppBrickReplOutput
+  | AppBrickWalletTree
   | AppBrickHelp
   | AppBrickLogs
   deriving (Eq, Ord, Show)
@@ -57,7 +58,7 @@ data AppState =
     , appStateStatus :: StatusWidgetState
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
-    , appStateWalletTree :: WalletTreeWidgetState
+    , appStateWalletTree :: WalletTreeWidgetState AppBrickName
     , appStateWalletPane :: WalletPaneWidgetState
     }
 
@@ -72,7 +73,7 @@ initialAppState langFace history =
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
-    , appStateWalletTree = initWalletTreeWidget
+    , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
     , appStateWalletPane = initWalletPaneWidget
     }
   where
