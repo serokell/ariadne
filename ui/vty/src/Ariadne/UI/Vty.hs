@@ -75,7 +75,10 @@ runUI eventChan history langFace = do
 mkVtyConfig :: IO V.Config
 mkVtyConfig = do
   stdConfig <- V.standardIOConfig
-  return stdConfig { V.mouseMode = Just True }
+  return stdConfig
+    { V.mouseMode = Just True
+    , V.bracketedPasteMode = Just True
+    }
 
 -- Create a channel for application events that aren't user input. This channel
 -- is bounded to avoid infinite accumulation of events, but the bound is

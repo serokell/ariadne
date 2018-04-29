@@ -207,6 +207,7 @@ data CommandAction
 
 data InputModification
   = InsertChar Char
+  | InsertMany Text
   | DeleteBackwards
   | DeleteWordBackwards
   | DeleteAllBackwards
@@ -297,6 +298,7 @@ handleReplInputEvent langFace = fix $ \go -> \case
     zoom replWidgetTextZipperL $ modify $
       case modification of
         InsertChar c -> insertChar c
+        InsertMany t -> insertMany t
         DeleteBackwards -> deletePrevChar
         DeleteWordBackwards -> byWord deletePrevChar previousChar
         DeleteAllBackwards -> killToBOL

@@ -12,6 +12,7 @@ import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Graphics.Vty as V
 import qualified Data.List.NonEmpty as NE
 
 import Ariadne.UI.Vty.CommandHistory
@@ -222,6 +223,12 @@ handleAppEvent
   -> StateT AppState (B.EventM AppBrickName) AppCompleted
 handleAppEvent langFace ev =
   case ev of
+    B.VtyEvent (V.EvPaste bs) -> do
+      whenRight (decodeUtf8' bs) $ \pasted ->
+        void $ zoom appStateReplL $
+          handleReplInputEvent langFace $
+            ReplInputModifyEvent (InsertMany pasted)
+      return AppInProgress
     B.VtyEvent vtyEv -> do
       focus <- use appStateFocusL
       menuState <- use appStateMenuL
