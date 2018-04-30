@@ -16,6 +16,7 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
+import Control.Lens (ix)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -146,7 +147,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (userSecretToTree us)
         (walletSelectionToUI <$> sel)
-        (selectionToPane <$> sel)
+        (walletSelectionToPane us <$> sel)
 
 walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
 walletSelectionToUI WalletSelection{..} =
@@ -185,9 +186,20 @@ userSecretToTree = map toTree . view usWallets
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
-selectionToPane :: WalletSelection -> UiWalletPaneUpdateInfo
-selectionToPane WalletSelection{..} =
-  case wsPath of
-    [] -> UiWalletPaneRefreshWalletBalance
-    [_] -> UiWalletPaneRefreshAccountBalance
-    _ -> UiWalletPaneRefreshAddressBalance
+
+walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletPaneInfo
+walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
+  where
+    wpiWalletIdx = wsWalletIndex
+    wpiPath = wsPath
+    (wpiType, wpiLabel) = case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
+      Nothing -> error "Invalid wallet index"
+      Just WalletData{..} -> case wsPath of
+        [] -> (Just UiWalletPaneInfoWallet, Just _wdName)
+        accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
+          Nothing -> error "Invalid account index"
+          Just AccountData{..} -> case accPath of
+            [] -> (Just UiWalletPaneInfoAccount, Just _adName)
+            addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
+              Nothing -> error "Invalid address index"
+              Just (_, address) -> (Just UiWalletPaneInfoAddress, Just $ pretty address)
