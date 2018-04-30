@@ -50,7 +50,8 @@ data ReplWidgetState n =
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     , replWidgetHistory :: CommandHistory
-    , replWidgetBrickName :: n
+    , replWidgetOutputBrickName :: n
+    , replWidgetInputBrickName :: n
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -82,14 +83,16 @@ initReplWidget
   => UiLangFace
   -> CommandHistory
   -> n
+  -> n
   -> ReplWidgetState n
-initReplWidget langFace history name =
+initReplWidget langFace history outputName inputName =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     , replWidgetHistory = history
-    , replWidgetBrickName = name
+    , replWidgetOutputBrickName = outputName
+    , replWidgetInputBrickName = inputName
     }
 
 drawReplOutputWidget
@@ -106,7 +109,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
       , B.render = render
       }
   where
-    name = replWidgetState ^. replWidgetBrickNameL
+    name = replWidgetState ^. replWidgetOutputBrickNameL
     outElems = reverse (replWidgetOut replWidgetState)
     render = do
       rdrCtx <- B.getContext
@@ -142,16 +145,18 @@ drawReplOutputWidget _hasFocus replWidgetState =
           & B.imageL .~ img
 
 drawReplInputWidget
-  :: Bool
+  :: (Ord n, Show n)
+  => Bool
   -> ReplWidgetState n
   -> B.Widget n
 drawReplInputWidget hasFocus replWidgetState =
-  B.Widget
-    { B.hSize = B.Greedy
+  fixedViewport name B.Horizontal B.Widget
+    { B.hSize = B.Fixed
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
+    name = replWidgetState ^. replWidgetInputBrickNameL
     render = do
       rdrCtx <- B.getContext
       let
@@ -361,14 +366,14 @@ handleReplInputEvent langFace = fix $ \go -> \case
           out = OutputCommand commandId commandSrc [] Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ B.invalidateCacheEntry name
     lift $ scrollToEnd name
     return ReplInProgress
   ReplCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandEvent)
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ B.invalidateCacheEntry name
     lift $ scrollToEnd name
     return ReplInProgress
@@ -379,7 +384,7 @@ handleReplOutputEvent
   -> StateT (ReplWidgetState n) (B.EventM n) ()
 handleReplOutputEvent = \case
   ReplOutputScrollingEvent action -> do
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ handleScrollingEvent name action
 
 isQuitCommand :: Text -> Bool

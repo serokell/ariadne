@@ -111,7 +111,7 @@ data MenuWidgetEvent a
   | MenuSelectEvent (a -> Bool)
   | MenuEnterEvent
   | MenuExitEvent
-  | MenuMouseDownEvent V.Button [V.Modifier] B.Location
+  | MenuMouseDownEvent B.Location
 
 keyToMenuWidgetEvent
   :: Eq a
@@ -158,8 +158,6 @@ handleMenuWidgetEvent ev = do
       mI <- uses menuWidgetElemsL (Vector.findIndex (p . menuWidgetElemSelector))
       whenJust mI (assign menuWidgetSelectionL)
       menuWidgetNavModeL .= False
-    MenuMouseDownEvent V.BLeft [] (B.Location (col, _)) -> do
+    MenuMouseDownEvent (B.Location (col, _)) -> do
       elems <- use menuWidgetElemsL
       whenJust (colToSelection elems col) (assign menuWidgetSelectionL)
-    MenuMouseDownEvent _ _ _ ->
-      return ()

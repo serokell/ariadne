@@ -48,8 +48,10 @@ data AppFocus
 -- | Brick-specific ID for scrolling viewports, widget cache items and clickable widgets
 data AppBrickName
   = AppBrickMenu
-  | AppBrickReplOutput
   | AppBrickWalletTree
+  | AppBrickWalletPane
+  | AppBrickReplOutput
+  | AppBrickReplInput
   | AppBrickHelp
   | AppBrickLogs
   deriving (Eq, Ord, Show)
@@ -63,7 +65,7 @@ data AppState =
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
     , appStateWalletTree :: WalletTreeWidgetState AppBrickName
-    , appStateWalletPane :: WalletPaneWidgetState
+    , appStateWalletPane :: WalletPaneWidgetState AppBrickName
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -72,13 +74,13 @@ initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace history AppBrickReplOutput
+    , appStateRepl = initReplWidget langFace history AppBrickReplOutput AppBrickReplInput
     , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
     , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
-    , appStateWalletPane = initWalletPaneWidget
+    , appStateWalletPane = initWalletPaneWidget AppBrickWalletPane
     }
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
@@ -306,14 +308,26 @@ handleAppEvent langFace ev =
 
         | otherwise ->
             return AppInProgress
-    B.MouseDown name button modifiers coords ->
+    B.MouseDown name V.BLeft [] coords ->
       case name of
         AppBrickMenu -> do
           zoom appStateMenuL $ handleMenuWidgetEvent $
-            MenuMouseDownEvent button modifiers coords
+            MenuMouseDownEvent coords
           newSel <- uses appStateMenuL menuWidgetSel
           focus <- use appStateFocusL
           appStateFocusL .= restoreFocus newSel focus
+          return AppInProgress
+        AppBrickWalletTree -> do
+          appStateFocusL .= AppFocusWalletTree
+          return AppInProgress
+        AppBrickWalletPane -> do
+          appStateFocusL .= AppFocusWalletPane
+          return AppInProgress
+        AppBrickReplOutput -> do
+          appStateFocusL .= AppFocusReplOutput
+          return AppInProgress
+        AppBrickReplInput -> do
+          appStateFocusL .= AppFocusReplInput
           return AppInProgress
         _ ->
           return AppInProgress
