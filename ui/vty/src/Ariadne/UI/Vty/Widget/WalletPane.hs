@@ -33,25 +33,35 @@ data WalletPaneInfo
 
 makeLensesWith postfixLFields ''WalletPaneInfo
 
-data WalletPaneWidgetState =
+data WalletPaneWidgetState n =
   WalletPaneWidgetState
     { walletPaneItemInfo :: Maybe WalletPaneInfo
     , walletPaneInitialized :: Bool
+    , walletPaneBrickName :: n
     }
 
 makeLensesWith postfixLFields ''WalletPaneWidgetState
 
-initWalletPaneWidget :: WalletPaneWidgetState
-initWalletPaneWidget = WalletPaneWidgetState Nothing False
+initWalletPaneWidget
+  :: (Ord n, Show n)
+  => n
+  -> WalletPaneWidgetState n
+initWalletPaneWidget name =
+  WalletPaneWidgetState
+    { walletPaneItemInfo = Nothing
+    , walletPaneInitialized = False
+    , walletPaneBrickName = name
+    }
 
 drawWalletPaneWidget
-  :: Bool
-  -> WalletPaneWidgetState
-  -> B.Widget name
+  :: (Ord n, Show n)
+  => Bool
+  -> WalletPaneWidgetState n
+  -> B.Widget n
 drawWalletPaneWidget _hasFocus wpws =
-  B.Widget
-    { B.hSize = B.Greedy
-    , B.vSize = B.Greedy
+  B.viewport walletPaneBrickName B.Both B.Widget
+    { B.hSize = B.Fixed
+    , B.vSize = B.Fixed
     , B.render = render
     }
   where
@@ -86,7 +96,7 @@ data WalletPaneWidgetEvent
 
 handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
-  -> StateT WalletPaneWidgetState (B.EventM n) ()
+  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
 handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = do
  zoom (walletPaneItemInfoL . _Just . balanceL) $ do
    cmdOrBal <- get
@@ -100,7 +110,7 @@ handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = d
 handleWalletPaneWidgetEvent
   :: UiLangFace
   -> WalletPaneWidgetEvent
-  -> StateT WalletPaneWidgetState (B.EventM n) ()
+  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
 handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do

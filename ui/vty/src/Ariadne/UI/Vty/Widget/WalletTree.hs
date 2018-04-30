@@ -105,7 +105,7 @@ data WalletTreeWidgetState n =
     { walletTreeWallets :: ![UiWalletTree]
     , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
     , walletTreeInitialized :: Bool
-    , walletTreeWidgetBrickName :: n
+    , walletTreeBrickName :: n
     }
 
 makeLensesWith postfixLFields ''WalletTreeWidgetState
@@ -118,7 +118,7 @@ initWalletTreeWidget name = WalletTreeWidgetState
   { walletTreeWallets = []
   , walletTreeSelection = Just $ UiWalletTreeSelection 0 [0]
   , walletTreeInitialized = False
-  , walletTreeWidgetBrickName = name
+  , walletTreeBrickName = name
   }
 
 ----------------------------------------------------------------------------
