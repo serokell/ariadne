@@ -4,6 +4,7 @@ module Ariadne.UI.Vty.Scrolling
      , handleScrollingEvent
      , scrollToEnd
      , keepScrollingToEnd
+     , fixedViewport
      ) where
 
 import Universum
@@ -11,6 +12,7 @@ import Universum
 import Ariadne.UI.Vty.Keyboard
 
 import qualified Brick as B
+import qualified Graphics.Vty as V
 
 data ScrollingAction
   = ScrollingLineUp
@@ -58,3 +60,31 @@ keepScrollingToEnd name lineCount =
   whenJustM (B.lookupViewport name) $ \vp ->
     when (vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= lineCount) $
       B.vScrollToEnd $ B.viewportScroll name
+
+-- Unidirectional Brick viewport doesn't defer its sizing policy
+-- to underlying widget. Brick author considers it okay.
+-- See https://github.com/jtdaugherty/brick/issues/174
+-- This function works around this by getting the size of widget first
+-- and limiting the size of resulting viewport.
+fixedViewport
+  :: (Ord n, Show n)
+  => n
+  -> B.ViewportType
+  -> B.Widget n
+  -> B.Widget n
+fixedViewport name vpType p = case vpType of
+  B.Both -> B.Widget B.Greedy B.Greedy render
+  B.Vertical -> B.Widget (B.hSize p) B.Greedy render
+  B.Horizontal -> B.Widget B.Greedy (B.vSize p) render
+  where
+    render = do
+      result <- B.render p
+      B.render $
+        limit result .
+        B.viewport name vpType $
+        B.Widget (B.hSize p) (B.vSize p) (return result)
+    limit :: B.Result n -> (B.Widget n -> B.Widget n)
+    limit result = case vpType of
+      B.Vertical -> B.hLimit (result ^. B.imageL & V.imageWidth)
+      B.Horizontal -> B.vLimit (result ^. B.imageL & V.imageHeight)
+      B.Both -> identity

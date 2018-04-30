@@ -24,6 +24,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
+import Ariadne.UI.Vty.Scrolling
 
 ----------------------------------------------------------------------------
 -- General (should probably be moved somewhere at later stage)
@@ -157,7 +158,7 @@ drawWalletTreeWidget
   -> WalletTreeWidgetState n
   -> B.Widget n
 drawWalletTreeWidget _hasFocus wtws  =
-  B.viewport name B.Vertical $
+  fixedViewport name B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
