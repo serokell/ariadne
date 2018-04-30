@@ -28,12 +28,14 @@ import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.WalletPane
 import Ariadne.UI.Vty.Widget.WalletTree
 
+-- | Selected menu item and, consequently, visible screen
 data AppSelector
   = AppSelectorWallet
   | AppSelectorHelp
   | AppSelectorLogs
   deriving (Eq)
 
+-- | Currently focused widget
 data AppFocus
   = AppFocusWalletTree
   | AppFocusWalletPane
@@ -43,8 +45,10 @@ data AppFocus
   | AppFocusLogs
   deriving (Eq)
 
+-- | Brick-specific ID for scrolling viewports, widget cache items and clickable widgets
 data AppBrickName
-  = AppBrickReplOutput
+  = AppBrickMenu
+  | AppBrickReplOutput
   | AppBrickWalletTree
   | AppBrickHelp
   | AppBrickLogs
@@ -54,7 +58,7 @@ data AppState =
   AppState
     { appStateFocus :: AppFocus
     , appStateRepl :: ReplWidgetState AppBrickName
-    , appStateMenu :: MenuWidgetState AppSelector
+    , appStateMenu :: MenuWidgetState AppSelector AppBrickName
     , appStateStatus :: StatusWidgetState
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
@@ -69,7 +73,7 @@ initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusReplInput
     , appStateRepl = initReplWidget langFace history AppBrickReplOutput
-    , appStateMenu = initMenuWidget menuItems 0
+    , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
@@ -302,6 +306,17 @@ handleAppEvent langFace ev =
 
         | otherwise ->
             return AppInProgress
+    B.MouseDown name button modifiers coords ->
+      case name of
+        AppBrickMenu -> do
+          zoom appStateMenuL $ handleMenuWidgetEvent $
+            MenuMouseDownEvent button modifiers coords
+          newSel <- uses appStateMenuL menuWidgetSel
+          focus <- use appStateFocusL
+          appStateFocusL .= restoreFocus newSel focus
+          return AppInProgress
+        _ ->
+          return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
         UiWalletUpdate{..} -> do
