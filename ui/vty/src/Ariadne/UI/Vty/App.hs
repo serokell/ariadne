@@ -319,6 +319,8 @@ handleAppEvent langFace ev =
           return AppInProgress
         AppBrickWalletTree -> do
           appStateFocusL .= AppFocusWalletTree
+          zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
+            WalletTreeMouseDownEvent coords
           return AppInProgress
         AppBrickWalletPane -> do
           appStateFocusL .= AppFocusWalletPane
