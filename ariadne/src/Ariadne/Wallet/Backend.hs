@@ -34,6 +34,8 @@ createWalletBackend walletConfig = do
           , walletNewAccount = newAccount this walletSelRef runCardanoMode
           , walletNewWallet = newWallet walletConfig this runCardanoMode
           , walletRestore = restoreWallet this runCardanoMode
+          , walletRename = renameSelection this walletSelRef runCardanoMode
+          , walletRemove = removeSelection this walletSelRef runCardanoMode
           , walletRefreshUserSecret =
               refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
           , walletSelect = select this walletSelRef runCardanoMode

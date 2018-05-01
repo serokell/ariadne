@@ -172,6 +172,24 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             toValue . ValueNumber . fromIntegral . unsafeGetCoin <$> walletBalance
         , cpHelp = "Get balance of the currently selected item"
         }
+    , CommandProc
+        { cpName = "rename"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = getArg tyString "name"
+        , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
+            walletRename name
+            return $ toValue ValueUnit
+        , cpHelp = "Rename currently selected wallet or account"
+        }
+    , CommandProc
+        { cpName = "remove"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = pure ()
+        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
+            walletRemove
+            return $ toValue ValueUnit
+        , cpHelp = "Remove currently selected item"
+        }
     ]
 
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's

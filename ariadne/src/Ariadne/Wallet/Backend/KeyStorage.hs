@@ -11,6 +11,8 @@ module Ariadne.Wallet.Backend.KeyStorage
        , addWallet
        , select
        , getSelectedAddresses
+       , renameSelection
+       , removeSelection
 
          -- * Exceptions
        , NoWalletSelection (..)
@@ -21,12 +23,14 @@ import Universum
 
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
-import Control.Lens (ix, (%=), (<>=))
-import Control.Monad.Catch.Pure (CatchT, runCatchT)
+import Control.Lens (ix, (%=), (<>=), (.=), zoom)
+import Control.Monad.Trans.State.Strict (mapStateT)
+import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.List (findIndex)
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import qualified Data.Vector as V (findIndex, fromList, mapMaybe)
+import qualified Data.Vector as V (findIndex, fromList, mapMaybe, ifilter)
+import qualified Data.List.NonEmpty as NE
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
@@ -406,3 +410,61 @@ getSelectedAddresses WalletFace{..} walletSelRef runCardanoMode = do
               (AddressDoesNotExist $ pretty addrIdx)
               ((:[]) <$> account ^? adAddresses . ix (fromIntegral addrIdx) . _2)
             Just (_ :| _) -> throwM SelectIsTooDeep
+
+removeSelection :: WalletFace -> IORef (Maybe WalletSelection) -> (CardanoMode ~> IO) -> IO ()
+removeSelection WalletFace{..} walletSelRef runCardanoMode = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> pure ()
+    Just WalletSelection{..} -> do
+      runCardanoMode $ modifySecretDefault $ do
+        case wsPath of
+          [] -> usWallets %= deleteNthList wsWalletIndex
+          (accIdx:acPath) -> zoom (usWallets . ix (fromIntegral wsWalletIndex)) $
+            case nonEmpty acPath of
+              Nothing -> wdAccounts %= deleteNth accIdx
+              Just (addrIdx :| []) -> zoom (wdAccounts . ix (fromIntegral accIdx)) $
+                adAddresses %= deleteNth addrIdx
+              -- Our UI does not allow for selection paths deeper than 3.
+              _ -> error "removeSelection: selection path is deeper than 3"
+  atomicModifyIORef' walletSelRef $ (, ()) . (\case
+    Nothing -> Nothing
+    Just (WalletSelection _ []) -> Nothing
+    Just (WalletSelection i (x:xs)) -> Just . WalletSelection i $ NE.init (x :| xs)
+    )
+  walletRefreshUserSecret
+  where
+    deleteNth n = V.ifilter (\i _ -> i /= fromIntegral n)
+    deleteNthList n xs = take (fromIntegral n) xs ++ drop (fromIntegral n + 1) xs
+
+renameSelection :: WalletFace -> IORef (Maybe WalletSelection) -> (CardanoMode ~> IO) -> Text -> IO ()
+renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> pure ()
+    Just WalletSelection{..} -> do
+      let
+        rename :: StateT UserSecret Catch ()
+        rename = do
+          walletNames <- fmap (^. wdName) <$> use usWallets
+          zoom (usWallets . ix (fromIntegral wsWalletIndex)) $
+            case wsPath of
+              [] -> if name `elem` walletNames
+                then throwM $ DuplicateWalletName (WalletName name)
+                else wdName .= name
+              (accIdx:acPath) -> do
+                accountNames <- fmap (^. adName) <$> use wdAccounts
+                zoom (wdAccounts . ix (fromIntegral accIdx)) $
+                  case acPath of
+                    [] -> if name `elem` accountNames
+                      then throwM $ DuplicateAccountName name
+                      else adName .= name
+                    _ -> pure ()
+        runCatchInState m = do
+            initialState <- get
+            mapStateT (runCatchT >=> \case
+                          Left e -> pure (Left e, initialState)
+                          Right (a, s) -> pure (Right a, s)
+                      ) m
+      runCardanoMode (modifySecretDefault . runCatchInState $ rename) >>= eitherToThrow
+  walletRefreshUserSecret
