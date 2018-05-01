@@ -14,7 +14,7 @@ import Universum
 import Control.Lens (makeLensesWith, (.=))
 import Data.List (intersperse)
 import qualified Data.List.NonEmpty as NE
-import Data.Tree (Tree(..))
+import Data.Tree (Tree(..), Forest)
 import IiExtras
 import Serokell.Util (enumerate)
 
@@ -202,6 +202,7 @@ drawWalletTreeWidget _hasFocus wtws  =
 
 data WalletTreeWidgetEvent
   = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
+  | WalletTreeMouseDownEvent B.Location
   | WalletNavigationUp
   | WalletNavigationDown
   | WalletNavigationLeft
@@ -231,6 +232,9 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
     walletTreeInitializedL .= True
     walletTreeWalletsL .= wallets
     walletTreeSelectionL .= wselection
+  WalletTreeMouseDownEvent (B.Location (_, row)) -> do
+    wallets <- use walletTreeWalletsL
+    whenJust (rowToPath (fromIntegral row) wallets) putSelect
   WalletNavigationUp -> defaultSelection $ \selection -> do
       let boundedPred x = if minBound == x then x else pred x
       putSelect (applyToLast boundedPred selection)
@@ -244,6 +248,20 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
       putSelect (wtsWalletIdx : (wtsPath ++ [0]))
   where
     putSelect = void . liftIO . langPutCommand . langMkExpr . UiSelect
+    rowToPath :: Word -> Forest a -> Maybe [Word]
+    rowToPath row = snd . go [] 0 0
+      where
+        go :: [Word] -> Word -> Word -> Forest a -> (Word, Maybe [Word])
+        go _ _ acc [] = (acc, Nothing)
+        go path idx acc ((Node _ subForest):forest)
+          | acc == row = (acc, Just $ path ++ [idx])
+          | otherwise =
+              case res of
+                Just _ -> (newAcc, res)
+                Nothing -> go path (idx + 1) (newAcc + margin) forest
+              where
+                margin = if null path then 1 else 0
+                (newAcc, res) = go (path ++ [idx]) 0 (acc + 1) subForest
     applyToLast :: (Word -> Word) -> UiWalletTreeSelection -> [Word]
     applyToLast f UiWalletTreeSelection{..} = case nonEmpty wtsPath of
       Nothing -> [f wtsWalletIdx]
