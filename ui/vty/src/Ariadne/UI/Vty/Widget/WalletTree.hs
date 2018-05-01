@@ -105,6 +105,7 @@ data WalletTreeWidgetState n =
     { walletTreeWallets :: ![UiWalletTree]
     , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
     , walletTreeInitialized :: Bool
+    , walletTreeScrollBySelection :: Bool
     , walletTreeBrickName :: n
     }
 
@@ -118,6 +119,7 @@ initWalletTreeWidget name = WalletTreeWidgetState
   { walletTreeWallets = []
   , walletTreeSelection = Just $ UiWalletTreeSelection 0 [0]
   , walletTreeInitialized = False
+  , walletTreeScrollBySelection = False
   , walletTreeBrickName = name
   }
 
@@ -165,7 +167,7 @@ drawWalletTreeWidget _hasFocus wtws  =
       , B.render = render
       }
   where
-    WalletTreeWidgetState wallets mSelection initialized name = wtws
+    WalletTreeWidgetState wallets mSelection initialized scrollBySel name = wtws
     render = do
       rdrCtx <- B.getContext
       let
@@ -189,12 +191,13 @@ drawWalletTreeWidget _hasFocus wtws  =
         imgOrLoading
           | initialized = img
           | otherwise = V.text attr "Loading..."
+        visibilityRequests
+          | scrollBySel,
+            Just pos <- mPos = [B.VR (B.Location (0, pos)) (1, 1)]
+          | otherwise = []
       return $ B.emptyResult
              & B.imageL .~ imgOrLoading
-             & B.visibilityRequestsL .~
-                 case mPos of
-                   Just pos -> [B.VR (B.Location (0, pos)) (1, 1)]
-                   Nothing -> []
+             & B.visibilityRequestsL .~ visibilityRequests
 
 ----------------------------------------------------------------------------
 -- Events
@@ -203,6 +206,7 @@ drawWalletTreeWidget _hasFocus wtws  =
 data WalletTreeWidgetEvent
   = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
   | WalletTreeMouseDownEvent B.Location
+  | WalletTreeScrollingEvent ScrollingAction
   | WalletNavigationUp
   | WalletNavigationDown
   | WalletNavigationLeft
@@ -232,9 +236,14 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
     walletTreeInitializedL .= True
     walletTreeWalletsL .= wallets
     walletTreeSelectionL .= wselection
+    walletTreeScrollBySelectionL .= True
   WalletTreeMouseDownEvent (B.Location (_, row)) -> do
     wallets <- use walletTreeWalletsL
     whenJust (rowToPath (fromIntegral row) wallets) putSelect
+  WalletTreeScrollingEvent action -> do
+    name <- use walletTreeBrickNameL
+    lift $ handleScrollingEvent name action
+    walletTreeScrollBySelectionL .= False
   WalletNavigationUp -> defaultSelection $ \selection -> do
       let boundedPred x = if minBound == x then x else pred x
       putSelect (applyToLast boundedPred selection)
