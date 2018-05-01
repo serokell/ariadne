@@ -336,6 +336,9 @@ handleAppEvent langFace ev =
     B.MouseDown name button [] _
       | Just scrollAction <- buttonToScrollAction button -> do
           case name of
+            AppBrickWalletTree ->
+              zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
+                WalletTreeScrollingEvent scrollAction
             AppBrickReplOutput ->
               zoom appStateReplL $ handleReplOutputEvent $
                 ReplOutputScrollingEvent scrollAction
