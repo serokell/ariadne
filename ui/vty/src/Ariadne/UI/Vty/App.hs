@@ -331,6 +331,21 @@ handleAppEvent langFace ev =
           return AppInProgress
         _ ->
           return AppInProgress
+    B.MouseDown name button [] _
+      | Just scrollAction <- buttonToScrollAction button -> do
+          case name of
+            AppBrickReplOutput ->
+              zoom appStateReplL $ handleReplOutputEvent $
+                ReplOutputScrollingEvent scrollAction
+            AppBrickHelp ->
+              zoom appStateHelpL $ handleHelpWidgetEvent $
+                HelpScrollingEvent scrollAction
+            AppBrickLogs ->
+              zoom appStateLogsL $ handleLogsWidgetEvent $
+                LogsScrollingEvent scrollAction
+            _ ->
+              return ()
+          return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
         UiWalletUpdate{..} -> do
@@ -379,6 +394,12 @@ handleAppEvent langFace ev =
           return AppInProgress
     _ ->
       return AppInProgress
+
+buttonToScrollAction :: V.Button -> Maybe ScrollingAction
+buttonToScrollAction = \case
+  V.BScrollUp -> Just ScrollingLineUp
+  V.BScrollDown -> Just ScrollingLineDown
+  _ -> Nothing
 
 charToFocus :: Char -> Maybe (AppSelector, AppFocus)
 charToFocus = \case
