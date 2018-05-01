@@ -330,6 +330,8 @@ handleAppEvent langFace ev =
           return AppInProgress
         AppBrickReplInput -> do
           appStateFocusL .= AppFocusReplInput
+          void $ zoom appStateReplL $ handleReplInputEvent langFace $
+            ReplMouseDownEvent coords
           return AppInProgress
         _ ->
           return AppInProgress
