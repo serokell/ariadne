@@ -16,8 +16,9 @@ newtype LogMessage = LogMessage Text
 data LogsWidgetState n =
   LogsWidgetState
     { logsWidgetMessages :: [LogMessage]
-    , logsWidgetLineCount :: Int
-    , logsWidgetScrolled :: Bool
+    , logsWidgetLinesRendered :: Int
+    , logsWidgetLinesTotal :: Int
+    , logsWidgetFollow :: Bool
     , logsWidgetBrickName :: n
     }
 
@@ -29,8 +30,9 @@ initLogsWidget
   -> LogsWidgetState n
 initLogsWidget name = LogsWidgetState
   { logsWidgetMessages = []
-  , logsWidgetLineCount = 0
-  , logsWidgetScrolled = False
+  , logsWidgetLinesRendered = 0
+  , logsWidgetLinesTotal = 0
+  , logsWidgetFollow = True
   , logsWidgetBrickName = name
   }
 
@@ -38,26 +40,29 @@ drawLogsWidget
   :: (Ord n, Show n)
   => LogsWidgetState n
   -> B.Widget n
-drawLogsWidget logsWidgetState =
-  B.viewport name B.Both $
+drawLogsWidget LogsWidgetState{..} =
+  fixedViewport name B.Both $
     B.cached name B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
       }
   where
-    name = logsWidgetState ^. logsWidgetBrickNameL
-    outElems = reverse (logsWidgetMessages logsWidgetState)
+    name = logsWidgetBrickName
     render = do
       rdrCtx <- B.getContext
       let
         attr = rdrCtx ^. B.attrL
-        img =
-          V.vertCat $
-          fmap drawLogMessage outElems
+        height = rdrCtx ^. B.availHeightL
         drawLogMessage (LogMessage message) =
           V.vertCat $
           csiToVty attr <$> Text.lines message
+        img =
+          (if logsWidgetFollow then V.cropTop height else identity) $
+          V.vertCat $
+          reverse $
+          fmap drawLogMessage $
+          (if logsWidgetFollow then take height else identity) logsWidgetMessages
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -71,18 +76,34 @@ handleLogsWidgetEvent
   => LogsWidgetEvent
   -> StateT (LogsWidgetState n) (B.EventM n) ()
 handleLogsWidgetEvent ev = do
+  rendered <- use logsWidgetLinesRenderedL
+  total <- use logsWidgetLinesTotalL
+  follow <- use logsWidgetFollowL
   name <- use logsWidgetBrickNameL
+
+  whenJustM (lift $ B.lookupViewport name) $ \vp -> do
+    when (not follow && vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= rendered) $ do
+      lift $ B.invalidateCacheEntry name
+      when (rendered == total) $ do
+        lift $ B.vScrollToBeginning $ B.viewportScroll name
+        logsWidgetFollowL .= True
+      logsWidgetLinesRenderedL .= total
+  follow' <- use logsWidgetFollowL
+
   case ev of
     LogsScrollingEvent action -> do
+      when (not follow' && action == ScrollingEnd) $ do
+        lift $ B.invalidateCacheEntry name
+        logsWidgetLinesRenderedL .= total
+      when (follow' && action `elem` [ScrollingLineUp, ScrollingPgUp, ScrollingHome]) $ do
+        logsWidgetFollowL .= False
+        lift $ B.invalidateCacheEntry name
+        lift $ scrollToEnd name
       lift $ handleScrollingEvent name action
-      logsWidgetScrolledL .= True
     LogsMessage message -> do
-      lineCount <- use logsWidgetLineCountL
-      scrolled <- use logsWidgetScrolledL
-      lift $ if scrolled
-        then keepScrollingToEnd name lineCount
-        else scrollToEnd name
-
       zoom logsWidgetMessagesL $ modify (LogMessage message:)
-      logsWidgetLineCountL += length (Text.lines message)
-      lift $ B.invalidateCacheEntry name
+      let msgHeight = length (Text.lines message)
+      logsWidgetLinesTotalL += msgHeight
+      when follow' $ do
+        lift $ B.invalidateCacheEntry name
+        logsWidgetLinesRenderedL += msgHeight
