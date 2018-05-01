@@ -3,7 +3,6 @@ module Ariadne.UI.Vty.Scrolling
      , keyToScrollingAction
      , handleScrollingEvent
      , scrollToEnd
-     , keepScrollingToEnd
      , fixedViewport
      ) where
 
@@ -23,6 +22,7 @@ data ScrollingAction
   | ScrollingEnd
   | ScrollingLeft
   | ScrollingRight
+  deriving (Eq)
 
 keyToScrollingAction :: KeyboardEvent -> Maybe ScrollingAction
 keyToScrollingAction = \case
@@ -54,12 +54,6 @@ handleScrollingEvent name = \case
 
 scrollToEnd :: n -> B.EventM n ()
 scrollToEnd = B.vScrollToEnd . B.viewportScroll
-
-keepScrollingToEnd :: Ord n => n -> Int -> B.EventM n ()
-keepScrollingToEnd name lineCount =
-  whenJustM (B.lookupViewport name) $ \vp ->
-    when (vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= lineCount) $
-      B.vScrollToEnd $ B.viewportScroll name
 
 -- Unidirectional Brick viewport doesn't defer its sizing policy
 -- to underlying widget. Brick author considers it okay.
