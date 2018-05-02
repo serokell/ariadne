@@ -1,7 +1,5 @@
 import Universum
 
-import qualified Prelude as Pr
-
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..))

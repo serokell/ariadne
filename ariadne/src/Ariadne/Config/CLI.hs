@@ -442,13 +442,13 @@ cliCommonArgsParser = do
     ! #help "Prefix to logger output path."
   cli_reportServers <- optional $ Opt.option listParser $
     Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_reportServers")) <>
-    Opt.metavar "URI" <>
-    Opt.help "Reporting server to send crash/error logs on. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
+    Opt.metavar "[URI]" <>
+    Opt.help "Reporting servers to send crash/error logs on. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
 
   cli_updateServers <- optional $ Opt.option listParser $
     Opt.long (unnamed (toOptionNameCardano ! #field_name "cli_updateServers")) <>
-    Opt.metavar "URI" <>
-    Opt.help "Server to download updates from. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
+    Opt.metavar "[URI]" <>
+    Opt.help "Servers to download updates from. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
 
   cli_configurationOptions <- cliConfigurationOptionsParser
   pure CLI_CommonArgs {..}
