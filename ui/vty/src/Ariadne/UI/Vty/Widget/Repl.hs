@@ -13,7 +13,7 @@ import Data.Text.Zipper
   (TextZipper, breakLine, clearZipper, currentChar, currentLine,
   cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
   insertChar, insertMany, killToBOL, lineLengths, moveDown, moveLeft,
-  moveRight, moveUp, previousChar, textZipper)
+  moveRight, moveUp, previousChar, textZipper, moveCursor)
 import IiExtras
 import Named
 
@@ -50,10 +50,17 @@ data ReplWidgetState n =
     , replWidgetTextZipper :: TextZipper Text
     , replWidgetOut :: [OutputElement]
     , replWidgetHistory :: CommandHistory
-    , replWidgetBrickName :: n
+    , replWidgetOutputBrickName :: n
+    , replWidgetInputBrickName :: n
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
+
+replWidgetPrompt :: String
+replWidgetPrompt = "knit> "
+
+replWidgetPromptCont :: String
+replWidgetPromptCont = "  ... "
 
 replWidgetText :: ReplWidgetState n -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
@@ -82,14 +89,16 @@ initReplWidget
   => UiLangFace
   -> CommandHistory
   -> n
+  -> n
   -> ReplWidgetState n
-initReplWidget langFace history name =
+initReplWidget langFace history outputName inputName =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     , replWidgetHistory = history
-    , replWidgetBrickName = name
+    , replWidgetOutputBrickName = outputName
+    , replWidgetInputBrickName = inputName
     }
 
 drawReplOutputWidget
@@ -106,7 +115,7 @@ drawReplOutputWidget _hasFocus replWidgetState =
       , B.render = render
       }
   where
-    name = replWidgetState ^. replWidgetBrickNameL
+    name = replWidgetState ^. replWidgetOutputBrickNameL
     outElems = reverse (replWidgetOut replWidgetState)
     render = do
       rdrCtx <- B.getContext
@@ -142,16 +151,18 @@ drawReplOutputWidget _hasFocus replWidgetState =
           & B.imageL .~ img
 
 drawReplInputWidget
-  :: Bool
+  :: (Ord n, Show n)
+  => Bool
   -> ReplWidgetState n
   -> B.Widget n
 drawReplInputWidget hasFocus replWidgetState =
-  B.Widget
-    { B.hSize = B.Greedy
+  fixedViewport name B.Horizontal B.Widget
+    { B.hSize = B.Fixed
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
+    name = replWidgetState ^. replWidgetInputBrickNameL
     render = do
       rdrCtx <- B.getContext
       let
@@ -166,8 +177,8 @@ drawReplInputWidget hasFocus replWidgetState =
         img =
           V.vertCat $
           List.zipWith V.horizJoin
-            (V.string defAttr "knit> " :
-              List.repeat (V.string defAttr "  ... "))
+            (V.string defAttr replWidgetPrompt :
+              List.repeat (V.string defAttr replWidgetPromptCont))
             [ V.horizCat
               [ V.char (attrFn (row, column) defAttr) char
               | (column, char) <- List.zip [1..] (toString line)
@@ -176,7 +187,7 @@ drawReplInputWidget hasFocus replWidgetState =
             ]
         curLoc =
           let (y, x) = cursorPosition zipper
-          in B.CursorLocation (B.Location (x + 6, y)) Nothing
+          in B.CursorLocation (B.Location (x + length replWidgetPrompt, y)) Nothing
       return $
         B.emptyResult
           & B.imageL .~ img
@@ -225,6 +236,7 @@ data ReplInputEvent
   | ReplSendEvent
   | ReplSmartEnterEvent
   | ReplQuitEvent
+  | ReplMouseDownEvent B.Location
 
 data ReplOutputEvent
   = ReplOutputScrollingEvent ScrollingAction
@@ -324,6 +336,10 @@ handleReplInputEvent langFace = fix $ \go -> \case
         NavHome -> gotoBOL
         NavEnd -> gotoEOL
     return ReplInProgress
+  ReplMouseDownEvent (B.Location (col, row)) -> do
+    zoom replWidgetTextZipperL $ modify $
+      safeMoveCursor (row, col - length replWidgetPrompt - 1)
+    return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
     -- TODO: handle multi-line commands
     history <- gets replWidgetHistory
@@ -361,14 +377,14 @@ handleReplInputEvent langFace = fix $ \go -> \case
           out = OutputCommand commandId commandSrc [] Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ B.invalidateCacheEntry name
     lift $ scrollToEnd name
     return ReplInProgress
   ReplCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandEvent)
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ B.invalidateCacheEntry name
     lift $ scrollToEnd name
     return ReplInProgress
@@ -379,7 +395,7 @@ handleReplOutputEvent
   -> StateT (ReplWidgetState n) (B.EventM n) ()
 handleReplOutputEvent = \case
   ReplOutputScrollingEvent action -> do
-    name <- use replWidgetBrickNameL
+    name <- use replWidgetOutputBrickNameL
     lift $ handleScrollingEvent name action
 
 isQuitCommand :: Text -> Bool
@@ -402,6 +418,14 @@ byWord move check = go Char.isSpace . go (not . Char.isSpace)
     nothingLeft p tz = case check tz of
       Nothing -> True
       Just c -> p c
+
+safeMoveCursor :: (Int, Int) -> TextZipper Text -> TextZipper Text
+safeMoveCursor (row, col) tz = moveCursor (row', col') tz
+  where
+    clamp mn mx = max mn . min mx
+    lengths = lineLengths tz
+    row' = clamp 0 (length lengths - 1) row
+    col' = clamp 0 (lengths List.!! row') col
 
 updateCommandResult
   :: UiCommandId
