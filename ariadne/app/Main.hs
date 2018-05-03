@@ -20,11 +20,12 @@ import Ariadne.Wallet.Backend
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
+import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Knit
 
 import Glue
 
-type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
+type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager, Knit.UI]
 
 main :: IO ()
 main = do
@@ -57,6 +58,7 @@ main = do
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
       Knit.TaskManagerExecCtx taskManagerFace :&
+      Knit.UiExecCtx uiFace :&
       RNil
 
     knitFace = createKnitBackend knitExecContext taskManagerFace

@@ -1,9 +1,10 @@
 module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
-       , UiCommandEvent (..)
+       , UiCommandResultEvent (..)
        , UiWalletEvent (..)
        , UiCardanoStatusUpdate (..)
        , UiCardanoEvent (..)
+       , UiCommandEvent (..)
        , UiEvent (..)
        , UiOperation (..)
        , UiLangFace (..)
@@ -39,7 +40,7 @@ data UiCommandId =
   }
 
 -- A REPL command has either finished or sent some information.
-data UiCommandEvent
+data UiCommandResultEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
@@ -62,14 +63,20 @@ data UiWalletEvent =
     , wuPaneInfoUpdate :: Maybe UiWalletPaneInfo
     }
 
+-- UI event triggered by REPL command
+data UiCommandEvent
+  = UiCommandHelp
+  | UiCommandLogs
+
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
-  = UiCommandEvent UiCommandId UiCommandEvent
+  = UiCommandResultEvent UiCommandId UiCommandResultEvent
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
   | UiHelpUpdateData [Doc]
+  | UiCommandEvent UiCommandEvent
 
 data UiOperation
   = UiSelect [Word]

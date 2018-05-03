@@ -33,6 +33,9 @@ library
     , ii-extras
     , directory
     , named
+    -- UI is independent of Knit, but provides Knit command bindings
+    , knit
+    , Earley
 
   exposed-modules:
       Ariadne.UI.Vty
@@ -48,6 +51,7 @@ library
       Ariadne.UI.Vty.Widget.WalletPane
       Ariadne.UI.Vty.Face
       Ariadne.UI.Vty.Keyboard
+      Ariadne.UI.Vty.Knit
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
   default-extensions:
@@ -60,6 +64,7 @@ library
       DeriveFunctor
       DeriveFoldable
       DeriveTraversable
+      EmptyCase
       FlexibleContexts
       FlexibleInstances
       GADTs
