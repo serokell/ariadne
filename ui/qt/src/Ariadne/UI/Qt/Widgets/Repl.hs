@@ -14,7 +14,9 @@ import IiExtras
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QTextEdit as QTextEdit

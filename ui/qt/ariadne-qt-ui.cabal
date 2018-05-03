@@ -38,6 +38,8 @@ library
   other-modules:
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
+      Ariadne.UI.Qt.Widgets.Logs
+      Ariadne.UI.Qt.Widgets.MenuBar
       Ariadne.UI.Qt.Widgets.Repl
       Ariadne.UI.Qt.Widgets.StatusBar
       Ariadne.UI.Qt.Widgets.Wallet
