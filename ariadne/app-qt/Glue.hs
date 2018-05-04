@@ -7,11 +7,15 @@ module Glue
 
          -- * Cardano ↔ Qt
        , putCardanoEventToUI
+
+         -- * Wallet ↔ Qt
+       , putWalletEventToUI
        ) where
 
 import Universum
 
 import Control.Exception (displayException)
+import Data.Tree (Tree(..))
 import Data.Unique
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -110,3 +114,54 @@ putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
 putCardanoEventToUI UiFace{..} ev =
   whenJust (cardanoEventToUI ev) putUiEvent
 
+----------------------------------------------------------------------------
+-- Glue between the Wallet backend and Qt frontend
+----------------------------------------------------------------------------
+
+-- The 'Maybe' here is not used for now, but in the future might be, if some
+-- event couldn't be mapped to a UI event.
+walletEventToUI :: WalletEvent -> Maybe UiEvent
+walletEventToUI = \case
+  WalletUserSecretSetEvent us sel ->
+    Just $ UiWalletEvent $
+      UiWalletUpdate
+        (userSecretToTree us)
+        (walletSelectionToUI <$> sel)
+
+walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
+walletSelectionToUI WalletSelection{..} =
+  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+
+putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
+putWalletEventToUI UiFace{..} ev =
+  whenJust (walletEventToUI ev) putUiEvent
+
+userSecretToTree :: UserSecret -> [UiWalletTree]
+userSecretToTree = map toTree . view usWallets
+  where
+    toTree :: WalletData -> UiWalletTree
+    toTree WalletData {..} =
+        Node
+            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
+            , subForest = toList $ map toAccountNode _wdAccounts
+            }
+      where
+        toAccountNode :: AccountData -> UiWalletTree
+        toAccountNode AccountData {..} =
+            Node
+                { rootLabel =
+                      UiWalletTreeItem
+                          { wtiLabel = Just _adName
+                          , wtiPath = [fromIntegral _adPath]
+                          , wtiShowPath = True
+                          }
+                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
+                }
+        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
+        toAddressNode accIdx (addrIdx, address) =
+            pure $
+            UiWalletTreeItem
+                { wtiLabel = Just (pretty address)
+                , wtiPath = map fromIntegral [accIdx, addrIdx]
+                , wtiShowPath = True
+                }

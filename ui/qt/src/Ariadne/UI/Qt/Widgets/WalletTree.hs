@@ -6,19 +6,25 @@ module Ariadne.UI.Qt.Widgets.WalletTree
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras
+import IiExtras (postfixLFields)
 
-import qualified Graphics.UI.Qtah.Widgets.QTreeWidget as QTreeWidget
+import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
+import qualified Graphics.UI.Qtah.Widgets.QAbstractItemView as QAbstractItemView
+import qualified Graphics.UI.Qtah.Widgets.QTreeView as QTreeView
 
 data WalletTree =
   WalletTree
-    { treeWidget :: QTreeWidget.QTreeWidget
+    { treeView :: QTreeView.QTreeView
+    , itemModel :: QStandardItemModel.QStandardItemModel
     }
 
 makeLensesWith postfixLFields ''WalletTree
 
-initWalletTree :: IO (QTreeWidget.QTreeWidget, WalletTree)
-initWalletTree = do
-  treeWidget <- QTreeWidget.new
+initWalletTree
+  :: QStandardItemModel.QStandardItemModel
+  -> IO (QTreeView.QTreeView, WalletTree)
+initWalletTree itemModel = do
+  treeView <- QTreeView.new
+  QAbstractItemView.setModel treeView itemModel
 
-  return (treeWidget, WalletTree{..})
+  return (treeView, WalletTree{..})

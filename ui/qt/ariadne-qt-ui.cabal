@@ -39,6 +39,7 @@ library
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.Widgets.Repl
       Ariadne.UI.Qt.Widgets.StatusBar
+      Ariadne.UI.Qt.Widgets.Wallet
       Ariadne.UI.Qt.Widgets.WalletInfo
       Ariadne.UI.Qt.Widgets.WalletTree
   default-extensions:
