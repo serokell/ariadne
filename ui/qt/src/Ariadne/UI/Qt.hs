@@ -15,13 +15,11 @@ import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
-import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Control.Concurrent.STM.TBQueue
 
 import Ariadne.UI.Qt.MainWindow
-import Ariadne.UI.Qt.MainWindow.Events
-import Ariadne.UI.Qt.MainWindow.Ui
+import Ariadne.UI.Qt.UI
 
 type UiAction = UiLangFace -> IO ()
 
@@ -38,12 +36,9 @@ runUIEventLoop eventIORef dispatcherIORef langFace =
   withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
-    windowRec@MainWindow{mwMainWindow = mwMainWindow} <- mkMainWindow langFace
+    mainWindow <- initMainWindow langFace
     void $ Event.onEvent eventDispatcher $
-        \(_ :: QEvent.QEvent) -> handleAppEvent eventIORef windowRec >> return True
-
-    QWidget.show $ mwMainWindow
-
+      \(_ :: QEvent.QEvent) -> handleAppEvent eventIORef mainWindow >> return True
     QCoreApplication.exec
 
 mkEventBQueue :: IO (UiEventBQueue)
@@ -64,15 +59,15 @@ mkUiFace eventBQueue dispatcherIORef =
 qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
 qtEventSubLoop _ _ 0 = return $ Right ()
 qtEventSubLoop eventBQueue handler depth = do
-    maybeEvent <- atomically $ tryReadTBQueue eventBQueue
-    next <- case maybeEvent of
-              Nothing -> return $ Right ()
-              Just event -> handler event >> (return $ Left $ depth - 1)
-    -- This method is missing from qtah. If we notice lags here, add it to qtah and uncomment
-    -- QCoreApplication.processEvents
-    return next
+  maybeEvent <- atomically $ tryReadTBQueue eventBQueue
+  next <- case maybeEvent of
+            Nothing -> return $ Right ()
+            Just event -> handler event >> (return $ Left $ depth - 1)
+  -- This method is missing from qtah. If we notice lags here, add it to qtah and uncomment
+  -- QCoreApplication.processEvents
+  return next
 
 handleAppEvent :: UiEventBQueue -> MainWindow -> IO ()
-handleAppEvent eventBQueue window = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
-    where
-        doHandleOneEvent event = runUI (uiEventHandler event) window
+handleAppEvent eventBQueue mainWindow = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
+  where
+    doHandleOneEvent event = runUI (handleMainWindowEvent event) mainWindow

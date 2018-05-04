@@ -35,10 +35,12 @@ library
       Ariadne.UI.Qt
       Ariadne.UI.Qt.Face
   other-modules:
+      Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
-      Ariadne.UI.Qt.MainWindow.Ui
-      Ariadne.UI.Qt.MainWindow.Slots
-      Ariadne.UI.Qt.MainWindow.Events
+      Ariadne.UI.Qt.Widgets.Repl
+      Ariadne.UI.Qt.Widgets.StatusBar
+      Ariadne.UI.Qt.Widgets.WalletInfo
+      Ariadne.UI.Qt.Widgets.WalletTree
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
