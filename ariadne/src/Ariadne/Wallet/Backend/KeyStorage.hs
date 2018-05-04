@@ -5,9 +5,9 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Commands/other functions
          resolveWalletRef
        , refreshUserSecret
-       , addAddress
-       , addAccount
-       , addNewWallet
+       , newAddress
+       , newAccount
+       , newWallet
        , addWallet
        , select
        , getSelectedAddresses
@@ -179,14 +179,14 @@ refreshUserSecret walletSelRef runCardanoMode sendWalletEvent = do
   us <- runCardanoMode getSecretDefault
   sendWalletEvent (WalletUserSecretSetEvent us walletSel)
 
-addAddress ::
+newAddress ::
        WalletFace
     -> IORef (Maybe WalletSelection)
     -> (CardanoMode ~> IO)
     -> AccountReference
     -> PassPhrase
     -> IO ()
-addAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
+newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
     (walletIdx, accountIdx) <-
         resolveAccountRef walletSelRef runCardanoMode accRef
     let wIdx, accIdx :: Int
@@ -229,14 +229,14 @@ mkUntitled untitled namesVec =
     then untitled <> "0"
     else untitled <> (show $ (Universum.maximum numbers) + 1)
 
-addAccount
+newAccount
   :: WalletFace
   -> IORef (Maybe WalletSelection)
   -> (CardanoMode ~> IO)
   -> WalletReference
   -> Maybe Text
   -> IO ()
-addAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = do
+newAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = do
   wsWalletIndex <- resolveWalletRef walletSelRef runCardanoMode walletRef
 
   let wIdx :: Int
@@ -285,7 +285,7 @@ instance Exception InvalidEntropySize where
 
 -- | Generate a mnemonic and a wallet from this mnemonic and add the
 -- wallet to the storage.
-addNewWallet ::
+newWallet ::
        WalletConfig
     -> WalletFace
     -> (CardanoMode ~> IO)
@@ -293,7 +293,7 @@ addNewWallet ::
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-addNewWallet walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
+newWallet walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   unless (entropySize `elem` [16, 20, 24, 28, 32]) $
       throwM $ InvalidEntropySize entropySize

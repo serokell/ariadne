@@ -80,30 +80,30 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
-        { cpName = "add-address"
+        { cpName = "new-address"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
         , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletAddAddress accountRef passphrase
+            walletNewAddress accountRef passphrase
             return $ toValue ValueUnit
-        , cpHelp = "Add an account to the specified wallet. When no wallet \
-                   \is specified, uses the selected wallet."
+        , cpHelp = "Generate and add a new address to the specified account. When \
+                   \no account is specified, uses the selected account."
         }
     , CommandProc
-        { cpName = "add-account"
+        { cpName = "new-account"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletAddAccount walletRef name
+            walletNewAccount walletRef name
             return $ toValue ValueUnit
-        , cpHelp = "Add an account to the specified wallet. When no wallet \
-                   \is specified, uses the selected wallet."
+        , cpHelp = "Create and add a new account to the specified wallet. When \
+                   \no wallet is specified, uses the selected wallet."
         }
     , CommandProc
-        { cpName = "add-wallet"
+        { cpName = "new-wallet"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
@@ -111,9 +111,9 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
             return (passPhrase, name, mbEntropySize)
         , cpRepr = \(passPhrase, name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
-            mnemonic <- walletAddWallet passPhrase name mbEntropySize
+            mnemonic <- walletNewWallet passPhrase name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
-        , cpHelp = "Create a new wallet. \
+        , cpHelp = "Generate a new wallet and add to the storage. \
                    \The result is the mnemonic to restore this wallet."
         }
     , CommandProc

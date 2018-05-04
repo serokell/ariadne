@@ -51,9 +51,9 @@ data WalletRestoreType
 
 data WalletFace =
   WalletFace
-    { walletAddAddress :: AccountReference -> PassPhrase -> IO ()
-    , walletAddAccount :: WalletReference -> Maybe Text -> IO ()
-    , walletAddWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
+    { walletNewAddress :: AccountReference -> PassPhrase -> IO ()
+    , walletNewAccount :: WalletReference -> Maybe Text -> IO ()
+    , walletNewWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
         PassPhrase -> Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
     , walletRefreshUserSecret :: IO ()
