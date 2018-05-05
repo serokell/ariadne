@@ -113,7 +113,7 @@ packages:
   extra-dep: true
 - location:
     git: ssh://git@github.com/serokell/qtah.git
-    commit: 2bec76d83880cc430960b38bb586b18fe8e50d97
+    commit: 89d9597241d16236662a60fac3326cefca9ef758
   extra-dep: true
   subdirs:
   - qtah-generator
