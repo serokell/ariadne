@@ -26,6 +26,7 @@ import Ariadne.UI.Qt.Face
 import Ariadne.Wallet.Face
 
 import qualified Knit
+import qualified Ariadne.TaskManager.Knit as Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Qt frontend
@@ -38,6 +39,8 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentLitGrammar components) components
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
+     , Elem components Knit.Core
+     , Elem components Knit.TaskManager
      )
   => UiFace
   -> KnitFace components
@@ -51,8 +54,21 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
+    , langMkExpr = convertOperation
     }
   where
+    convertOperation = \case
+      UiSelect ws ->
+        Knit.ExprProcCall
+          (Knit.ProcCall "select"
+           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+          )
+      UiBalance -> Knit.ExprProcCall (Knit.ProcCall "balance" [])
+      UiKill commandId ->
+        Knit.ExprProcCall
+          (Knit.ProcCall "kill"
+            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+          )
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
