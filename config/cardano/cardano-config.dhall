@@ -7,8 +7,8 @@
         }
     , log-config = ["./config/cardano/log-config.yaml"] : Optional Text
     , log-prefix = ["./logs/mainnet"] : Optional Text
-    , report-server = [] : List Text
-    , update-server = [] : List Text 
+    , report-servers = [] : List Text
+    , update-servers = [] : List Text 
     }
 , rebuild-db = False
 , db-path = ["db-mainnet"] : Optional Text

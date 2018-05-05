@@ -1,5 +1,6 @@
 module Ariadne.Config.Wallet
   ( defaultWalletConfig
+  , walletFieldModifier
   , WalletConfig (..)) where
 
 import Universum

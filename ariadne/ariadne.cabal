@@ -54,6 +54,7 @@ library
     , mtl
     , resourcet
     , network-transport-tcp
+    , named
     , optparse-applicative
     , plutus-prototype
     , raw-strings-qq
@@ -75,6 +76,7 @@ library
     , time-units
     , serokell-util
     , ii-extras
+    , parsec
     , QuickCheck
     , universum
     , unordered-containers
@@ -124,6 +126,7 @@ library
       MultiWayIf
       NegativeLiterals
       OverloadedStrings
+      OverloadedLabels
       PatternSynonyms
       PolyKinds
       RankNTypes
@@ -279,7 +282,11 @@ test-suite ariadne-test
     , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
+    , ii-extras
+    , lens
+    , optparse-applicative
     , universum
+    , serokell-util
     , text
     , time-units
     , QuickCheck
