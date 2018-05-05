@@ -5,8 +5,9 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Commands/other functions
          resolveWalletRef
        , refreshUserSecret
-       , addAddress
-       , addAccount
+       , newAddress
+       , newAccount
+       , newWallet
        , addWallet
        , select
        , getSelectedAddresses
@@ -97,12 +98,19 @@ instance Exception DuplicateAccountName where
   displayException (DuplicateAccountName t) =
     "The account name " ++ show t ++ " already exists."
 
-data DuplicateWalletName = DuplicateWalletName Text
+data DuplicateWalletName = DuplicateWalletName WalletName
   deriving (Eq, Show)
 
 instance Exception DuplicateWalletName where
-  displayException (DuplicateWalletName t) =
+  displayException (DuplicateWalletName (WalletName t)) =
     "The wallet name " ++ show t ++ " already exists."
+
+data DuplicatedWalletKey = DuplicatedWalletKey
+  deriving (Eq, Show)
+
+instance Exception DuplicatedWalletKey where
+  displayException DuplicatedWalletKey =
+    "The wallet with this root key already exists"
 
 -- | Get the wallet index by name or using current selection.
 resolveWalletRef
@@ -116,7 +124,7 @@ resolveWalletRef walletSelRef runCardanoMode = \case
     case mWalletSelection of
       Nothing -> throwM NoWalletSelection
       Just WalletSelection{..} -> return wsWalletIndex
-  WalletRefByName name -> do
+  WalletRefByName (WalletName name) -> do
     us <- runCardanoMode getSecretDefault
     case findIndex (\w -> w ^. wdName == name) (us ^. usWallets) of
       Just i -> return (fromIntegral i)
@@ -171,14 +179,14 @@ refreshUserSecret walletSelRef runCardanoMode sendWalletEvent = do
   us <- runCardanoMode getSecretDefault
   sendWalletEvent (WalletUserSecretSetEvent us walletSel)
 
-addAddress ::
+newAddress ::
        WalletFace
     -> IORef (Maybe WalletSelection)
     -> (CardanoMode ~> IO)
     -> AccountReference
     -> PassPhrase
     -> IO ()
-addAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
+newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
     (walletIdx, accountIdx) <-
         resolveAccountRef walletSelRef runCardanoMode accRef
     let wIdx, accIdx :: Int
@@ -221,14 +229,14 @@ mkUntitled untitled namesVec =
     then untitled <> "0"
     else untitled <> (show $ (Universum.maximum numbers) + 1)
 
-addAccount
+newAccount
   :: WalletFace
   -> IORef (Maybe WalletSelection)
   -> (CardanoMode ~> IO)
   -> WalletReference
   -> Maybe Text
   -> IO ()
-addAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = do
+newAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = do
   wsWalletIndex <- resolveWalletRef walletSelRef runCardanoMode walletRef
 
   let wIdx :: Int
@@ -275,8 +283,17 @@ instance Buildable InvalidEntropySize where
 instance Exception InvalidEntropySize where
     displayException = toString . pretty
 
-addWallet :: WalletConfig -> WalletFace -> (CardanoMode ~> IO) -> PassPhrase -> Maybe Text -> Maybe Byte -> IO [Text]
-addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySize = do
+-- | Generate a mnemonic and a wallet from this mnemonic and add the
+-- wallet to the storage.
+newWallet ::
+       WalletConfig
+    -> WalletFace
+    -> (CardanoMode ~> IO)
+    -> PassPhrase
+    -> Maybe WalletName
+    -> Maybe Byte
+    -> IO [Text]
+newWallet walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   unless (entropySize `elem` [16, 20, 24, 28, 32]) $
       throwM $ InvalidEntropySize entropySize
@@ -287,31 +304,46 @@ addWallet walletConfig WalletFace{..} runCardanoMode pp mbWalletName mbEntropySi
   -- advanced feature and do not provide it for now.
   let seed = mnemonicToSeed (unwords mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
-      addWalletPure :: CatchT (State UserSecret) ()
+  mnemonic <$ addWallet face runCardanoMode esk mbWalletName mempty
+
+-- | Construct a wallet from given data and add it to the storage.
+addWallet ::
+       WalletFace
+    -> (CardanoMode ~> IO)
+    -> EncryptedSecretKey
+    -> Maybe WalletName
+    -> Vector AccountData
+    -> IO ()
+addWallet WalletFace {..} runCardanoMode esk mbWalletName accounts = do
+  let addWalletPure :: CatchT (State UserSecret) ()
       addWalletPure = do
         wdList <- use usWallets
 
         let namesList = _wdName <$> wdList
+            keysList = encToPublic . _wdRootKey <$> wdList
 
         walletName <- case mbWalletName of
-          Nothing -> return (mkUntitled "Untitled wallet " (V.fromList namesList))
+          Nothing ->
+            return (WalletName $ mkUntitled "Untitled wallet " (V.fromList namesList))
           Just walletName_ -> do
-            when (walletName_ `elem` namesList) $ throwM $ DuplicateWalletName walletName_
+            when (unWalletName walletName_ `elem` namesList) $
+              throwM $ DuplicateWalletName walletName_
+            when (encToPublic esk `elem` keysList) $
+              throwM DuplicatedWalletKey
             return walletName_
-        usWallets <>= one (emptyWallet walletName esk)
+        usWallets <>= one (walletData walletName)
 
   runCardanoMode (modifySecretDefault (runCatchT addWalletPure)) >>=
     eitherToThrow
-  mnemonic <$ walletRefreshUserSecret
+  walletRefreshUserSecret
   where
-    emptyWallet :: Text -> EncryptedSecretKey -> WalletData
-    emptyWallet walletName esk =
+    walletData :: WalletName -> WalletData
+    walletData (WalletName walletName) =
         WalletData
             { _wdRootKey = esk
             , _wdName = walletName
-            , _wdAccounts = mempty
+            , _wdAccounts = accounts
             }
-
 
 select
   :: WalletFace

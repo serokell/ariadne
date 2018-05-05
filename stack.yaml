@@ -6,12 +6,13 @@ flags:
 
 packages:
 - ./ariadne
+- ./ui/qt
 - ./ui/vty
 - ./knit
 - ./util/
 
 - location:
-    git: git@github.com:serokell/lootbox.git
+    git: ssh://git@github.com/serokell/lootbox.git
     commit: 983b19bd438a47c91184b0b71213e76cc9983b03 # gromak/workaround-stack2nix branch
   extra-dep: true
   subdirs:
@@ -20,7 +21,7 @@ packages:
 
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: e7d5afc687df1398fadfebd9e56e7aa4dd5212fc # ariadne branch
+    commit: f9620d29f8e43f47e4801d4c65e7a3bc6195e3fa # ariadne branch
   extra-dep: true
   subdirs:
   - binary
@@ -110,9 +111,20 @@ packages:
     git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
     commit: 49f501a082d745f3b880677220a29cafaa181452
   extra-dep: true
+- location:
+    git: ssh://git@github.com/serokell/qtah.git
+    commit: 2bec76d83880cc430960b38bb586b18fe8e50d97
+  extra-dep: true
+  subdirs:
+  - qtah-generator
+  - qtah-cpp
+  - qtah
+
 
 extra-deps:
 
+# Common
+- async-2.2.1                     # fixes https://github.com/simonmar/async/issues/59
 # Cardano SL
 - ekg-core-0.1.1.3                # https://github.com/tibbe/ekg-core/pull/21
 - transformers-0.5.5.0            # https://hub.darcs.net/ross/transformers/issue/33#comment-20171004T152940
@@ -165,8 +177,20 @@ extra-deps:
 - union-0.1.1.2
 - named-0.1.0.0
 
+# Ariadne Qt GUI
+- hoppy-runtime-0.4.0
+- hoppy-generator-0.4.0
+- hoppy-std-0.4.0
+- haskell-src-1.0.2.0   # https://github.com/commercialhaskell/stack/issues/3151
+
 extra-package-dbs: []
 
 nix:
   shell-file: shell.nix
   pure: true
+
+flags:
+  qtah:
+    qt5: true
+  qtah-cpp:
+    qt5: true

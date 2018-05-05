@@ -36,7 +36,6 @@ library
     , cardano-sl-util
     , conduit
     , contravariant
-    , scientific
     , constraints
     , containers
     , data-default
@@ -102,6 +101,7 @@ library
       Ariadne.Wallet.Backend.Balance
       Ariadne.Wallet.Backend.KeyStorage
       Ariadne.Wallet.Backend.Mode
+      Ariadne.Wallet.Backend.Restore
       Ariadne.Wallet.Backend.Tx
       Ariadne.Wallet.Face
       Ariadne.Knit.Backend
@@ -209,6 +209,65 @@ executable ariadne
       EmptyCase
       PartialTypeSignatures
   ghc-options: -Wall -Werror -fno-warn-partial-type-signatures
+
+executable ariadne-qt
+  main-is: Main.hs
+  other-modules: Glue
+  hs-source-dirs:
+      app-qt
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ariadne
+    , ariadne-qt-ui
+    , knit
+    , ii-extras
+    , base >=4.7 && <5
+    , async
+    , vinyl
+    , universum
+    , lens
+    , containers
+    , ansi-wl-pprint
+    , text
+  other-modules:
+      Paths_ariadne
+  default-language: Haskell2010
+  default-extensions:
+      ApplicativeDo
+      NoImplicitPrelude
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DeriveGeneric
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NegativeLiterals
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      RecursiveDo
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      ViewPatterns
+      EmptyCase
+      PartialTypeSignatures
+  ghc-options: -Wall -Werror -fno-warn-partial-type-signatures -dynamic
 
 test-suite ariadne-test
   type: exitcode-stdio-1.0

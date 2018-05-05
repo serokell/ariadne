@@ -1,4 +1,4 @@
-name:           ariadne-vty-ui
+name:           ariadne-qt-ui
 version:        0.1.0.0
 description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
 homepage:       https://github.com/serokell/ariadne#readme
@@ -18,42 +18,29 @@ library
   build-depends:
       base >=4.7 && <5
     , universum
-    , serokell-util
-    , containers
-    , brick
-    , vty
     , text
-    , lens
-    , transformers
-    , loc
-    , text-zipper
     , ansi-wl-pprint
+    , containers
+    , hoppy-runtime
+    , loc
+    , qtah
+    , stm
+    , extra
     , ansi-terminal
-    , vector
+    , formatting
+    , lens
     , ii-extras
-    , directory
-    , named
-    -- UI is independent of Knit, but provides Knit command bindings
-    , knit
-    , Earley
 
   exposed-modules:
-      Ariadne.UI.Vty
-      Ariadne.UI.Vty.App
-      Ariadne.UI.Vty.AnsiToVty
-      Ariadne.UI.Vty.CommandHistory
-      Ariadne.UI.Vty.Widget.Help
-      Ariadne.UI.Vty.Widget.Logs
-      Ariadne.UI.Vty.Widget.Menu
-      Ariadne.UI.Vty.Widget.Repl
-      Ariadne.UI.Vty.Widget.Status
-      Ariadne.UI.Vty.Widget.WalletTree
-      Ariadne.UI.Vty.Widget.WalletPane
-      Ariadne.UI.Vty.Face
-      Ariadne.UI.Vty.Keyboard
-      Ariadne.UI.Vty.Knit
-      Ariadne.UI.Vty.Scrolling
-      Ariadne.UI.Vty.Theme
+      Ariadne.UI.Qt
+      Ariadne.UI.Qt.Face
+  other-modules:
+      Ariadne.UI.Qt.UI
+      Ariadne.UI.Qt.MainWindow
+      Ariadne.UI.Qt.Widgets.Repl
+      Ariadne.UI.Qt.Widgets.StatusBar
+      Ariadne.UI.Qt.Widgets.WalletInfo
+      Ariadne.UI.Qt.Widgets.WalletTree
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
@@ -64,7 +51,6 @@ library
       DeriveFunctor
       DeriveFoldable
       DeriveTraversable
-      EmptyCase
       FlexibleContexts
       FlexibleInstances
       GADTs
@@ -74,7 +60,6 @@ library
       MultiWayIf
       NegativeLiterals
       OverloadedStrings
-      OverloadedLabels
       PatternSynonyms
       PolyKinds
       RankNTypes
@@ -90,4 +75,4 @@ library
       UndecidableInstances
       ViewPatterns
   default-language: Haskell2010
-  ghc-options: -Wall -Werror -Wno-unused-top-binds
+  ghc-options: -Wall -Werror -Wno-unused-top-binds -dynamic

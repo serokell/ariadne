@@ -12,43 +12,56 @@ import Ariadne.UI.Vty.Face
 
 
 data WalletPaneCommandEvent
-  = WalletPaneCommandEvent UiCommandId UiCommandEvent
+  = WalletPaneCommandEvent UiCommandId UiCommandResultEvent
 
 data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance Text
 makePrisms ''BalancePromise
 
 data WalletPaneInfo
   = WalletPaneWalletInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
   | WalletPaneAccountInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
   | WalletPaneAddressInfo
-    { balance :: BalancePromise
+    { label :: Text
+    , balance :: BalancePromise
     }
 
 makeLensesWith postfixLFields ''WalletPaneInfo
 
-data WalletPaneWidgetState =
+data WalletPaneWidgetState n =
   WalletPaneWidgetState
     { walletPaneItemInfo :: Maybe WalletPaneInfo
     , walletPaneInitialized :: Bool
+    , walletPaneBrickName :: n
     }
 
 makeLensesWith postfixLFields ''WalletPaneWidgetState
 
-initWalletPaneWidget :: WalletPaneWidgetState
-initWalletPaneWidget = WalletPaneWidgetState Nothing False
+initWalletPaneWidget
+  :: (Ord n, Show n)
+  => n
+  -> WalletPaneWidgetState n
+initWalletPaneWidget name =
+  WalletPaneWidgetState
+    { walletPaneItemInfo = Nothing
+    , walletPaneInitialized = False
+    , walletPaneBrickName = name
+    }
 
 drawWalletPaneWidget
-  :: Bool
-  -> WalletPaneWidgetState
-  -> B.Widget name
+  :: (Ord n, Show n)
+  => Bool
+  -> WalletPaneWidgetState n
+  -> B.Widget n
 drawWalletPaneWidget _hasFocus wpws =
-  B.Widget
-    { B.hSize = B.Greedy
-    , B.vSize = B.Greedy
+  B.viewport walletPaneBrickName B.Both B.Widget
+    { B.hSize = B.Fixed
+    , B.vSize = B.Fixed
     , B.render = render
     }
   where
@@ -65,6 +78,7 @@ drawWalletPaneWidget _hasFocus wpws =
                 WalletPaneWalletInfo{} -> V.text' attr "Wallet"
                 WalletPaneAccountInfo{} -> V.text' attr "Account"
                 WalletPaneAddressInfo{} -> V.text' attr "Address"
+            , V.text' attr $ info ^. labelL
             , V.text' attr $ "Total balance: " <> case info ^. balanceL of
                 WaitingBalance _ -> "Calculating..."
                 FailedBalance e -> pretty e
@@ -78,11 +92,11 @@ drawWalletPaneWidget _hasFocus wpws =
           & B.imageL .~ imgOrLoading
 
 data WalletPaneWidgetEvent
-  = WalletPaneUpdateEvent (Maybe UiWalletPaneUpdateInfo)
+  = WalletPaneUpdateEvent (Maybe UiWalletPaneInfo)
 
 handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
-  -> StateT WalletPaneWidgetState (B.EventM n) ()
+  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
 handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = do
  zoom (walletPaneItemInfoL . _Just . balanceL) $ do
    cmdOrBal <- get
@@ -96,17 +110,21 @@ handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = d
 handleWalletPaneWidgetEvent
   :: UiLangFace
   -> WalletPaneWidgetEvent
-  -> StateT WalletPaneWidgetState (B.EventM n) ()
+  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
 handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
-      whenJust itemInfo $ \case
-        UiWalletPaneRefreshWalletBalance -> refreshBalance WalletPaneWalletInfo
-        UiWalletPaneRefreshAccountBalance -> refreshBalance WalletPaneAccountInfo
-        UiWalletPaneRefreshAddressBalance -> refreshBalance WalletPaneAddressInfo
+      whenJust itemInfo $ \UiWalletPaneInfo{..} -> case wpiType of
+        Just UiWalletPaneInfoWallet -> setInfo WalletPaneWalletInfo wpiLabel
+        Just UiWalletPaneInfoAccount -> setInfo WalletPaneAccountInfo wpiLabel
+        Just UiWalletPaneInfoAddress -> setInfo WalletPaneAddressInfo wpiLabel
+        _ -> walletPaneItemInfoL .= Nothing
   where
-    refreshBalance info = do
+    setInfo info label = do
+      balancePromise <- refreshBalance
+      walletPaneItemInfoL .= Just (info (fromMaybe "" label) balancePromise)
+    refreshBalance = do
       mCommandId <- (^? walletPaneItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
 
       let putExpr = liftIO . langPutCommand . langMkExpr
@@ -115,4 +133,4 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
       whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
       commandId <- putExpr UiBalance
-      walletPaneItemInfoL .= Just (info $ WaitingBalance commandId)
+      return $ WaitingBalance commandId

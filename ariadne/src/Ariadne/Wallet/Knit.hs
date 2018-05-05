@@ -5,10 +5,10 @@ import Universum
 import qualified Data.ByteArray as ByteArray
 
 import IiExtras
+import Pos.Core (unsafeGetCoin)
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Serokell.Data.Memory.Units (fromBytes)
-import Pos.Core (unsafeGetCoin)
 import Text.Earley
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
@@ -80,41 +80,63 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
-        { cpName = "add-address"
+        { cpName = "new-address"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
         , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletAddAddress accountRef passphrase
+            walletNewAddress accountRef passphrase
             return $ toValue ValueUnit
-        , cpHelp = "Add an account to the specified wallet. When no wallet \
-                   \is specified, uses the selected wallet."
+        , cpHelp = "Generate and add a new address to the specified account. When \
+                   \no account is specified, uses the selected account."
         }
     , CommandProc
-        { cpName = "add-account"
+        { cpName = "new-account"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletAddAccount walletRef name
+            walletNewAccount walletRef name
             return $ toValue ValueUnit
-        , cpHelp = "Add an account to the specified wallet. When no wallet \
-                   \is specified, uses the selected wallet."
+        , cpHelp = "Create and add a new account to the specified wallet. When \
+                   \no wallet is specified, uses the selected wallet."
         }
     , CommandProc
-        { cpName = "add-wallet"
+        { cpName = "new-wallet"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
-            name <- getArgOpt tyString "name"
+            name <- fmap WalletName <$> getArgOpt tyString "name"
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
             return (passPhrase, name, mbEntropySize)
         , cpRepr = \(passPhrase, name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
-            mnemonic <- walletAddWallet passPhrase name mbEntropySize
+            mnemonic <- walletNewWallet passPhrase name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
-        , cpHelp = "Create a new wallet. \
+        , cpHelp = "Generate a new wallet and add to the storage. \
                    \The result is the mnemonic to restore this wallet."
+        }
+    , CommandProc
+        { cpName = "restore"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            passPhrase <- getPassPhraseArg
+            name <- fmap WalletName <$> getArgOpt tyString "name"
+            mnemonic <- Mnemonic <$> getArg tyString "mnemonic"
+            restoreType <- getArg tyBool "full" <&>
+                \case False -> WalletRestoreQuick
+                      True -> WalletRestoreFull
+            return (passPhrase, name, mnemonic, restoreType)
+        , cpRepr = \(passPhrase, name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} ->
+            toValue ValueUnit <$ walletRestore passPhrase name mnemonic restoreType
+        , cpHelp = "Restore a wallet from mnemonic. " <>
+                   "A passphrase can be specified to encrypt the resulting " <>
+                   "wallet (it doesn't have to be the same as the one used " <>
+                   "to encrypt the old wallet). " <>
+                   "There are two types of restoration: full restoration " <>
+                   "finds all used addresses (and their accounts), but is " <>
+                   "slow, while quick restoration only adds a wallet with " <>
+                   "secret key derived from the specified mnemonic."
         }
     , CommandProc
         { cpName = "select"
@@ -184,7 +206,8 @@ getAccountRefArgOpt =
 
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
 tyWalletRef =
-    either WalletRefByName WalletRefByIndex <$> tyString `tyEither` tyWord
+    either (WalletRefByName . WalletName) WalletRefByIndex <$>
+    tyString `tyEither` tyWord
 
 mkPassPhrase :: Maybe Text -> PassPhrase
 mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)

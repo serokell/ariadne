@@ -13,19 +13,18 @@ import Ariadne.Config.CLI (getConfig)
 import Ariadne.Help
 import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
-import Ariadne.UI.Vty
-import Ariadne.UI.Vty.Face
+import Ariadne.UI.Qt
+import Ariadne.UI.Qt.Face
 import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
-import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Knit
 
 import Glue
 
-type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager, Knit.UI]
+type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
 
 main :: IO ()
 main = do
@@ -44,7 +43,7 @@ main = do
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
     (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace (putWalletEventToUI uiFace)
+      mkWallet cardanoFace ((\_ _ -> return ()) uiFace)
 
     helpData :: [Doc]
     helpData = generateKnitHelp (Proxy @Components)
@@ -58,7 +57,6 @@ main = do
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
       Knit.TaskManagerExecCtx taskManagerFace :&
-      Knit.UiExecCtx uiFace :&
       RNil
 
     knitFace = createKnitBackend knitExecContext taskManagerFace

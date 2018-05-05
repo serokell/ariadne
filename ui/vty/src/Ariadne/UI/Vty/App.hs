@@ -12,6 +12,7 @@ import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Graphics.Vty as V
 import qualified Data.List.NonEmpty as NE
 
 import Ariadne.UI.Vty.CommandHistory
@@ -27,12 +28,14 @@ import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.WalletPane
 import Ariadne.UI.Vty.Widget.WalletTree
 
+-- | Selected menu item and, consequently, visible screen
 data AppSelector
   = AppSelectorWallet
   | AppSelectorHelp
   | AppSelectorLogs
   deriving (Eq)
 
+-- | Currently focused widget
 data AppFocus
   = AppFocusWalletTree
   | AppFocusWalletPane
@@ -42,8 +45,13 @@ data AppFocus
   | AppFocusLogs
   deriving (Eq)
 
+-- | Brick-specific ID for scrolling viewports, widget cache items and clickable widgets
 data AppBrickName
-  = AppBrickReplOutput
+  = AppBrickMenu
+  | AppBrickWalletTree
+  | AppBrickWalletPane
+  | AppBrickReplOutput
+  | AppBrickReplInput
   | AppBrickHelp
   | AppBrickLogs
   deriving (Eq, Ord, Show)
@@ -52,12 +60,12 @@ data AppState =
   AppState
     { appStateFocus :: AppFocus
     , appStateRepl :: ReplWidgetState AppBrickName
-    , appStateMenu :: MenuWidgetState AppSelector
+    , appStateMenu :: MenuWidgetState AppSelector AppBrickName
     , appStateStatus :: StatusWidgetState
     , appStateHelp :: HelpWidgetState AppBrickName
     , appStateLogs :: LogsWidgetState AppBrickName
-    , appStateWalletTree :: WalletTreeWidgetState
-    , appStateWalletPane :: WalletPaneWidgetState
+    , appStateWalletTree :: WalletTreeWidgetState AppBrickName
+    , appStateWalletPane :: WalletPaneWidgetState AppBrickName
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -66,13 +74,13 @@ initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace history AppBrickReplOutput
-    , appStateMenu = initMenuWidget menuItems 0
+    , appStateRepl = initReplWidget langFace history AppBrickReplOutput AppBrickReplInput
+    , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
-    , appStateWalletTree = initWalletTreeWidget
-    , appStateWalletPane = initWalletPaneWidget
+    , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
+    , appStateWalletPane = initWalletPaneWidget AppBrickWalletPane
     }
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
@@ -222,6 +230,12 @@ handleAppEvent
   -> StateT AppState (B.EventM AppBrickName) AppCompleted
 handleAppEvent langFace ev =
   case ev of
+    B.VtyEvent (V.EvPaste bs) -> do
+      whenRight (decodeUtf8' bs) $ \pasted ->
+        void $ zoom appStateReplL $
+          handleReplInputEvent langFace $
+            ReplInputModifyEvent (InsertMany pasted)
+      return AppInProgress
     B.VtyEvent vtyEv -> do
       focus <- use appStateFocusL
       menuState <- use appStateMenuL
@@ -294,6 +308,51 @@ handleAppEvent langFace ev =
 
         | otherwise ->
             return AppInProgress
+    B.MouseDown name V.BLeft [] coords ->
+      case name of
+        AppBrickMenu -> do
+          zoom appStateMenuL $ handleMenuWidgetEvent $
+            MenuMouseDownEvent coords
+          newSel <- uses appStateMenuL menuWidgetSel
+          focus <- use appStateFocusL
+          appStateFocusL .= restoreFocus newSel focus
+          return AppInProgress
+        AppBrickWalletTree -> do
+          appStateFocusL .= AppFocusWalletTree
+          zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
+            WalletTreeMouseDownEvent coords
+          return AppInProgress
+        AppBrickWalletPane -> do
+          appStateFocusL .= AppFocusWalletPane
+          return AppInProgress
+        AppBrickReplOutput -> do
+          appStateFocusL .= AppFocusReplOutput
+          return AppInProgress
+        AppBrickReplInput -> do
+          appStateFocusL .= AppFocusReplInput
+          void $ zoom appStateReplL $ handleReplInputEvent langFace $
+            ReplMouseDownEvent coords
+          return AppInProgress
+        _ ->
+          return AppInProgress
+    B.MouseDown name button [] _
+      | Just scrollAction <- buttonToScrollAction button -> do
+          case name of
+            AppBrickWalletTree ->
+              zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
+                WalletTreeScrollingEvent scrollAction
+            AppBrickReplOutput ->
+              zoom appStateReplL $ handleReplOutputEvent $
+                ReplOutputScrollingEvent scrollAction
+            AppBrickHelp ->
+              zoom appStateHelpL $ handleHelpWidgetEvent $
+                HelpScrollingEvent scrollAction
+            AppBrickLogs ->
+              zoom appStateLogsL $ handleLogsWidgetEvent $
+                LogsScrollingEvent scrollAction
+            _ ->
+              return ()
+          return AppInProgress
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
         UiWalletUpdate{..} -> do
@@ -304,7 +363,7 @@ handleAppEvent langFace ev =
             handleWalletPaneWidgetEvent langFace  $
               WalletPaneUpdateEvent wuPaneInfoUpdate
       return AppInProgress
-    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
+    B.AppEvent (UiCommandResultEvent commandId commandEvent) -> do
         zoom appStateWalletPaneL $
           handleWalletPaneCommandEvent $
             WalletPaneCommandEvent commandId commandEvent
@@ -328,8 +387,26 @@ handleAppEvent langFace ev =
     B.AppEvent (UiHelpUpdateData doc) -> do
         zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
         return AppInProgress
+    B.AppEvent (UiCommandEvent commandEvent) -> do
+      case commandEvent of
+        UiCommandHelp -> do
+          focus <- use appStateFocusL
+          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorHelp)
+          appStateFocusL .= restoreFocus AppSelectorHelp focus
+          return AppInProgress
+        UiCommandLogs -> do
+          focus <- use appStateFocusL
+          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorLogs)
+          appStateFocusL .= restoreFocus AppSelectorLogs focus
+          return AppInProgress
     _ ->
       return AppInProgress
+
+buttonToScrollAction :: V.Button -> Maybe ScrollingAction
+buttonToScrollAction = \case
+  V.BScrollUp -> Just ScrollingLineUp
+  V.BScrollDown -> Just ScrollingLineDown
+  _ -> Nothing
 
 charToFocus :: Char -> Maybe (AppSelector, AppFocus)
 charToFocus = \case
