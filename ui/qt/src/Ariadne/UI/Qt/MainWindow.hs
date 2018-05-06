@@ -10,7 +10,6 @@ import Control.Lens (makeLensesWith, magnify)
 import IiExtras
 
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
-import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QMainWindow as QMainWindow
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -20,14 +19,12 @@ import Ariadne.UI.Qt.UI
 
 import Ariadne.UI.Qt.Widgets.Repl
 import Ariadne.UI.Qt.Widgets.StatusBar
-import Ariadne.UI.Qt.Widgets.WalletInfo
-import Ariadne.UI.Qt.Widgets.WalletTree
+import Ariadne.UI.Qt.Widgets.Wallet
 
 data MainWindow =
   MainWindow
     { mainWindow :: QMainWindow.QMainWindow
-    , walletTree :: WalletTree
-    , walletInfo :: WalletInfo
+    , wallet :: Wallet
     , repl :: Repl
     , statusBar :: StatusBar
     }
@@ -39,17 +36,11 @@ initMainWindow langFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
 
-  (qWalletTree, walletTree) <- initWalletTree
-  (qWalletInfo, walletInfo) <- initWalletInfo
+  (qWallet, wallet) <- initWallet langFace
   (qRepl, repl) <- initRepl langFace
 
-  walletLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget walletLayout qWalletTree
-  QBoxLayout.addWidget walletLayout qWalletInfo
-  QBoxLayout.setStretch walletLayout 1 1
-
   mainLayout <- QVBoxLayout.new
-  QBoxLayout.addLayout mainLayout walletLayout
+  QBoxLayout.addWidget mainLayout qWallet
   QBoxLayout.addLayout mainLayout qRepl
   QBoxLayout.setStretch mainLayout 0 2
   QBoxLayout.setStretch mainLayout 1 1
@@ -72,4 +63,6 @@ handleMainWindowEvent = \case
     magnify replL $ displayCommandInfo "" doc
   UiCommandEvent UiCommandId{..} (UiCommandFailure doc) ->
     magnify replL $ displayCommandInfo "" doc
+  UiWalletEvent UiWalletUpdate{..} ->
+    magnify walletL $ handleWalletEvent $ WalletUpdateEvent wuTrees wuSelection
   _ -> return ()

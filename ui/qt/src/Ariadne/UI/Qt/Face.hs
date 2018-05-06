@@ -1,9 +1,11 @@
 module Ariadne.UI.Qt.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
+       , UiWalletEvent (..)
        , UiCardanoStatusUpdate (..)
        , UiCardanoEvent (..)
        , UiEvent (..)
+       , UiOperation (..)
        , UiLangFace (..)
        , UiFace (..)
 
@@ -49,13 +51,25 @@ data UiCardanoEvent
   = UiCardanoLogEvent Text
   | UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
 
+data UiWalletEvent =
+  UiWalletUpdate
+    { wuTrees :: [UiWalletTree]
+    , wuSelection :: Maybe UiWalletTreeSelection
+    }
+
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
+  | UiWalletEvent UiWalletEvent
   | UiHelpUpdateData [Doc]
+
+data UiOperation
+  = UiSelect [Word]
+  | UiBalance
+  | UiKill Int
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -65,6 +79,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
+  , langMkExpr :: UiOperation -> expr
   }
 
 -- API for the UI.

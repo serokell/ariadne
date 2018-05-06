@@ -43,7 +43,7 @@ main = do
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
     (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace ((\_ _ -> return ()) uiFace)
+      mkWallet cardanoFace (putWalletEventToUI uiFace)
 
     helpData :: [Doc]
     helpData = generateKnitHelp (Proxy @Components)
