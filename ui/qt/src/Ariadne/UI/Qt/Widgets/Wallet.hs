@@ -63,6 +63,7 @@ initItemModel = do
   item <- QStandardItem.new
   QStandardItem.setText item ("Loading..." :: String)
   QStandardItem.setSelectable item False
+  QStandardItem.setEditable item False
 
   root <- QStandardItemModel.invisibleRootItem model
   QStandardItem.appendRowItem root item
@@ -96,28 +97,37 @@ updateModel
   -> Maybe UiWalletTreeSelection
   -> IO ()
 updateModel model selectionModel wallets selection = do
-  -- TODO: don't rebuild model from scratch on every wallet update
-  QStandardItemModel.clear model
-  QStandardItemModel.setHorizontalHeaderLabels model ["Wallets" :: String]
-
   root <- QStandardItemModel.invisibleRootItem model
-  mapM_ (\(idx, item) -> toModelItem root idx item) $ enumerate wallets
+  rootRowCount <- QStandardItem.rowCount root
+  mapM_ (\(idx, item) -> toModelItem root rootRowCount idx (idx, item)) $ enumerate wallets
+  QStandardItem.removeRows root (length wallets) (rootRowCount - length wallets)
   where
     selPath = (\UiWalletTreeSelection{..} -> wtsWalletIdx:wtsPath) <$> selection
     toModelItem
       :: QStandardItem.QStandardItem
-      -> Word
-      -> UiWalletTree
+      -> Int
+      -> Int
+      -> (Int, UiWalletTree)
       -> IO ()
-    toModelItem parent walletIdx (Node UiWalletTreeItem{..} children) = do
-      let path = walletIdx:wtiPath
+    toModelItem parent parentRowCount walletIdx (idx, Node UiWalletTreeItem{..} children) = do
+      let path = (fromIntegral walletIdx):wtiPath
 
-      item <- QStandardItem.new
+      item <- if idx < parentRowCount
+        then QStandardItem.child parent $ fromIntegral idx
+        else do
+          newItem <- QStandardItem.new
+          QStandardItem.appendRowItem parent newItem
+          return newItem
+
       QStandardItem.setText item $ toString $ fromMaybe "" wtiLabel
       QStandardItem.setData item =<< QVariant.newWithList =<< mapM (QVariant.newWithUInt . fromIntegral) path
-      QStandardItem.appendRowItem parent item
-      forM_ children $ toModelItem item walletIdx
+      QStandardItem.setSelectable item True
+      QStandardItem.setEditable item False
+
+      itemRowCount <- QStandardItem.rowCount item
+      mapM_ (toModelItem item itemRowCount walletIdx) $ enumerate children
+      QStandardItem.removeRows item (length children) (itemRowCount - length children)
 
       when (selPath == Just path) $ do
-        idx <- QStandardItem.index item
-        QItemSelectionModel.selectIndex selectionModel idx QItemSelectionModel.SelectCurrent
+        modelIndex <- QStandardItem.index item
+        QItemSelectionModel.selectIndex selectionModel modelIndex QItemSelectionModel.SelectCurrent
