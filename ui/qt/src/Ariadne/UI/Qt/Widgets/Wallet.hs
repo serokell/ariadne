@@ -15,7 +15,6 @@ import Serokell.Util (enumerate)
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QModelIndex as QModelIndex
-import qualified Graphics.UI.Qtah.Core.QVariant as QVariant
 import qualified Graphics.UI.Qtah.Gui.QStandardItem as QStandardItem
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QSplitter as QSplitter
@@ -77,8 +76,8 @@ currentChanged UiLangFace{..} selected deselected = do
     isValid <- QModelIndex.isValid selected
     when (isValid && selected /= deselected) $ do
       item <- QStandardItemModel.itemFromIndex itemModel selected
-      path <- mapM QVariant.toUInt =<< QVariant.toList =<< QStandardItem.getData item
-      unless (null path) $ void $ liftIO $ langPutCommand $ langMkExpr $ UiSelect $ fmap fromIntegral path
+      path <- fromQVariant =<< QStandardItem.getData item
+      unless (null path) $ void $ liftIO $ langPutCommand $ langMkExpr $ UiSelect path
 
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
@@ -122,7 +121,7 @@ updateModel model selectionModel wallets selection = do
           return newItem
 
       QStandardItem.setText item $ toString $ fromMaybe "" wtiLabel
-      QStandardItem.setData item =<< QVariant.newWithList =<< mapM (QVariant.newWithUInt . fromIntegral) path
+      QStandardItem.setData item =<< toQVariant path
       QStandardItem.setSelectable item True
       QStandardItem.setEditable item False
 
