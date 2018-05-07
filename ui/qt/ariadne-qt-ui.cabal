@@ -39,6 +39,7 @@ library
       Ariadne.UI.Qt.AnsiToHTML
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
+      Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
       Ariadne.UI.Qt.Widgets.MenuBar
       Ariadne.UI.Qt.Widgets.Repl

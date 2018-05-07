@@ -2,6 +2,7 @@ module Ariadne.UI.Qt.Widgets.MenuBar
   ( MenuBar
   , initMenuBar
   , doOnLogsAction
+  , doOnHelpAction
   ) where
 
 import Universum
@@ -20,6 +21,7 @@ data MenuBar =
   MenuBar
     { menuBar :: QMenuBar.QMenuBar
     , logsAction :: QAction.QAction
+    , helpAction :: QAction.QAction
     }
 
 makeLensesWith postfixLFields ''MenuBar
@@ -32,6 +34,7 @@ initMenuBar = do
   logsMenu <- QMenuBar.addNewMenu menuBar ("Help" :: String)
 
   logsAction <- QMenu.addNewAction logsMenu ("Logs" :: String)
+  helpAction <- QMenu.addNewAction logsMenu ("Help" :: String)
 
   return (menuBar, MenuBar{..})
 
@@ -39,3 +42,8 @@ doOnLogsAction :: IO () -> UI MenuBar ()
 doOnLogsAction handler = do
   logsAction <- view logsActionL
   liftIO $ connect_ logsAction QAction.triggeredSignal $ const handler
+
+doOnHelpAction :: IO () -> UI MenuBar ()
+doOnHelpAction handler = do
+  helpAction <- view helpActionL
+  liftIO $ connect_ helpAction QAction.triggeredSignal $ const handler

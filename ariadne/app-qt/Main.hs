@@ -14,7 +14,6 @@ import Ariadne.Help
 import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Qt
-import Ariadne.UI.Qt.Face
 import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
@@ -48,9 +47,6 @@ main = do
     helpData :: [Doc]
     helpData = generateKnitHelp (Proxy @Components)
 
-    helpInitAction :: IO ()
-    helpInitAction = putUiEvent uiFace $ UiHelpUpdateData helpData
-
     knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
     knitExecContext putCommandOutput =
       Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
@@ -62,13 +58,10 @@ main = do
     knitFace = createKnitBackend knitExecContext taskManagerFace
 
     uiAction, cardanoAction :: IO ()
-    uiAction = mkUiAction (knitFaceToUI uiFace knitFace)
+    uiAction = mkUiAction helpData $ knitFaceToUI uiFace knitFace
     cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
-
-    initAction :: IO ()
-    initAction = concurrently_ walletInitAction helpInitAction
 
     serviceAction :: IO ()
     serviceAction = uiAction `race_` cardanoAction
 
-  concurrently_ initAction serviceAction
+  concurrently_ walletInitAction serviceAction
