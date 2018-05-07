@@ -36,6 +36,7 @@ library
       Ariadne.UI.Qt
       Ariadne.UI.Qt.Face
   other-modules:
+      Ariadne.UI.Qt.AnsiToHTML
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.Widgets.Logs
