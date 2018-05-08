@@ -1,44 +1,23 @@
-environment:
-  global:
-    # GHC_OPTIONS: "-Werror"
-    CABAL_REINIT_CONFIG: "y"
-    LC_ALL: "C.UTF-8"
+# Disabled cache in hope of improving reliability of AppVeyor builds
+#cache:
+#- "c:\\sr" # stack root, short paths == fewer problems
 
-    ENABLE_INSTALL: "y"
-
-    STACK_UPGRADE: "y"
-    RESOLVER: "lts-9.1"
-    STACK_ROOT: "c:\\sr"
-
-    CABAL_CHECK_RELAX: "y"
-    CABAL_NO_SANDBOX: "y"
-    CABAL_HACKAGE_MIRROR: "hackage.haskell.org:http://hackage.fpcomplete.com"
-
-    PATH: "%PATH%;%APPDATA%\\local\\bin"
-    LOCAL_BIN: "%APPDATA%\\local\\bin"
-
-    PACKCHECK_LOCAL_PATH: "./packcheck.sh"
-    PACKCHECK_GITHUB_URL: "https://raw.githubusercontent.com/harendra-kumar/packcheck"
-    PACKCHECK_GITHUB_COMMIT: "c01380cac88eb5682da8048d2c243de6940f2a68"
-
-cache:
-  - "%STACK_ROOT%"
-  - "%LOCAL_BIN%"
-  - "%APPDATA%\\cabal"
-  - "%APPDATA%\\ghc"
-  - "%LOCALAPPDATA%\\Programs\\stack"
-
-clone_folder: "c:\\pkg"
 build: off
 
 before_test:
-- if not exist %PACKCHECK_LOCAL_PATH% curl -sSkL -o%PACKCHECK_LOCAL_PATH% %PACKCHECK_GITHUB_URL%/%PACKCHECK_GITHUB_COMMIT%/packcheck.sh
-- if not exist %LOCAL_BIN% mkdir %LOCAL_BIN%
-- where stack.exe || curl -sSkL -ostack.zip http://www.stackage.org/stack/windows-x86_64 && 7z x stack.zip stack.exe && move stack.exe %LOCAL_BIN%
-- if defined STACKVER (stack upgrade --binary-only --binary-version %STACKVER%) else (stack upgrade --binary-only || ver > nul)
-- stack --version
+# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
+- set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
+
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
+- 7z x stack.zip stack.exe
+
+clone_folder: "c:\\stack"
+environment:
+  global:
+    STACK_ROOT: "c:\\sr"
 
 test_script:
 - stack setup > nul
-- for /f "usebackq tokens=*" %%i in (`where 7z.exe`) do set PATH7Z=%%i\..
-- chcp 65001 && stack exec bash -- -c "chmod +x %PACKCHECK_LOCAL_PATH%; %PACKCHECK_LOCAL_PATH% stack PATH=/usr/bin:\"%PATH7Z%\""
+# The ugly echo "" hack is to avoid complaints about 0 being an invalid file
+# descriptor
+- echo "" | stack --no-terminal test --jobs 1
