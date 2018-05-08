@@ -53,6 +53,6 @@ showLogsWindow = do
 displayLogMessage :: Text -> UI Logs ()
 displayLogMessage message = do
     logsEdit <- view logsEditL
-    liftIO $ QTextEdit.insertHtml logsEdit $ toString $
-        format (spanFormat % "<br>") $ csiToHTML message
+    liftIO $ QTextEdit.append logsEdit $ toString $
+        format spanFormat $ csiToHTML message
     liftIO $ QTextEdit.ensureCursorVisible logsEdit

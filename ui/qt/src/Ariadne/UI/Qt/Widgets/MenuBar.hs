@@ -31,10 +31,10 @@ initMenuBar = do
   -- Creating parentless menubar leads to global menubar on Mac -- probably what we want
   menuBar <- QMenuBar.new
 
-  logsMenu <- QMenuBar.addNewMenu menuBar ("Help" :: String)
+  helpMenu <- QMenuBar.addNewMenu menuBar ("Help" :: String)
 
-  logsAction <- QMenu.addNewAction logsMenu ("Logs" :: String)
-  helpAction <- QMenu.addNewAction logsMenu ("Help" :: String)
+  logsAction <- QMenu.addNewAction helpMenu ("Logs" :: String)
+  helpAction <- QMenu.addNewAction helpMenu ("Help" :: String)
 
   return (menuBar, MenuBar{..})
 
