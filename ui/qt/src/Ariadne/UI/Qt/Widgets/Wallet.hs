@@ -71,12 +71,14 @@ initItemModel = do
   return model
 
 currentChanged :: UiLangFace -> QModelIndex.QModelIndex -> QModelIndex.QModelIndex -> UI Wallet ()
-currentChanged UiLangFace{..} selected deselected = unless (selected == deselected) $ do
+currentChanged UiLangFace{..} selected deselected = do
   Wallet{..} <- ask
   lift $ do
-    item <- QStandardItemModel.itemFromIndex itemModel selected
-    path <- mapM QVariant.toUInt =<< QVariant.toList =<< QStandardItem.getData item
-    unless (null path) $ void $ liftIO $ langPutCommand $ langMkExpr $ UiSelect $ fmap fromIntegral path
+    isValid <- QModelIndex.isValid selected
+    when (isValid && selected /= deselected) $ do
+      item <- QStandardItemModel.itemFromIndex itemModel selected
+      path <- mapM QVariant.toUInt =<< QVariant.toList =<< QStandardItem.getData item
+      unless (null path) $ void $ liftIO $ langPutCommand $ langMkExpr $ UiSelect $ fmap fromIntegral path
 
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
