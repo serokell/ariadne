@@ -6,10 +6,11 @@ flags:
 
 packages:
 - ./ariadne
-- ./ui/qt
-- ./ui/vty
 - ./knit
-- ./util/
+- ./util
+- ./ui/qt
+- location: ./ui/vty
+  extra-dep: true
 
 - location:
     git: ssh://git@github.com/serokell/lootbox.git
