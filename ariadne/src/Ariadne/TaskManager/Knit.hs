@@ -46,6 +46,7 @@ data instance ComponentLit TaskManager
 
 data instance ComponentToken TaskManager
   = TokenTaskId TaskId
+  deriving (Eq, Ord, Show)
 
 makePrisms 'TokenTaskId
 
@@ -65,7 +66,7 @@ instance Elem components TaskManager => ComponentTokenizer components TaskManage
 
 instance ComponentDetokenizer TaskManager where
   componentTokenRender = \case
-    TokenTaskId (TaskId cid) -> sformat ("<"%build%">") cid
+    TokenTaskId (TaskId cid) -> sformat ("<"%build%">") (toInteger cid)
 
 instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
   componentLitGrammar =

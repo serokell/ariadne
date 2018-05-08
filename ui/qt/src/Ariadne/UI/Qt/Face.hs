@@ -19,6 +19,7 @@ import Universum
 
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
+import Numeric.Natural
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 data UiCommandId =
@@ -72,8 +73,8 @@ data UiEvent
 data UiOperation
   = UiSelect [Word]
   | UiBalance
-  | UiKill Int
   | UiSend Text Text  -- ^ Address, amount
+  | UiKill Natural
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
