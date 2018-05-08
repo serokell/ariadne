@@ -11,8 +11,8 @@ import Formatting
 import IiExtras
 
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
-import qualified Graphics.UI.Qtah.Widgets.QStatusBar as QStatusBar
 import qualified Graphics.UI.Qtah.Widgets.QMainWindow as QMainWindow
+import qualified Graphics.UI.Qtah.Widgets.QStatusBar as QStatusBar
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
