@@ -20,12 +20,14 @@ import Data.Unique
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+import Ariadne.Cardano.Face
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.Wallet.Face
 
 import qualified Knit
+import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 
 ----------------------------------------------------------------------------
@@ -40,6 +42,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
      , Elem components Knit.Core
+     , Elem components Knit.Cardano
      , Elem components Knit.TaskManager
      )
   => UiFace
@@ -59,15 +62,28 @@ knitFaceToUI UiFace{..} KnitFace{..} =
   where
     convertOperation = \case
       UiSelect ws ->
-        Knit.ExprProcCall
+        Right $ Knit.ExprProcCall
           (Knit.ProcCall "select"
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiBalance -> Knit.ExprProcCall (Knit.ProcCall "balance" [])
+      UiBalance ->
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall "balance" [])
       UiKill commandId ->
-        Knit.ExprProcCall
+        Right $ Knit.ExprProcCall
           (Knit.ProcCall "kill"
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+          )
+      UiSend address amount -> do
+        argAddress <- decodeTextAddress address
+        argCoin <- readEither amount
+        return $ Knit.ExprProcCall
+          (Knit.ProcCall "send"
+            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall "tx-out"
+                [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
+                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+                ]
+            ]
           )
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->

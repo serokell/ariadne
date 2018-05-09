@@ -77,10 +77,12 @@ handleMainWindowEvent = \case
     magnify logsL $ displayLogMessage message
   UiCardanoEvent (UiCardanoStatusUpdateEvent update) ->
     magnify statusBarL $ displayBlockchainInfo update
-  UiCommandEvent UiCommandId{..} (UiCommandSuccess doc) ->
+  UiCommandEvent commandId (UiCommandSuccess doc) -> do
     magnify replL $ displayCommandInfo "" doc
-  UiCommandEvent UiCommandId{..} (UiCommandFailure doc) ->
+    magnify walletL $ handleWalletEvent $ WalletCommandSuccess commandId
+  UiCommandEvent commandId (UiCommandFailure doc) -> do
     magnify replL $ displayCommandInfo "" doc
+    magnify walletL $ handleWalletEvent $ WalletCommandFailure commandId
   UiWalletEvent UiWalletUpdate{..} ->
     magnify walletL $ handleWalletEvent $ WalletUpdateEvent wuTrees wuSelection
   UiHelpUpdateData docs ->

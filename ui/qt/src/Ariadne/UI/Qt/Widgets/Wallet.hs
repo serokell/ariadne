@@ -7,7 +7,7 @@ module Ariadne.UI.Qt.Widgets.Wallet
 
 import Universum
 
-import Control.Lens (makeLensesWith)
+import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
 import IiExtras (postfixLFields)
@@ -41,7 +41,7 @@ initWallet langFace = do
   selectionModel <- QItemSelectionModel.newWithModel itemModel
 
   (qWalletTree, walletTree) <- initWalletTree itemModel selectionModel
-  (qWalletInfo, walletInfo) <- initWalletInfo itemModel selectionModel
+  (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
   layout <- QSplitter.new
   QSplitter.addWidget layout qWalletTree
@@ -77,19 +77,28 @@ currentChanged UiLangFace{..} selected deselected = do
     when (isValid && selected /= deselected) $ do
       item <- QStandardItemModel.itemFromIndex itemModel selected
       path <- fromQVariant =<< QStandardItem.getData item
-      unless (null path) $ void $ liftIO $ langPutCommand $ langMkExpr $ UiSelect path
+      unless (null path) $
+        case langMkExpr $ UiSelect path of
+          Left err -> error err
+          Right expr -> void $ langPutCommand expr
 
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
+  | WalletCommandSuccess UiCommandId
+  | WalletCommandFailure UiCommandId
 
 handleWalletEvent
   :: WalletEvent
   -> UI Wallet ()
 handleWalletEvent ev = do
   Wallet{..} <- ask
-  liftIO $ case ev of
+  case ev of
     WalletUpdateEvent wallets selection -> do
-      updateModel itemModel selectionModel wallets selection
+      lift $ updateModel itemModel selectionModel wallets selection
+    WalletCommandSuccess commandId -> do
+      magnify walletInfoL $ handleWalletInfoEvent $ WalletInfoCommandSuccess commandId
+    WalletCommandFailure commandId -> do
+      magnify walletInfoL $ handleWalletInfoEvent $ WalletInfoCommandFailure commandId
 
 updateModel
   :: QStandardItemModel.QStandardItemModel
