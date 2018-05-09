@@ -34,6 +34,9 @@ data UiCommandId =
     cmdIdRendered :: Maybe Text
   }
 
+instance Eq UiCommandId where
+  a == b = cmdIdEqObject a == cmdIdEqObject b
+
 -- A REPL command has either finished or sent some information.
 data UiCommandEvent
   = UiCommandSuccess Doc
@@ -70,6 +73,7 @@ data UiOperation
   = UiSelect [Word]
   | UiBalance
   | UiKill Int
+  | UiSend Text Text  -- ^ Address, amount
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -79,7 +83,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
-  , langMkExpr :: UiOperation -> expr
+  , langMkExpr :: UiOperation -> Either Text expr
   }
 
 -- API for the UI.

@@ -17,6 +17,7 @@ module Ariadne.Cardano.Face
        , PassPhrase
        , HasConfigurations
        , HasCompileInfo
+       , decodeTextAddress
 
        , AccountData (..)
        , WalletData (..)
@@ -33,7 +34,7 @@ import Mockable (Production)
 import Pos.Communication.Protocol (SendActions)
 import Pos.Core
   (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxId,
-  TxOut(..))
+  TxOut(..), decodeTextAddress)
 import Pos.Crypto (PassPhrase)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util.CompileInfo (HasCompileInfo)
