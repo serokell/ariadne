@@ -24,7 +24,6 @@ import Universum
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=), (<>=), (.=), zoom)
-import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.List (findIndex)
 import qualified Data.Text as T
@@ -123,6 +122,14 @@ instance Exception NotARenamableItem where
  displayException NotARenamableItem =
     "This item cannot be renamed."
 
+
+-- | Utility function that runs CatchT monad inside a StateT and rollbacks the state on failure
+runCatchInState :: Functor m => StateT s (CatchT m) a -> StateT s m (Either SomeException a)
+runCatchInState m = StateT $ \s ->
+  runCatchT (runStateT m s) <&> \case
+    Left e -> (Left e, s)
+    Right (a, s') -> (Right a, s')
+
 -- | Get the wallet index by name or using current selection.
 resolveWalletRef
   :: IORef (Maybe WalletSelection)
@@ -203,7 +210,7 @@ newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
     let wIdx, accIdx :: Int
         wIdx = fromIntegral walletIdx
         accIdx = fromIntegral accountIdx
-    let addAddressPure :: CatchT (State UserSecret) ()
+    let addAddressPure :: StateT UserSecret Catch ()
         addAddressPure = do
             walletData <-
                 maybeThrow (WalletDoesNotExist (pretty walletIdx)) =<<
@@ -227,7 +234,7 @@ newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
                     Just (a, _) -> pure a
             usWallets . ix wIdx . wdAccounts . ix accIdx . adAddresses <>=
                 one (addrIdx, addr)
-    runCardanoMode (modifySecretDefault (runCatchT addAddressPure)) >>=
+    runCardanoMode (modifySecretDefault (runCatchInState addAddressPure)) >>=
         eitherToThrow
     walletRefreshUserSecret
 
@@ -253,7 +260,7 @@ newAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = 
   let wIdx :: Int
       wIdx = fromIntegral wsWalletIndex
 
-      addAccountPure :: CatchT (State UserSecret) ()
+      addAccountPure :: StateT UserSecret Catch ()
       addAccountPure = do
         wd <-
           maybeThrow (WalletDoesNotExist (pretty wsWalletIndex)) =<<
@@ -269,7 +276,7 @@ newAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = 
             return accountName_
         usWallets . ix wIdx . wdAccounts %= addAccountToVec accountName
 
-  runCardanoMode (modifySecretDefault (runCatchT addAccountPure)) >>=
+  runCardanoMode (modifySecretDefault (runCatchInState addAccountPure)) >>=
     eitherToThrow
   walletRefreshUserSecret
   where
@@ -326,7 +333,7 @@ addWallet ::
     -> Vector AccountData
     -> IO ()
 addWallet WalletFace {..} runCardanoMode esk mbWalletName accounts = do
-  let addWalletPure :: CatchT (State UserSecret) ()
+  let addWalletPure :: StateT UserSecret Catch ()
       addWalletPure = do
         wdList <- use usWallets
 
@@ -344,7 +351,7 @@ addWallet WalletFace {..} runCardanoMode esk mbWalletName accounts = do
             return walletName_
         usWallets <>= one (walletData walletName)
 
-  runCardanoMode (modifySecretDefault (runCatchT addWalletPure)) >>=
+  runCardanoMode (modifySecretDefault (runCatchInState addWalletPure)) >>=
     eitherToThrow
   walletRefreshUserSecret
   where
@@ -467,11 +474,6 @@ renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
                       then throwM $ DuplicateAccountName name
                       else adName .= name
                     _ -> throwM $ NotARenamableItem
-        runCatchInState m = do
-            initialState <- get
-            mapStateT (runCatchT >=> \case
-                          Left e -> pure (Left e, initialState)
-                          Right (a, s) -> pure (Right a, s)
-                      ) m
-      runCardanoMode (modifySecretDefault . runCatchInState $ rename) >>= eitherToThrow
+      runCardanoMode (modifySecretDefault . runCatchInState $ rename) >>=
+        eitherToThrow
   walletRefreshUserSecret
