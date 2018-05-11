@@ -116,6 +116,13 @@ instance Exception DuplicatedWalletKey where
   displayException DuplicatedWalletKey =
     "The wallet with this root key already exists"
 
+data NotARenamableItem = NotARenamableItem
+  deriving (Eq, Show)
+
+instance Exception NotARenamableItem where
+ displayException NotARenamableItem =
+    "This item cannot be renamed."
+
 -- | Get the wallet index by name or using current selection.
 resolveWalletRef
   :: IORef (Maybe WalletSelection)
@@ -459,7 +466,7 @@ renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
                     [] -> if name `elem` accountNames
                       then throwM $ DuplicateAccountName name
                       else adName .= name
-                    _ -> pure ()
+                    _ -> throwM $ NotARenamableItem
         runCatchInState m = do
             initialState <- get
             mapStateT (runCatchT >=> \case
