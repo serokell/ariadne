@@ -15,6 +15,7 @@ import Data.Proxy
 import Data.Text as T
 import Data.Union
 import Data.Void
+import Formatting (build, sformat, (%))
 import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
@@ -87,8 +88,8 @@ tokenRender = \case
   TokenParenthesis bs -> withBracketSide "(" ")" bs
   TokenEquals -> "="
   TokenSemicolon -> ";"
-  TokenName name -> T.pack (show name)
-  TokenKey name -> T.pack (shows name ":")
+  TokenName name -> sformat build name
+  TokenKey name -> sformat (build%":") name
   TokenUnknown (UnknownChar c) -> T.singleton c
 
 detokenize

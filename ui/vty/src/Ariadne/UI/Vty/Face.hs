@@ -22,6 +22,7 @@ import Universum
 
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
+import Numeric.Natural
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 data UiCommandId =
@@ -29,14 +30,14 @@ data UiCommandId =
   { -- This field is used to compare whether two command identifiers are equal.
     -- The mapping from actual command identifiers to these integers must be
     -- injective.
-    cmdIdEqObject :: Integer
+    cmdIdEqObject :: Natural
   , -- This field is the visual representation of a command identifier. The
     -- mapping from actual command identifiers to text need not be injective,
     -- but it would be very unfair to the user, as different command identifiers
     -- would appear the same to her.
     cmdTaskIdRendered :: Maybe Text
     -- Task identifier object.
-  , cmdTaskId :: Maybe Int
+  , cmdTaskId :: Maybe Natural
   }
 
 -- A REPL command has either finished or sent some information.
@@ -81,7 +82,7 @@ data UiEvent
 data UiOperation
   = UiSelect [Word]
   | UiBalance
-  | UiKill Int
+  | UiKill Natural
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

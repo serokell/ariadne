@@ -4,11 +4,12 @@ import Universum
 
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)
+import Numeric.Natural
 
 -- | This type reperesents a unique task identifier.
 -- The uniqueness is handled by the backend: each time a command is spawned
 -- it is assigned a new unique TaskId
-data TaskId = TaskId Int
+data TaskId = TaskId Natural
   deriving (Eq, Ord, Show)
 
 -- | The process manager context is a map from CommandId to an async object that
