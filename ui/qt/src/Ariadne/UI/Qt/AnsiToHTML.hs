@@ -4,12 +4,13 @@ module Ariadne.UI.Qt.AnsiToHTML
     , csiToHTML
     ) where
 
-import Prelude (showChar, showString)
 import Universum
 
 import Formatting
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder as B
+import qualified HTMLEntities.Builder as HTML
 
 import qualified System.Console.ANSI.Types as AT
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -24,7 +25,7 @@ spanFormat =
 -- Colors in this file are from gruvbox theme: https://github.com/morhetz/gruvbox
 -- This makes them readable on white background, as opposed to standard HTML colors
 
-getColor :: [AT.SGR] -> String
+getColor :: [AT.SGR] -> Text
 getColor xs = case colors of
   []    -> "black"
   (c:_) -> toColor c
@@ -47,17 +48,18 @@ getColor xs = case colors of
       _ -> False
 
 simpleDocToHTML :: PP.SimpleDoc -> Text
-simpleDocToHTML sdoc = toText $
-  format spanFormat $ fromString $ go sdoc ""
+simpleDocToHTML sdoc = if innerHTML == "" then "" else
+  toText $ format spanFormat $ innerHTML
   where
-    indentation i = if i <= 0 then "" else replicate i ' '
+    indentation i = if i <= 0 then "" else T.replicate i " "
+    innerHTML = toText $ B.toLazyText $ go sdoc
     go = \case
       PP.SFail -> error "simpleDocToHTML: impossible"
-      PP.SEmpty -> identity
-      PP.SChar c x -> showChar c . go x
-      PP.SText _ s x -> showString s . go x
-      PP.SLine i x -> showString "<br>" . showString (indentation i) . go x
-      PP.SSGR s x -> showString ("</span><span style=\"color: " ++ getColor s ++ ";\">") . go x
+      PP.SEmpty -> mempty
+      PP.SChar c x -> HTML.char c <> go x
+      PP.SText _ s x -> HTML.text (fromString s) <> go x
+      PP.SLine i x -> B.fromText "<br>" <> B.fromText (indentation i) <> go x
+      PP.SSGR s x -> B.fromText "</span><span style=\"color: " <> B.fromText (getColor s) <> B.fromText ";\">" <> go x
 
 csiToHTML :: Text -> Text
 csiToHTML line = T.concat split
