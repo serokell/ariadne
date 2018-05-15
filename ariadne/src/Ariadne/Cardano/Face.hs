@@ -31,11 +31,11 @@ import Control.Monad.Trans.Reader (ReaderT)
 import Data.Constraint (Dict(..))
 import IiExtras
 import Mockable (Production)
-import Pos.Communication.Protocol (SendActions)
 import Pos.Core
-  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..), TxId,
-  TxOut(..), decodeTextAddress)
+  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash, SlotId(..),
+  TxId, TxOut(..), decodeTextAddress)
 import Pos.Crypto (PassPhrase)
+import Pos.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.UserSecret
@@ -65,5 +65,5 @@ data CardanoFace = CardanoFace
     { cardanoRunCardanoMode :: CardanoMode :~> IO
     , cardanoConfigurations :: Dict HasConfigurations
     , cardanoCompileInfo :: Dict HasCompileInfo
-    , cardanoGetSendActions :: CardanoMode (SendActions CardanoMode)
+    , cardanoGetDiffusion :: CardanoMode (Diffusion CardanoMode)
     }

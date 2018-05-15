@@ -17,11 +17,11 @@ import Formatting (bprint, build, formatToString, int, (%))
 import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
-import Pos.Communication.Protocol (SendActions(..))
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
 import Pos.Crypto.HD (ShouldCheckPassphrase(..), deriveHDSecretKey)
+import Pos.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
 import Pos.Util.UserSecret (usWallets)
@@ -64,10 +64,10 @@ sendTx ::
 sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
-    runCardanoMode $ sendTxDo walletIdx =<< cardanoGetSendActions
+    runCardanoMode $ sendTxDo walletIdx =<< cardanoGetDiffusion
   where
-    sendTxDo :: Word -> SendActions CardanoMode -> CardanoMode TxId
-    sendTxDo walletIdx sendActions = do
+    sendTxDo :: Word -> Diffusion CardanoMode -> CardanoMode TxId
+    sendTxDo walletIdx diffusion = do
         wallets <- view usWallets <$> getSecretDefault
         wd <-
             maybeThrow
@@ -78,11 +78,8 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef ou
         let signersMap :: HashMap Address SafeSigner
             -- safe due to passphrase check above
             signersMap = walletSigners pp wd
-        let getSigner :: Address -> SafeSigner
-            getSigner addr =
-                fromMaybe
-                    (error $ "Couldn't get SafeSigner for " <> pretty addr) $
-                signersMap ^. at addr
+        let getSigner :: Address -> Maybe SafeSigner
+            getSigner addr = signersMap ^. at addr
         -- TODO: generate new change address
         ourAddresses <-
             maybeThrow
@@ -100,7 +97,7 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef ou
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
-        txId <$ submitTxRaw (enqueueMsg sendActions) txAux
+        txId <$ submitTxRaw diffusion txAux
     formatToDoc :: forall a. Buildable a => a -> Doc
     formatToDoc = string . formatToString build
     formatSubmitTxMsg :: Tx -> Doc

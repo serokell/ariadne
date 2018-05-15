@@ -68,6 +68,7 @@ library
     , temporary
     , time-units
     , universum
+    , unliftio
     , vector
     , word-wrap
     , transformers

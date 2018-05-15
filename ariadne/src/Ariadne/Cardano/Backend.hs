@@ -11,16 +11,18 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Protocol
-  (OutSpecs, SendActions, WorkerSpec, toAction, worker)
+import Pos.Communication.Types.Protocol (OutSpecs)
+import Pos.Communication.Util (toAction)
 import Pos.Core (epochOrSlotG, headerHash)
 import qualified Pos.DB.BlockIndex as DB
+import Pos.Diffusion.Types (Diffusion)
 import Pos.Launcher
 import Pos.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
-import Pos.Update (updateTriggerWorker)
+import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
+import Pos.Worker.Types (WorkerSpec, worker)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
   showTimeB)
@@ -31,17 +33,17 @@ createCardanoBackend :: CardanoConfig -> IO (CardanoFace, (CardanoEvent -> IO ()
 createCardanoBackend cardanoConfig = do
   let commonArgs = getCardanoConfig cardanoConfig
   cardanoContextVar <- newEmptyMVar
-  sendActionsVar <- newEmptyMVar
+  diffusionVar <- newEmptyMVar
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
-      withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $
+      withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $ \_ntpConf ->
       return (CardanoFace
           { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
           , cardanoCompileInfo = Dict
-          , cardanoGetSendActions = getSendActions sendActionsVar
+          , cardanoGetDiffusion = getDiffusion diffusionVar
           }
-          , runCardanoNode cardanoContextVar sendActionsVar commonArgs)
+          , runCardanoNode cardanoContextVar diffusionVar commonArgs)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar act = do
@@ -51,11 +53,11 @@ runCardanoMode cardanoContextVar act = do
 runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
     => MVar CardanoContext
-    -> MVar (SendActions CardanoMode)
+    -> MVar (Diffusion CardanoMode)
     -> CLI.CommonNodeArgs
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode cardanoContextVar sendActionsVar commonArgs sendCardanoEvent = do
+runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
   let loggingParams = CLI.loggingParams "ariadne" commonArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
@@ -69,7 +71,7 @@ runCardanoNode cardanoContextVar sendActionsVar commonArgs sendCardanoEvent = do
       extractionWorker =
         ( [toAction $ \sendActions -> do
               ask >>= putMVar cardanoContextVar
-              putMVar sendActionsVar sendActions]
+              putMVar diffusionVar sendActions]
         , mempty )
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ runProduction $ do
       nodeParams <- CLI.getNodeParams "ariadne" commonArgs nodeArgs
@@ -97,6 +99,6 @@ statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
       }
     sleep 1.0
 
-getSendActions ::
-       MVar (SendActions CardanoMode) -> CardanoMode (SendActions CardanoMode)
-getSendActions = readMVar
+getDiffusion ::
+       MVar (Diffusion CardanoMode) -> CardanoMode (Diffusion CardanoMode)
+getDiffusion = readMVar

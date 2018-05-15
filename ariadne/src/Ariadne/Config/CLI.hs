@@ -81,7 +81,6 @@ data CLI_CommonNodeArgs = CLI_CommonNodeArgs
     , cli_commonArgs             :: !CLI_CommonArgs
     , cli_updateLatestPath       :: !(Maybe FilePath)
     , cli_updateWithPackage      :: !(Maybe Bool)
-    , cli_noNTP                  :: !(Maybe Bool)
     , cli_route53Params          :: !(Maybe NetworkAddress)
     , cli_enableMetrics          :: !(Maybe Bool)
     , cli_ekgParams              :: !(Maybe EkgParams)
@@ -151,7 +150,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , commonArgs = mergedCommonArgs
         , updateLatestPath = merge (overrideCna ^. cli_updateLatestPathL) (defaultCna ^. updateLatestPathL)
         , updateWithPackage = merge (overrideCna ^. cli_updateWithPackageL) (defaultCna ^. updateWithPackageL)
-        , noNTP = merge (overrideCna ^. cli_noNTPL) (defaultCna ^. noNTPL)
         , route53Params = (overrideCna ^. cli_route53ParamsL) <|> (defaultCna ^. route53ParamsL)
         , enableMetrics = merge (overrideCna ^. cli_enableMetricsL) (defaultCna ^. enableMetricsL)
         , ekgParams = (overrideCna ^. cli_ekgParamsL) <|> (defaultCna ^. ekgParamsL)
@@ -289,11 +287,6 @@ cliCommonNodeArgsParser = do
     [ long $ toOptionNameCardano "updateWithPackage"
     , metavar "BOOL"
     , help "Enable updating via installer."
-    ]
-  cli_noNTP <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "noNTP"
-    , metavar "BOOL"
-    , help "Whether to use real NTP servers to synchronise time or rely on local time"
     ]
   cli_route53Params <- optional $ option (fromParsec addrParser) $ mconcat
     [ long $ toOptionNameCardano "route53Params"

@@ -573,10 +573,18 @@ tyApplicationName :: Elem components Core => TyProjection components Application
 tyApplicationName = TyProjection "ApplicationName" (mkApplicationName' <=< preview _ValueString <=< fromValue)
 
 mkSystemTag' :: Text -> Maybe SystemTag
-mkSystemTag' = rightToMaybe . mkSystemTag
+mkSystemTag' str =
+    let res = SystemTag str
+     in case checkSystemTag res of
+            Left _ -> Nothing
+            Right _ -> Just res
 
 mkApplicationName' :: Text -> Maybe ApplicationName
-mkApplicationName' = rightToMaybe . mkApplicationName
+mkApplicationName' str =
+    let res = ApplicationName str
+     in case checkApplicationName res of
+            Left _ -> Nothing
+            Right _ -> Just res
 
 tySecond :: (TimeUnit a, Elem components Core) => TyProjection components a
 tySecond = secToTimeUnit <$> TyProjection "Second" (toDouble <=< preview _ValueNumber <=< fromValue)
@@ -590,4 +598,3 @@ tySecond = secToTimeUnit <$> TyProjection "Second" (toDouble <=< preview _ValueN
 
 tyCoeff :: Elem components Core => TyProjection components Coeff
 tyCoeff = Coeff . realToFrac <$> TyProjection "Coeff" (preview _ValueNumber <=< fromValue)
-
