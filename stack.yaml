@@ -20,7 +20,7 @@ packages:
   - code/prelude
 
 - location:
-    git: https://github.com/serokell/cardano-sl.git
+    git: git@github.com:serokell/cardano-sl.git
     commit: b39199a30fe51864e2669463a37fbec3f2680dd5 # ariadne branch
   extra-dep: true
   subdirs:
