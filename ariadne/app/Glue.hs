@@ -30,6 +30,7 @@ import Ariadne.Wallet.Face
 
 import qualified Knit
 import qualified Ariadne.TaskManager.Knit as Knit
+import qualified Ariadne.Wallet.Knit as Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
@@ -63,13 +64,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     convertOperation = \case
       UiSelect ws ->
         Knit.ExprProcCall
-          (Knit.ProcCall "select"
+          (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiBalance -> Knit.ExprProcCall (Knit.ProcCall "balance" [])
+      UiBalance -> Knit.ExprProcCall (Knit.ProcCall Knit.balanceCommandName [])
       UiKill commandId ->
         Knit.ExprProcCall
-          (Knit.ProcCall "kill"
+          (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
     commandHandle commandId = KnitCommandHandle
