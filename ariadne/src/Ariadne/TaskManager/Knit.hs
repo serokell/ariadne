@@ -91,7 +91,7 @@ instance
   where
     componentCommandProcs =
       [ CommandProc
-          { cpName = "kill"
+          { cpName = killCommandName
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyTaskId "id"
           , cpRepr = \tid -> CommandAction $ \TaskManagerFace{..} -> do
@@ -101,7 +101,7 @@ instance
           , cpHelp = "kill a task with a specified id"
           }
       , CommandProc
-          { cpName = "wait"
+          { cpName = waitCommandName
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyTaskId "id"
           , cpRepr = \tid -> CommandAction $ \TaskManagerFace{..} -> do
@@ -114,7 +114,7 @@ instance
           , cpHelp = "wait for a specific task to finish"
           }
       , CommandProc
-          { cpName = "sleep"
+          { cpName = sleepCommandName
           , cpArgumentPrepare = identity
           , cpArgumentConsumer = getArg tyInt "time"
           , cpRepr = \ms -> CommandAction . const $ do
@@ -123,6 +123,15 @@ instance
           , cpHelp = "delay the execution for specified amount of microseconds"
           }
       ]
+
+killCommandName :: CommandName
+killCommandName = "kill"
+
+waitCommandName :: CommandName
+waitCommandName = "wait"
+
+sleepCommandName :: CommandName
+sleepCommandName = "sleep"
 
 tyTaskId :: Elem components TaskManager => TyProjection components TaskId
 tyTaskId = TyProjection "TaskId" (preview _ValueTaskId <=< fromValue)

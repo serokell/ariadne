@@ -29,6 +29,7 @@ import Ariadne.Wallet.Face
 import qualified Knit
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
+import qualified Ariadne.Wallet.Knit as Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Qt frontend
@@ -63,23 +64,23 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     convertOperation = \case
       UiSelect ws ->
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall "select"
+          (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
       UiBalance ->
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall "balance" [])
+          (Knit.ProcCall Knit.balanceCommandName [])
       UiKill commandId ->
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall "kill"
+          (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
       UiSend address amount -> do
         argAddress <- decodeTextAddress address
         argCoin <- readEither amount
         return $ Knit.ExprProcCall
-          (Knit.ProcCall "send"
-            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall "tx-out"
+          (Knit.ProcCall Knit.sendCommandName
+            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
                 [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
                 , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
                 ]

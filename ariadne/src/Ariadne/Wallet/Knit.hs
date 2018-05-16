@@ -71,7 +71,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
   componentCommandProcs =
     [
       CommandProc
-        { cpName = "refresh-user-secret"
+        { cpName = refreshUserSecretCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
@@ -80,7 +80,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
-        { cpName = "new-address"
+        { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
         , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
@@ -90,7 +90,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    \no account is specified, uses the selected account."
         }
     , CommandProc
-        { cpName = "new-account"
+        { cpName = newAccountCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
@@ -103,7 +103,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    \no wallet is specified, uses the selected wallet."
         }
     , CommandProc
-        { cpName = "new-wallet"
+        { cpName = newWalletCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
@@ -117,7 +117,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    \The result is the mnemonic to restore this wallet."
         }
     , CommandProc
-        { cpName = "restore"
+        { cpName = restoreCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             passPhrase <- getPassPhraseArg
@@ -139,7 +139,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    "secret key derived from the specified mnemonic."
         }
     , CommandProc
-        { cpName = "select"
+        { cpName = selectCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArg
@@ -151,7 +151,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Select a wallet, account, or address."
         }
     , CommandProc
-        { cpName = "send"
+        { cpName = sendCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
@@ -165,7 +165,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    \is specified, uses the selected wallet."
         }
     , CommandProc
-        { cpName = "balance"
+        { cpName = balanceCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
@@ -173,7 +173,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Get balance of the currently selected item"
         }
     , CommandProc
-        { cpName = "rename"
+        { cpName = renameCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = getArg tyString "name"
         , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
@@ -182,7 +182,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Rename currently selected wallet or account"
         }
     , CommandProc
-        { cpName = "remove"
+        { cpName = removeCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
@@ -191,6 +191,36 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Remove currently selected item"
         }
     ]
+
+refreshUserSecretCommandName :: CommandName
+refreshUserSecretCommandName = "refresh-user-secret"
+
+newAddressCommandName :: CommandName
+newAddressCommandName = "new-address"
+
+newAccountCommandName :: CommandName
+newAccountCommandName = "new-account"
+
+newWalletCommandName :: CommandName
+newWalletCommandName = "new-wallet"
+
+restoreCommandName :: CommandName
+restoreCommandName = "restore"
+
+selectCommandName :: CommandName
+selectCommandName = "select"
+
+sendCommandName :: CommandName
+sendCommandName = "send"
+
+balanceCommandName :: CommandName
+balanceCommandName = "balance"
+
+renameCommandName :: CommandName
+renameCommandName = "rename"
+
+removeCommandName :: CommandName
+removeCommandName = "remove"
 
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's
 -- always "wallet", we can move it outside if it appears to be

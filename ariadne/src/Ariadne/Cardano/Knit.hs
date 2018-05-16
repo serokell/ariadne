@@ -350,14 +350,14 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
   componentCommandProcs =
     [
       CommandProc
-        { cpName = "boot"
+        { cpName = bootCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = const . CommandReturn . toValue . ValueAddrStakeDistribution $ BootstrapEraDistr
         , cpHelp = "bootstrap era stake distribution constant"
         }
     , CommandProc
-        { cpName = "tx-out"
+        { cpName = txOutCommandName
         , cpArgumentPrepare = List.map
           $ typeDirectedKwAnn "addr" tyAddress
         , cpArgumentConsumer = do
@@ -368,7 +368,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct a transaction output"
         }
     , CommandProc
-        { cpName = "softfork-rule"
+        { cpName = softforkRuleCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             srInitThd <- getArg tyCoinPortion "init-thd"
@@ -379,7 +379,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct a softfork rule"
         }
     , CommandProc
-        { cpName = "bvm"
+        { cpName = bvmCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             bvmScriptVersion     <- getArgOpt tyScriptVersion "script-version"
@@ -401,7 +401,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct a BlockVersionModifier"
         }
     , CommandProc
-        { cpName = "bvd-read"
+        { cpName = bvdReadCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             bvdScriptVersion     <- getArg tyScriptVersion "script-version"
@@ -423,7 +423,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "Construct a ValueBlockVersionData"
         }
     , CommandProc
-        { cpName = "upd-bin"
+        { cpName = updBinCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             pusSystemTag <- getArg tySystemTag "system"
@@ -434,7 +434,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct a part of the update proposal for binary update"
         }
     , CommandProc
-        { cpName = "dp"
+        { cpName = dpCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             adpStakeholderId <- getArg (tyStakeholderId `tyEither` tyPublicKey) "s"
@@ -446,7 +446,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct an address distribution part"
         }
     , CommandProc
-        { cpName = "tx-fee-policy-tx-size-linear"
+        { cpName = txFeePolicyTxSizeLinearCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             a <- getArg tyCoeff "a"
@@ -456,7 +456,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "construct a TxFeePolicy that is linearly proportional to tx size"
         }
     , CommandProc
-        { cpName = "distr"
+        { cpName = distrCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = getArgSome tyAddrDistrPart "dp"
         , cpRepr = \parts -> CommandError $ do
@@ -473,7 +473,7 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         }
 
     , CommandProc
-        { cpName = "software"
+        { cpName = softwareCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             appName <- getArg tyApplicationName "name"
@@ -483,6 +483,36 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         , cpHelp = "Construct a software version from application name and number"
         }
     ]
+
+bootCommandName :: CommandName
+bootCommandName = "boot"
+
+txOutCommandName :: CommandName
+txOutCommandName = "tx-out"
+
+softforkRuleCommandName :: CommandName
+softforkRuleCommandName = "softfork-rule"
+
+bvmCommandName :: CommandName
+bvmCommandName = "bvm"
+
+bvdReadCommandName :: CommandName
+bvdReadCommandName = "bvd-read"
+
+updBinCommandName :: CommandName
+updBinCommandName = "upd-bin"
+
+dpCommandName :: CommandName
+dpCommandName = "dp"
+
+txFeePolicyTxSizeLinearCommandName :: CommandName
+txFeePolicyTxSizeLinearCommandName = "tx-fee-policy-tx-size-linear"
+
+distrCommandName :: CommandName
+distrCommandName = "distr"
+
+softwareCommandName :: CommandName
+softwareCommandName = "software"
 
 class ToLeft m a b where
     toLeft :: Either a b -> m a
