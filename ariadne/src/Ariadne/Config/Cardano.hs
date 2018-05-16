@@ -57,7 +57,6 @@ defaultCardanoConfig = CardanoConfig
             }
         , updateLatestPath = "update-installer.exe"
         , updateWithPackage = False
-        , noNTP = True
         , route53Params = Nothing
         , enableMetrics = False
         , ekgParams = Nothing
@@ -118,7 +117,6 @@ cardanoFieldModifier = f
     f "commonArgs" = "common-args"
     f "updateLatestPath" = "update-latest-path"
     f "updateWithPackage" = "update-with-package"
-    f "noNTP" = "no-ntp"
     f "route53Params" = "route53-health-check"
     f "enableMetrics" = "metrics"
     f "ekgParams" = "ekg-params"
@@ -268,7 +266,6 @@ interpretCommonNodeArgs = D.Type extractOut expectedOut
       commonArgs <- parseFieldCardano fields "commonArgs" interpretCommonArgs
       updateLatestPath <- defalultIfNothing "update-installer.exe" $ parseFieldCardano fields "updateLatestPath" (D.maybe interpretFilePath)
       updateWithPackage <- parseFieldCardano fields "updateWithPackage" D.auto
-      noNTP <- parseFieldCardano fields "noNTP" D.auto
       route53Params <- parseFieldCardano fields "route53Params" (D.maybe interpretNetworkAddress)
       enableMetrics <- parseFieldCardano fields "enableMetrics" D.auto
       ekgParams <- parseFieldCardano fields "ekgParams" (D.maybe interpretEkgParams)
@@ -290,7 +287,6 @@ interpretCommonNodeArgs = D.Type extractOut expectedOut
               , (cardanoFieldModifier "commonArgs", D.expected interpretCommonArgs)
               , (cardanoFieldModifier "updateLatestPath", D.expected (D.maybe interpretFilePath))
               , (cardanoFieldModifier "updateWithPackage", D.expected (D.auto :: D.Type Bool))
-              , (cardanoFieldModifier "noNTP", D.expected (D.auto :: D.Type Bool))
               , (cardanoFieldModifier "route53Params", D.expected (D.maybe interpretNetworkAddress))
               , (cardanoFieldModifier "enableMetrics", D.expected (D.auto :: D.Type Bool))
               , (cardanoFieldModifier "ekgParams", D.expected (D.maybe interpretEkgParams))
@@ -439,7 +435,6 @@ injectCommonNodeArgs = D.InputType {..}
                 , (cardanoFieldModifier "commonArgs", D.embed injectCommonArgs commonArgs)
                 , (cardanoFieldModifier "updateLatestPath", D.embed (injectMaybe injectFilePath) (Just updateLatestPath))
                 , (cardanoFieldModifier "updateWithPackage", D.embed D.inject updateWithPackage)
-                , (cardanoFieldModifier "noNTP", D.embed D.inject noNTP)
                 , (cardanoFieldModifier "route53Params", D.embed (injectMaybe injectNetworkAddress) route53Params)
                 , (cardanoFieldModifier "enableMetrics", D.embed D.inject enableMetrics)
                 , (cardanoFieldModifier "ekgParams", D.embed (injectMaybe injectEkgParams) ekgParams)
@@ -459,7 +454,6 @@ injectCommonNodeArgs = D.InputType {..}
           , (cardanoFieldModifier "commonArgs", D.declared injectCommonArgs)
           , (cardanoFieldModifier "updateLatestPath", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "updateWithPackage", D.declared (D.inject :: D.InputType Bool))
-          , (cardanoFieldModifier "noNTP", D.declared (D.inject :: D.InputType Bool))
           , (cardanoFieldModifier "route53Params", D.declared (injectMaybe injectNetworkAddress))
           , (cardanoFieldModifier "enableMetrics", D.declared (D.inject :: D.InputType Bool))
           , (cardanoFieldModifier "ekgParams", D.declared (injectMaybe injectEkgParams))

@@ -28,7 +28,7 @@
     , policies = [] : Optional Text
     , topology = ["./config/cardano/topology.yaml"] : Optional Text 
     }
-, no-ntp = True, route53-health-check = [] : Optional { IP : Text, PORT : Natural }
+, route53-health-check = [] : Optional { IP : Text, PORT : Natural }
 , statsd-params = [] : Optional { statsd-debug : Optional Bool, statsd-interval : Optional Integer, statsd-prefix : Optional Text, statsd-server : { IP : Text, PORT : Natural }, statsd-suffix : Optional Text }
 , update-latest-path = ["update-installer.exe"] : Optional Text
 , update-with-package = False 
