@@ -116,7 +116,9 @@ instance Elem components Core => ComponentTokenizer components Core where
 
 instance ComponentDetokenizer Core where
   componentTokenRender = \case
-    TokenNumber n -> fromString (show n)
+    TokenNumber n -> case floatingOrInteger n of
+      Left (_ :: Double) -> fromString (show n)
+      Right (n' :: Integer) -> fromString (show n')
     TokenString s -> fromString (show s)
     TokenFilePath s ->
       let
