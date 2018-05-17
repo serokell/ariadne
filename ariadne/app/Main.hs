@@ -19,8 +19,8 @@ import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
-import qualified Ariadne.Wallet.Knit as Knit
 import qualified Ariadne.UI.Vty.Knit as Knit
+import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
 import Glue
@@ -73,4 +73,4 @@ main = do
     serviceAction :: IO ()
     serviceAction = uiAction `race_` cardanoAction
 
-  concurrently_ initAction serviceAction
+  withAsync initAction $ \_ -> serviceAction
