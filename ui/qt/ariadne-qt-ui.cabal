@@ -31,6 +31,7 @@ library
     , formatting
     , lens
     , ii-extras
+    , html-entities
 
   exposed-modules:
       Ariadne.UI.Qt

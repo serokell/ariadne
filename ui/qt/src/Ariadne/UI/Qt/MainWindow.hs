@@ -77,17 +77,16 @@ handleMainWindowEvent = \case
     magnify logsL $ displayLogMessage message
   UiCardanoEvent (UiCardanoStatusUpdateEvent update) ->
     magnify statusBarL $ displayBlockchainInfo update
-  UiCommandEvent commandId (UiCommandSuccess doc) -> do
-    magnify replL $ displayCommandInfo "" doc
-    magnify walletL $ handleWalletEvent $ WalletCommandSuccess commandId
-  UiCommandEvent commandId (UiCommandFailure doc) -> do
-    magnify replL $ displayCommandInfo "" doc
-    magnify walletL $ handleWalletEvent $ WalletCommandFailure commandId
+  UiCommandEvent commandId result -> do
+    magnify replL $ handleReplEvent commandId result
+    case result of
+      UiCommandSuccess _ -> magnify walletL $ handleWalletEvent $ WalletCommandSuccess commandId
+      UiCommandFailure _ -> magnify walletL $ handleWalletEvent $ WalletCommandFailure commandId
+      _ -> return ()
   UiWalletEvent UiWalletUpdate{..} ->
     magnify walletL $ handleWalletEvent $ WalletUpdateEvent wuTrees wuSelection
   UiHelpUpdateData docs ->
     magnify helpL $ setHelpData docs
-  _ -> return ()
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
