@@ -211,7 +211,7 @@ extra-deps:
 - hoppy-generator-0.4.0
 - hoppy-std-0.4.0
 - haskell-src-1.0.2.0   # https://github.com/commercialhaskell/stack/issues/3151
-- html-entities-1.1.4.2
+- html-entities-1.1.4.1 # https://github.com/nikita-volkov/html-entities/issues/8
 
 extra-package-dbs: []
 
