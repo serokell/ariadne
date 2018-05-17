@@ -21,11 +21,11 @@ commandHelp Knit.CommandProc{..} =
     let
         parameters = Knit.getParameters cpArgumentConsumer
         name = \case
-          Knit.ProcedureName n -> pretty n
-          Knit.OperatorName o -> op o
+          Knit.CommandIdName n -> pretty n
+          Knit.CommandIdOperator o -> op o
         op = \case
-          Knit.OpUnit -> "( )"
-          Knit.OpSemicolon -> "(;)"
+          Knit.OpUnit -> "()"
+          Knit.OpAndThen -> "(;)"
         prefixes = name cpName : repeat (T.replicate (T.length $ name cpName) " ")
         helpLines = map (\l -> "-- " <> l <> "\n") $ leftAlign 40 cpHelp
         parameterLines =

@@ -192,34 +192,34 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         }
     ]
 
-refreshUserSecretCommandName :: CommandName
+refreshUserSecretCommandName :: CommandId
 refreshUserSecretCommandName = "refresh-user-secret"
 
-newAddressCommandName :: CommandName
+newAddressCommandName :: CommandId
 newAddressCommandName = "new-address"
 
-newAccountCommandName :: CommandName
+newAccountCommandName :: CommandId
 newAccountCommandName = "new-account"
 
-newWalletCommandName :: CommandName
+newWalletCommandName :: CommandId
 newWalletCommandName = "new-wallet"
 
-restoreCommandName :: CommandName
+restoreCommandName :: CommandId
 restoreCommandName = "restore"
 
-selectCommandName :: CommandName
+selectCommandName :: CommandId
 selectCommandName = "select"
 
-sendCommandName :: CommandName
+sendCommandName :: CommandId
 sendCommandName = "send"
 
-balanceCommandName :: CommandName
+balanceCommandName :: CommandId
 balanceCommandName = "balance"
 
-renameCommandName :: CommandName
+renameCommandName :: CommandId
 renameCommandName = "rename"
 
-removeCommandName :: CommandName
+removeCommandName :: CommandId
 removeCommandName = "remove"
 
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's

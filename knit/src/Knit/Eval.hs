@@ -11,7 +11,7 @@ import Knit.Value
 
 import Control.Monad.Except
 
-data EvalError components = InvalidArguments CommandName (ProcError components)
+data EvalError components = InvalidArguments CommandId (ProcError components)
 
 deriving instance (Eq (Value components)) => Eq (EvalError components)
 deriving instance (Ord (Value components)) => Ord (EvalError components)

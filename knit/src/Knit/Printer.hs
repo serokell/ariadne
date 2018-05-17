@@ -41,11 +41,11 @@ ppToken = \case
   TokenSemicolon -> "semicolon"
   TokenName _ -> "procedure name"
   TokenKey _ -> "key"
-  TokenUnknown (UnknownChar c) -> text ("character '" <> T.singleton c <> "'")
+  TokenUnknown c -> text ("character '" <> T.singleton c <> "'")
 
 ppExpr
   :: AllConstrained ComponentPrinter components
-  => Expr CommandName components
+  => Expr CommandId components
   -> Doc
 ppExpr =
   \case
@@ -54,11 +54,11 @@ ppExpr =
   where
     ppProcCall (ProcCall commandName args) =
       case commandName of
-        OperatorName opName -> ppOperatorCall opName args
-        ProcedureName procName -> ppProcedureCall procName args
+        CommandIdName name -> ppProcedureCall name args
+        CommandIdOperator op -> ppOperatorCall op args
 
     ppOperatorCall OpUnit [] = text ""
-    ppOperatorCall OpSemicolon [ArgPos a, ArgPos b] =
+    ppOperatorCall OpAndThen [ArgPos a, ArgPos b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
     ppOperatorCall _ _ =
       error "Core invariant violated: invalid operator application"
@@ -79,7 +79,7 @@ ppExpr =
         parensIfProcCall a (ppExpr a)
 
     parensIfSemicolon = \case
-      ExprProcCall (ProcCall (OperatorName OpSemicolon) _) -> PP.parens
+      ExprProcCall (ProcCall (CommandIdOperator OpAndThen) _) -> PP.parens
       _ -> id
 
     parensIfProcCall = \case
