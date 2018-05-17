@@ -19,6 +19,7 @@ library
       base >=4.7 && <5
     , ansi-terminal
     , ansi-wl-pprint
+    , acid-state
     , async
     , bytestring
     , cardano-sl
@@ -34,6 +35,7 @@ library
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
+    , cardano-sl-wallet
     , conduit
     , contravariant
     , constraints
@@ -60,6 +62,8 @@ library
     , raw-strings-qq
     , rocksdb-haskell-ng
     , safe-exceptions
+    , safecopy
+    , ixset-typed
     , scientific
     , stm
     , serokell-util
@@ -108,6 +112,25 @@ library
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
       Ariadne.Help
+
+      Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Types
+      Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+      Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update
+      Ariadne.Wallet.Cardano.Kernel.DB.InDb
+      Ariadne.Wallet.Cardano.Kernel.DB.Resolved
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update
+      Ariadne.Wallet.Cardano.Kernel.DB.TxMeta
+      Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
+      Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+      Ariadne.Wallet.Cardano.Kernel.Diffusion
+      Ariadne.Wallet.Cardano.Kernel.PrefilterTx
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
