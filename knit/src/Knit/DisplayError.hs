@@ -39,11 +39,11 @@ import Knit.Tokenizer
 highlight :: Doc -> Doc
 highlight = bold . yellow
 
-commandNameToDoc :: CommandName -> Doc
-commandNameToDoc (ProcedureName name) = nameToDoc name
-commandNameToDoc (OperatorName opName) =
+commandIdToDoc :: CommandId -> Doc
+commandIdToDoc (CommandIdName name) = nameToDoc name
+commandIdToDoc (CommandIdOperator opName) =
   case opName of
-    OpSemicolon -> "the semicolon operator"
+    OpAndThen -> "the and-then operator"
     OpUnit -> "()"
 
 ppTypeName :: TypeName -> Doc
@@ -90,13 +90,13 @@ ppProcError ProcError{..} = ppArgumentError peArgumentError <$> typeErrorsDoc
 
 ppEvalError :: PrettyPrintValue components => EvalError components -> Doc
 ppEvalError (InvalidArguments name procError) =
-        "Invalid arguments for" <+> (squotes . highlight . commandNameToDoc) name `mappend` ":"
+        "Invalid arguments for" <+> (squotes . highlight . commandIdToDoc) name `mappend` ":"
     <$> indent 2 (ppProcError procError)
 
-ppResolveErrors :: NonEmpty CommandName -> Doc
+ppResolveErrors :: NonEmpty CommandId -> Doc
 ppResolveErrors names =
     "Commands not available:" <+>
-    hcat (punctuate (text ", ") . map commandNameToDoc $ NE.toList names)
+    hcat (punctuate (text ", ") . map commandIdToDoc $ NE.toList names)
 
 renderLine :: Int -> Int -> Text -> Doc
 renderLine start end str = text str

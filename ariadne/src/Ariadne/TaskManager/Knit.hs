@@ -118,13 +118,13 @@ instance
           }
       ]
 
-killCommandName :: CommandName
+killCommandName :: CommandId
 killCommandName = "kill"
 
-waitCommandName :: CommandName
+waitCommandName :: CommandId
 waitCommandName = "wait"
 
-sleepCommandName :: CommandName
+sleepCommandName :: CommandId
 sleepCommandName = "sleep"
 
 tyTaskId :: Elem components TaskManager => TyProjection components TaskId

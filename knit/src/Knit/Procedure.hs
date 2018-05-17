@@ -15,7 +15,7 @@ import Knit.Value
 data family ComponentCommandRepr (components :: [*]) component
 
 data CommandProc components component = forall e. CommandProc
-  { cpName :: CommandName
+  { cpName :: CommandId
   , cpArgumentPrepare :: [Arg (Value components)] -> [Arg (Value components)]
   , cpArgumentConsumer :: ArgumentConsumer components e
   , cpRepr :: e -> ComponentCommandRepr components component

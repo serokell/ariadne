@@ -127,7 +127,7 @@ instance
         ValueSoftwareVersion sv ->
           ExprProcCall $ ProcCall "software-version" (svToArgs sv)
       where
-        txOutToArgs :: TxOut -> [Arg (Expr CommandName components)]
+        txOutToArgs :: TxOut -> [Arg (Expr CommandId components)]
         txOutToArgs TxOut {..} = List.map ArgPos $
           [ componentInflate $ ValueAddress txOutAddress
           , componentInflate $ ValueNumber (fromIntegral $ unsafeGetCoin txOutValue)
@@ -162,7 +162,7 @@ instance
         millisecToSec :: Millisecond -> Scientific
         millisecToSec = (/ 1e3) . fromIntegral
 
-        bvmToArgs :: BlockVersionModifier -> [Arg (Expr CommandName components)]
+        bvmToArgs :: BlockVersionModifier -> [Arg (Expr CommandId components)]
         bvmToArgs BlockVersionModifier {..} = catMaybes
           [ ArgKw "script-version" . componentInflate . ValueNumber . fromIntegral <$> bvmScriptVersion
           , ArgKw "slot-duration" . componentInflate . ValueNumber . millisecToSec <$> bvmSlotDuration
@@ -180,7 +180,7 @@ instance
           , ArgKw "unlock-stake-epoch" . componentInflate . ValueNumber . fromIntegral <$> bvmUnlockStakeEpoch
           ]
 
-        bvdToArgs :: BlockVersionData -> [Arg (Expr CommandName components)]
+        bvdToArgs :: BlockVersionData -> [Arg (Expr CommandId components)]
         bvdToArgs BlockVersionData {..} =
           [ ArgKw "script-version" $ componentInflate $ ValueNumber $ fromIntegral bvdScriptVersion
           , ArgKw "slot-duration" $ componentInflate $ ValueNumber $ millisecToSec bvdSlotDuration
@@ -198,14 +198,14 @@ instance
           , ArgKw "unlock-stake-epoch" $ componentInflate $ ValueNumber $ fromIntegral bvdUnlockStakeEpoch
           ]
 
-        pusToArgs :: ProposeUpdateSystem -> [Arg (Expr CommandName components)]
+        pusToArgs :: ProposeUpdateSystem -> [Arg (Expr CommandId components)]
         pusToArgs ProposeUpdateSystem {..} = catMaybes
           [ Just $ ArgPos $ componentInflate $ ValueString $ getSystemTag pusSystemTag
           , ArgKw "installer-path" . componentInflate . ValueFilePath <$> pusInstallerPath
           , ArgKw "bin-diff-path"  . componentInflate . ValueFilePath <$> pusBinDiffPath
           ]
 
-        adpToArgs :: AddrDistrPart -> [Arg (Expr CommandName components)]
+        adpToArgs :: AddrDistrPart -> [Arg (Expr CommandId components)]
         adpToArgs AddrDistrPart {..} =
           [ ArgPos $ componentInflate $ ValueStakeholderId adpStakeholderId
           , ArgPos $ componentInflate $ ValueNumber $ coinPortionToScientific adpCoinPortion
@@ -213,7 +213,7 @@ instance
 
         asdToProcCall
           :: AddrStakeDistribution
-          -> ProcCall CommandName (Expr CommandName components)
+          -> ProcCall CommandId (Expr CommandId components)
         asdToProcCall =
           \case
             BootstrapEraDistr -> ProcCall "boot" []
@@ -224,12 +224,12 @@ instance
                 List.map (\(sId, cp) -> ArgPos $ adpToExpr $ AddrDistrPart sId cp) $
                   Map.toList mkd
           where
-            adpToExpr :: AddrDistrPart -> Expr CommandName components
+            adpToExpr :: AddrDistrPart -> Expr CommandId components
             adpToExpr = componentInflate . ValueAddrDistrPart
 
         svToArgs
           :: SoftwareVersion
-          -> [Arg (Expr CommandName components)]
+          -> [Arg (Expr CommandId components)]
         svToArgs SoftwareVersion{..} =
           [ ArgKw "name" $ componentInflate $ ValueString (getApplicationName svAppName)
           , ArgKw "n" $ componentInflate $ ValueNumber (fromIntegral svNumber)
@@ -484,34 +484,34 @@ instance (AllConstrained (Elem components) '[Cardano, Core]) => ComponentCommand
         }
     ]
 
-bootCommandName :: CommandName
+bootCommandName :: CommandId
 bootCommandName = "boot"
 
-txOutCommandName :: CommandName
+txOutCommandName :: CommandId
 txOutCommandName = "tx-out"
 
-softforkRuleCommandName :: CommandName
+softforkRuleCommandName :: CommandId
 softforkRuleCommandName = "softfork-rule"
 
-bvmCommandName :: CommandName
+bvmCommandName :: CommandId
 bvmCommandName = "bvm"
 
-bvdReadCommandName :: CommandName
+bvdReadCommandName :: CommandId
 bvdReadCommandName = "bvd-read"
 
-updBinCommandName :: CommandName
+updBinCommandName :: CommandId
 updBinCommandName = "upd-bin"
 
-dpCommandName :: CommandName
+dpCommandName :: CommandId
 dpCommandName = "dp"
 
-txFeePolicyTxSizeLinearCommandName :: CommandName
+txFeePolicyTxSizeLinearCommandName :: CommandId
 txFeePolicyTxSizeLinearCommandName = "tx-fee-policy-tx-size-linear"
 
-distrCommandName :: CommandName
+distrCommandName :: CommandId
 distrCommandName = "distr"
 
-softwareCommandName :: CommandName
+softwareCommandName :: CommandId
 softwareCommandName = "software"
 
 class ToLeft m a b where
