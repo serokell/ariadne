@@ -64,4 +64,4 @@ main = do
     serviceAction :: IO ()
     serviceAction = uiAction `race_` cardanoAction
 
-  concurrently_ walletInitAction serviceAction
+  withAsync walletInitAction $ \_ -> serviceAction

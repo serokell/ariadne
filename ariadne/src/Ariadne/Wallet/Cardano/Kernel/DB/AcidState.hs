@@ -138,9 +138,10 @@ createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
 
 createHdAddress :: HdAddressId
                 -> InDb Core.Address
+                -> HdAddressChain
                 -> Update DB (Either HD.CreateHdAddressError ())
-createHdAddress addrId address = runUpdate' . zoom dbHdWallets $
-    HD.createHdAddress addrId address
+createHdAddress addrId address chain = runUpdate' . zoom dbHdWallets $
+    HD.createHdAddress addrId address chain
 
 updateHdRootAssurance :: HdRootId
                       -> AssuranceLevel
