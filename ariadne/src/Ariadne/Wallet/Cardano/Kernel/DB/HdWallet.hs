@@ -11,6 +11,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , HdWallets(..)
   , HdRootId(..)
   , HdAccountId(..)
+  , HdAddressChain(..)
   , HdAddressId(..)
   , HdRoot(..)
   , HdAccount(..)
@@ -34,7 +35,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , hdAddressId
   , hdAddressAddress
   , hdAddressIsUsed
-  , hdAddressIsChange
+  , hdAddressChain
     -- ** Composite lenses
   , hdAccountRootId
   , hdAddressRootId
@@ -80,6 +81,10 @@ newtype AccountName = AccountName Text
 newtype HdAccountIx = HdAccountIx Word32
   deriving (Eq, Ord)
 
+-- | Whether the chain is an external or an internal one
+data HdAddressChain = HdChainExternal | HdChainInternal
+  deriving (Eq, Ord)
+
 -- | Address index
 newtype HdAddressIx = HdAddressIx Word32
   deriving (Eq, Ord)
@@ -103,6 +108,7 @@ data HasSpendingPassword =
 deriveSafeCopy 1 'base ''WalletName
 deriveSafeCopy 1 'base ''AccountName
 deriveSafeCopy 1 'base ''HdAccountIx
+deriveSafeCopy 1 'base ''HdAddressChain
 deriveSafeCopy 1 'base ''HdAddressIx
 deriveSafeCopy 1 'base ''AssuranceLevel
 deriveSafeCopy 1 'base ''HasSpendingPassword
@@ -175,22 +181,21 @@ data HdAccount = HdAccount {
 -- | Address in an account of a HD wallet
 data HdAddress = HdAddress {
       -- | Address ID
-      _hdAddressId       :: HdAddressId
+      _hdAddressId      :: HdAddressId
 
       -- | The actual address
-    , _hdAddressAddress  :: InDb Core.Address
+    , _hdAddressAddress :: InDb Core.Address
 
       -- | Has this address been involved in a transaction?
       --
       -- TODO: How is this determined? What is the definition? How is it set?
       -- TODO: This will likely move to the 'BlockMeta' instead.
-    , _hdAddressIsUsed   :: Bool
+    , _hdAddressIsUsed  :: Bool
 
-      -- | Was this address used as a change address?
-      --
-      -- TODO: How is this derived when we do wallet recovery?
-      -- TODO: Do we need this at all?
-    , _hdAddressIsChange :: Bool
+      -- | Whether this address is derived on the external or internal chain.
+      -- Invariant: this must match the actual derivation scheme which
+      -- yields _hdAddressAddress.
+    , _hdAddressChain   :: HdAddressChain
     }
 
 makeLenses ''HdAccountId

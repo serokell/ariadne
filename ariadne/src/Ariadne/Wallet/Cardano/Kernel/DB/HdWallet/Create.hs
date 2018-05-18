@@ -125,8 +125,9 @@ createHdAccount rootId name checkpoint = do
 -- address index, as we do not have access to a random number generator here.
 createHdAddress :: HdAddressId
                 -> InDb Core.Address
+                -> HdAddressChain
                 -> Update' HdWallets CreateHdAddressError ()
-createHdAddress addrId address = do
+createHdAddress addrId address chain = do
     -- Check that the account ID exists
     zoomHdAccountId CreateHdAddressUnknown (addrId ^. hdAddressIdParent) $
       return ()
@@ -138,8 +139,8 @@ createHdAddress addrId address = do
   where
     hdAddress :: HdAddress
     hdAddress = HdAddress {
-          _hdAddressId       = addrId
-        , _hdAddressAddress  = address
-        , _hdAddressIsUsed   = error "TODO: _hdAddressIsUsed"
-        , _hdAddressIsChange = error "TODO: _hdAddressIsChange"
+          _hdAddressId      = addrId
+        , _hdAddressAddress = address
+        , _hdAddressIsUsed  = error "TODO: _hdAddressIsUsed"
+        , _hdAddressChain   = chain
         }
