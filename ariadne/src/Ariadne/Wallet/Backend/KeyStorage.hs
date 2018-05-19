@@ -322,7 +322,7 @@ newWallet walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
   -- advanced feature and do not provide it for now.
   let seed = mnemonicToSeed (unwords mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
-  mnemonic <$ addWallet face runCardanoMode esk mbWalletName mempty
+  mnemonic ++ ["ariadne-v0"] <$ addWallet face runCardanoMode esk mbWalletName mempty
 
 -- | Construct a wallet from given data and add it to the storage.
 addWallet ::
