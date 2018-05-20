@@ -77,7 +77,6 @@ data UiEvent
   = UiCommandResultEvent UiCommandId UiCommandResultEvent
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiHelpUpdateData [Doc]
   | UiCommandEvent UiCommandEvent
 
 data UiOperation
@@ -100,6 +99,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
+  , langGetHelp :: [Doc]
   , langMkExpr :: UiOperation -> expr
   }
 

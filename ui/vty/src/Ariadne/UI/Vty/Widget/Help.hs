@@ -3,8 +3,9 @@ module Ariadne.UI.Vty.Widget.Help where
 import Universum
 
 import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
-import Control.Lens (makeLensesWith, zoom)
+import Control.Lens (makeLensesWith)
 import IiExtras
 
 import qualified Brick as B
@@ -21,10 +22,11 @@ makeLensesWith postfixLFields ''HelpWidgetState
 
 initHelpWidget
   :: (Ord n, Show n)
-  => n
+  => UiLangFace
+  -> n
   -> HelpWidgetState n
-initHelpWidget name = HelpWidgetState
-  { helpWidgetData = []
+initHelpWidget UiLangFace{..} name = HelpWidgetState
+  { helpWidgetData = langGetHelp
   , helpWidgetBrickName = name
   }
 
@@ -58,7 +60,6 @@ data HelpCompleted = HelpCompleted | HelpInProgress
 
 data HelpWidgetEvent
   = HelpScrollingEvent ScrollingAction
-  | HelpData [PP.Doc]
 
 handleHelpWidgetEvent
   :: (Ord n, Show n)
@@ -69,6 +70,3 @@ handleHelpWidgetEvent ev = do
   case ev of
     HelpScrollingEvent action ->
       lift $ handleScrollingEvent name action
-    HelpData doc -> do
-      zoom helpWidgetDataL $ modify $ const doc
-      lift $ B.invalidateCacheEntry name
