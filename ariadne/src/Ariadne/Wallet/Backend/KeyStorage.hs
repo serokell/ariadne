@@ -23,13 +23,13 @@ import Universum
 
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
-import Control.Lens (ix, (%=), (<>=), (.=), zoom)
+import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.List (findIndex)
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import qualified Data.Vector as V (findIndex, fromList, mapMaybe, ifilter)
-import qualified Data.List.NonEmpty as NE
+import qualified Data.Vector as V (findIndex, fromList, ifilter, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
@@ -322,7 +322,7 @@ newWallet walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
   -- advanced feature and do not provide it for now.
   let seed = mnemonicToSeed (unwords mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
-  mnemonic <$ addWallet face runCardanoMode esk mbWalletName mempty
+  mnemonic ++ ["ariadne-v0"] <$ addWallet face runCardanoMode esk mbWalletName mempty
 
 -- | Construct a wallet from given data and add it to the storage.
 addWallet ::

@@ -51,7 +51,7 @@ gComponentsLit = go (knownSpine @components)
 gExpr
   :: forall components r s.
      (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Grammar r (Prod r Text (s, Token components) (Expr CommandName components))
+  => Grammar r (Prod r Text (s, Token components) (Expr CommandId components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
@@ -64,16 +64,16 @@ gExpr = mdo
     ntExpr1 <- rule $ asum
         [ ExprProcCall <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall $ ProcCall (OperatorName OpUnit) [])
+        , pure (ExprProcCall $ ProcCall (CommandIdOperator OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup <$> ntExpr1 `sepBy1` tok _TokenSemicolon
     ntProcCall <- rule $
       ProcCall
-        <$> (ProcedureName <$> ntName)
+        <$> (CommandIdName <$> ntName)
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-        (\name -> ExprProcCall $ ProcCall (ProcedureName name) []) <$> ntName
+        (\name -> ExprProcCall $ ProcCall (CommandIdName name) []) <$> ntName
         <?> "procedure call w/o arguments"
     ntExprAtom <- rule $ asum
         [ ntExprLit
@@ -82,15 +82,15 @@ gExpr = mdo
         ] <?> "atom"
     return ntExpr
 
-mkExprGroup :: NonEmpty (Expr CommandName components) -> Expr CommandName components
-mkExprGroup = F.foldr1 opSemicolon
+mkExprGroup :: NonEmpty (Expr CommandId components) -> Expr CommandId components
+mkExprGroup = F.foldr1 opAndThen
   where
-    opSemicolon e1 e = ExprProcCall $
-      ProcCall (OperatorName OpSemicolon) [ArgPos e1, ArgPos e]
+    opAndThen e1 e = ExprProcCall $
+      ProcCall (CommandIdOperator OpAndThen) [ArgPos e1, ArgPos e]
 
 pExpr
   :: (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Parser Text [(s, Token components)] (Expr CommandName components)
+  => Parser Text [(s, Token components)] (Expr CommandId components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
@@ -104,7 +104,7 @@ parse
      , AllConstrained (ComponentLitGrammar components) components
      )
   => Text
-  -> Either (ParseError components) (Expr CommandName components)
+  -> Either (ParseError components) (Expr CommandId components)
 parse str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize $ str
   where
     toEither = \case

@@ -7,6 +7,7 @@ module Ariadne.UI.Vty.Face
        , UiCommandEvent (..)
        , UiEvent (..)
        , UiOperation (..)
+       , UiSelectedItem (..)
        , UiLangFace (..)
        , UiFace (..)
 
@@ -76,13 +77,19 @@ data UiEvent
   = UiCommandResultEvent UiCommandId UiCommandResultEvent
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiHelpUpdateData [Doc]
   | UiCommandEvent UiCommandEvent
 
 data UiOperation
   = UiSelect [Word]
   | UiBalance
   | UiKill Natural
+
+-- | Item which is currently selected by the backend.
+data UiSelectedItem
+    = UiNoSelection
+    | UiSelectedWallet { uswWalletName :: !Text }
+    | UiSelectedAccount { usaAccountName :: !Text }
+    | UiSelectedAddress { usaAddress :: !Text }
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -92,6 +99,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
+  , langGetHelp :: [Doc]
   , langMkExpr :: UiOperation -> expr
   }
 

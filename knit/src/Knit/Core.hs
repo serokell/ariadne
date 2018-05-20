@@ -51,7 +51,7 @@ instance
   where
     componentInflate = \case
       ValueUnit ->
-        ExprProcCall $ ProcCall (OperatorName OpUnit) []
+        ExprProcCall $ ProcCall (CommandIdOperator OpUnit) []
       ValueBool b ->
         let commandName = bool "false" "true"   b
         in ExprProcCall $ ProcCall commandName []
@@ -169,14 +169,14 @@ instance Monad m => ComponentCommandExec m components Core where
 instance Elem components Core => ComponentCommandProcs components Core where
   componentCommandProcs =
     [ CommandProc
-        { cpName = OperatorName OpUnit
+        { cpName = CommandIdOperator OpUnit
         , cpArgumentPrepare = id
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandIdentity (toValue ValueUnit)
         , cpHelp = "The unit operator, does nothing."
         }
     , CommandProc
-        { cpName = OperatorName OpSemicolon
+        { cpName = CommandIdOperator OpAndThen
         , cpArgumentPrepare = id
         , cpArgumentConsumer =
             getArg tyValue "first" *>

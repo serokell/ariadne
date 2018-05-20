@@ -6,9 +6,11 @@ module Ariadne.Wallet.Backend.Restore
 
 import Universum
 
+import Control.Exception (Exception(displayException))
 import Control.Lens (at, non)
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
+import qualified Data.List.NonEmpty as NE
 
 import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
@@ -17,9 +19,18 @@ import Pos.Crypto.HD (deriveHDPassphrase)
 import Pos.Crypto.HDDiscovery (discoverHDAddress)
 import Pos.Crypto.Signing
   (EncryptedSecretKey, encToPublic, safeDeterministicKeyGen)
+import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
 
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
 import Ariadne.Wallet.Face
+
+
+data WrongMnemonic = WrongMnemonic Text
+ deriving (Eq, Show)
+
+instance Exception WrongMnemonic where
+  displayException (WrongMnemonic txt) =
+    "Wrong mnemonic: " <> show txt
 
 restoreWallet ::
        HasConfiguration
@@ -31,13 +42,23 @@ restoreWallet ::
     -> WalletRestoreType
     -> IO ()
 restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
+    let mnemonicWords = words mnemonic
+        isAriadneMnemonic = fromMaybe False $ do
+          lastWord <- NE.last <$> nonEmpty mnemonicWords
+          pure (lastWord == "ariadne-v0") -- TODO AD-124: version parsing?
+    esk <- if
+      | isAriadneMnemonic ->
+          let seed = mnemonicToSeed mnemonic ""
+          in pure . snd $ safeDeterministicKeyGen seed pp
+      | length mnemonicWords == 12 ->
+          case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
+              Left e -> throwM $ WrongMnemonic e
+              Right (sk, _) -> pure sk
+      | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
     accounts <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull -> runCardanoMode $ findAccounts esk
     addWallet face runCardanoMode esk mbWalletName accounts
-  where
-    seed = mnemonicToSeed mnemonic ""
-    (_, esk) = safeDeterministicKeyGen seed pp
 
 findAccounts ::
        HasConfiguration

@@ -5,9 +5,8 @@ module Ariadne.UI.Qt
 
 import Universum
 
+import Control.Concurrent
 import Control.Monad.Extra (loopM)
-
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiLangFace)
 
@@ -23,7 +22,7 @@ import Control.Concurrent.STM.TBQueue
 import Ariadne.UI.Qt.MainWindow
 import Ariadne.UI.Qt.UI
 
-type UiAction = [Doc] -> UiLangFace -> IO ()
+type UiAction = UiLangFace -> IO ()
 
 type UiEventBQueue = TBQueue UiEvent
 
@@ -33,16 +32,14 @@ createAriadneUI = do
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
   return (mkUiFace eventQueue dispatcherIORef, runUIEventLoop eventQueue dispatcherIORef)
 
-runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> [Doc] -> UiLangFace -> IO ()
-runUIEventLoop eventIORef dispatcherIORef helpData langFace =
-  withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
+runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiAction
+runUIEventLoop eventIORef dispatcherIORef langFace =
+  runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
     mainWindow <- initMainWindow langFace
     void $ Event.onEvent eventDispatcher $
       \(_ :: QEvent.QEvent) -> handleAppEvent eventIORef mainWindow >> return True
-
-    runUI (handleMainWindowEvent $ UiHelpUpdateData helpData) mainWindow
 
     QCoreApplication.exec
 

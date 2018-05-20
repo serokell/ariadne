@@ -47,7 +47,7 @@ initMainWindow langFace = do
   (qRepl, repl) <- initRepl langFace
   (qMenuBar, menuBar) <- initMenuBar
   (qLogs, logs) <- initLogs
-  (qHelp, help) <- initHelp
+  (qHelp, help) <- initHelp langFace
 
   QMainWindow.setMenuBar mainWindow qMenuBar
   QWidget.setParentWithFlags qLogs mainWindow Dialog
@@ -85,8 +85,6 @@ handleMainWindowEvent = \case
       _ -> return ()
   UiWalletEvent UiWalletUpdate{..} ->
     magnify walletL $ handleWalletEvent $ WalletUpdateEvent wuTrees wuSelection
-  UiHelpUpdateData docs ->
-    magnify helpL $ setHelpData docs
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do

@@ -11,6 +11,7 @@ module Glue
          -- * Wallet ↔ Vty
        , walletEventToUI
        , putWalletEventToUI
+       , uiGetSelectedItem
        ) where
 
 import Universum
@@ -28,9 +29,9 @@ import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
 
-import qualified Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
+import qualified Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
@@ -58,6 +59,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
+    , langGetHelp = getKnitHelp (Proxy @components)
     , langMkExpr = convertOperation
     }
   where
@@ -204,3 +206,27 @@ walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
             addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
               Just (_, address) -> (Just UiWalletPaneInfoAddress, Just $ pretty address)
+
+-- | Get currently selected item from the backend and convert it to
+-- 'UiSelectedItem'.
+uiGetSelectedItem :: WalletFace -> IO UiSelectedItem
+uiGetSelectedItem WalletFace {walletGetSelection} =
+    walletGetSelection <&> \case
+        (Nothing, _) -> UiNoSelection
+        (Just WalletSelection {..}, us) ->
+            getItem (us ^? usWallets . ix (fromIntegral wsWalletIndex)) wsPath
+  where
+    getItem :: Maybe WalletData -> [Word] -> UiSelectedItem
+    getItem Nothing _ = error "Non-existing wallet is selected"
+    getItem (Just wd) [] = UiSelectedWallet (_wdName wd)
+    getItem (Just wd) (accIdx:rest) =
+        case wd ^? wdAccounts . ix (fromIntegral accIdx) of
+            Nothing -> error "Non-existing account is selected"
+            Just ad ->
+                case rest of
+                    [] -> UiSelectedAccount (_adName ad)
+                    [addrIdx] ->
+                        case ad ^? adAddresses . ix (fromIntegral addrIdx) of
+                            Nothing -> error "Non-existing address is selected"
+                            Just (_, addr) -> UiSelectedAddress (pretty addr)
+                    _ -> error "Invalid selection: too long"

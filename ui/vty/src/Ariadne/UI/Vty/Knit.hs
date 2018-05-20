@@ -2,10 +2,11 @@ module Ariadne.UI.Vty.Knit where
 
 import Universum hiding (preview)
 
-import Ariadne.UI.Vty.Face
 import IiExtras
 import Text.Earley
 
+import Ariadne.UI.Vty.Clipboard (copySelected)
+import Ariadne.UI.Vty.Face
 import Knit
 
 data UI
@@ -45,17 +46,17 @@ instance ComponentPrinter UI where
   componentPpToken = \case{}
 
 data instance ComponentCommandRepr components UI
-  = CommandAction (UiFace -> IO (Value components))
+  = CommandAction (UiFace -> IO UiSelectedItem -> IO (Value components))
 
 instance ComponentLitToValue components UI where
   componentLitToValue = \case{}
 
 data instance ComponentExecContext _ _ UI =
-  UiExecCtx UiFace
+  UiExecCtx UiFace (IO UiSelectedItem)
 
 instance MonadIO m => ComponentCommandExec m components UI where
-  componentCommandExec (UiExecCtx uiFace) (CommandAction act) =
-    liftIO $ act uiFace
+  componentCommandExec (UiExecCtx uiFace uiGetSelected) (CommandAction act) =
+    liftIO $ act uiFace uiGetSelected
 
 instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs components UI where
   componentCommandProcs =
@@ -64,7 +65,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         { cpName = "help"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
+        , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
             putUiEvent $ UiCommandEvent UiCommandHelp
             return $ toValue ValueUnit
         , cpHelp = "Show help screen"
@@ -73,9 +74,18 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         { cpName = "logs"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
+        , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
             putUiEvent $ UiCommandEvent UiCommandLogs
             return $ toValue ValueUnit
         , cpHelp = "Show logs screen"
+        }
+    , CommandProc
+        { cpName = "copy-selection"
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = pure ()
+        , cpRepr = \() -> CommandAction $ \_ uiGetSelected -> do
+            uiGetSelected >>= copySelected
+            return $ toValue ValueUnit
+        , cpHelp = "Copy currently selected item to clipboard"
         }
     ]

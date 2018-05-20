@@ -2,7 +2,6 @@ module Ariadne.UI.Qt.Widgets.Help
     ( Help
     , initHelp
     , showHelpWindow
-    , setHelpData
     ) where
 
 import Universum
@@ -21,6 +20,7 @@ import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.AnsiToHTML
+import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 
 data Help =
@@ -31,8 +31,8 @@ data Help =
 
 makeLensesWith postfixLFields ''Help
 
-initHelp :: IO (QDialog.QDialog, Help)
-initHelp = do
+initHelp :: UiLangFace -> IO (QDialog.QDialog, Help)
+initHelp UiLangFace{..} = do
   dialog <- QDialog.new
   QWidget.setWindowTitle dialog ("Help" :: String)
   QWidget.resizeRaw dialog 800 600
@@ -41,6 +41,8 @@ initHelp = do
 
   helpEdit <- QTextEdit.new
   QTextEdit.setReadOnly helpEdit True
+  QTextEdit.setHtml helpEdit $ toString $ T.intercalate "<br>" $
+    (simpleDocToHTML . PP.renderPretty 0.985 200) <$> langGetHelp
 
   QLayout.addWidget layout helpEdit
 
@@ -51,10 +53,3 @@ showHelpWindow = do
   dialog <- view dialogL
 
   liftIO $ QWidget.show dialog
-
-setHelpData :: [PP.Doc] -> UI Help ()
-setHelpData docs = do
-  helpEdit <- view helpEditL
-
-  liftIO $ QTextEdit.setHtml helpEdit $ toString $ T.intercalate "<br>" $
-    (simpleDocToHTML . PP.renderPretty 0.985 200) <$> docs

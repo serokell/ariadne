@@ -111,7 +111,7 @@ library
       Ariadne.Wallet.Face
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
-      Ariadne.Help
+      Ariadne.Knit.Help
 
       Ariadne.Wallet.Cardano.Kernel.Actions
       Ariadne.Wallet.Cardano.Kernel.Types
@@ -193,6 +193,7 @@ executable ariadne
     , containers
     , ansi-wl-pprint
     , text
+    , vector
   other-modules:
       Paths_ariadne
   default-language: Haskell2010

@@ -6,18 +6,24 @@ import IiExtras
 
 import Knit.Name
 
+-- | An operator is an identifier for a command that does not map to a lexical
+-- identifier. For instance, the and-then operator is binary, infix, and
+-- lexically represented by a punctuation character (a semicolon). The unit
+-- operator is nullary and is represented by empty space (possibly, but not
+-- necessarily, enclosed in parentheses).
 data Operator
-  = OpSemicolon
+  = OpAndThen
   | OpUnit
   deriving (Eq, Ord, Show)
 
-data CommandName
-  = ProcedureName Name
-  | OperatorName Operator
+-- | A command identifier, either an alphabetic name or an operator.
+data CommandId
+  = CommandIdName Name
+  | CommandIdOperator Operator
   deriving (Eq, Ord, Show)
 
-instance IsString CommandName where
-  fromString = ProcedureName . fromString
+instance IsString CommandId where
+  fromString = CommandIdName . fromString
 
 data Expr cmd components
   = ExprProcCall (ProcCall cmd (Expr cmd components))
