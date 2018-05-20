@@ -9,6 +9,9 @@ module Ariadne.UI.Qt.Face
        , UiCommandResult (..)
        , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
+       , UiNewWalletCommandResult (..)
+       , UiNewAccountCommandResult (..)
+       , UiNewAddressCommandResult (..)
        , UiLangFace (..)
        , UiFace (..)
 
@@ -80,12 +83,18 @@ data UiCommand
   = UiSelect [Word]
   | UiBalance
   | UiSend Text Text  -- ^ Address, amount
+  | UiNewWallet Text  -- ^ Name
+  | UiNewAccount Text  -- ^ Name
+  | UiNewAddress
   | UiKill Natural
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiBalanceCommandResult UiBalanceCommandResult
   | UiSendCommandResult UiSendCommandResult
+  | UiNewWalletCommandResult UiNewWalletCommandResult
+  | UiNewAccountCommandResult UiNewAccountCommandResult
+  | UiNewAddressCommandResult UiNewAddressCommandResult
 
 data UiBalanceCommandResult
   = UiBalanceCommandSuccess Natural
@@ -94,6 +103,18 @@ data UiBalanceCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiNewWalletCommandResult
+  = UiNewWalletCommandSuccess [Text]
+  | UiNewWalletCommandFailure Text
+
+data UiNewAccountCommandResult
+  = UiNewAccountCommandSuccess
+  | UiNewAccountCommandFailure Text
+
+data UiNewAddressCommandResult
+  = UiNewAddressCommandSuccess
+  | UiNewAddressCommandFailure Text
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

@@ -40,7 +40,7 @@ initWallet langFace = do
   itemModel <- initItemModel
   selectionModel <- QItemSelectionModel.newWithModel itemModel
 
-  (qWalletTree, walletTree) <- initWalletTree itemModel selectionModel
+  (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
   (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
   layout <- QSplitter.new
@@ -81,6 +81,9 @@ data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
   | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
   | WalletSendCommandResult UiCommandId UiSendCommandResult
+  | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
+  | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
+  | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
 
 handleWalletEvent
   :: UiLangFace
@@ -99,6 +102,15 @@ handleWalletEvent langFace ev = do
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
+    WalletNewWalletCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeNewWalletCommandResult commandId result
+    WalletNewAccountCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeNewAccountCommandResult commandId result
+    WalletNewAddressCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeNewAddressCommandResult commandId result
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

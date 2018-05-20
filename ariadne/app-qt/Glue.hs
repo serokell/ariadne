@@ -105,32 +105,55 @@ knitFaceToUI UiFace{..} KnitFace{..} =
                 ]
             ]
           )
+      UiNewWallet name -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newWalletCommandName
+            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+          )
+      UiNewAccount name -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newAccountCommandName
+            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+          )
+      UiNewAddress -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newAddressCommandName [])
 
     resultToUI result = \case
       UiBalance ->
         Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
-          resultToValue result >>= \case
+          fromResult result >>= fromValue >>= \case
             Knit.ValueNumber n -> Right $ truncate n
             _ -> Left "Unrecognized return value"
       UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
-          resultToValue result >>= \case
+          fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiNewWallet _ ->
+        Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
+            _ -> Left "Unrecognized return value"
+      UiNewAccount _ ->
+        Just . UiNewAccountCommandResult . either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
+          fromResult result
+      UiNewAddress ->
+        Just . UiNewAddressCommandResult . either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
+          fromResult result
       _ -> Nothing
 
-    resultToValue
-      :: forall component.
-         Elem components component
-      => KnitCommandResult components
+    fromResult = \case
+      KnitCommandSuccess v -> Right v
+      KnitCommandEvalError _ -> Left $ "Invalid arguments"
+      KnitCommandException e -> Left $ fromString $ displayException e
+      KnitCommandProcError _ -> error "Undefined command used"
+
+    fromValue
+      :: Elem components component
+      => Knit.Value components
       -> Either Text (Knit.ComponentValue components component)
-    resultToValue = \case
-      KnitCommandSuccess v -> case Knit.fromValue v of
-        Nothing -> Left "Unrecognized return value"
-        Just cv -> Right cv
-      KnitCommandEvalError _ -> Left "Eval error"
-      KnitCommandProcError _ -> Left "Proc error"
-      KnitCommandException _ -> Left "Exception"
+    fromValue = maybeToRight "Unrecognized return value" . Knit.fromValue
 
 commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =

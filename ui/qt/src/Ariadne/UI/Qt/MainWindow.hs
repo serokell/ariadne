@@ -84,6 +84,12 @@ handleMainWindowEvent langFace = \case
       magnify walletL $ handleWalletEvent langFace $ WalletBalanceCommandResult commandId result
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
+    UiNewWalletCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletNewWalletCommandResult commandId result
+    UiNewAccountCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletNewAccountCommandResult commandId result
+    UiNewAddressCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletNewAddressCommandResult commandId result
   UiWalletEvent UiWalletUpdate{..} ->
     magnify walletL $ handleWalletEvent langFace $ WalletUpdateEvent wuTrees wuSelection
 
