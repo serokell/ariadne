@@ -12,8 +12,8 @@ import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
-import qualified Graphics.Vty as V
 import qualified Data.List.NonEmpty as NE
+import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
