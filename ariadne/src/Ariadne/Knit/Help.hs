@@ -1,4 +1,4 @@
-module Ariadne.Help (generateKnitHelp) where
+module Ariadne.Knit.Help (generateKnitHelp) where
 
 import qualified Data.Text as T
 import IiExtras

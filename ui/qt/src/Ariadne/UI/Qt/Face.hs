@@ -68,7 +68,6 @@ data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiHelpUpdateData [Doc]
 
 data UiOperation
   = UiSelect [Word]
@@ -84,6 +83,7 @@ data UiLangFace =
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
+  , langGetHelp :: [Doc]
   , langMkExpr :: UiOperation -> Either Text expr
   }
 

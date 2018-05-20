@@ -77,7 +77,7 @@ initialAppState langFace history =
     , appStateRepl = initReplWidget langFace history AppBrickReplOutput AppBrickReplInput
     , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
     , appStateStatus = initStatusWidget
-    , appStateHelp = initHelpWidget AppBrickHelp
+    , appStateHelp = initHelpWidget langFace AppBrickHelp
     , appStateLogs = initLogsWidget AppBrickLogs
     , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
     , appStateWalletPane = initWalletPaneWidget AppBrickWalletPane
@@ -384,9 +384,6 @@ handleAppEvent langFace ev =
             handleStatusWidgetEvent $
               StatusUpdateEvent statusUpdate
       return AppInProgress
-    B.AppEvent (UiHelpUpdateData doc) -> do
-        zoom appStateHelpL $ handleHelpWidgetEvent $ HelpData doc
-        return AppInProgress
     B.AppEvent (UiCommandEvent commandEvent) -> do
       case commandEvent of
         UiCommandHelp -> do

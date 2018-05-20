@@ -28,11 +28,13 @@ data KnitCommandHandle components
   }
 
 -- API for the knit interpreter.
-newtype KnitFace components =
+data KnitFace components =
   KnitFace
     {
       -- Execute a knit expression asynchronously. Does not block unless the
       -- queue of commands is full (should not normally happen) -- the result of
       -- execution will be returned later as an application event.
       putKnitCommand :: KnitCommandHandle components -> Knit.Expr Knit.CommandId components -> IO (Maybe TaskId)
+      -- Get list of help items for each Knit command available
+    , getKnitHelp :: Proxy components -> [Doc]
     }

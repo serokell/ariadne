@@ -11,6 +11,7 @@ import IiExtras
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Knit.Face
+import Ariadne.Knit.Help
 import Ariadne.TaskManager.Face
 import qualified Knit
 
@@ -51,7 +52,7 @@ createKnitBackend mkExecCtxs TaskManagerFace{..} =
           Right (Right v) -> do
             putCommandResult (Just taskId) $ KnitCommandSuccess v
             return v
-  in KnitFace putCommand
+  in KnitFace putCommand generateKnitHelp
   where
     commandProcs = Knit.commandProcs @components
     resolveProcNames =

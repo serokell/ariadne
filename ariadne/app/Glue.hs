@@ -59,6 +59,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
+    , langGetHelp = getKnitHelp (Proxy @components)
     , langMkExpr = convertOperation
     }
   where
