@@ -51,18 +51,36 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = \expr -> do
-        cid <- newUnique
-        fmap (commandIdToUI cid) . putKnitCommand (commandHandle cid) $ expr
+    { langPutCommand = putCommand commandHandle
+    , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
     , langGetHelp = getKnitHelp (Proxy @components)
-    , langMkExpr = convertOperation
     }
   where
-    convertOperation = \case
+    putCommand handle expr = do
+      cid <- newUnique
+      fmap (commandIdToUI cid) . putKnitCommand (handle cid) $ expr
+    commandHandle commandId = KnitCommandHandle
+      { putCommandResult = \mtid result ->
+          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+      , putCommandOutput = \tid doc ->
+          putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
+      }
+
+    putUiCommand op = case opToExpr op of
+      Left err -> return $ Left err
+      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
+    uiCommandHandle op commandId = KnitCommandHandle
+      { putCommandResult = \mtid result ->
+          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
+      , putCommandOutput = \_ _ ->
+          return ()
+      }
+
+    opToExpr = \case
       UiSelect ws ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.selectCommandName
@@ -79,7 +97,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiSend address amount -> do
         argAddress <- decodeTextAddress address
         argCoin <- readEither amount
-        return $ Knit.ExprProcCall
+        Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName
             [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
                 [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
@@ -87,18 +105,39 @@ knitFaceToUI UiFace{..} KnitFace{..} =
                 ]
             ]
           )
-    commandHandle commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
-      , putCommandOutput = \tid doc ->
-          putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
-      }
+
+    resultToUI result = \case
+      UiBalance ->
+        Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
+          resultToValue result >>= \case
+            Knit.ValueNumber n -> Right $ truncate n
+            _ -> Left "Unrecognized return value"
+      UiSend _ _ ->
+        Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
+          resultToValue result >>= \case
+            Knit.ValueHash h -> Right $ pretty h
+            _ -> Left "Unrecognized return value"
+      _ -> Nothing
+
+    resultToValue
+      :: forall component.
+         Elem components component
+      => KnitCommandResult components
+      -> Either Text (Knit.ComponentValue components component)
+    resultToValue = \case
+      KnitCommandSuccess v -> case Knit.fromValue v of
+        Nothing -> Left "Unrecognized return value"
+        Just cv -> Right cv
+      KnitCommandEvalError _ -> Left "Eval error"
+      KnitCommandProcError _ -> Left "Proc error"
+      KnitCommandException _ -> Left "Exception"
 
 commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdIdRendered = fmap (\(TaskId i) -> fromString $ show i) mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> show i) mi
+    , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some

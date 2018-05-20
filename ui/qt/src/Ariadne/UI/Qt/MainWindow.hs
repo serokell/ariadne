@@ -71,20 +71,21 @@ initMainWindow langFace = do
 
   return MainWindow{..}
 
-handleMainWindowEvent :: UiEvent -> UI MainWindow ()
-handleMainWindowEvent = \case
+handleMainWindowEvent :: UiLangFace -> UiEvent -> UI MainWindow ()
+handleMainWindowEvent langFace = \case
   UiCardanoEvent (UiCardanoLogEvent message) ->
     magnify logsL $ displayLogMessage message
   UiCardanoEvent (UiCardanoStatusUpdateEvent update) ->
     magnify statusBarL $ displayBlockchainInfo update
   UiCommandEvent commandId result -> do
     magnify replL $ handleReplEvent commandId result
-    case result of
-      UiCommandSuccess _ -> magnify walletL $ handleWalletEvent $ WalletCommandSuccess commandId
-      UiCommandFailure _ -> magnify walletL $ handleWalletEvent $ WalletCommandFailure commandId
-      _ -> return ()
+  UiCommandResult commandId commandResult -> case commandResult of
+    UiBalanceCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletBalanceCommandResult commandId result
+    UiSendCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
   UiWalletEvent UiWalletUpdate{..} ->
-    magnify walletL $ handleWalletEvent $ WalletUpdateEvent wuTrees wuSelection
+    magnify walletL $ handleWalletEvent langFace $ WalletUpdateEvent wuTrees wuSelection
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
