@@ -39,7 +39,7 @@ runUIEventLoop eventIORef dispatcherIORef langFace =
     writeIORef dispatcherIORef $ Just eventDispatcher
     mainWindow <- initMainWindow langFace
     void $ Event.onEvent eventDispatcher $
-      \(_ :: QEvent.QEvent) -> handleAppEvent eventIORef mainWindow >> return True
+      \(_ :: QEvent.QEvent) -> handleAppEvent langFace eventIORef mainWindow >> return True
 
     QCoreApplication.exec
 
@@ -69,7 +69,7 @@ qtEventSubLoop eventBQueue handler depth = do
   -- QCoreApplication.processEvents
   return next
 
-handleAppEvent :: UiEventBQueue -> MainWindow -> IO ()
-handleAppEvent eventBQueue mainWindow = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
+handleAppEvent :: UiLangFace -> UiEventBQueue -> MainWindow -> IO ()
+handleAppEvent langFace eventBQueue mainWindow = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
   where
-    doHandleOneEvent event = runUI (handleMainWindowEvent event) mainWindow
+    doHandleOneEvent event = runUI (handleMainWindowEvent langFace event) mainWindow
