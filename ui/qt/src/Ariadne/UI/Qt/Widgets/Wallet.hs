@@ -49,8 +49,8 @@ initWallet langFace = do
   QSplitter.setStretchFactor layout 1 1
   QSplitter.setChildrenCollapsible layout False
 
-  liftIO $ connect_ selectionModel QItemSelectionModel.currentChangedSignal $
-    \selected deselected -> runUI (currentChanged langFace selected deselected) Wallet{..}
+  connect_ selectionModel QItemSelectionModel.currentChangedSignal $
+    currentChanged langFace Wallet{..}
 
   return (layout, Wallet{..})
 
@@ -69,36 +69,36 @@ initItemModel = do
 
   return model
 
-currentChanged :: UiLangFace -> QModelIndex.QModelIndex -> QModelIndex.QModelIndex -> UI Wallet ()
-currentChanged UiLangFace{..} selected deselected = do
-  Wallet{..} <- ask
-  lift $ do
-    isValid <- QModelIndex.isValid selected
-    when (isValid && selected /= deselected) $ do
-      item <- QStandardItemModel.itemFromIndex itemModel selected
-      path <- fromQVariant =<< QStandardItem.getData item
-      unless (null path) $
-        case langMkExpr $ UiSelect path of
-          Left err -> error err
-          Right expr -> void $ langPutCommand expr
+currentChanged :: UiLangFace -> Wallet -> QModelIndex.QModelIndex -> QModelIndex.QModelIndex -> IO ()
+currentChanged UiLangFace{..} Wallet{..} selected deselected = do
+  isValid <- QModelIndex.isValid selected
+  when (isValid && selected /= deselected) $ do
+    item <- QStandardItemModel.itemFromIndex itemModel selected
+    path <- fromQVariant =<< QStandardItem.getData item
+    unless (null path) $ void $ langPutUiCommand $ UiSelect path
 
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
-  | WalletCommandSuccess UiCommandId
-  | WalletCommandFailure UiCommandId
+  | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
+  | WalletSendCommandResult UiCommandId UiSendCommandResult
 
 handleWalletEvent
-  :: WalletEvent
+  :: UiLangFace
+  -> WalletEvent
   -> UI Wallet ()
-handleWalletEvent ev = do
+handleWalletEvent langFace ev = do
   Wallet{..} <- ask
   case ev of
     WalletUpdateEvent wallets selection -> do
       lift $ updateModel itemModel selectionModel wallets selection
-    WalletCommandSuccess commandId -> do
-      magnify walletInfoL $ handleWalletInfoEvent $ WalletInfoCommandSuccess commandId
-    WalletCommandFailure commandId -> do
-      magnify walletInfoL $ handleWalletInfoEvent $ WalletInfoCommandFailure commandId
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoSelectionChange
+    WalletBalanceCommandResult commandId result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoBalanceCommandResult commandId result
+    WalletSendCommandResult commandId result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoSendCommandResult commandId result
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

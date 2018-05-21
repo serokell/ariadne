@@ -111,7 +111,7 @@ createCommandOutput commandId command = do
   QGridLayout.setRowStretch coLayout 1 1
 
   promptLabel <- QLabel.newWithText (">" :: String)
-  statusLabel <- QLabel.newWithText $ toString $ format ("\x29D6\n" % stext) $ fromMaybe "" cmdIdRendered
+  statusLabel <- QLabel.newWithText $ toString $ format ("\x29D6\n" % stext) $ fromMaybe "" cmdTaskIdRendered
   commandLabel <- QLabel.newWithText command
   outputLabel <- QLabel.new
 
