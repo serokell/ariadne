@@ -1,14 +1,11 @@
 let
   nixpkgs = import "${overlay}/nixpkgs.nix";
-  overlay = builtins.fetchGit {
-    url = "ssh://git@github.com:/serokell/serokell-ops.git";
-    rev = "876aab0cfa65271e8378ed1614e5970f48d61885";
-  };
+  overlay = builtins.fetchGit "ssh://git@github.com:/serokell/serokell-overlay.git";
 in
 
 with nixpkgs;
 
-buildStack {
+buildStackApplication {
   package = "ariadne";
   src = lib.cleanSource ./.;
 
