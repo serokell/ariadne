@@ -3,6 +3,7 @@ module Ariadne.UI.Vty.Widget.WalletPane where
 import Universum
 
 import Control.Lens (makeLensesWith, makePrisms, (.=), _Just, zoom, forOf_)
+import qualified Data.Text as T
 import IiExtras
 
 import qualified Brick as B
@@ -20,14 +21,17 @@ makePrisms ''BalancePromise
 data WalletPaneInfo
   = WalletPaneWalletInfo
     { label :: Text
+    , derivationPath :: [Word32]
     , balance :: BalancePromise
     }
   | WalletPaneAccountInfo
     { label :: Text
+    , derivationPath :: [Word32]
     , balance :: BalancePromise
     }
   | WalletPaneAddressInfo
     { label :: Text
+    , derivationPath :: [Word32]
     , balance :: BalancePromise
     }
 
@@ -73,7 +77,7 @@ drawWalletPaneWidget _hasFocus wpws =
         img = case walletPaneItemInfo of
           Nothing ->
             V.text' attr "Select a wallet, an account, or an address"
-          Just info -> V.vertCat
+          Just info -> V.vertCat $
             [ case info of
                 WalletPaneWalletInfo{} -> V.text' attr "Wallet"
                 WalletPaneAccountInfo{} -> V.text' attr "Account"
@@ -83,7 +87,9 @@ drawWalletPaneWidget _hasFocus wpws =
                 WaitingBalance _ -> "Calculating..."
                 FailedBalance e -> pretty e
                 Balance bal -> pretty bal
-            ]
+            ] ++ case info of
+              WalletPaneWalletInfo{} -> []
+              x -> [V.text' attr $ "Derivation path: " <> T.intercalate "-" (map pretty $ derivationPath x)]
         imgOrLoading
           | walletPaneInitialized = img
           | otherwise = V.text attr "Loading..."
@@ -116,14 +122,14 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
       whenJust itemInfo $ \UiWalletPaneInfo{..} -> case wpiType of
-        Just UiWalletPaneInfoWallet -> setInfo WalletPaneWalletInfo wpiLabel
-        Just UiWalletPaneInfoAccount -> setInfo WalletPaneAccountInfo wpiLabel
-        Just UiWalletPaneInfoAddress -> setInfo WalletPaneAddressInfo wpiLabel
+        Just UiWalletPaneInfoWallet -> setInfo WalletPaneWalletInfo [] wpiLabel
+        Just (UiWalletPaneInfoAccount derPath) -> setInfo WalletPaneAccountInfo derPath wpiLabel
+        Just (UiWalletPaneInfoAddress derPath) -> setInfo WalletPaneAddressInfo derPath wpiLabel
         _ -> walletPaneItemInfoL .= Nothing
   where
-    setInfo info label = do
+    setInfo info derPath label = do
       balancePromise <- refreshBalance
-      walletPaneItemInfoL .= Just (info (fromMaybe "" label) balancePromise)
+      walletPaneItemInfoL .= Just (info (fromMaybe "" label) derPath balancePromise)
     refreshBalance = do
       mCommandId <- (^? walletPaneItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
 

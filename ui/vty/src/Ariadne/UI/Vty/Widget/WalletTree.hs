@@ -143,13 +143,13 @@ renderWalletTreeItem selection _ defAttr selAttr UiWalletTreeItem {..} =
                 | wtiShowPath -> pathText
                 | otherwise -> "★"
             Just label
-                | wtiShowPath -> ellipsize label <> " (" <> pathText <> ")"
+                | wtiShowPath -> pathText <> ". " <> ellipsize label
                 | otherwise -> ellipsize label
     attr =
         case selection of
             NotSelected -> defAttr
             Selected -> selAttr
-    pathText = T.intercalate "-" $ map pretty wtiPath
+    pathText = T.intercalate "." $ map pretty wtiPath
     ellipsize label
       | length label > 21 = T.take 9 label <> "..." <> T.takeEnd 9 label
       | otherwise = label
