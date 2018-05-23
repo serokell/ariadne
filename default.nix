@@ -1,8 +1,9 @@
 let
-  nixpkgs = import "${overlay}/nixpkgs.nix";
-  overlay = builtins.fetchGit {
-    url = "ssh://git@github.com:/serokell/serokell-ops.git";
-    rev = "876aab0cfa65271e8378ed1614e5970f48d61885";
+overlay = import ''${builtins.fetchGit {
+  url = "ssh://git@github.com:/serokell/serokell-overlay.git";
+  ref = "master";}}/pkgs'';
+  nixpkgs = import (builtins.fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz") {
+    overlays = [ overlay ];
   };
 in
 
