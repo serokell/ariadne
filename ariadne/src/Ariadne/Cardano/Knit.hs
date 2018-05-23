@@ -10,7 +10,7 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Map as Map
 import Data.Scientific
 import Data.Time.Units
-import Formatting (sformat)
+import Formatting (sformat, (%))
 import IiExtras
 import Pos.Core
 import Pos.Core.Txp (TxOut)
@@ -279,6 +279,7 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
 
       pHash :: Tokenizer AHash
       pHash = do
+        void $ P.char '#'
         str <- pSomeAlphaNum
         toParsecError . fmap unsafeCheatingHashCoerce $ decodeAbstractHash str
 
@@ -297,7 +298,7 @@ instance ComponentDetokenizer Cardano where
     TokenAddress a -> pretty a
     TokenPublicKey pk -> sformat fullPublicKeyF pk
     TokenStakeholderId sId -> sformat hashHexF sId
-    TokenHash h -> sformat hashHexF (getAHash h)
+    TokenHash h -> sformat ("#"%hashHexF) (getAHash h)
     TokenBlockVersion v -> pretty v
 
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
