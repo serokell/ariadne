@@ -12,6 +12,10 @@ import Formatting
 import Control.Lens (makeLensesWith)
 import IiExtras (postfixLFields)
 
+import Graphics.UI.Qtah.Signal (connect_)
+
+import qualified Graphics.UI.Qtah.Widgets.QAbstractScrollArea as QAbstractScrollArea
+import qualified Graphics.UI.Qtah.Widgets.QAbstractSlider as QAbstractSlider
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QTextEdit as QTextEdit
@@ -25,6 +29,8 @@ data Logs =
   Logs
     { dialog :: QDialog.QDialog
     , logsEdit :: QTextEdit.QTextEdit
+
+    , userScrolledRef :: IORef Bool
     }
 
 makeLensesWith postfixLFields ''Logs
@@ -42,7 +48,15 @@ initLogs = do
 
   QLayout.addWidget layout logsEdit
 
-  return (dialog, Logs{..})
+  userScrolledRef <- newIORef False
+
+  let logs = Logs{..}
+
+  scrollBar <- QAbstractScrollArea.verticalScrollBar logsEdit
+  connect_ scrollBar QAbstractSlider.rangeChangedSignal $ scrollRangeChanged logs
+  connect_ scrollBar QAbstractSlider.valueChangedSignal $ scrollValueChanged logs
+
+  return (dialog, logs)
 
 showLogsWindow :: UI Logs ()
 showLogsWindow = do
@@ -52,7 +66,20 @@ showLogsWindow = do
 
 displayLogMessage :: Text -> UI Logs ()
 displayLogMessage message = do
-    logsEdit <- view logsEditL
-    liftIO $ QTextEdit.append logsEdit $ toString $
-        format spanFormat $ csiToHTML message
-    liftIO $ QTextEdit.ensureCursorVisible logsEdit
+  logsEdit <- view logsEditL
+  liftIO $ QTextEdit.append logsEdit $ toString $
+    format spanFormat $ csiToHTML message
+
+scrollRangeChanged :: Logs -> Int -> Int -> IO ()
+scrollRangeChanged Logs{..} _ maximumValue = do
+  userScrolled <- readIORef userScrolledRef
+
+  unless userScrolled $ do
+    scrollBar <- QAbstractScrollArea.verticalScrollBar logsEdit
+    QAbstractSlider.setValue scrollBar maximumValue
+
+scrollValueChanged :: Logs -> Int -> IO ()
+scrollValueChanged Logs{..} newValue = do
+  maximumValue <- QAbstractScrollArea.verticalScrollBar logsEdit >>= QAbstractSlider.maximum
+
+  writeIORef userScrolledRef $ newValue /= maximumValue
