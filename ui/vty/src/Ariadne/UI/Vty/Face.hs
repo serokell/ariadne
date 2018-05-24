@@ -83,6 +83,7 @@ data UiOperation
   = UiSelect [Word]
   | UiBalance
   | UiKill Natural
+  | UiCopySelection
 
 -- | Item which is currently selected by the backend.
 data UiSelectedItem

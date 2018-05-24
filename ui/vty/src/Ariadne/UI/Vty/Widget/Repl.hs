@@ -470,4 +470,5 @@ ariadneBanner (Named defAttr) _ = V.vertCat $ List.map (V.text' defAttr)
   , "        <Backslash> <Enter> to insert a line break,"
   , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
   , "       <Tab> to switch between widgets, <Esc> for menu"
+  , "     Hint: you can select text with mouse by holding Shift"
   ]

@@ -2,13 +2,14 @@ module Ariadne.UI.Vty.Widget.WalletPane where
 
 import Universum
 
-import Control.Lens (makeLensesWith, makePrisms, (.=), _Just, zoom, forOf_)
+import Control.Lens (forOf_, makeLensesWith, makePrisms, zoom, (.=), _Just)
 import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Keyboard
 
 
 data WalletPaneCommandEvent
@@ -32,6 +33,7 @@ data WalletPaneInfo
     }
 
 makeLensesWith postfixLFields ''WalletPaneInfo
+makePrisms ''WalletPaneInfo
 
 data WalletPaneWidgetState n =
   WalletPaneWidgetState
@@ -58,7 +60,7 @@ drawWalletPaneWidget
   => Bool
   -> WalletPaneWidgetState n
   -> B.Widget n
-drawWalletPaneWidget _hasFocus wpws =
+drawWalletPaneWidget hasFocus wpws =
   B.viewport walletPaneBrickName B.Both B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
@@ -70,16 +72,22 @@ drawWalletPaneWidget _hasFocus wpws =
       rdrCtx <- B.getContext
       let
         attr = rdrCtx ^. B.attrL
+        selAttr = attr <> B.attrMapLookup "selected" (rdrCtx ^. B.ctxAttrMapL)
         img = case walletPaneItemInfo of
           Nothing ->
             V.text' attr "Select a wallet, an account, or an address"
-          Just info -> V.vertCat
+          Just info -> V.vertCat $
             [ case info of
                 WalletPaneWalletInfo{} -> V.text' attr "Wallet"
                 WalletPaneAccountInfo{} -> V.text' attr "Account"
                 WalletPaneAddressInfo{} -> V.text' attr "Address"
             , V.text' attr $ info ^. labelL
-            , V.text' attr $ "Total balance: " <> case info ^. balanceL of
+            ] ++
+              case info of
+                WalletPaneAddressInfo{} -> [V.text' (if hasFocus then selAttr else attr) copyButtonText]
+                _ -> []
+            ++
+            [ V.text' attr $ "Total balance: " <> case info ^. balanceL of
                 WaitingBalance _ -> "Calculating..."
                 FailedBalance e -> pretty e
                 Balance bal -> pretty bal
@@ -93,6 +101,13 @@ drawWalletPaneWidget _hasFocus wpws =
 
 data WalletPaneWidgetEvent
   = WalletPaneUpdateEvent (Maybe UiWalletPaneInfo)
+  | WalletPaneMouseDownEvent B.Location
+  | WalletPaneCopySelectionEvent
+
+keyToWalletPaneEvent :: KeyboardEvent -> Maybe WalletPaneWidgetEvent
+keyToWalletPaneEvent = \case
+  KeyEnter -> Just WalletPaneCopySelectionEvent
+  _ -> Nothing
 
 handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
@@ -120,17 +135,30 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
         Just UiWalletPaneInfoAccount -> setInfo WalletPaneAccountInfo wpiLabel
         Just UiWalletPaneInfoAddress -> setInfo WalletPaneAddressInfo wpiLabel
         _ -> walletPaneItemInfoL .= Nothing
+    WalletPaneMouseDownEvent coords -> when (isCopyButtonClick coords) $
+      void $ putExpr UiCopySelection
+    WalletPaneCopySelectionEvent ->
+      zoom (walletPaneItemInfoL . _Just . _WalletPaneAddressInfo) $
+        void $ putExpr UiCopySelection
   where
     setInfo info label = do
       balancePromise <- refreshBalance
       walletPaneItemInfoL .= Just (info (fromMaybe "" label) balancePromise)
+
+    putExpr :: UiOperation -> StateT s (B.EventM n) UiCommandId
+    putExpr = liftIO . langPutCommand . langMkExpr
+
     refreshBalance = do
       mCommandId <- (^? walletPaneItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
-
-      let putExpr = liftIO . langPutCommand . langMkExpr
 
       -- Kill previous command
       whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
       commandId <- putExpr UiBalance
       return $ WaitingBalance commandId
+
+copyButtonText :: Text
+copyButtonText = "[ Copy ]"
+
+isCopyButtonClick :: B.Location -> Bool
+isCopyButtonClick (B.Location (col,row)) = row == 2 && col >= 0 && col <= length copyButtonText
