@@ -37,6 +37,7 @@ library
     , cardano-sl-update
     , cardano-sl-util
     , cardano-sl-wallet
+    , Cabal
     , conduit
     , contravariant
     , constraints
@@ -48,6 +49,7 @@ library
     , formatting
     , http-client
     , http-client-tls
+    , filepath
     , kademlia
     , knit
     , lens

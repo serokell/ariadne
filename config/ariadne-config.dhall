@@ -1,5 +1,5 @@
 {
-      cardano = ./config/cardano/cardano-config.dhall
-    , wallet = ./config/wallet/wallet.dhall
-    , update = ./config/update/update.dhall
+      cardano = ./cardano/cardano-config.dhall
+    , wallet = ./wallet/wallet.dhall
+    , update = ./update/update.dhall
 }
