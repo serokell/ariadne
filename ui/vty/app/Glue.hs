@@ -35,12 +35,15 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
-import Ariadne.Wallet.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+import Ariadne.Wallet.Face
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.UI.Vty.Knit as Knit
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
@@ -233,16 +236,61 @@ putCardanoEventToUI UiFace{..} ev =
 -- Glue between the Wallet backend and Vty frontend
 ----------------------------------------------------------------------------
 
+-- 'WalletData' like data type, used only in UI glue
+-- TODO: add balance fields
+
+data UiWalletData = UiWalletData
+  { _uwdName     :: !Text
+  , _uwdAccounts :: !(Vector UiAccountData)
+  } deriving (Show, Generic)
+
+data UiAccountData = AccountData
+  { _uadName      :: !Text
+  , _uadPath      :: !Word32
+  , _uadAddresses :: !(Vector ((HdAddressChain, Word32), Address))
+  } deriving (Eq, Show, Generic)
+
+toUiWalletDatas :: DB -> [UiWalletData]
+toUiWalletDatas db = toUiWalletData <$> hdRoots
+  where
+    hdRoots :: [HdRoot]
+    hdRoots = IxSet.toList $ readAllHdRoots db
+
+    toUiWalletData :: HdRoot -> UiWalletData
+    toUiWalletData HdRoot {..} = UiWalletData
+      { _uwdName = unHdRootName _hdRootName
+      , _uwdAccounts = toUiAccountData <$> IxSet.toList $
+        fromRight (error "Bug: RootId not found") (readAccountsByRootId _hdRootId)
+      }
+
+    toUiAccountData :: HdAccount -> UiAccountData
+    toUiAccountData HdAccount {..} = UiAccountData
+      { _uadName = _hdAccountName
+      , _uadPath =  _hdAccountId ^. _hdAccountIdIx -- TODO: Check if I guessed it right.
+      , _uadAddresses = toUiAddresses <$> IxSet.toList $
+        fromRight (error "Bug: AccountId not found") (readAddressesByAccountId _hdAccountId)
+      }
+    -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess.
+    toUiAddresses :: HdAddress -> ((HdAddressChain, Word32), Address)
+    toUiAddresses HdAddress {..} =
+      ((_hdAddressChain, unHdAccountIx (_hdAddressId ^. hdAccountIdIx)), fromIndb _hdAddressAddress)
+
+    unHdAccountIx (HdAccountIx w) = w
+
+    fromIndb (InDb x) = x
+
 -- The 'Maybe' here is not used for now, but in the future might be, if some
 -- event couldn't be mapped to a UI event.
 walletEventToUI :: WalletEvent -> Maybe UiEvent
 walletEventToUI = \case
-  WalletUserSecretSetEvent us sel ->
+  WalletStateSetEvent db sel ->
     Just $ UiWalletEvent $
       UiWalletUpdate
-        (userSecretToTree us)
+        (uiWalletDatasToTree uiwd)
         (walletSelectionToUI <$> sel)
-        (walletSelectionToPane us <$> sel)
+        (walletSelectionToPane uiwd <$> sel)
+  where
+    uiwd = toUiWalletDatas (db ^. hdWallets)
 
 walletSelectionToUI :: WalletSelection -> UiTreeSelection
 walletSelectionToUI WalletSelection{..} =
@@ -252,26 +300,26 @@ putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
-userSecretToTree :: UserSecret -> [UiTree]
-userSecretToTree = map toTree . view usWallets
+uiWalletDatasToTree :: [UiWalletData] -> [UiWalletTree]
+uiWalletDatasToTree = map toTree
   where
-    toTree :: WalletData -> UiTree
-    toTree WalletData {..} =
+    toTree :: UiWalletData -> UiWalletTree
+    toTree UiWalletData {..} =
         Node
-            { rootLabel = UiTreeItem (Just _wdName) [] False
-            , subForest = toList $ map toAccountNode _wdAccounts
+            { rootLabel = UiWalletTreeItem (Just _uwdName) [] False
+            , subForest = toList $ map toAccountNode _uwdAccounts
             }
       where
-        toAccountNode :: AccountData -> UiTree
-        toAccountNode AccountData {..} =
+        toAccountNode :: UiAccountData -> UiWalletTree
+        toAccountNode UiAccountData {..} =
             Node
                 { rootLabel =
-                      UiTreeItem
-                          { wtiLabel = Just _adName
-                          , wtiPath = [fromIntegral _adPath]
+                      UiWalletTreeItem
+                          { wtiLabel = Just _uadName
+                          , wtiPath = [fromIntegral _uadPath]
                           , wtiShowPath = True
                           }
-                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
+                , subForest = toList $ map (toAddressNode _uadPath) _uadAddresses
                 }
         toAddressNode :: Word32 -> (Word32, Address) -> UiTree
         toAddressNode accIdx (addrIdx, address) =
@@ -282,22 +330,23 @@ userSecretToTree = map toTree . view usWallets
                 , wtiShowPath = True
                 }
 
-walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletInfo
-walletSelectionToPane us WalletSelection{..} = UiWalletInfo{..}
+-- TODO: chnge to use chain type level
+walletSelectionToPane :: [UiWalletData] -> WalletSelection -> UiWalletPaneInfo
+walletSelectionToPane uiwd WalletSelection{..} = UiWalletPaneInfo{..}
   where
     wpiWalletIdx = wsWalletIndex
     wpiPath = wsPath
-    (wpiType, wpiLabel) = case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
+    (wpiType, wpiLabel) = case uiwd ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> error "Invalid wallet index"
       Just WalletData{..} -> case wsPath of
-        [] -> (Just UiWalletInfoWallet, Just _wdName)
-        accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
+        [] -> (Just UiWalletPaneInfoWallet, Just _uwdName)
+        accIdx:accPath -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just AccountData{..} -> case accPath of
-            [] -> (Just $ UiWalletInfoAccount [_adPath], Just _adName)
-            addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
+            [] -> (Just $ UiWalletPaneInfoAccount [_uadPath], Just _uadName)
+            addrIdx:_ -> case _uadAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
-              Just (addrPath, address) -> (Just $ UiWalletInfoAddress [_adPath, addrPath], Just $ pretty address)
+              Just (addrPath, address) -> (Just $ UiWalletPaneInfoAddress [_uadPath, addrPath], Just $ pretty address)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
@@ -310,13 +359,13 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
   where
     getItem :: Maybe WalletData -> [Word] -> UiSelectedItem
     getItem Nothing _ = error "Non-existing wallet is selected"
-    getItem (Just wd) [] = UiSelectedWallet (_wdName wd)
+    getItem (Just wd) [] = UiSelectedWallet (_uwdName wd)
     getItem (Just wd) (accIdx:rest) =
         case wd ^? wdAccounts . ix (fromIntegral accIdx) of
             Nothing -> error "Non-existing account is selected"
             Just ad ->
                 case rest of
-                    [] -> UiSelectedAccount (_adName ad)
+                    [] -> UiSelectedAccount (_uadName ad)
                     [addrIdx] ->
                         case ad ^? adAddresses . ix (fromIntegral addrIdx) of
                             Nothing -> error "Non-existing address is selected"

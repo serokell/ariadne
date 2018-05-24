@@ -26,6 +26,8 @@ createWalletBackend :: WalletConfig -> IO
   )
 createWalletBackend walletConfig = do
   walletSelRef <- newIORef Nothing
+  -- TODO: Do I need to close session on exit?
+  acidDB <- openLocalStateFrom walletAcidDbPathPlaceholder (mempty @DB)
   return $ \cf@CardanoFace {..} sendWalletEvent ->
     let
       Nat runCardanoMode = cardanoRunCardanoMode
@@ -36,25 +38,34 @@ createWalletBackend walletConfig = do
           r
       mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace
-          { walletNewAddress = newAddress this walletSelRef runCardanoMode
-          , walletNewAccount = newAccount this walletSelRef runCardanoMode
-          , walletNewWallet = newWallet walletConfig this runCardanoMode
+          { walletNewAddress = newAddress acidDB this walletSelRef chain
+          , walletNewAccount = newAccount acidDB this walletSelRef Nothing
+          , walletNewWallet = newWallet acidDB walletConfig this runCardanoMode
           , walletRestore = restoreWallet this runCardanoMode
           , walletRestoreFromFile = restoreFromKeyFile this runCardanoMode
           , walletRename = renameSelection this walletSelRef runCardanoMode
-          , walletRemove = removeSelection this walletSelRef runCardanoMode
-          , walletRefreshUserSecret =
-              refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
-          , walletSelect = select this walletSelRef runCardanoMode
+          , walletRemove = removeSelection acidDB this walletSelRef runCardanoMode
+          , walletRefreshState =
+              refreshState acidDB walletSelRef sendWalletEvent
+          , walletSelect = select this walletSelRef
           , walletSend =
               sendTx this cf walletSelRef putCommandOutput
           , walletGetSelection =
               (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
           , walletBalance = do
-              addrs <- getSelectedAddresses this walletSelRef runCardanoMode
+              mWalletSel <- readIORef walletSelRef
+              addrs <- getSelectedAddresses this walletSelRef
               runCardanoMode $ getBalance addrs
           }
       initWalletAction =
         refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
     in
       (mkWalletFace, initWalletAction)
+
+-- TODO: Make it configurable
+walletAcidDbPathPlaceholder :: FilePath
+walletAcidDbPathPlaceholder = ".wallet-db"
+
+-- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
+-- If running append mode (append wallets to existing database) it should be
+-- prevalidated at first (no name and key duplicates).

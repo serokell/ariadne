@@ -115,6 +115,8 @@ findAccounts esk = convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPu
     -- different levels). We should probably at least show some
     -- message if we encounter such addresses. Let's do it after
     -- switching to modern wallet data layer.
+
+    -- TODO: how to deduce chain type?
     filterAddresses :: [(Address, [Word32])] -> [(Address, (Word32, Word32))]
     filterAddresses =
         let twoIndices [α, β] = Just (α, β)

@@ -81,9 +81,9 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
-        , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAddress accountRef passphrase
+        , cpArgumentConsumer = (, ,) <$> getAccountRefArgOpt <*> getChainTypeArg <*> getPassPhraseArg
+        , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
+            walletNewAddress accountRef chain passphrase
             return $ toValue ValueUnit
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
@@ -293,3 +293,6 @@ mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)
 
 getPassPhraseArg :: Elem components Core => ArgumentConsumer components PassPhrase
 getPassPhraseArg = mkPassPhrase <$> getArgOpt tyString "pass"
+
+getChainTypeArg :: Elem components Core => ArgumentConsumer components HdAddressChain
+getChainTypeArg = undefined

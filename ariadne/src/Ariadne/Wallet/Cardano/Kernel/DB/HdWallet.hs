@@ -85,11 +85,15 @@ import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
   Supporting types
 -------------------------------------------------------------------------------}
 
--- | Wallet name
-newtype WalletName = WalletName Text
+-- | Name of a wallet.
+newtype WalletName = WalletName
+    { unWalletName :: Text
+    } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
 
 -- | Account name
-newtype AccountName = AccountName Text
+newtype AccountName = AccountName
+    { unAccountName :: Text
+    } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
 
 -- | Account index
 newtype HdAccountIx = HdAccountIx Word31
