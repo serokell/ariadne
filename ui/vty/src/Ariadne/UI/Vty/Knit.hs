@@ -58,6 +58,9 @@ instance MonadIO m => ComponentCommandExec m components UI where
   componentCommandExec (UiExecCtx uiFace uiGetSelected) (CommandAction act) =
     liftIO $ act uiFace uiGetSelected
 
+copySelectionCommandName :: CommandId
+copySelectionCommandName = "copy-selection"
+
 instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs components UI where
   componentCommandProcs =
     [
@@ -80,7 +83,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         , cpHelp = "Show logs screen"
         }
     , CommandProc
-        { cpName = "copy-selection"
+        { cpName = copySelectionCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \_ uiGetSelected -> do

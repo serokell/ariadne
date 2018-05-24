@@ -30,6 +30,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
 
 import qualified Ariadne.TaskManager.Knit as Knit
+import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
@@ -75,6 +76,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
+      UiCopySelection -> Knit.ExprProcCall (Knit.ProcCall Knit.copySelectionCommandName [])
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent

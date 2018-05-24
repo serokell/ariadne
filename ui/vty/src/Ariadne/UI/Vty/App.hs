@@ -306,6 +306,11 @@ handleAppEvent langFace ev =
             zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
             return AppInProgress
 
+        | Just walletPaneEv <- keyToWalletPaneEvent key,
+          AppFocusWalletPane <- focus -> do
+            zoom appStateWalletPaneL $ handleWalletPaneWidgetEvent langFace walletPaneEv
+            return AppInProgress
+
         | otherwise ->
             return AppInProgress
     B.MouseDown name V.BLeft [] coords ->
@@ -324,6 +329,8 @@ handleAppEvent langFace ev =
           return AppInProgress
         AppBrickWalletPane -> do
           appStateFocusL .= AppFocusWalletPane
+          zoom appStateWalletPaneL $ handleWalletPaneWidgetEvent langFace $
+            WalletPaneMouseDownEvent coords
           return AppInProgress
         AppBrickReplOutput -> do
           appStateFocusL .= AppFocusReplOutput
