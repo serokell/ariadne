@@ -306,7 +306,7 @@ uiWalletDatasToTree = map toTree
     toTree :: UiWalletData -> UiWalletTree
     toTree UiWalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _uwdName) [] False
+            { rootLabel = UiTreeItem (Just _uwdName) [] False
             , subForest = toList $ map toAccountNode _uwdAccounts
             }
       where
@@ -314,7 +314,7 @@ uiWalletDatasToTree = map toTree
         toAccountNode UiAccountData {..} =
             Node
                 { rootLabel =
-                      UiWalletTreeItem
+                      UiTreeItem
                           { wtiLabel = Just _uadName
                           , wtiPath = [fromIntegral _uadPath]
                           , wtiShowPath = True

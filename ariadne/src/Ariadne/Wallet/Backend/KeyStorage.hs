@@ -254,7 +254,6 @@ newAddress dbACID WalletFace {..} walletSelRef accRef chain pp = do
                 hdAddressId ^. hdAddressIdIx of
           Nothing -> throwM AGFailedIncorrectPassPhrase
           Just (a, _) -> pure a
-
   update dbACID (CreateHdAddress hdAddressId addr chain)
   walletRefreshState
     where
@@ -295,14 +294,12 @@ newAccount
 newAccount acidDB WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountName = do
   walletDb <- query acidDB Snapshot
   hdRootId <- resolveWalletRef walletSelRef walletDb walletRef
-
   -- need to query ixSet to find if the name already in db
   let accounts = case readAccountsByRootId hdRootId walletDb of
       Left err -> throwM err
       Right acc -> acc
 
   let namesVec = V.fromList (map (unAccountName . (^. hdAccountName)) accounts)
-
   accountName <- case mbAccountName of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
@@ -370,7 +367,6 @@ addWallet acidDB wf@WalletFace {..} runCardanoMode esk mbWalletName accounts = d
         when (encToPublic esk `elem` keysList) $
           throwM DuplicatedWalletKey
         usWallets %= Map.insert (addressHash $ encToPublic esk) esk
-
   runCardanoMode (modifySecretDefault (runCatchInState addWalletPure)) >>=
     eitherToThrow
 
