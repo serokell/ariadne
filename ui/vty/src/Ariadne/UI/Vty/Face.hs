@@ -123,6 +123,8 @@ data UiWalletTreeItem = UiWalletTreeItem
     , wtiPath :: ![Word]
     -- ^ Path to this node in the tree. Can be used as an identifier
     -- (hopefully).
+    , wtiDerPath :: ![Word32]
+    -- ^ Derivation path of the node
     , wtiShowPath :: !Bool
     -- ^ Whether the path should be displayed.
     }
@@ -148,8 +150,8 @@ data UiWalletTreeSelection =
 
 data UiWalletPaneInfoType
   = UiWalletPaneInfoWallet
-  | UiWalletPaneInfoAccount
-  | UiWalletPaneInfoAddress
+  | UiWalletPaneInfoAccount [Word32]
+  | UiWalletPaneInfoAddress [Word32]
 
 data UiWalletPaneInfo
   = UiWalletPaneInfo

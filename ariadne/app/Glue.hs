@@ -166,27 +166,31 @@ userSecretToTree = map toTree . view usWallets
     toTree :: WalletData -> UiWalletTree
     toTree WalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
-            , subForest = toList $ map toAccountNode _wdAccounts
+            { rootLabel = UiWalletTreeItem (Just _wdName) [] [] False
+            , subForest = map toAccountNode (zip [0..] . toList $ _wdAccounts)
             }
       where
-        toAccountNode :: AccountData -> UiWalletTree
-        toAccountNode AccountData {..} =
+        toAccountNode :: (Word, AccountData) -> UiWalletTree
+        toAccountNode (accIdx, AccountData {..}) =
             Node
                 { rootLabel =
                       UiWalletTreeItem
                           { wtiLabel = Just _adName
-                          , wtiPath = [fromIntegral _adPath]
+                          , wtiPath = [accIdx]
+                          , wtiDerPath = [_adPath]
                           , wtiShowPath = True
                           }
-                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
+                , subForest =
+                    map (\(addrIdx, addr) -> toAddressNode _adPath (accIdx, addrIdx) addr)
+                        (zip [0..] . toList $ _adAddresses)
                 }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
-        toAddressNode accIdx (addrIdx, address) =
+        toAddressNode :: Word32 -> (Word, Word) -> (Word32, Address) -> UiWalletTree
+        toAddressNode accDerIdx (accIdx, addrIdx) (addrDerIdx, address) =
             pure $
             UiWalletTreeItem
                 { wtiLabel = Just (pretty address)
-                , wtiPath = map fromIntegral [accIdx, addrIdx]
+                , wtiPath = [accIdx, addrIdx]
+                , wtiDerPath = [accDerIdx, addrDerIdx]
                 , wtiShowPath = True
                 }
 
@@ -202,10 +206,10 @@ walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
         accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just AccountData{..} -> case accPath of
-            [] -> (Just UiWalletPaneInfoAccount, Just _adName)
+            [] -> (Just (UiWalletPaneInfoAccount [_adPath]), Just _adName)
             addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
-              Just (_, address) -> (Just UiWalletPaneInfoAddress, Just $ pretty address)
+              Just (addrPath, address) -> (Just (UiWalletPaneInfoAddress [_adPath, addrPath]), Just $ pretty address)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
