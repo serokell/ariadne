@@ -131,7 +131,7 @@ packages:
 # Not for Cardano SL
 - location:
     git: ssh://git@github.com/serokell/qtah.git
-    commit: 6bb0cdfb46239a63fdb38ceacc70a23bc38d8335
+    commit: b52e5e3c03e6a801d39d6dc41c31dc9378a4cf26
   extra-dep: true
   subdirs:
   - qtah-generator
