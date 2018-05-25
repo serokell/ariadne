@@ -270,8 +270,7 @@ getConfig = do
 opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
-  <> Opt.progDesc "Runs Ariadne CLI"
-  <> Opt.header "Ariadne CLI" )
+  <> Opt.header "Ariadne wallet" )
 
 parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
