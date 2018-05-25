@@ -123,7 +123,7 @@ handleWalletInfoEvent UiLangFace{..} ev = do
         writeIORef balanceCommandId Nothing
         case result of
           UiBalanceCommandSuccess balance -> do
-            QLabel.setText balanceLabel $ (show balance :: String)
+            QLabel.setText balanceLabel $ toString balance
           UiBalanceCommandFailure err -> do
             QLabel.setText balanceLabel $ toString err
 

@@ -123,7 +123,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiBalance ->
         Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
           fromResult result >>= fromValue >>= \case
-            Knit.ValueNumber n -> Right $ truncate n
+            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
             _ -> Left "Unrecognized return value"
       UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
