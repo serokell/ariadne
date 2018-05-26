@@ -8,9 +8,10 @@ import Universum
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non)
+import Data.List (init)
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
-import qualified Data.List.NonEmpty as NE
 
 import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
@@ -48,7 +49,7 @@ restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
           pure (lastWord == "ariadne-v0") -- TODO AD-124: version parsing?
     esk <- if
       | isAriadneMnemonic ->
-          let seed = mnemonicToSeed mnemonic ""
+          let seed = mnemonicToSeed (unwords $ init mnemonicWords) ""
           in pure . snd $ safeDeterministicKeyGen seed pp
       | length mnemonicWords == 12 ->
           case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
