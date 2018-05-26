@@ -1,13 +1,13 @@
 -- | Wallet tree widget and its data model.
 
-module Ariadne.UI.Vty.Widget.WalletTree
-       ( WalletTreeWidgetState
-       , initWalletTreeWidget
-       , drawWalletTreeWidget
+module Ariadne.UI.Vty.Widget.Tree
+       ( TreeWidgetState
+       , initTreeWidget
+       , drawTreeWidget
 
-       , WalletTreeWidgetEvent(..)
-       , keyToWalletTreeEvent
-       , handleWalletTreeWidgetEvent
+       , TreeWidgetEvent(..)
+       , keyToTreeEvent
+       , handleTreeWidgetEvent
        ) where
 
 import Universum
@@ -34,13 +34,13 @@ import Ariadne.UI.Vty.UI
 
 -- | State of wallet tree widget, basically the data we want to
 -- display (corresponds to a list of wallets).
-data WalletTreeWidgetState =
-  WalletTreeWidgetState
-    { walletTreeItems :: ![TreeItem]
-    , walletTreeWallets :: ![UiWalletTree]
-    , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
-    , walletTreeInitialized :: !Bool
-    , walletTreeScrollBySelection :: !Bool
+data TreeWidgetState =
+  TreeWidgetState
+    { treeItems :: ![TreeItem]
+    , treeWallets :: ![UiTree]
+    , treeSelection :: !(Maybe UiTreeSelection)
+    , treeInitialized :: !Bool
+    , treeScrollBySelection :: !Bool
     }
 
 data TreeItemType
@@ -57,32 +57,32 @@ data TreeItem =
     , treeItemSelected :: !Bool
     }
 
-makeLensesWith postfixLFields ''WalletTreeWidgetState
+makeLensesWith postfixLFields ''TreeWidgetState
 
 widgetName :: BrickName
-widgetName = BrickWalletTree
+widgetName = BrickTree
 
 treeItemLoading, treeItemSeparator :: TreeItem
 treeItemLoading = TreeItem TreeItemLoading "" "Loading..." Nothing False
 treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 
-initWalletTreeWidget :: WalletTreeWidgetState
-initWalletTreeWidget = WalletTreeWidgetState
-  { walletTreeItems = [treeItemLoading]
-  , walletTreeWallets = []
-  , walletTreeSelection = Just $ UiWalletTreeSelection 0 [0]
-  , walletTreeInitialized = False
-  , walletTreeScrollBySelection = False
+initTreeWidget :: TreeWidgetState
+initTreeWidget = TreeWidgetState
+  { treeItems = [treeItemLoading]
+  , treeWallets = []
+  , treeSelection = Just $ UiTreeSelection 0 [0]
+  , treeInitialized = False
+  , treeScrollBySelection = False
   }
 
-walletsToItems :: [UiWalletTree] -> Maybe UiWalletTreeSelection -> [TreeItem]
+walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> [TreeItem]
 walletsToItems wallets selection =
   intercalate [treeItemSeparator] $
   map' (go [] []) (enumerate wallets)
   where
     selPath :: Maybe [Word]
     selPath = do
-      UiWalletTreeSelection{..} <- selection
+      UiTreeSelection{..} <- selection
       Just $ wtsWalletIdx : wtsPath
 
     map' :: (from -> Bool -> to) -> [from] -> [to]
@@ -101,8 +101,8 @@ walletsToItems wallets selection =
       | length label > 21 = T.take 9 label <> "..." <> T.takeEnd 9 label
       | otherwise = label
 
-    go :: [Word] -> [Bool] -> (Word, UiWalletTree) -> Bool -> [TreeItem]
-    go path prefixLines (idx, Node UiWalletTreeItem{..} subForest) isLast =
+    go :: [Word] -> [Bool] -> (Word, UiTree) -> Bool -> [TreeItem]
+    go path prefixLines (idx, Node UiTreeItem{..} subForest) isLast =
       TreeItem{..} : concat (map' (go itemPath itemPrefixLines) (enumerate subForest))
       where
         treeItemType = TreeItemPath
@@ -118,8 +118,8 @@ walletsToItems wallets selection =
 -- View
 ----------------------------------------------------------------------------
 
-drawWalletTreeWidget :: Bool -> WalletTreeWidgetState -> B.Widget BrickName
-drawWalletTreeWidget _hasFocus WalletTreeWidgetState{..}  =
+drawTreeWidget :: Bool -> TreeWidgetState -> B.Widget BrickName
+drawTreeWidget _hasFocus TreeWidgetState{..}  =
   fixedViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
@@ -133,14 +133,14 @@ drawWalletTreeWidget _hasFocus WalletTreeWidgetState{..}  =
         attr = rdrCtx ^. B.attrL
         selAttr = attr <> B.attrMapLookup "selected" (rdrCtx ^. B.ctxAttrMapL)
 
-        img = V.vertCat $ fmap toImg walletTreeItems
+        img = V.vertCat $ fmap toImg treeItems
         toImg TreeItem{..} = V.horizJoin
           (V.text' attr treeItemPrefix)
           (V.text' (if treeItemSelected then selAttr else attr) treeItemLabel)
 
         visibilityRequests
-          | walletTreeScrollBySelection,
-            Just pos <- findIndex treeItemSelected walletTreeItems = [B.VR (B.Location (0, pos)) (1, 1)]
+          | treeScrollBySelection,
+            Just pos <- findIndex treeItemSelected treeItems = [B.VR (B.Location (0, pos)) (1, 1)]
           | otherwise = []
       return $ B.emptyResult
              & B.imageL .~ img
@@ -150,53 +150,53 @@ drawWalletTreeWidget _hasFocus WalletTreeWidgetState{..}  =
 -- Events
 ----------------------------------------------------------------------------
 
-data WalletTreeWidgetEvent
-  = WalletTreeUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
-  | WalletTreeMouseDownEvent B.Location
-  | WalletTreeScrollingEvent ScrollingAction
-  | WalletNavigationUp
-  | WalletNavigationDown
-  | WalletNavigationLeft
-  | WalletNavigationRight
+data TreeWidgetEvent
+  = TreeUpdateEvent [UiTree] (Maybe UiTreeSelection)
+  | TreeMouseDownEvent B.Location
+  | TreeScrollingEvent ScrollingAction
+  | TreeNavigationUp
+  | TreeNavigationDown
+  | TreeNavigationLeft
+  | TreeNavigationRight
 
-keyToWalletTreeEvent
+keyToTreeEvent
   :: KeyboardEvent
-  -> Maybe WalletTreeWidgetEvent
-keyToWalletTreeEvent = \case
-  KeyUp -> Just WalletNavigationUp
-  KeyDown -> Just WalletNavigationDown
-  KeyLeft -> Just WalletNavigationLeft
-  KeyRight -> Just WalletNavigationRight
-  KeyChar 'h' -> Just WalletNavigationLeft
-  KeyChar 'j' -> Just WalletNavigationDown
-  KeyChar 'k' -> Just WalletNavigationUp
-  KeyChar 'l' -> Just WalletNavigationRight
+  -> Maybe TreeWidgetEvent
+keyToTreeEvent = \case
+  KeyUp -> Just TreeNavigationUp
+  KeyDown -> Just TreeNavigationDown
+  KeyLeft -> Just TreeNavigationLeft
+  KeyRight -> Just TreeNavigationRight
+  KeyChar 'h' -> Just TreeNavigationLeft
+  KeyChar 'j' -> Just TreeNavigationDown
+  KeyChar 'k' -> Just TreeNavigationUp
+  KeyChar 'l' -> Just TreeNavigationRight
   _ -> Nothing
 
-handleWalletTreeWidgetEvent
+handleTreeWidgetEvent
   :: UiLangFace
-  -> WalletTreeWidgetEvent
-  -> StateT WalletTreeWidgetState (B.EventM BrickName) ()
-handleWalletTreeWidgetEvent UiLangFace{..} = \case
-  WalletTreeUpdateEvent wallets wselection -> do
+  -> TreeWidgetEvent
+  -> StateT TreeWidgetState (B.EventM BrickName) ()
+handleTreeWidgetEvent UiLangFace{..} = \case
+  TreeUpdateEvent wallets wselection -> do
     let items = walletsToItems wallets wselection
-    unlessM (use walletTreeInitializedL) $ do
-      walletTreeInitializedL .= True
+    unlessM (use treeInitializedL) $ do
+      treeInitializedL .= True
       whenJust (items ^? ix 0 >>= treeItemPath) putSelect
-    walletTreeItemsL .= items
-    walletTreeScrollBySelectionL .= True
-  WalletTreeMouseDownEvent (B.Location (_, row)) -> do
-    items <- use walletTreeItemsL
+    treeItemsL .= items
+    treeScrollBySelectionL .= True
+  TreeMouseDownEvent (B.Location (_, row)) -> do
+    items <- use treeItemsL
     whenJust (items ^? ix row >>= treeItemPath) putSelect
-  WalletTreeScrollingEvent action -> do
+  TreeScrollingEvent action -> do
     lift $ handleScrollingEvent widgetName action
-    walletTreeScrollBySelectionL .= False
-  WalletNavigationUp -> defaultPath $ applyToLast (\x -> if minBound == x then x else pred x)
-  WalletNavigationDown -> defaultPath $ applyToLast (\x -> if maxBound == x then x else succ x)
-  WalletNavigationLeft -> defaultPath $ NE.init
-  WalletNavigationRight -> defaultPath $ (++ [0]) . toList
+    treeScrollBySelectionL .= False
+  TreeNavigationUp -> defaultPath $ applyToLast (\x -> if minBound == x then x else pred x)
+  TreeNavigationDown -> defaultPath $ applyToLast (\x -> if maxBound == x then x else succ x)
+  TreeNavigationLeft -> defaultPath $ NE.init
+  TreeNavigationRight -> defaultPath $ (++ [0]) . toList
   where
     putSelect = void . liftIO . langPutCommand . langMkExpr . UiSelect
     applyToLast :: (Word -> Word) -> NE.NonEmpty Word -> [Word]
     applyToLast f xs = NE.init xs ++ [f (NE.last xs)]
-    defaultPath f = get <&> walletTreeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect
+    defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect

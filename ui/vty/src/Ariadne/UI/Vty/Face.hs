@@ -11,11 +11,11 @@ module Ariadne.UI.Vty.Face
        , UiLangFace (..)
        , UiFace (..)
 
-       , UiWalletTreeItem (..)
-       , UiWalletTree
-       , UiWalletTreeSelection(..)
-       , UiWalletPaneInfoType(..)
-       , UiWalletPaneInfo(..)
+       , UiTreeItem (..)
+       , UiTree
+       , UiTreeSelection(..)
+       , UiWalletInfoType(..)
+       , UiWalletInfo(..)
        , TreePath
        ) where
 
@@ -61,9 +61,9 @@ data UiCardanoEvent
 
 data UiWalletEvent =
   UiWalletUpdate
-    { wuTrees :: [UiWalletTree]
-    , wuSelection :: Maybe UiWalletTreeSelection
-    , wuPaneInfoUpdate :: Maybe UiWalletPaneInfo
+    { wuTrees :: [UiTree]
+    , wuSelection :: Maybe UiTreeSelection
+    , wuPaneInfoUpdate :: Maybe UiWalletInfo
     }
 
 -- UI event triggered by REPL command
@@ -120,7 +120,7 @@ data UiFace =
 ----------------------------------------------------------------------------
 
 -- | A node in HD-wallet tree.
-data UiWalletTreeItem = UiWalletTreeItem
+data UiTreeItem = UiTreeItem
     { wtiLabel :: !(Maybe Text)
     -- ^ Some text to display (e. g. wallet's name).
     , wtiPath :: ![Word]
@@ -130,7 +130,7 @@ data UiWalletTreeItem = UiWalletTreeItem
     -- ^ Whether the path should be displayed.
     }
 
-type UiWalletTree = Tree UiWalletTreeItem
+type UiTree = Tree UiTreeItem
 
 -- | Path in a 'Tree'.
 --
@@ -139,8 +139,8 @@ type UiWalletTree = Tree UiWalletTreeItem
 -- to be an issue, we may consider changing it.
 type TreePath = [Word]
 
-data UiWalletTreeSelection =
-  UiWalletTreeSelection
+data UiTreeSelection =
+  UiTreeSelection
     { wtsWalletIdx :: Word
     , wtsPath :: TreePath
     }
@@ -149,14 +149,14 @@ data UiWalletTreeSelection =
 -- Wallet pane widget model
 ----------------------------------------------------------------------------
 
-data UiWalletPaneInfoType
-  = UiWalletPaneInfoWallet
-  | UiWalletPaneInfoAccount [Word32]
-  | UiWalletPaneInfoAddress [Word32]
+data UiWalletInfoType
+  = UiWalletInfoWallet
+  | UiWalletInfoAccount [Word32]
+  | UiWalletInfoAddress [Word32]
 
-data UiWalletPaneInfo
-  = UiWalletPaneInfo
-    { wpiType :: !(Maybe UiWalletPaneInfoType)
+data UiWalletInfo
+  = UiWalletInfo
+    { wpiType :: !(Maybe UiWalletInfoType)
     , wpiLabel :: !(Maybe Text)
     , wpiWalletIdx :: !Word
     , wpiPath :: !TreePath
