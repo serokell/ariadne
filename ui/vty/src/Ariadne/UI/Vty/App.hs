@@ -20,6 +20,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
+import Ariadne.UI.Vty.UI
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -45,27 +46,16 @@ data AppFocus
   | AppFocusLogs
   deriving (Eq)
 
--- | Brick-specific ID for scrolling viewports, widget cache items and clickable widgets
-data AppBrickName
-  = AppBrickMenu
-  | AppBrickWalletTree
-  | AppBrickWalletPane
-  | AppBrickReplOutput
-  | AppBrickReplInput
-  | AppBrickHelp
-  | AppBrickLogs
-  deriving (Eq, Ord, Show)
-
 data AppState =
   AppState
-    { appStateFocus :: AppFocus
-    , appStateRepl :: ReplWidgetState AppBrickName
-    , appStateMenu :: MenuWidgetState AppSelector AppBrickName
+    { appStateFocus :: !AppFocus
+    , appStateRepl :: ReplWidgetState
+    , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
-    , appStateHelp :: HelpWidgetState AppBrickName
-    , appStateLogs :: LogsWidgetState AppBrickName
-    , appStateWalletTree :: WalletTreeWidgetState AppBrickName
-    , appStateWalletPane :: WalletPaneWidgetState AppBrickName
+    , appStateHelp :: HelpWidgetState
+    , appStateLogs :: LogsWidgetState
+    , appStateWalletTree :: WalletTreeWidgetState
+    , appStateWalletPane :: WalletPaneWidgetState
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -74,13 +64,13 @@ initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace history AppBrickReplOutput AppBrickReplInput
-    , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
+    , appStateRepl = initReplWidget langFace history
+    , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
-    , appStateHelp = initHelpWidget langFace AppBrickHelp
-    , appStateLogs = initLogsWidget AppBrickLogs
-    , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
-    , appStateWalletPane = initWalletPaneWidget AppBrickWalletPane
+    , appStateHelp = initHelpWidget langFace
+    , appStateLogs = initLogsWidget
+    , appStateWalletTree = initWalletTreeWidget
+    , appStateWalletPane = initWalletPaneWidget
     }
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
@@ -93,23 +83,23 @@ initialAppState langFace history =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: UiLangFace -> B.App AppState UiEvent AppBrickName
+app :: UiLangFace -> B.App AppState UiEvent BrickName
 app langFace = B.App{..} where
 
-  appDraw :: AppState -> [B.Widget AppBrickName]
+  appDraw :: AppState -> [B.Widget BrickName]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
   appChooseCursor
     :: AppState
-    -> [B.CursorLocation AppBrickName]
-    -> Maybe (B.CursorLocation AppBrickName)
+    -> [B.CursorLocation BrickName]
+    -> Maybe (B.CursorLocation BrickName)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent AppBrickName UiEvent
-    -> B.EventM AppBrickName (B.Next AppState)
+    -> B.BrickEvent BrickName UiEvent
+    -> B.EventM BrickName (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <-
       runStateT (handleAppEvent langFace ev) appState
@@ -118,13 +108,13 @@ app langFace = B.App{..} where
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState -> B.EventM AppBrickName AppState
+  appStartEvent :: AppState -> B.EventM BrickName AppState
   appStartEvent = return
 
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap = const defaultAttrMap
 
-drawAppWidget :: AppState -> [B.Widget AppBrickName]
+drawAppWidget :: AppState -> [B.Widget BrickName]
 drawAppWidget AppState{..} =
   let
     navMode = menuWidgetNavMode appStateMenu
@@ -226,8 +216,8 @@ drawAppWidget AppState{..} =
 
 handleAppEvent
   :: UiLangFace
-  -> B.BrickEvent AppBrickName UiEvent
-  -> StateT AppState (B.EventM AppBrickName) AppCompleted
+  -> B.BrickEvent BrickName UiEvent
+  -> StateT AppState (B.EventM BrickName) AppCompleted
 handleAppEvent langFace ev =
   case ev of
     B.VtyEvent (V.EvPaste bs) -> do
@@ -315,27 +305,27 @@ handleAppEvent langFace ev =
             return AppInProgress
     B.MouseDown name V.BLeft [] coords ->
       case name of
-        AppBrickMenu -> do
+        BrickMenu -> do
           zoom appStateMenuL $ handleMenuWidgetEvent $
             MenuMouseDownEvent coords
           newSel <- uses appStateMenuL menuWidgetSel
           focus <- use appStateFocusL
           appStateFocusL .= restoreFocus newSel focus
           return AppInProgress
-        AppBrickWalletTree -> do
+        BrickWalletTree -> do
           appStateFocusL .= AppFocusWalletTree
           zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
             WalletTreeMouseDownEvent coords
           return AppInProgress
-        AppBrickWalletPane -> do
+        BrickWalletPane -> do
           appStateFocusL .= AppFocusWalletPane
           zoom appStateWalletPaneL $ handleWalletPaneWidgetEvent langFace $
             WalletPaneMouseDownEvent coords
           return AppInProgress
-        AppBrickReplOutput -> do
+        BrickReplOutput -> do
           appStateFocusL .= AppFocusReplOutput
           return AppInProgress
-        AppBrickReplInput -> do
+        BrickReplInput -> do
           appStateFocusL .= AppFocusReplInput
           void $ zoom appStateReplL $ handleReplInputEvent langFace $
             ReplMouseDownEvent coords
@@ -345,16 +335,16 @@ handleAppEvent langFace ev =
     B.MouseDown name button [] _
       | Just scrollAction <- buttonToScrollAction button -> do
           case name of
-            AppBrickWalletTree ->
+            BrickWalletTree ->
               zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
                 WalletTreeScrollingEvent scrollAction
-            AppBrickReplOutput ->
+            BrickReplOutput ->
               zoom appStateReplL $ handleReplOutputEvent $
                 ReplOutputScrollingEvent scrollAction
-            AppBrickHelp ->
+            BrickHelp ->
               zoom appStateHelpL $ handleHelpWidgetEvent $
                 HelpScrollingEvent scrollAction
-            AppBrickLogs ->
+            BrickLogs ->
               zoom appStateLogsL $ handleLogsWidgetEvent $
                 LogsScrollingEvent scrollAction
             _ ->

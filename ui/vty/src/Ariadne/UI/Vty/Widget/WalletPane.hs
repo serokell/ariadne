@@ -1,4 +1,14 @@
-module Ariadne.UI.Vty.Widget.WalletPane where
+module Ariadne.UI.Vty.Widget.WalletPane
+       ( WalletPaneWidgetState
+       , initWalletPaneWidget
+       , drawWalletPaneWidget
+
+       , WalletPaneCommandEvent(..)
+       , WalletPaneWidgetEvent(..)
+       , keyToWalletPaneEvent
+       , handleWalletPaneCommandEvent
+       , handleWalletPaneWidgetEvent
+       ) where
 
 import Universum
 
@@ -11,7 +21,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
-
+import Ariadne.UI.Vty.UI
 
 data WalletPaneCommandEvent
   = WalletPaneCommandEvent UiCommandId UiCommandResultEvent
@@ -21,50 +31,44 @@ makePrisms ''BalancePromise
 
 data WalletPaneInfo
   = WalletPaneWalletInfo
-    { label :: Text
-    , balance :: BalancePromise
+    { label :: !Text
+    , balance :: !BalancePromise
     }
   | WalletPaneAccountInfo
-    { label :: Text
-    , derivationPath :: [Word32]
-    , balance :: BalancePromise
+    { label :: !Text
+    , derivationPath :: ![Word32]
+    , balance :: !BalancePromise
     }
   | WalletPaneAddressInfo
-    { label :: Text
-    , derivationPath :: [Word32]
-    , balance :: BalancePromise
+    { label :: !Text
+    , derivationPath :: ![Word32]
+    , balance :: !BalancePromise
     }
 
 makeLensesWith postfixLFields ''WalletPaneInfo
 makePrisms ''WalletPaneInfo
 
-data WalletPaneWidgetState n =
+data WalletPaneWidgetState =
   WalletPaneWidgetState
-    { walletPaneItemInfo :: Maybe WalletPaneInfo
-    , walletPaneInitialized :: Bool
-    , walletPaneBrickName :: n
+    { walletPaneItemInfo :: !(Maybe WalletPaneInfo)
+    , walletPaneInitialized :: !Bool
     }
 
 makeLensesWith postfixLFields ''WalletPaneWidgetState
 
-initWalletPaneWidget
-  :: (Ord n, Show n)
-  => n
-  -> WalletPaneWidgetState n
-initWalletPaneWidget name =
+widgetName :: BrickName
+widgetName = BrickWalletPane
+
+initWalletPaneWidget :: WalletPaneWidgetState
+initWalletPaneWidget =
   WalletPaneWidgetState
     { walletPaneItemInfo = Nothing
     , walletPaneInitialized = False
-    , walletPaneBrickName = name
     }
 
-drawWalletPaneWidget
-  :: (Ord n, Show n)
-  => Bool
-  -> WalletPaneWidgetState n
-  -> B.Widget n
+drawWalletPaneWidget :: Bool -> WalletPaneWidgetState -> B.Widget BrickName
 drawWalletPaneWidget hasFocus wpws =
-  B.viewport walletPaneBrickName B.Both B.Widget
+  B.viewport widgetName B.Both B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
     , B.render = render
@@ -119,7 +123,7 @@ keyToWalletPaneEvent = \case
 
 handleWalletPaneCommandEvent
   :: WalletPaneCommandEvent
-  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
+  -> StateT WalletPaneWidgetState (B.EventM BrickName) ()
 handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = do
  zoom (walletPaneItemInfoL . _Just . balanceL) $ do
    cmdOrBal <- get
@@ -133,7 +137,7 @@ handleWalletPaneCommandEvent (WalletPaneCommandEvent commandId commandEvent) = d
 handleWalletPaneWidgetEvent
   :: UiLangFace
   -> WalletPaneWidgetEvent
-  -> StateT (WalletPaneWidgetState n) (B.EventM n) ()
+  -> StateT WalletPaneWidgetState (B.EventM BrickName) ()
 handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do

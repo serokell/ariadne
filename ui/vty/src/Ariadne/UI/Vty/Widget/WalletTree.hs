@@ -4,6 +4,7 @@ module Ariadne.UI.Vty.Widget.WalletTree
        ( WalletTreeWidgetState
        , initWalletTreeWidget
        , drawWalletTreeWidget
+
        , WalletTreeWidgetEvent(..)
        , keyToWalletTreeEvent
        , handleWalletTreeWidgetEvent
@@ -25,6 +26,7 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.UI
 
 ----------------------------------------------------------------------------
 -- Model
@@ -32,14 +34,13 @@ import Ariadne.UI.Vty.Scrolling
 
 -- | State of wallet tree widget, basically the data we want to
 -- display (corresponds to a list of wallets).
-data WalletTreeWidgetState n =
+data WalletTreeWidgetState =
   WalletTreeWidgetState
     { walletTreeItems :: ![TreeItem]
     , walletTreeWallets :: ![UiWalletTree]
     , walletTreeSelection :: !(Maybe UiWalletTreeSelection)
     , walletTreeInitialized :: !Bool
     , walletTreeScrollBySelection :: !Bool
-    , walletTreeBrickName :: !n
     }
 
 data TreeItemType
@@ -49,7 +50,7 @@ data TreeItemType
 
 data TreeItem =
   TreeItem
-    { treeItemType :: TreeItemType
+    { treeItemType :: !TreeItemType
     , treeItemPrefix :: !Text
     , treeItemLabel :: !Text
     , treeItemPath :: !(Maybe [Word])
@@ -58,21 +59,20 @@ data TreeItem =
 
 makeLensesWith postfixLFields ''WalletTreeWidgetState
 
+widgetName :: BrickName
+widgetName = BrickWalletTree
+
 treeItemLoading, treeItemSeparator :: TreeItem
 treeItemLoading = TreeItem TreeItemLoading "" "Loading..." Nothing False
 treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 
-initWalletTreeWidget
-  :: (Ord n, Show n)
-  => n
-  -> WalletTreeWidgetState n
-initWalletTreeWidget name = WalletTreeWidgetState
+initWalletTreeWidget :: WalletTreeWidgetState
+initWalletTreeWidget = WalletTreeWidgetState
   { walletTreeItems = [treeItemLoading]
   , walletTreeWallets = []
   , walletTreeSelection = Just $ UiWalletTreeSelection 0 [0]
   , walletTreeInitialized = False
   , walletTreeScrollBySelection = False
-  , walletTreeBrickName = name
   }
 
 walletsToItems :: [UiWalletTree] -> Maybe UiWalletTreeSelection -> [TreeItem]
@@ -118,13 +118,9 @@ walletsToItems wallets selection =
 -- View
 ----------------------------------------------------------------------------
 
-drawWalletTreeWidget
-  :: (Ord n, Show n)
-  => Bool
-  -> WalletTreeWidgetState n
-  -> B.Widget n
+drawWalletTreeWidget :: Bool -> WalletTreeWidgetState -> B.Widget BrickName
 drawWalletTreeWidget _hasFocus WalletTreeWidgetState{..}  =
-  fixedViewport walletTreeBrickName B.Vertical $
+  fixedViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
@@ -178,10 +174,9 @@ keyToWalletTreeEvent = \case
   _ -> Nothing
 
 handleWalletTreeWidgetEvent
-  :: (Ord n, Show n)
-  => UiLangFace
+  :: UiLangFace
   -> WalletTreeWidgetEvent
-  -> StateT (WalletTreeWidgetState n) (B.EventM n) ()
+  -> StateT WalletTreeWidgetState (B.EventM BrickName) ()
 handleWalletTreeWidgetEvent UiLangFace{..} = \case
   WalletTreeUpdateEvent wallets wselection -> do
     let items = walletsToItems wallets wselection
@@ -194,8 +189,7 @@ handleWalletTreeWidgetEvent UiLangFace{..} = \case
     items <- use walletTreeItemsL
     whenJust (items ^? ix row >>= treeItemPath) putSelect
   WalletTreeScrollingEvent action -> do
-    name <- use walletTreeBrickNameL
-    lift $ handleScrollingEvent name action
+    lift $ handleScrollingEvent widgetName action
     walletTreeScrollBySelectionL .= False
   WalletNavigationUp -> defaultPath $ applyToLast (\x -> if minBound == x then x else pred x)
   WalletNavigationDown -> defaultPath $ applyToLast (\x -> if maxBound == x then x else succ x)

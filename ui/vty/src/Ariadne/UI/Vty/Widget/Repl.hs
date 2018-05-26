@@ -1,4 +1,17 @@
-module Ariadne.UI.Vty.Widget.Repl where
+module Ariadne.UI.Vty.Widget.Repl
+       ( ReplWidgetState
+       , initReplWidget
+       , drawReplInputWidget
+       , drawReplOutputWidget
+
+       , ReplCompleted(..)
+       , InputModification(..)
+       , ReplInputEvent(..)
+       , ReplOutputEvent(..)
+       , keyToReplInputEvent
+       , handleReplInputEvent
+       , handleReplOutputEvent
+       ) where
 
 import Prelude (until)
 import Universum
@@ -29,6 +42,7 @@ import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.UI
 
 type AdaptiveImage =
   Named V.Attr "def_attr" -> Named Int "width" -> V.Image
@@ -44,17 +58,19 @@ data ReplParseResult
   = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
   | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO UiCommandId }
 
-data ReplWidgetState n =
+data ReplWidgetState =
   ReplWidgetState
     { replWidgetParseResult :: ReplParseResult
-    , replWidgetTextZipper :: TextZipper Text
-    , replWidgetOut :: [OutputElement]
-    , replWidgetHistory :: CommandHistory
-    , replWidgetOutputBrickName :: n
-    , replWidgetInputBrickName :: n
+    , replWidgetTextZipper :: !(TextZipper Text)
+    , replWidgetOut :: ![OutputElement]
+    , replWidgetHistory :: !CommandHistory
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
+
+widgetInputName, widgetOutputName :: BrickName
+widgetInputName = BrickReplInput
+widgetOutputName = BrickReplOutput
 
 replWidgetPrompt :: String
 replWidgetPrompt = "knit> "
@@ -62,7 +78,7 @@ replWidgetPrompt = "knit> "
 replWidgetPromptCont :: String
 replWidgetPromptCont = "  ... "
 
-replWidgetText :: ReplWidgetState n -> Text
+replWidgetText :: ReplWidgetState -> Text
 replWidgetText = Text.unlines . getText . replWidgetTextZipper
 
 mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
@@ -79,43 +95,30 @@ mkReplParseResult UiLangFace{..} t =
         , rpfPutCommand = langPutCommand expr
         }
 
-replReparse :: Monad m => UiLangFace -> StateT (ReplWidgetState n) m ()
+replReparse :: Monad m => UiLangFace -> StateT ReplWidgetState m ()
 replReparse langFace = do
   t <- gets replWidgetText
   replWidgetParseResultL .= mkReplParseResult langFace t
 
-initReplWidget
-  :: (Ord n, Show n)
-  => UiLangFace
-  -> CommandHistory
-  -> n
-  -> n
-  -> ReplWidgetState n
-initReplWidget langFace history outputName inputName =
+initReplWidget :: UiLangFace -> CommandHistory -> ReplWidgetState
+initReplWidget langFace history =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
     , replWidgetHistory = history
-    , replWidgetOutputBrickName = outputName
-    , replWidgetInputBrickName = inputName
     }
 
-drawReplOutputWidget
-  :: (Ord n, Show n)
-  => Bool
-  -> ReplWidgetState n
-  -> B.Widget n
+drawReplOutputWidget :: Bool -> ReplWidgetState -> B.Widget BrickName
 drawReplOutputWidget _hasFocus replWidgetState =
-  B.viewport name B.Vertical $
-    B.cached name $
+  B.viewport widgetOutputName B.Vertical $
+    B.cached widgetOutputName $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
       }
   where
-    name = replWidgetState ^. replWidgetOutputBrickNameL
     outElems = reverse (replWidgetOut replWidgetState)
     render = do
       rdrCtx <- B.getContext
@@ -150,19 +153,14 @@ drawReplOutputWidget _hasFocus replWidgetState =
         B.emptyResult
           & B.imageL .~ img
 
-drawReplInputWidget
-  :: (Ord n, Show n)
-  => Bool
-  -> ReplWidgetState n
-  -> B.Widget n
+drawReplInputWidget :: Bool -> ReplWidgetState -> B.Widget BrickName
 drawReplInputWidget hasFocus replWidgetState =
-  fixedViewport name B.Horizontal B.Widget
+  fixedViewport widgetInputName B.Horizontal B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
-    name = replWidgetState ^. replWidgetInputBrickNameL
     render = do
       rdrCtx <- B.getContext
       let
@@ -244,7 +242,7 @@ data ReplOutputEvent
 data ReplCompleted = ReplCompleted | ReplInProgress
 
 keyToReplInputEvent
-  :: ReplWidgetState n
+  :: ReplWidgetState
   -> KeyboardEditEvent
   -> Maybe ReplInputEvent
 keyToReplInputEvent ReplWidgetState{..} = \case
@@ -300,10 +298,9 @@ keyToReplInputEvent ReplWidgetState{..} = \case
     isEmpty = Text.null $ Text.unwords $ getText replWidgetTextZipper
 
 handleReplInputEvent
-  :: (Ord n, Show n)
-  => UiLangFace
+  :: UiLangFace
   -> ReplInputEvent
-  -> StateT (ReplWidgetState n) (B.EventM n) ReplCompleted
+  -> StateT ReplWidgetState (B.EventM BrickName) ReplCompleted
 handleReplInputEvent langFace = fix $ \go -> \case
   ReplQuitEvent -> return ReplCompleted
   ReplInputModifyEvent modification -> do
@@ -377,26 +374,22 @@ handleReplInputEvent langFace = fix $ \go -> \case
           out = OutputCommand commandId commandSrc [] Nothing
         zoom replWidgetOutL $ modify (out:)
         replReparse langFace
-    name <- use replWidgetOutputBrickNameL
-    lift $ B.invalidateCacheEntry name
-    lift $ scrollToEnd name
+    lift $ B.invalidateCacheEntry widgetOutputName
+    lift $ scrollToEnd widgetOutputName
     return ReplInProgress
   ReplCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandEvent)
-    name <- use replWidgetOutputBrickNameL
-    lift $ B.invalidateCacheEntry name
-    lift $ scrollToEnd name
+    lift $ B.invalidateCacheEntry widgetOutputName
+    lift $ scrollToEnd widgetOutputName
     return ReplInProgress
 
 handleReplOutputEvent
-  :: (Ord n, Show n)
-  => ReplOutputEvent
-  -> StateT (ReplWidgetState n) (B.EventM n) ()
+  :: ReplOutputEvent
+  -> StateT ReplWidgetState (B.EventM BrickName) ()
 handleReplOutputEvent = \case
   ReplOutputScrollingEvent action -> do
-    name <- use replWidgetOutputBrickNameL
-    lift $ handleScrollingEvent name action
+    lift $ handleScrollingEvent widgetOutputName action
 
 isQuitCommand :: Text -> Bool
 isQuitCommand t =
