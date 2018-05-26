@@ -158,60 +158,60 @@ walletEventToUI = \case
         (walletSelectionToUI <$> sel)
         (walletSelectionToPane us <$> sel)
 
-walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
+walletSelectionToUI :: WalletSelection -> UiTreeSelection
 walletSelectionToUI WalletSelection{..} =
-  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+  UiTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
-userSecretToTree :: UserSecret -> [UiWalletTree]
+userSecretToTree :: UserSecret -> [UiTree]
 userSecretToTree = map toTree . view usWallets
   where
-    toTree :: WalletData -> UiWalletTree
+    toTree :: WalletData -> UiTree
     toTree WalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
+            { rootLabel = UiTreeItem (Just _wdName) [] False
             , subForest = toList $ map toAccountNode _wdAccounts
             }
       where
-        toAccountNode :: AccountData -> UiWalletTree
+        toAccountNode :: AccountData -> UiTree
         toAccountNode AccountData {..} =
             Node
                 { rootLabel =
-                      UiWalletTreeItem
+                      UiTreeItem
                           { wtiLabel = Just _adName
                           , wtiPath = [fromIntegral _adPath]
                           , wtiShowPath = True
                           }
                 , subForest = toList $ map (toAddressNode _adPath) _adAddresses
                 }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
+        toAddressNode :: Word32 -> (Word32, Address) -> UiTree
         toAddressNode accIdx (addrIdx, address) =
             pure $
-            UiWalletTreeItem
+            UiTreeItem
                 { wtiLabel = Just (pretty address)
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
 
-walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletPaneInfo
-walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
+walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletInfo
+walletSelectionToPane us WalletSelection{..} = UiWalletInfo{..}
   where
     wpiWalletIdx = wsWalletIndex
     wpiPath = wsPath
     (wpiType, wpiLabel) = case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> error "Invalid wallet index"
       Just WalletData{..} -> case wsPath of
-        [] -> (Just UiWalletPaneInfoWallet, Just _wdName)
+        [] -> (Just UiWalletInfoWallet, Just _wdName)
         accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just AccountData{..} -> case accPath of
-            [] -> (Just $ UiWalletPaneInfoAccount [_adPath], Just _adName)
+            [] -> (Just $ UiWalletInfoAccount [_adPath], Just _adName)
             addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
-              Just (addrPath, address) -> (Just $ UiWalletPaneInfoAddress [_adPath, addrPath], Just $ pretty address)
+              Just (addrPath, address) -> (Just $ UiWalletInfoAddress [_adPath, addrPath], Just $ pretty address)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.

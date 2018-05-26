@@ -7,8 +7,8 @@ import Universum
 -- | Brick-specific ID for viewports, rendering cache, focus etc
 data BrickName
   = BrickMenu
-  | BrickWalletTree
-  | BrickWalletPane
+  | BrickTree
+  | BrickWallet
   | BrickReplOutput
   | BrickReplInput
   | BrickHelp
