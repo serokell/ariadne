@@ -5,6 +5,7 @@ import Universum
 import Control.Lens (forOf_, makeLensesWith, makePrisms, zoom, (.=), _Just)
 import IiExtras
 
+import qualified Data.Text as T
 import qualified Brick as B
 import qualified Graphics.Vty as V
 
@@ -25,10 +26,12 @@ data WalletPaneInfo
     }
   | WalletPaneAccountInfo
     { label :: Text
+    , derivationPath :: [Word32]
     , balance :: BalancePromise
     }
   | WalletPaneAddressInfo
     { label :: Text
+    , derivationPath :: [Word32]
     , balance :: BalancePromise
     }
 
@@ -86,6 +89,11 @@ drawWalletPaneWidget hasFocus wpws =
               case info of
                 WalletPaneAddressInfo{} -> [V.text' (if hasFocus then selAttr else attr) copyButtonText]
                 _ -> []
+            ++ case info of
+                WalletPaneWalletInfo{} -> []
+                x -> [ V.text' attr . ("Derviation path: "<>)
+                     . T.intercalate "-" $ map pretty $ derivationPath x
+                     ]
             ++
             [ V.text' attr $ "Total balance: " <> case info ^. balanceL of
                 WaitingBalance _ -> "Calculating..."
@@ -130,10 +138,10 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
   case ev of
     WalletPaneUpdateEvent itemInfo -> do
       walletPaneInitializedL .= True
-      whenJust itemInfo $ \UiWalletPaneInfo{..} -> case wpiType of
-        Just UiWalletPaneInfoWallet -> setInfo WalletPaneWalletInfo wpiLabel
-        Just UiWalletPaneInfoAccount -> setInfo WalletPaneAccountInfo wpiLabel
-        Just UiWalletPaneInfoAddress -> setInfo WalletPaneAddressInfo wpiLabel
+      whenJust itemInfo $ \UiWalletPaneInfo{..} -> let label = fromMaybe "" wpiLabel in case wpiType of
+        Just UiWalletPaneInfoWallet -> setInfo (WalletPaneWalletInfo label)
+        Just (UiWalletPaneInfoAccount dp) -> setInfo (WalletPaneAccountInfo label dp)
+        Just (UiWalletPaneInfoAddress dp) -> setInfo (WalletPaneAddressInfo label dp)
         _ -> walletPaneItemInfoL .= Nothing
     WalletPaneMouseDownEvent coords -> when (isCopyButtonClick coords) $
       void $ putExpr UiCopySelection
@@ -141,9 +149,9 @@ handleWalletPaneWidgetEvent UiLangFace{..} ev = do
       zoom (walletPaneItemInfoL . _Just . _WalletPaneAddressInfo) $
         void $ putExpr UiCopySelection
   where
-    setInfo info label = do
+    setInfo info = do
       balancePromise <- refreshBalance
-      walletPaneItemInfoL .= Just (info (fromMaybe "" label) balancePromise)
+      walletPaneItemInfoL .= Just (info balancePromise)
 
     putExpr :: UiOperation -> StateT s (B.EventM n) UiCommandId
     putExpr = liftIO . langPutCommand . langMkExpr

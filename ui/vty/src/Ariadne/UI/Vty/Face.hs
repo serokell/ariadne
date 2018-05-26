@@ -149,8 +149,8 @@ data UiWalletTreeSelection =
 
 data UiWalletPaneInfoType
   = UiWalletPaneInfoWallet
-  | UiWalletPaneInfoAccount
-  | UiWalletPaneInfoAddress
+  | UiWalletPaneInfoAccount [Word32]
+  | UiWalletPaneInfoAddress [Word32]
 
 data UiWalletPaneInfo
   = UiWalletPaneInfo

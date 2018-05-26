@@ -204,10 +204,10 @@ walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
         accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just AccountData{..} -> case accPath of
-            [] -> (Just UiWalletPaneInfoAccount, Just _adName)
+            [] -> (Just $ UiWalletPaneInfoAccount [_adPath], Just _adName)
             addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
-              Just (_, address) -> (Just UiWalletPaneInfoAddress, Just $ pretty address)
+              Just (addrPath, address) -> (Just $ UiWalletPaneInfoAddress [_adPath, addrPath], Just $ pretty address)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
