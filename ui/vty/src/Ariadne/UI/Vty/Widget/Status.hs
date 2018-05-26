@@ -1,4 +1,11 @@
-module Ariadne.UI.Vty.Widget.Status where
+module Ariadne.UI.Vty.Widget.Status
+       ( StatusWidgetState
+       , initStatusWidget
+       , drawStatusWidget
+
+       , StatusWidgetEvent(..)
+       , handleStatusWidgetEvent
+       ) where
 
 import Control.Lens (makeLensesWith, (.=))
 import Data.List as List
@@ -15,10 +22,10 @@ import Ariadne.UI.Vty.Face
 
 data StatusWidgetState =
   StatusWidgetState
-    { statusWidgetTipHeaderHash :: Text
-    , statusWidgetTipSlot :: Text
-    , statusWidgetSlot :: Text
-    , statusWidgetNewVersion :: Maybe Version
+    { statusWidgetTipHeaderHash :: !Text
+    , statusWidgetTipSlot :: !Text
+    , statusWidgetSlot :: !Text
+    , statusWidgetNewVersion :: !(Maybe Version)
     }
 
 makeLensesWith postfixLFields ''StatusWidgetState

@@ -58,6 +58,7 @@ library
       Ariadne.UI.Vty.Knit
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
+      Ariadne.UI.Vty.UI
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
