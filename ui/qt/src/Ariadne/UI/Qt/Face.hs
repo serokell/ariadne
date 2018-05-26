@@ -97,7 +97,7 @@ data UiCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
 
 data UiBalanceCommandResult
-  = UiBalanceCommandSuccess Natural
+  = UiBalanceCommandSuccess Text
   | UiBalanceCommandFailure Text
 
 data UiSendCommandResult

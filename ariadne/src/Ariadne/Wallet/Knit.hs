@@ -5,7 +5,6 @@ import Universum
 import qualified Data.ByteArray as ByteArray
 
 import IiExtras
-import Pos.Core (unsafeGetCoin)
 import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Serokell.Data.Memory.Units (fromBytes)
@@ -169,7 +168,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
-            toValue . ValueNumber . fromIntegral . unsafeGetCoin <$> walletBalance
+            toValue . ValueCoin <$> walletBalance
         , cpHelp = "Get balance of the currently selected item"
         }
     , CommandProc

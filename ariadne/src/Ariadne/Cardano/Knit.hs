@@ -74,6 +74,7 @@ data Cardano
 data instance ComponentValue _ Cardano
   = ValueAddress Address
   | ValuePublicKey PublicKey
+  | ValueCoin Coin
   | ValueTxOut TxOut
   | ValueStakeholderId StakeholderId
   | ValueHash AHash
@@ -104,6 +105,8 @@ instance
           ExprLit $ toLit (LitPublicKey pk)
         ValueTxOut txOut ->
           ExprProcCall $ ProcCall "tx-out" $ txOutToArgs txOut
+        ValueCoin coin ->
+          ExprLit $ toLit (LitCoin coin)
         ValueStakeholderId sId ->
           ExprLit $ toLit (LitStakeholderId sId)
         ValueHash h ->
@@ -130,7 +133,7 @@ instance
         txOutToArgs :: TxOut -> [Arg (Expr CommandId components)]
         txOutToArgs TxOut {..} = List.map ArgPos $
           [ componentInflate $ ValueAddress txOutAddress
-          , componentInflate $ ValueNumber (fromIntegral $ unsafeGetCoin txOutValue)
+          , componentInflate $ ValueCoin txOutValue
           ]
 
         coinPortionToScientific :: CoinPortion -> Scientific
@@ -241,6 +244,7 @@ data instance ComponentLit Cardano
   | LitStakeholderId StakeholderId
   | LitHash AHash
   | LitBlockVersion BlockVersion
+  | LitCoin Coin
   deriving (Eq, Ord, Show)
 
 data instance ComponentToken Cardano
@@ -249,6 +253,7 @@ data instance ComponentToken Cardano
   | TokenStakeholderId StakeholderId
   | TokenHash AHash
   | TokenBlockVersion BlockVersion
+  | TokenCoin Scientific
   deriving (Eq, Ord, Show)
 
 makePrisms 'TokenAddress
@@ -260,6 +265,7 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
       , toToken . TokenStakeholderId <$> pStakeholderId
       , toToken . TokenHash <$> pHash
       , toToken . TokenBlockVersion <$> pBlockVersion
+      , toToken . TokenCoin <$> pCoin
       ]
     where
       pAddress :: Tokenizer Address
@@ -293,6 +299,13 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
         P.notFollowedBy $ P.char '.'
         return BlockVersion{..}
 
+      pCoin :: Tokenizer Scientific
+      pCoin = do
+        n <- P.signed (return ()) P.scientific
+        u <- (adaMultiplier <$ P.string' "ADA") <|> (1 <$ P.string' "Lovelace")
+
+        return (u * n)
+
 instance ComponentDetokenizer Cardano where
   componentTokenRender = \case
     TokenAddress a -> pretty a
@@ -300,6 +313,7 @@ instance ComponentDetokenizer Cardano where
     TokenStakeholderId sId -> sformat hashHexF sId
     TokenHash h -> sformat ("#"%hashHexF) (getAHash h)
     TokenBlockVersion v -> pretty v
+    TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> unit
 
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
@@ -309,7 +323,14 @@ instance Elem components Cardano => ComponentLitGrammar components Cardano where
       , toLit . LitStakeholderId <$> tok (_Token . uprismElem . _TokenStakeholderId)
       , toLit . LitHash <$> tok (_Token . uprismElem . _TokenHash)
       , toLit . LitBlockVersion <$> tok (_Token . uprismElem . _TokenBlockVersion)
+      , toLit . LitCoin <$> tok (_Token . uprismElem . _TokenCoin . adaPrism)
       ]
+
+    where
+      -- This prism will focus on an ADA value in a Scientific if it is valid
+      -- Left side of prism (Coin -> Scientific) will never actually be called
+      adaPrism = prism' (fromIntegral . unsafeGetCoin) $
+        fmap fromPreCoin . toBoundedInteger <=< scientificToCoinValue
 
 instance ComponentPrinter Cardano where
   componentPpLit = \case
@@ -318,12 +339,14 @@ instance ComponentPrinter Cardano where
     LitStakeholderId x -> text (componentTokenRender (TokenStakeholderId x))
     LitHash x -> text (componentTokenRender (TokenHash x))
     LitBlockVersion x -> text (componentTokenRender (TokenBlockVersion x))
+    LitCoin x -> text (componentTokenRender (TokenCoin $ fromIntegral $ unsafeGetCoin x))
   componentPpToken = \case
     TokenAddress _ -> "address"
     TokenPublicKey _ -> "public key"
     TokenStakeholderId _ -> "stakeholder id"
     TokenHash _ -> "hash"
     TokenBlockVersion _ -> "block version"
+    TokenCoin c -> if isJust $ scientificToCoinValue c then "coin" else "invalid coin"
 
 data instance ComponentCommandRepr components Cardano
   = CommandAction (CardanoMode (Value components))
@@ -337,6 +360,7 @@ instance ComponentLitToValue components Cardano where
     LitStakeholderId x -> ValueStakeholderId x
     LitHash x -> ValueHash x
     LitBlockVersion x -> ValueBlockVersion x
+    LitCoin x -> ValueCoin x
 
 newtype instance ComponentExecContext _ _ Cardano =
   CardanoExecCtx (CardanoMode ~> IO)
@@ -547,8 +571,11 @@ tyTxOut = TyProjection "TxOut" (preview _ValueTxOut <=< fromValue)
 tyAddrStakeDistr :: Elem components Cardano => TyProjection components AddrStakeDistribution
 tyAddrStakeDistr = TyProjection "AddrStakeDistribution" (preview _ValueAddrStakeDistribution <=< fromValue)
 
-tyCoin :: Elem components Core => TyProjection components Coin
-tyCoin = fromPreCoin <$> TyProjection "Coin" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+tyCoin :: (Elem components Core, Elem components Cardano) => TyProjection components Coin
+tyCoin = TyProjection "ADA" (\v -> tyCoinAda v <|> tyCoinLovelace v)
+  where
+    tyCoinAda = fmap fromPreCoin . toBoundedInteger <=< adaToCoin <=< preview _ValueNumber <=< fromValue
+    tyCoinLovelace = preview _ValueCoin <=< fromValue
 
 coinPortionFromDouble :: Double -> Maybe CoinPortion
 coinPortionFromDouble a
@@ -629,3 +656,33 @@ tySecond = secToTimeUnit <$> TyProjection "Second" (toDouble <=< preview _ValueN
 
 tyCoeff :: Elem components Core => TyProjection components Coeff
 tyCoeff = Coeff . realToFrac <$> TyProjection "Coeff" (preview _ValueNumber <=< fromValue)
+
+adaExponent :: Int
+adaExponent = 6
+
+adaMultiplier :: Scientific
+adaMultiplier = scientific 1 adaExponent
+
+adaToCoin :: Scientific -> Maybe Scientific
+adaToCoin (normalize -> normalized) =
+  if base10Exponent normalized > adaExponent
+     then Nothing
+     else Just $ normalized * adaMultiplier
+
+scientificToCoinValue :: Scientific -> Maybe Scientific
+scientificToCoinValue c = if isInteger c then Just c else Nothing
+
+showCoin :: Coin -> (Text, Text)
+showCoin = showScientificCoin . fromIntegral . unsafeGetCoin
+
+showScientificCoin :: Scientific -> (Text, Text)
+showScientificCoin c =
+  case floatingOrInteger ada of
+    Left (_ :: Double) ->
+      if ada >= 1
+         then (show ada, "ADA")
+         else (componentTokenRender $ TokenNumber c, "Lovelace")
+    Right (n :: Integer) -> (show n, "ADA")
+  where
+    ada :: Scientific
+    ada = c / adaMultiplier
