@@ -24,6 +24,7 @@ data BrickName
   | BrickNewWalletRestoreName
   | BrickNewWalletRestoreMnemonic
   | BrickNewWalletRestorePass
+  | BrickNewWalletRestoreFull
   | BrickNewWalletRestoreButton
 
   | BrickNone  -- For empty focus selection

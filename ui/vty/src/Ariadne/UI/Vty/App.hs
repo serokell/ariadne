@@ -366,7 +366,8 @@ handleAppEvent langFace ev =
         _
           | name `elem`
             [ BrickNewWalletName, BrickNewWalletPass, BrickNewWalletCreateButton
-            , BrickNewWalletRestoreName, BrickNewWalletRestoreMnemonic, BrickNewWalletRestorePass
+            , BrickNewWalletRestoreName, BrickNewWalletRestoreMnemonic
+            , BrickNewWalletRestorePass, BrickNewWalletRestoreFull
             , BrickNewWalletRestoreButton
             ] -> do
               appStateFocusL .= AppFocusPane
@@ -416,7 +417,14 @@ handleAppEvent langFace ev =
           zoom appStateWalletL $
             handleWalletWidgetEvent langFace $
               WalletBalanceCommandResult commandId result
-        _ -> return ()
+        UiNewWalletCommandResult result ->
+          zoom appStateNewWalletL $
+            handleNewWalletWidgetEvent langFace $
+              NewWalletNewWalletCommandResult commandId result
+        UiRestoreWalletCommandResult result ->
+          zoom appStateNewWalletL $
+            handleNewWalletWidgetEvent langFace $
+              NewWalletRestoreWalletCommandResult commandId result
       return AppInProgress
     B.AppEvent (UiCardanoEvent cardanoEvent) -> do
       case cardanoEvent of
