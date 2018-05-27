@@ -46,6 +46,8 @@ library
     , exceptions
     , dhall
     , formatting
+    , http-client
+    , http-client-tls
     , kademlia
     , knit
     , lens
@@ -93,6 +95,7 @@ library
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend
       Ariadne.TaskManager.Face
+      Ariadne.Update.Backend
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
       Ariadne.Cardano.Face
@@ -101,6 +104,7 @@ library
       Ariadne.Config.Ariadne
       Ariadne.Config.CLI
       Ariadne.Config.Cardano
+      Ariadne.Config.Update
       Ariadne.Config.DhallUtil
       Ariadne.Wallet.Knit
       Ariadne.Wallet.Backend
