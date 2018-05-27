@@ -155,11 +155,11 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = selectCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <- getWalletRefArg
+            walletRef <- getArgOpt tyWalletRef "wallet"
             path <- getArgMany tyWord "a" -- account or address
             return (walletRef, path)
         , cpRepr = \(walletRef, path) -> CommandAction $ \WalletFace{..} -> do
-            walletSelect (Just walletRef) path
+            walletSelect walletRef path
             return $ toValue ValueUnit
         , cpHelp = "Select a wallet, account, or address."
         }

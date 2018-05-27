@@ -24,6 +24,7 @@ import Ariadne.UI.Vty.UI
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
+import Ariadne.UI.Vty.Widget.NewWallet
 import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
@@ -39,7 +40,7 @@ data AppSelector
 -- | Currently focused widget
 data AppFocus
   = AppFocusTree
-  | AppFocusWallet
+  | AppFocusPane
   | AppFocusReplOutput
   | AppFocusReplInput
   | AppFocusHelp
@@ -55,6 +56,7 @@ data AppState =
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
     , appStateTree :: TreeWidgetState
+    , appStateNewWallet :: NewWalletWidgetState
     , appStateWallet :: WalletWidgetState
     }
 
@@ -70,6 +72,7 @@ initialAppState langFace history =
     , appStateHelp = initHelpWidget langFace
     , appStateLogs = initLogsWidget
     , appStateTree = initTreeWidget
+    , appStateNewWallet = initNewWalletWidget
     , appStateWallet = initWalletWidget
     }
   where
@@ -134,7 +137,7 @@ drawAppWidget AppState{..} =
           = B.withAttr "focus.key" $ B.txt $
             case focus of
               AppFocusTree -> "T"
-              AppFocusWallet -> "P"
+              AppFocusPane -> "P"
               AppFocusReplOutput -> "O"
               AppFocusReplInput  -> "R"
               _                  -> " "
@@ -174,19 +177,27 @@ drawAppWidget AppState{..} =
       drawTreeWidget
         (appStateFocus == AppFocusTree)
         appStateTree
-    drawWallet =
+    drawPane =
       B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusWallet $
-      drawWalletWidget
-        (appStateFocus == AppFocusWallet)
-        appStateWallet
+      withFocus AppFocusPane $ fixedViewport BrickPane B.Vertical $
+      case treeWidgetSelection appStateTree of
+        TreeSelectionNone ->
+          B.txt "Select a wallet, an account, or an address"
+        TreeSelectionNewWallet ->
+          drawNewWalletWidget
+            (appStateFocus == AppFocusPane)
+            appStateNewWallet
+        TreeSelectionWallet ->
+          drawWalletWidget
+            (appStateFocus == AppFocusPane)
+            appStateWallet
     drawDefaultView =
       B.withAttr defAttr $ B.vBox
         [ drawMenu
         , B.hBox
             [ drawTree
             , B.joinBorders B.vBorder
-            , drawWallet
+            , drawPane
             ]
         , B.joinBorders B.hBorder
         , drawRepl
@@ -230,6 +241,7 @@ handleAppEvent langFace ev =
       focus <- use appStateFocusL
       menuState <- use appStateMenuL
       replState <- use appStateReplL
+      treeSel <- uses appStateTreeL treeWidgetSelection
       let
         sel = menuWidgetSel menuState
         navMode = menuWidgetNavMode menuState
@@ -259,9 +271,19 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         -- Switch focus between widgets
-        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
-            appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+        | key `elem` [KeyFocusNext, KeyFocusPrev],
+          AppFocusPane <- focus,
+          TreeSelectionNewWallet <- treeSel -> do
+            unlessM (zoom appStateNewWalletL $ handleNewWalletFocus $ key == KeyFocusPrev) $
+              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
+        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
+            let focus' = rotateFocus sel focus (key == KeyFocusPrev)
+            appStateFocusL .= focus'
+            when (focus' == AppFocusPane && treeSel == TreeSelectionNewWallet) $
+              zoom appStateNewWalletL $ handleNewWalletFocusIn $ key == KeyFocusPrev
+            return AppInProgress
+
 
         -- REPL editor events
         | Just replEv <- keyToReplInputEvent replState editKey,
@@ -291,14 +313,21 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         -- Widget-specific events
-        | Just treeEv <- keyToTreeEvent key,
-          AppFocusTree <- focus -> do
+        | AppFocusTree <- focus,
+          Just treeEv <- keyToTreeEvent key -> do
             zoom appStateTreeL $ handleTreeWidgetEvent langFace treeEv
             return AppInProgress
 
-        | Just walletEv <- keyToWalletEvent key,
-          AppFocusWallet <- focus -> do
+        | AppFocusPane <- focus,
+          TreeSelectionWallet <- treeSel,
+          Just walletEv <- keyToWalletEvent key -> do
             zoom appStateWalletL $ handleWalletWidgetEvent langFace walletEv
+            return AppInProgress
+
+        | AppFocusPane <- focus,
+          TreeSelectionNewWallet <- treeSel -> do
+            zoom appStateNewWalletL $ handleNewWalletWidgetEvent langFace $
+              NewWalletKeyEvent key vtyEv
             return AppInProgress
 
         | otherwise ->
@@ -317,10 +346,14 @@ handleAppEvent langFace ev =
           zoom appStateTreeL $ handleTreeWidgetEvent langFace $
             TreeMouseDownEvent coords
           return AppInProgress
-        BrickWallet -> do
-          appStateFocusL .= AppFocusWallet
-          zoom appStateWalletL $ handleWalletWidgetEvent langFace $
-            WalletMouseDownEvent coords
+        BrickPane -> do
+          appStateFocusL .= AppFocusPane
+          uses appStateTreeL treeWidgetSelection >>= \case
+            TreeSelectionWallet ->
+              zoom appStateWalletL $ handleWalletWidgetEvent langFace $
+                WalletMouseDownEvent coords
+            _ ->
+              return ()
           return AppInProgress
         BrickReplOutput -> do
           appStateFocusL .= AppFocusReplOutput
@@ -330,8 +363,18 @@ handleAppEvent langFace ev =
           void $ zoom appStateReplL $ handleReplInputEvent langFace $
             ReplMouseDownEvent coords
           return AppInProgress
-        _ ->
-          return AppInProgress
+        _
+          | name `elem`
+            [ BrickNewWalletName, BrickNewWalletPass, BrickNewWalletCreateButton
+            , BrickNewWalletRestoreName, BrickNewWalletRestoreMnemonic, BrickNewWalletRestorePass
+            , BrickNewWalletRestoreButton
+            ] -> do
+              appStateFocusL .= AppFocusPane
+              zoom appStateNewWalletL $ handleNewWalletWidgetEvent langFace $
+                NewWalletMouseDownEvent name coords
+              return AppInProgress
+          | otherwise ->
+              return AppInProgress
     B.MouseDown name button [] _
       | Just scrollAction <- buttonToScrollAction button -> do
           case name of
@@ -410,14 +453,14 @@ buttonToScrollAction = \case
 charToFocus :: Char -> Maybe (AppSelector, AppFocus)
 charToFocus = \case
   't' -> Just (AppSelectorWallet, AppFocusTree)
-  'p' -> Just (AppSelectorWallet, AppFocusWallet)
+  'p' -> Just (AppSelectorWallet, AppFocusPane)
   'o' -> Just (AppSelectorWallet, AppFocusReplOutput)
   'r' -> Just (AppSelectorWallet, AppFocusReplInput)
   _   -> Nothing
 
 focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
 focusesBySel sel = NE.fromList $ case sel of
-  AppSelectorWallet -> [AppFocusReplInput, AppFocusTree, AppFocusWallet, AppFocusReplOutput]
+  AppSelectorWallet -> [AppFocusReplInput, AppFocusTree, AppFocusPane, AppFocusReplOutput]
   AppSelectorHelp -> [AppFocusHelp]
   AppSelectorLogs -> [AppFocusLogs]
 

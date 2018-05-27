@@ -2,6 +2,8 @@
 
 module Ariadne.UI.Vty.Widget.Tree
        ( TreeWidgetState
+       , TreeSelection(..)
+       , treeWidgetSelection
        , initTreeWidget
        , drawTreeWidget
 
@@ -12,7 +14,7 @@ module Ariadne.UI.Vty.Widget.Tree
 
 import Universum
 
-import Control.Lens (ix, makeLensesWith, (.=))
+import Control.Lens (ix, makeLensesWith, uses, (.=))
 import Data.List (findIndex, intercalate)
 import Data.Tree (Tree(..))
 import IiExtras
@@ -37,15 +39,21 @@ import Ariadne.UI.Vty.UI
 data TreeWidgetState =
   TreeWidgetState
     { treeItems :: ![TreeItem]
-    , treeWallets :: ![UiTree]
-    , treeSelection :: !(Maybe UiTreeSelection)
+    , treeSelection :: !(Maybe Int)
     , treeInitialized :: !Bool
     , treeScrollBySelection :: !Bool
     }
 
+data TreeSelection
+  = TreeSelectionNone
+  | TreeSelectionNewWallet
+  | TreeSelectionWallet
+  deriving (Eq)
+
 data TreeItemType
   = TreeItemLoading
   | TreeItemSeparator
+  | TreeItemNewWallet
   | TreeItemPath
 
 data TreeItem =
@@ -66,19 +74,32 @@ treeItemLoading, treeItemSeparator :: TreeItem
 treeItemLoading = TreeItem TreeItemLoading "" "Loading..." Nothing False
 treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 
+treeItemNewWallet :: Bool -> TreeItem
+treeItemNewWallet = TreeItem TreeItemNewWallet "" "[ + New wallet ]" (Just [])
+
+treeWidgetSelection :: TreeWidgetState -> TreeSelection
+treeWidgetSelection TreeWidgetState{..} = case selectedItemType of
+  Just TreeItemNewWallet -> TreeSelectionNewWallet
+  Just TreeItemPath -> TreeSelectionWallet
+  _ -> TreeSelectionNone
+  where
+    selectedItemType = do
+      idx <- treeSelection
+      item <- treeItems ^? ix idx
+      Just $ treeItemType item
+
 initTreeWidget :: TreeWidgetState
 initTreeWidget = TreeWidgetState
   { treeItems = [treeItemLoading]
-  , treeWallets = []
-  , treeSelection = Just $ UiTreeSelection 0 [0]
+  , treeSelection = Nothing
   , treeInitialized = False
   , treeScrollBySelection = False
   }
 
-walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> [TreeItem]
-walletsToItems wallets selection =
+walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> Bool -> [TreeItem]
+walletsToItems wallets selection initialized =
   intercalate [treeItemSeparator] $
-  map' (go [] []) (enumerate wallets)
+  [treeItemNewWallet $ initialized && isNothing selection] : map' (go [] []) (enumerate wallets)
   where
     selPath :: Maybe [Word]
     selPath = do
@@ -179,11 +200,12 @@ handleTreeWidgetEvent
   -> StateT TreeWidgetState (B.EventM BrickName) ()
 handleTreeWidgetEvent UiLangFace{..} = \case
   TreeUpdateEvent wallets wselection -> do
-    let items = walletsToItems wallets wselection
+    items <- uses treeInitializedL $ walletsToItems wallets wselection
     unlessM (use treeInitializedL) $ do
       treeInitializedL .= True
       whenJust (items ^? ix 0 >>= treeItemPath) putSelect
     treeItemsL .= items
+    treeSelectionL .= findIndex treeItemSelected items
     treeScrollBySelectionL .= True
   TreeMouseDownEvent (B.Location (_, row)) -> do
     items <- use treeItemsL
