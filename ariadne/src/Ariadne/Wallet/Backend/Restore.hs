@@ -135,6 +135,7 @@ findAccounts esk = convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPu
     convertGroups =
         let toAccountData (accIdx, addrs) = AccountData
               { _adName = "Restored account " <> pretty accIdx
+              , _adLastIndex = 0
               , _adPath = accIdx
               , _adAddresses = V.fromList addrs
               }

@@ -29,7 +29,8 @@ import Data.List (findIndex)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import qualified Data.Vector as V (findIndex, fromList, ifilter, mapMaybe)
+import qualified Data.Vector as V (findIndex, fromList, ifilter, mapMaybe, foldr)
+import qualified Data.Set as S
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
@@ -210,7 +211,7 @@ newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
     let wIdx, accIdx :: Int
         wIdx = fromIntegral walletIdx
         accIdx = fromIntegral accountIdx
-    let addAddressPure :: StateT UserSecret Catch ()
+        addAddressPure :: StateT UserSecret Catch ()
         addAddressPure = do
             walletData <-
                 maybeThrow (WalletDoesNotExist (pretty walletIdx)) =<<
@@ -220,7 +221,7 @@ newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
                 walletData ^?
                 wdAccounts .
                 ix accIdx
-            let addrIdx = fromIntegral (length (accountData ^. adAddresses))
+            let addrIdx = findFirstUnique (_adLastIndex accountData) (fmap fst $ accountData ^. adAddresses)
             -- FIXME: support not only bootstrap era
             addr <-
                 case deriveLvl2KeyPair
@@ -234,6 +235,7 @@ newAddress WalletFace {..} walletSelRef runCardanoMode accRef pp = do
                     Just (a, _) -> pure a
             usWallets . ix wIdx . wdAccounts . ix accIdx . adAddresses <>=
                 one (addrIdx, addr)
+            usWallets . ix wIdx . wdAccounts . ix accIdx . adLastIndex .= succ addrIdx
     runCardanoMode (modifySecretDefault (runCatchInState addAddressPure)) >>=
         eitherToThrow
     walletRefreshUserSecret
@@ -274,19 +276,23 @@ newAccount WalletFace{..} walletSelRef runCardanoMode walletRef mbAccountName = 
           Just accountName_ -> do
             when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName accountName_
             return accountName_
-        usWallets . ix wIdx . wdAccounts %= addAccountToVec accountName
+        let newIdx = findFirstUnique (_wdLastIndex wd) (map _adPath $ _wdAccounts wd)
+        usWallets . ix wIdx . wdAccounts %= \account ->
+          addAccountToVec accountName newIdx account
+        usWallets . ix wIdx . wdLastIndex .= succ newIdx
 
   runCardanoMode (modifySecretDefault (runCatchInState addAccountPure)) >>=
     eitherToThrow
   walletRefreshUserSecret
   where
-    addAccountToVec :: Text -> Vector AccountData -> Vector AccountData
-    addAccountToVec accountName accounts =
+    addAccountToVec :: Text -> Word32 -> Vector AccountData -> Vector AccountData
+    addAccountToVec accountName idx accounts =
         accounts <>
         one
             AccountData
                     { _adName = accountName
-                    , _adPath = fromIntegral (length accounts)
+                    , _adLastIndex = firstNonHardened
+                    , _adPath = idx
                     , _adAddresses = mempty
                     }
 
@@ -359,6 +365,7 @@ addWallet WalletFace {..} runCardanoMode esk mbWalletName accounts = do
     walletData (WalletName walletName) =
         WalletData
             { _wdRootKey = esk
+            , _wdLastIndex = firstHardened
             , _wdName = walletName
             , _wdAccounts = accounts
             }
@@ -477,3 +484,12 @@ renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
       runCardanoMode (modifySecretDefault . runCatchInState $ rename) >>=
         eitherToThrow
   walletRefreshUserSecret
+
+
+-- Helpers
+
+findFirstUnique :: (Num a, Ord a, Enum a) => a -> Vector a -> a
+findFirstUnique lastIdx paths = fromMaybe (error "Can't find a unique path!")
+    . head $ dropWhile (`S.member` pathsSet) [lastIdx..]
+  where
+    pathsSet = V.foldr S.insert S.empty paths
