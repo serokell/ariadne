@@ -1,12 +1,16 @@
 module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
-       , UiCommandResultEvent (..)
+       , UiCommandEvent (..)
        , UiWalletEvent (..)
        , UiCardanoStatusUpdate (..)
        , UiCardanoEvent (..)
-       , UiCommandEvent (..)
+       , UiCommandAction (..)
        , UiEvent (..)
-       , UiOperation (..)
+       , UiCommand (..)
+       , UiCommandResult (..)
+       , UiBalanceCommandResult (..)
+       , UiNewWalletCommandResult (..)
+       , UiRestoreWalletCommandResult (..)
        , UiSelectedItem (..)
        , UiLangFace (..)
        , UiFace (..)
@@ -43,7 +47,7 @@ data UiCommandId =
   }
 
 -- A REPL command has either finished or sent some information.
-data UiCommandResultEvent
+data UiCommandEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
@@ -67,7 +71,7 @@ data UiWalletEvent =
     }
 
 -- UI event triggered by REPL command
-data UiCommandEvent
+data UiCommandAction
   = UiCommandHelp
   | UiCommandLogs
 
@@ -75,17 +79,39 @@ data UiCommandEvent
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
-  = UiCommandResultEvent UiCommandId UiCommandResultEvent
+  = UiCommandEvent UiCommandId UiCommandEvent
+  | UiCommandResult UiCommandId UiCommandResult
+  | UiCommandAction UiCommandAction
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiCommandEvent UiCommandEvent
   | UiNewVersionEvent Version
 
-data UiOperation
+-- | Commands issued by the UI widgets
+data UiCommand
   = UiSelect [Word]
   | UiBalance
+  | UiNewWallet Text Text  -- ^ Name, passphrase
+  | UiRestoreWallet Text Text Text  -- ^ Name, mnemonic, passphrase
   | UiKill Natural
   | UiCopySelection
+
+-- | Results of commands issued by the UI widgets
+data UiCommandResult
+  = UiBalanceCommandResult UiBalanceCommandResult
+  | UiNewWalletCommandResult UiNewWalletCommandResult
+  | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
+
+data UiBalanceCommandResult
+  = UiBalanceCommandSuccess Text
+  | UiBalanceCommandFailure Text
+
+data UiNewWalletCommandResult
+  = UiNewWalletCommandSuccess [Text]
+  | UiNewWalletCommandFailure Text
+
+data UiRestoreWalletCommandResult
+  = UiRestoreWalletCommandSuccess
+  | UiRestoreWalletCommandFailure Text
 
 -- | Item which is currently selected by the backend.
 data UiSelectedItem
@@ -98,12 +124,12 @@ data UiSelectedItem
 data UiLangFace =
   forall err expr. UiLangFace
   { langPutCommand :: expr -> IO UiCommandId
+  , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
-  , langMkExpr :: UiOperation -> expr
   }
 
 -- API for the UI.

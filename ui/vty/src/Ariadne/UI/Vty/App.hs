@@ -400,19 +400,24 @@ handleAppEvent langFace ev =
             handleTreeWidgetEvent langFace $
               TreeUpdateEvent wuTrees wuSelection
           zoom appStateWalletL $
-            handleWalletWidgetEvent langFace  $
+            handleWalletWidgetEvent langFace $
               WalletUpdateEvent wuPaneInfoUpdate
       return AppInProgress
-    B.AppEvent (UiCommandResultEvent commandId commandEvent) -> do
-        zoom appStateWalletL $
-          handleWalletCommandEvent $
-            WalletCommandEvent commandId commandEvent
+    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $
             ReplCommandEvent commandId commandEvent
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiCommandResult commandId commandResult) -> do
+      case commandResult of
+        UiBalanceCommandResult result ->
+          zoom appStateWalletL $
+            handleWalletWidgetEvent langFace $
+              WalletBalanceCommandResult commandId result
+        _ -> return ()
+      return AppInProgress
     B.AppEvent (UiCardanoEvent cardanoEvent) -> do
       case cardanoEvent of
         UiCardanoLogEvent message ->
@@ -429,8 +434,8 @@ handleAppEvent langFace ev =
         handleStatusWidgetEvent $
           StatusNewVersionEvent ver
       return AppInProgress
-    B.AppEvent (UiCommandEvent commandEvent) -> do
-      case commandEvent of
+    B.AppEvent (UiCommandAction commandAction) -> do
+      case commandAction of
         UiCommandHelp -> do
           focus <- use appStateFocusL
           zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorHelp)

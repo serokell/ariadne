@@ -3,10 +3,8 @@ module Ariadne.UI.Vty.Widget.Wallet
        , initWalletWidget
        , drawWalletWidget
 
-       , WalletCommandEvent(..)
        , WalletWidgetEvent(..)
        , keyToWalletEvent
-       , handleWalletCommandEvent
        , handleWalletWidgetEvent
        ) where
 
@@ -22,9 +20,6 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.UI
-
-data WalletCommandEvent
-  = WalletCommandEvent UiCommandId UiCommandResultEvent
 
 data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance Text
 makePrisms ''BalancePromise
@@ -109,6 +104,7 @@ drawWalletWidget hasFocus WalletWidgetState{..} =
 
 data WalletWidgetEvent
   = WalletUpdateEvent (Maybe UiWalletInfo)
+  | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
   | WalletMouseDownEvent B.Location
   | WalletCopySelectionEvent
 
@@ -116,19 +112,6 @@ keyToWalletEvent :: KeyboardEvent -> Maybe WalletWidgetEvent
 keyToWalletEvent = \case
   KeyEnter -> Just WalletCopySelectionEvent
   _ -> Nothing
-
-handleWalletCommandEvent
-  :: WalletCommandEvent
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-handleWalletCommandEvent (WalletCommandEvent commandId commandEvent) = do
- zoom (walletItemInfoL . _Just . balanceL) $ do
-   cmdOrBal <- get
-   forOf_ _WaitingBalance cmdOrBal $ \commandId' ->
-     when (cmdIdEqObject commandId == cmdIdEqObject commandId') $
-       case commandEvent of
-         UiCommandSuccess d -> put $ Balance (show d)
-         UiCommandFailure _ -> put $ FailedBalance "Could not retrieve balance"
-         UiCommandOutput _ -> pure ()
 
 handleWalletWidgetEvent
   :: UiLangFace
@@ -143,6 +126,16 @@ handleWalletWidgetEvent UiLangFace{..} ev = do
         Just (UiWalletInfoAccount dp) -> setInfo (WalletAccountInfo label dp)
         Just (UiWalletInfoAddress dp) -> setInfo (WalletAddressInfo label dp)
         _ -> walletItemInfoL .= Nothing
+    WalletBalanceCommandResult commandId result -> do
+      zoom (walletItemInfoL . _Just . balanceL) $ do
+        cmdOrBal <- get
+        forOf_ _WaitingBalance cmdOrBal $ \commandId' ->
+          when (cmdIdEqObject commandId == cmdIdEqObject commandId') $
+            case result of
+              UiBalanceCommandSuccess balance ->
+                put $ Balance balance
+              UiBalanceCommandFailure err -> do
+                put $ FailedBalance err
     WalletMouseDownEvent coords -> when (isCopyButtonClick coords) $
       void $ putExpr UiCopySelection
     WalletCopySelectionEvent ->
@@ -153,8 +146,8 @@ handleWalletWidgetEvent UiLangFace{..} ev = do
       balancePromise <- refreshBalance
       walletItemInfoL .= Just (info balancePromise)
 
-    putExpr :: UiOperation -> StateT s (B.EventM n) UiCommandId
-    putExpr = liftIO . langPutCommand . langMkExpr
+    putExpr :: UiCommand -> StateT s (B.EventM n) (Either Text UiCommandId)
+    putExpr = liftIO . langPutUiCommand
 
     refreshBalance = do
       mCommandId <- (^? walletItemInfoL . _Just . balanceL . _WaitingBalance) <$> get
@@ -162,7 +155,7 @@ handleWalletWidgetEvent UiLangFace{..} ev = do
       -- Kill previous command
       whenJust (mCommandId >>= cmdTaskId) (void . putExpr . UiKill)
 
-      commandId <- putExpr UiBalance
+      Right commandId <- putExpr UiBalance
       return $ WaitingBalance commandId
 
 copyButtonText :: Text

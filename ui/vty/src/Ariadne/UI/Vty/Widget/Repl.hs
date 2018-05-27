@@ -227,7 +227,7 @@ data InputModification
   | ReplaceBreakLine
 
 data ReplInputEvent
-  = ReplCommandEvent UiCommandId UiCommandResultEvent
+  = ReplCommandEvent UiCommandId UiCommandEvent
   | ReplInputModifyEvent InputModification
   | ReplInputNavigationEvent NavAction
   | ReplCommandNavigationEvent CommandAction
@@ -422,7 +422,7 @@ safeMoveCursor (row, col) tz = moveCursor (row', col') tz
 
 updateCommandResult
   :: UiCommandId
-  -> UiCommandResultEvent
+  -> UiCommandEvent
   -> OutputElement
   -> OutputElement
 updateCommandResult

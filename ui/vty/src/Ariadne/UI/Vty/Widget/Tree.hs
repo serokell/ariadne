@@ -218,7 +218,7 @@ handleTreeWidgetEvent UiLangFace{..} = \case
   TreeNavigationLeft -> defaultPath $ NE.init
   TreeNavigationRight -> defaultPath $ (++ [0]) . toList
   where
-    putSelect = void . liftIO . langPutCommand . langMkExpr . UiSelect
+    putSelect = void . liftIO . langPutUiCommand . UiSelect
     applyToLast :: (Word -> Word) -> NE.NonEmpty Word -> [Word]
     applyToLast f xs = NE.init xs ++ [f (NE.last xs)]
     defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect
