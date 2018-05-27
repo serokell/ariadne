@@ -2,6 +2,7 @@
 
 module Ariadne.Wallet.Backend.Restore
        ( restoreWallet
+       , restoreFromKeyFile
        ) where
 
 import Universum
@@ -12,6 +13,7 @@ import Data.List (init)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
+import qualified Data.ByteString as BS
 
 import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
@@ -21,6 +23,8 @@ import Pos.Crypto.HDDiscovery (discoverHDAddress)
 import Pos.Crypto.Signing
   (EncryptedSecretKey, encToPublic, safeDeterministicKeyGen)
 import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
+import Pos.Util.UserSecret (usKeys0)
+import Pos.Binary.Class (decodeFull')
 
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
 import Ariadne.Wallet.Face
@@ -32,6 +36,13 @@ data WrongMnemonic = WrongMnemonic Text
 instance Exception WrongMnemonic where
   displayException (WrongMnemonic txt) =
     "Wrong mnemonic: " <> show txt
+
+data SecretsDecodingError = SecretsDecodingError FilePath Text
+  deriving (Eq, Show)
+
+instance Exception SecretsDecodingError where
+  displayException (SecretsDecodingError path txt) =
+    "Failed to decode " <> path <> ": " <> show txt
 
 restoreWallet ::
        HasConfiguration
@@ -56,6 +67,35 @@ restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
               Left e -> throwM $ WrongMnemonic e
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
+    restoreFromSecretKey face runCardanoMode mbWalletName esk rType
+
+restoreFromKeyFile ::
+       HasConfiguration
+    => WalletFace
+    -> (CardanoMode ~> IO)
+    -> Maybe WalletName
+    -> FilePath
+    -> WalletRestoreType
+    -> IO ()
+restoreFromKeyFile face runCardanoMode mbWalletName path rType = do
+    keyFile <- BS.readFile path
+    us <- case decodeFull' keyFile of
+      Left e -> throwM $ SecretsDecodingError path e
+      Right us -> pure us
+    let templateName i (WalletName n) = WalletName $ n <> " " <> pretty i
+    traverse_
+        (\(i,esk) -> restoreFromSecretKey face runCardanoMode (templateName i <$> mbWalletName) esk rType)
+        (zip [(0 :: Int)..] $ us ^. usKeys0)
+
+restoreFromSecretKey ::
+       HasConfiguration
+    => WalletFace
+    -> (CardanoMode ~> IO)
+    -> Maybe WalletName
+    -> EncryptedSecretKey
+    -> WalletRestoreType
+    -> IO ()
+restoreFromSecretKey face runCardanoMode mbWalletName esk rType = do
     accounts <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull -> runCardanoMode $ findAccounts esk
@@ -95,6 +135,7 @@ findAccounts esk = convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPu
     convertGroups =
         let toAccountData (accIdx, addrs) = AccountData
               { _adName = "Restored account " <> pretty accIdx
+              , _adLastIndex = 0
               , _adPath = accIdx
               , _adAddresses = V.fromList addrs
               }

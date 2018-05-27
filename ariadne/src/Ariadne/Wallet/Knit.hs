@@ -138,6 +138,20 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                    "secret key derived from the specified mnemonic."
         }
     , CommandProc
+        { cpName = restoreFromFileCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            name <- fmap WalletName <$> getArgOpt tyString "name"
+            filename <- getArg tyFilePath "file"
+            restoreType <- getArg tyBool "full" <&>
+                \case False -> WalletRestoreQuick
+                      True -> WalletRestoreFull
+            return (name, filename, restoreType)
+        , cpRepr = \(name, filename, restoreType) -> CommandAction $ \WalletFace{..} ->
+            toValue ValueUnit <$ walletRestoreFromFile name filename restoreType
+        , cpHelp = "Restore a wallet from Daedalus secrets file"
+        }
+    , CommandProc
         { cpName = selectCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
@@ -205,6 +219,9 @@ newWalletCommandName = "new-wallet"
 
 restoreCommandName :: CommandId
 restoreCommandName = "restore"
+
+restoreFromFileCommandName :: CommandId
+restoreFromFileCommandName = "restore-from-daedalus-file"
 
 selectCommandName :: CommandId
 selectCommandName = "select"

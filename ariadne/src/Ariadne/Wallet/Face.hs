@@ -56,6 +56,8 @@ data WalletFace =
     , walletNewWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
         PassPhrase -> Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
+    , walletRestoreFromFile ::
+        Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
     , walletRename :: Text -> IO ()
     , walletRemove :: IO ()
     , walletRefreshUserSecret :: IO ()
