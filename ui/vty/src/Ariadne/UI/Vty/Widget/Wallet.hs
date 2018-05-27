@@ -56,9 +56,6 @@ data WalletWidgetState =
 
 makeLensesWith postfixLFields ''WalletWidgetState
 
-widgetName :: BrickName
-widgetName = BrickWallet
-
 initWalletWidget :: WalletWidgetState
 initWalletWidget =
   WalletWidgetState
@@ -67,14 +64,13 @@ initWalletWidget =
     }
 
 drawWalletWidget :: Bool -> WalletWidgetState -> B.Widget BrickName
-drawWalletWidget hasFocus wpws =
-  B.viewport widgetName B.Both B.Widget
+drawWalletWidget hasFocus WalletWidgetState{..} =
+  B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
     , B.render = render
     }
   where
-    WalletWidgetState{..} = wpws
     render = do
       rdrCtx <- B.getContext
       let
