@@ -1,13 +1,13 @@
-module Ariadne.UI.Vty.Widget.Wallet
-       ( WalletWidgetState
-       , initWalletWidget
-       , drawWalletWidget
+module Ariadne.UI.Vty.Widget.Account
+       ( AccountWidgetState
+       , initAccountWidget
+       , drawAccountWidget
 
-       , WalletWidgetEvent(..)
-       , keyToWalletEvent
-       , handleWalletFocus
-       , handleWalletFocusIn
-       , handleWalletWidgetEvent
+       , AccountWidgetEvent(..)
+       , keyToAccountEvent
+       , handleAccountFocus
+       , handleAccountFocusIn
+       , handleAccountWidgetEvent
        ) where
 
 import Universum
@@ -46,23 +46,23 @@ data WalletInfo
 makeLensesWith postfixLFields ''WalletInfo
 makePrisms ''WalletInfo
 
-data WalletWidgetState =
-  WalletWidgetState
+data AccountWidgetState =
+  AccountWidgetState
     { walletItemInfo :: !(Maybe WalletInfo)
     , walletInitialized :: !Bool
     }
 
-makeLensesWith postfixLFields ''WalletWidgetState
+makeLensesWith postfixLFields ''AccountWidgetState
 
-initWalletWidget :: WalletWidgetState
-initWalletWidget =
-  WalletWidgetState
+initAccountWidget :: AccountWidgetState
+initAccountWidget =
+  AccountWidgetState
     { walletItemInfo = Nothing
     , walletInitialized = False
     }
 
-drawWalletWidget :: Bool -> WalletWidgetState -> B.Widget BrickName
-drawWalletWidget hasFocus WalletWidgetState{..} =
+drawAccountWidget :: Bool -> AccountWidgetState -> B.Widget BrickName
+drawAccountWidget hasFocus AccountWidgetState{..} =
   B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
@@ -105,58 +105,58 @@ drawWalletWidget hasFocus WalletWidgetState{..} =
         B.emptyResult
           & B.imageL .~ imgOrLoading
 
-data WalletWidgetEvent
-  = WalletUpdateEvent (Maybe UiWalletInfo)
-  | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
-  | WalletMouseDownEvent B.Location
-  | WalletCopySelectionEvent
+data AccountWidgetEvent
+  = AccountUpdateEvent (Maybe UiWalletInfo)
+  | AccountBalanceCommandResult UiCommandId UiBalanceCommandResult
+  | AccountMouseDownEvent B.Location
+  | AccountCopySelectionEvent
 
-keyToWalletEvent :: KeyboardEvent -> Maybe WalletWidgetEvent
-keyToWalletEvent = \case
-  KeyEnter -> Just WalletCopySelectionEvent
+keyToAccountEvent :: KeyboardEvent -> Maybe AccountWidgetEvent
+keyToAccountEvent = \case
+  KeyEnter -> Just AccountCopySelectionEvent
   _ -> Nothing
 
-handleWalletFocus
+handleAccountFocus
   :: Bool
-  -> StateT WalletWidgetState (B.EventM BrickName) Bool
-handleWalletFocus _back = do
-   return False
---   newFocus <- walletFocusRingL <%= if back then B.focusPrev else B.focusNext
+  -> StateT AccountWidgetState (B.EventM BrickName) Bool
+handleAccountFocus _back = do
+  return False
+--   newFocus <- accountFocusRingL <%= if back then B.focusPrev else B.focusNext
 --   return $ B.focusGetCurrent newFocus /= Just BrickNone
 
-handleWalletFocusIn
+handleAccountFocusIn
   :: Bool
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-handleWalletFocusIn _back = do
+  -> StateT AccountWidgetState (B.EventM BrickName) ()
+handleAccountFocusIn _back = do
   return ()
---   walletFocusRingL %= (if back then B.focusPrev else B.focusNext) . B.focusSetCurrent BrickNone
+--   accountFocusRingL %= (if back then B.focusPrev else B.focusNext) . B.focusSetCurrent BrickNone
 
-handleWalletWidgetEvent
+handleAccountWidgetEvent
   :: UiLangFace
-  -> WalletWidgetEvent
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-handleWalletWidgetEvent UiLangFace{..} ev = do
+  -> AccountWidgetEvent
+  -> StateT AccountWidgetState (B.EventM BrickName) ()
+handleAccountWidgetEvent UiLangFace{..} ev = do
   case ev of
-    WalletUpdateEvent itemInfo -> do
+    AccountUpdateEvent itemInfo -> do
       walletInitializedL .= True
       whenJust itemInfo $ \UiWalletInfo{..} -> let label = fromMaybe "" wpiLabel in case wpiType of
         Just UiWalletInfoWallet -> setInfo (WalletWalletInfo label)
         Just (UiWalletInfoAccount dp) -> setInfo (WalletAccountInfo label dp)
         Just (UiWalletInfoAddress dp) -> setInfo (WalletAddressInfo label dp)
         _ -> walletItemInfoL .= Nothing
-    WalletBalanceCommandResult commandId result -> do
+    AccountBalanceCommandResult commandId result -> do
       zoom (walletItemInfoL . _Just . balanceL) $ do
         cmdOrBal <- get
         forOf_ _WaitingBalance cmdOrBal $ \commandId' ->
           when (cmdIdEqObject commandId == cmdIdEqObject commandId') $
             case result of
               UiBalanceCommandSuccess balance ->
-                put $ Balance balance
+                put $ Balance (show balance)
               UiBalanceCommandFailure err -> do
                 put $ FailedBalance err
-    WalletMouseDownEvent coords -> when (isCopyButtonClick coords) $
+    AccountMouseDownEvent coords -> when (isCopyButtonClick coords) $
       void $ putExpr UiCopySelection
-    WalletCopySelectionEvent ->
+    AccountCopySelectionEvent ->
       zoom (walletItemInfoL . _Just . _WalletAddressInfo) $
         void $ putExpr UiCopySelection
   where

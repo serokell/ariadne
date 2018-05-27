@@ -23,6 +23,7 @@ import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.UI
 import Ariadne.UI.Vty.Widget.About
+import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
@@ -63,6 +64,7 @@ data AppState =
     , appStateTree :: TreeWidgetState
     , appStateAddWallet :: AddWalletWidgetState
     , appStateWallet :: WalletWidgetState
+    , appStateAccount :: AccountWidgetState
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -80,6 +82,7 @@ initialAppState langFace history =
     , appStateTree = initTreeWidget
     , appStateAddWallet = initAddWalletWidget
     , appStateWallet = initWalletWidget
+    , appStateAccount = initAccountWidget
     }
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
@@ -198,6 +201,10 @@ drawAppWidget ariadneURL AppState{..} =
           drawWalletWidget
             (appStateFocus == AppFocusPane)
             appStateWallet
+        TreeSelectionAccount ->
+          drawAccountWidget
+            (appStateFocus == AppFocusPane)
+            appStateAccount
     drawDefaultView =
       B.withAttr defAttr $ B.vBox
         [ drawMenu
@@ -293,11 +300,27 @@ handleAppEvent langFace ev =
             unlessM (zoom appStateAddWalletL $ handleAddWalletFocus $ key == KeyFocusPrev) $
               appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
+        | key `elem` [KeyFocusNext, KeyFocusPrev],
+          AppFocusPane <- focus,
+          TreeSelectionWallet <- treeSel -> do
+            unlessM (zoom appStateWalletL $ handleWalletFocus $ key == KeyFocusPrev) $
+              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+            return AppInProgress
+        | key `elem` [KeyFocusNext, KeyFocusPrev],
+          AppFocusPane <- focus,
+          TreeSelectionAccount <- treeSel -> do
+            unlessM (zoom appStateAccountL $ handleAccountFocus $ key == KeyFocusPrev) $
+              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+            return AppInProgress
         | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
             let focus' = rotateFocus sel focus (key == KeyFocusPrev)
             appStateFocusL .= focus'
             when (focus' == AppFocusPane && treeSel == TreeSelectionAddWallet) $
               zoom appStateAddWalletL $ handleAddWalletFocusIn $ key == KeyFocusPrev
+            when (focus' == AppFocusPane && treeSel == TreeSelectionWallet) $
+              zoom appStateWalletL $ handleWalletFocusIn $ key == KeyFocusPrev
+            when (focus' == AppFocusPane && treeSel == TreeSelectionAccount) $
+              zoom appStateAccountL $ handleAccountFocusIn $ key == KeyFocusPrev
             return AppInProgress
 
 
@@ -345,6 +368,12 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         | AppFocusPane <- focus,
+          TreeSelectionAccount <- treeSel,
+          Just accountEv <- keyToAccountEvent key -> do
+            zoom appStateAccountL $ handleAccountWidgetEvent langFace accountEv
+            return AppInProgress
+
+        | AppFocusPane <- focus,
           TreeSelectionAddWallet <- treeSel -> do
             zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
               AddWalletKeyEvent key vtyEv
@@ -372,6 +401,9 @@ handleAppEvent langFace ev =
             TreeSelectionWallet ->
               zoom appStateWalletL $ handleWalletWidgetEvent langFace $
                 WalletMouseDownEvent coords
+            TreeSelectionAccount ->
+              zoom appStateAccountL $ handleAccountWidgetEvent langFace $
+                AccountMouseDownEvent coords
             _ ->
               return ()
           return AppInProgress
@@ -428,6 +460,9 @@ handleAppEvent langFace ev =
           zoom appStateWalletL $
             handleWalletWidgetEvent langFace $
               WalletUpdateEvent wuPaneInfoUpdate
+          zoom appStateAccountL $
+            handleAccountWidgetEvent langFace $
+              AccountUpdateEvent wuPaneInfoUpdate
       return AppInProgress
     B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
@@ -438,10 +473,13 @@ handleAppEvent langFace ev =
           ReplInProgress -> AppInProgress
     B.AppEvent (UiCommandResult commandId commandResult) -> do
       case commandResult of
-        UiBalanceCommandResult result ->
+        UiBalanceCommandResult result -> do
           zoom appStateWalletL $
             handleWalletWidgetEvent langFace $
               WalletBalanceCommandResult commandId result
+          zoom appStateAccountL $
+            handleAccountWidgetEvent langFace $
+              AccountBalanceCommandResult commandId result
         UiNewWalletCommandResult result ->
           zoom appStateAddWalletL $
             handleAddWalletWidgetEvent langFace $
