@@ -25,6 +25,7 @@ import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Numeric.Natural
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+import Data.Version (Version)
 
 data UiCommandId =
   UiCommandId
@@ -78,6 +79,7 @@ data UiEvent
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
   | UiCommandEvent UiCommandEvent
+  | UiNewVersionEvent Version
 
 data UiOperation
   = UiSelect [Word]

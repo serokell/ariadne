@@ -12,6 +12,9 @@ module Glue
        , walletEventToUI
        , putWalletEventToUI
        , uiGetSelectedItem
+
+         -- * Update ↔ Vty
+       , putUpdateEventToUI
        ) where
 
 import Universum
@@ -21,6 +24,7 @@ import Control.Lens (ix)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
+import Data.Version (Version)
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -232,3 +236,10 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
                             Nothing -> error "Non-existing address is selected"
                             Just (_, addr) -> UiSelectedAddress (pretty addr)
                     _ -> error "Invalid selection: too long"
+
+----------------------------------------------------------------------------
+-- Glue between the Update backend and Vty frontend
+----------------------------------------------------------------------------
+
+putUpdateEventToUI :: UiFace -> Version -> IO ()
+putUpdateEventToUI UiFace{..} ver = putUiEvent $ UiNewVersionEvent ver

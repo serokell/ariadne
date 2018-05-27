@@ -391,6 +391,11 @@ handleAppEvent langFace ev =
             handleStatusWidgetEvent $
               StatusUpdateEvent statusUpdate
       return AppInProgress
+    B.AppEvent (UiNewVersionEvent ver) -> do
+      zoom appStateStatusL $
+        handleStatusWidgetEvent $
+          StatusNewVersionEvent ver
+      return AppInProgress
     B.AppEvent (UiCommandEvent commandEvent) -> do
       case commandEvent of
         UiCommandHelp -> do

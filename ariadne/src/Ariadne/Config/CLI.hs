@@ -16,7 +16,7 @@ import qualified Data.Text.Lazy.IO as LTIO
 import qualified Dhall as D
 import Formatting (sformat, string, (%))
 import IiExtras (postfixLFields)
-import Options.Applicative (auto, help, long, metavar, option, strOption, value)
+import Options.Applicative (auto, help, long, metavar, option, strOption, value, switch)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
@@ -32,6 +32,8 @@ import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory (doesFileExist)
 import qualified Text.Read as R (readEither)
+import Data.Version (showVersion)
+import Paths_ariadne (version)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
   {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
@@ -121,7 +123,8 @@ makeLensesWith postfixLFields ''WalletConfig
 mergeConfigs :: CLI_AriadneConfig -> AriadneConfig -> AriadneConfig
 mergeConfigs overrideAc defaultAc = mergedAriadneConfig
   where
-    mergedAriadneConfig = AriadneConfig mergedCardanoConfig mergedWalletConfig
+    -- TODO: AD-175 Overridable update configuration
+    mergedAriadneConfig = AriadneConfig mergedCardanoConfig mergedWalletConfig (defaultAc ^. acUpdateL)
 
     mergedWalletConfig = WalletConfig $ merge (overrideAc ^. cli_acWalletL . cli_wcEntropySizeL) (defaultAc ^. acWalletL . wcEntropySizeL)
 
@@ -197,7 +200,10 @@ merge = flip fromMaybe
 
 getConfig :: IO AriadneConfig
 getConfig = do
-  (configPath, cli_config) <- Opt.execParser opts
+  (configPath, printVersion, cli_config) <- Opt.execParser opts
+  when printVersion $ do
+    putText $ sformat ("Ariadne v"%string) (showVersion version)
+    exitSuccess
   config <- ifM (doesFileExist configPath)
     (do
       -- Dhall will throw well formatted colourful error message
@@ -209,13 +215,13 @@ getConfig = do
       return defaultAriadneConfig)
   return $ mergeConfigs cli_config config
 
-opts :: Opt.ParserInfo (FilePath, CLI_AriadneConfig)
+opts :: Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts = Opt.info (parseOptions <**> Opt.helper)
   (  Opt.fullDesc
   <> Opt.progDesc "Runs Ariadne CLI"
   <> Opt.header "Ariadne CLI" )
 
-parseOptions :: Opt.Parser (FilePath, CLI_AriadneConfig)
+parseOptions :: Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions = do
   configPath <- strOption_ $ mconcat
     [ long "config"
@@ -223,8 +229,12 @@ parseOptions = do
     , value "config/ariadne-config.dhall"
     , help "Path to ariadne .dhall configuration file"
     ]
+  printVersion <- switch $ mconcat
+    [ long "version"
+    , help "Show current version"
+    ]
   cli_ariadneConfig <- cliAriadneConfigParser
-  return (configPath, cli_ariadneConfig)
+  return (configPath, printVersion, cli_ariadneConfig)
 
 cliAriadneConfigParser :: Opt.Parser CLI_AriadneConfig
 cliAriadneConfigParser = do

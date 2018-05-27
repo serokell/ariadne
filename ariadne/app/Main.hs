@@ -14,6 +14,7 @@ import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
 import Ariadne.Wallet.Backend
+import Ariadne.Update.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -30,6 +31,7 @@ main = do
   ariadneConfig <- getConfig
   let cardanoConfig = acCardano ariadneConfig
       walletConfig = acWallet ariadneConfig
+      updateConfig = acUpdate ariadneConfig
 
   (uiFace, mkUiAction) <- createAriadneUI
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
@@ -57,14 +59,16 @@ main = do
 
     knitFace = createKnitBackend knitExecContext taskManagerFace
 
-    uiAction, cardanoAction :: IO ()
+    uiAction, cardanoAction, updateCheckAction :: IO ()
     uiAction = mkUiAction (knitFaceToUI uiFace knitFace)
     cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
+
+    updateCheckAction = runUpdateCheck updateConfig (putUpdateEventToUI uiFace)
 
     initAction :: IO ()
     initAction = walletInitAction
 
     serviceAction :: IO ()
-    serviceAction = uiAction `race_` cardanoAction
+    serviceAction = uiAction `race_` cardanoAction `race_` updateCheckAction
 
   withAsync initAction $ \_ -> serviceAction
