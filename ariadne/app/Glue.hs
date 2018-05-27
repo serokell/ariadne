@@ -105,15 +105,20 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiCopySelection -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.copySelectionCommandName [])
-      UiNewWallet name _ -> do
+      UiNewWallet name passphrase -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newWalletCommandName
-            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+          (Knit.ProcCall Knit.newWalletCommandName $
+            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name] ++
+            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
-      UiRestoreWallet name _ _ -> do
+      UiRestoreWallet name mnemonic passphrase full -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.restoreCommandName
-            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+          (Knit.ProcCall Knit.restoreCommandName $
+            [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
+            , Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
+            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+            ] ++
+            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
 
     resultToUI result = \case
@@ -127,7 +132,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
             _ -> Left "Unrecognized return value"
-      UiRestoreWallet _ _ _ ->
+      UiRestoreWallet _ _ _ _ ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
           fromResult result
       _ -> Nothing

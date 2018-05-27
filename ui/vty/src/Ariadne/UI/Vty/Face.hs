@@ -46,6 +46,9 @@ data UiCommandId =
   , cmdTaskId :: Maybe Natural
   }
 
+instance Eq UiCommandId where
+  a == b = cmdIdEqObject a == cmdIdEqObject b
+
 -- A REPL command has either finished or sent some information.
 data UiCommandEvent
   = UiCommandSuccess Doc
@@ -91,7 +94,7 @@ data UiCommand
   = UiSelect [Word]
   | UiBalance
   | UiNewWallet Text Text  -- ^ Name, passphrase
-  | UiRestoreWallet Text Text Text  -- ^ Name, mnemonic, passphrase
+  | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiKill Natural
   | UiCopySelection
 
