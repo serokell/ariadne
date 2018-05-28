@@ -6,18 +6,18 @@
         , system-start = [] : Optional Natural 
         }
     , log-config = ["./cardano/log-config.yaml"] : Optional Text
-    , log-prefix = ["../../logs/mainnet"] : Optional Text
+    , log-prefix = ["../logs/mainnet"] : Optional Text
     , report-servers = [] : List Text
     , update-servers = [] : List Text 
     }
 , rebuild-db = False
-, db-path = ["../../db-mainnet"] : Optional Text
+, db-path = ["../db-mainnet"] : Optional Text
 , dump-configuration = False
 , dump-genesis-data-to = [] : Optional Text
 , ekg-params = [] : Optional { IP : Text, PORT : Natural }
 , genesis-secret = [] : Optional Integer
 , json-log = [] : Optional Text
-, keyfile = ["../../secret-mainnet.key"] : Optional Text
+, keyfile = ["../secret-mainnet.key"] : Optional Text
 , metrics = False
 , network-config = 
     { address = [] : Optional { IP : Text, PORT : Natural }
