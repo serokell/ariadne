@@ -35,7 +35,7 @@ let
     #!/bin/sh
     set -e
     if [ ! -d "$DATA_DIR/config" ]; then
-      cp -r ${ariadne-bin}/config "$DATA_DIR/"
+      cp -r ${ariadne-bin}/config/* "$CONFIG_DIR/"
     fi
     exec ${ariadne-bin}/bin/ariadne
   '';
