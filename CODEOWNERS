@@ -1,0 +1,24 @@
+# Unless a later match takes precedence, @gromakovsky will be requested
+# for review when someone opens a pull request, because @gromakovsky
+# is the Head Vulture of this project.
+
+*                               @gromakovsky
+
+# Order is important; the last matching pattern takes the most precedence.
+
+# Knit
+util/                           @int-index
+knit/                           @int-index @hithroc
+
+# Wallet
+TaskManager/                    @hithroc
+Update/                         @hithroc
+Wallet/                         @thatguy @gromakovsky
+
+# UIs
+ui/qt/                          @goodsoft @maksbotan
+ui/vty/                         @goodsoft
+
+# CI, Nix
+*.nix                           @yegortimoshenko
+appveyor.yml                    @yegortimoshenko
