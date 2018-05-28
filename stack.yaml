@@ -6,10 +6,9 @@ flags:
 
 packages:
 - ./ariadne
-- ./ui/qt
-- ./ui/vty
 - ./knit
-- ./util/
+- ./util
+- ./ui/qt
 
 - location:
     git: https://github.com/serokell/lootbox.git
@@ -198,7 +197,6 @@ extra-deps:
 - dhall-1.7.0
 - loc-0.1.3.2
 - config-ini-0.2.2.0
-- vty-5.21
 - brick-0.36
 - word-wrap-0.4.1
 - validation-0.6.1
