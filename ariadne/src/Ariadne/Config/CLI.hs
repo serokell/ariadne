@@ -36,7 +36,7 @@ import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
   (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
-import System.FilePath (dropFileName, isAbsolute, takeDirectory, (</>))
+import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
@@ -223,18 +223,16 @@ getConfig = do
       -- to be relative to the config path.
       unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
       configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
-      resolved <- resolvePaths unresolved configPath configDirs
-      return resolved)
+      return (resolvePaths unresolved configPath configDirs))
     (do
       putText $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return defaultAriadneConfig)
 
   return $ mergeConfigs cli_config config
     where
-      resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> IO AriadneConfig
-      resolvePaths unresolved ariadneConfigPath configDirs = do
-        let ariadneConfigDir = takeDirectory ariadneConfigPath
-        return $ execState (resolveState ariadneConfigDir configDirs) unresolved
+      resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> AriadneConfig
+      resolvePaths unresolved ariadneConfigPath configDirs =
+        execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
       resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
       resolveState ariadneConfigDir configDirs = do
@@ -275,7 +273,7 @@ opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   <> Opt.progDesc "Runs Ariadne CLI"
   <> Opt.header "Ariadne CLI" )
 
-parseOptions :: FilePath -> Opt.Parser (FilePath, CLI_AriadneConfig)
+parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
   configPath <- strOption_ $ mconcat
     [ long "config"
