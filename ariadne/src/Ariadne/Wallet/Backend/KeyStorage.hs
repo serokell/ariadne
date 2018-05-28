@@ -27,10 +27,11 @@ import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.List (findIndex)
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import qualified Data.Vector as V (findIndex, fromList, ifilter, mapMaybe, foldr)
-import qualified Data.Set as S
+import qualified Data.Vector as V
+  (findIndex, foldr, fromList, ifilter, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)

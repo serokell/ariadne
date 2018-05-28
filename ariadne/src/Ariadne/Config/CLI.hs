@@ -11,13 +11,16 @@ import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
-import Control.Lens (makeLensesWith)
-import qualified Data.Text.Lazy.IO as LTIO
+import Control.Lens (makeLensesWith, (%=))
+import Data.Version (showVersion)
 import qualified Dhall as D
+import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import IiExtras (postfixLFields)
-import Options.Applicative (auto, help, long, metavar, option, strOption, value, switch)
+import Options.Applicative
+  (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
+import Paths_ariadne (version)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
@@ -31,9 +34,8 @@ import Serokell.Util (sec)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory (doesFileExist)
+import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
-import Data.Version (showVersion)
-import Paths_ariadne (version)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
   {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
@@ -208,12 +210,54 @@ getConfig = do
     (do
       -- Dhall will throw well formatted colourful error message
       -- if something goes wrong
-      configDhall <- LTIO.readFile configPath
-      fromDhall configDhall)
+
+      -- Passing path as dhall import is needed for relative import paths
+      -- to be relative to the config path.
+      unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
+      resolved <- resolvePaths unresolved configPath
+      return resolved)
     (do
       putText $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return defaultAriadneConfig)
+
   return $ mergeConfigs cli_config config
+    where
+      resolvePaths :: AriadneConfig -> FilePath -> IO AriadneConfig
+      resolvePaths unresolved ariadneConfigPath = do
+        let ariadneConfigDir = takeDirectory ariadneConfigPath
+
+        return $ execState (resolveState ariadneConfigDir) unresolved
+
+      resolveState :: FilePath -> State AriadneConfig ()
+      resolveState ariadneConfigDir = do
+        let commNodeArgsL = acCardanoL . getCardanoConfigL
+            resolve_ = resolve ariadneConfigDir
+        commNodeArgsL.networkConfigOptsL.ncoTopologyL %= (fmap resolve_)
+        commNodeArgsL.commonArgsL.logConfigL %= (fmap resolve_)
+        commNodeArgsL.commonArgsL.logPrefixL %= (fmap resolve_)
+        commNodeArgsL.updateLatestPathL %= resolve_
+        commNodeArgsL.dbPathL %= (fmap resolve_)
+        commNodeArgsL.commonArgsL.configurationOptionsL.cfoFilePathL %= resolve_
+        commNodeArgsL.keyfilePathL %= resolve_
+
+      resolve :: FilePath -> FilePath -> FilePath
+      resolve prefix path
+        | isAbsoluteConsiderTilde path = path
+        | otherwise = prefix </> path
+
+      isAbsoluteConsiderTilde :: FilePath -> Bool
+      isAbsoluteConsiderTilde p = if buildOS == Windows
+        then isAbsolute p
+        else if isPrefixOf "~/" p
+          then True
+          else isAbsolute p
+
+      toDhallImport :: FilePath -> D.Text
+      toDhallImport = fromString . f
+        where
+          f path
+            | isAbsoluteConsiderTilde path = path --relative paths without `.` are invalid in dhall.
+            | otherwise = "." </> path
 
 opts :: Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts = Opt.info (parseOptions <**> Opt.helper)
