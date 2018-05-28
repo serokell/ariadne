@@ -78,7 +78,8 @@ mkVtyConfig = do
   stdConfig <- V.standardIOConfig
   return stdConfig
     { V.mouseMode = Just True
-    , V.bracketedPasteMode = Just True
+    , V.bracketedPasteMode = Just False
+      -- ^ Temporary disabled until we refactor widget event handling
     }
 
 -- Create a channel for application events that aren't user input. This channel

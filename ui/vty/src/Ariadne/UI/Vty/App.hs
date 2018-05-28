@@ -192,7 +192,7 @@ drawAppWidget ariadneURL AppState{..} =
       withFocus AppFocusPane $ B.viewport BrickPane B.Vertical $
       case treeWidgetSelection appStateTree of
         TreeSelectionNone ->
-          B.txt "Select a wallet, an account, or an address"
+          B.txt "Loading..."
         TreeSelectionAddWallet ->
           drawAddWalletWidget
             (appStateFocus == AppFocusPane)
@@ -362,9 +362,9 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         | AppFocusPane <- focus,
-          TreeSelectionWallet <- treeSel,
-          Just walletEv <- keyToWalletEvent key -> do
-            zoom appStateWalletL $ handleWalletWidgetEvent langFace walletEv
+          TreeSelectionWallet <- treeSel -> do
+            zoom appStateWalletL $ handleWalletWidgetEvent langFace $
+              WalletKeyEvent key vtyEv
             return AppInProgress
 
         | AppFocusPane <- focus,
@@ -398,9 +398,6 @@ handleAppEvent langFace ev =
         BrickPane -> do
           appStateFocusL .= AppFocusPane
           uses appStateTreeL treeWidgetSelection >>= \case
-            TreeSelectionWallet ->
-              zoom appStateWalletL $ handleWalletWidgetEvent langFace $
-                WalletMouseDownEvent coords
             TreeSelectionAccount ->
               zoom appStateAccountL $ handleAccountWidgetEvent langFace $
                 AccountMouseDownEvent coords
@@ -425,6 +422,14 @@ handleAppEvent langFace ev =
               appStateFocusL .= AppFocusPane
               zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
                 AddWalletMouseDownEvent name coords
+              return AppInProgress
+          | name `elem`
+            [ BrickWalletSendAddress, BrickWalletSendAmount
+            , BrickWalletSendPass, BrickWalletSendButton
+            ] -> do
+              appStateFocusL .= AppFocusPane
+              zoom appStateWalletL $ handleWalletWidgetEvent langFace $
+                WalletMouseDownEvent name coords
               return AppInProgress
           | otherwise ->
               return AppInProgress
@@ -480,6 +485,10 @@ handleAppEvent langFace ev =
           zoom appStateAccountL $
             handleAccountWidgetEvent langFace $
               AccountBalanceCommandResult commandId result
+        UiSendCommandResult result ->
+          zoom appStateWalletL $
+            handleWalletWidgetEvent langFace $
+              WalletSendCommandResult commandId result
         UiNewWalletCommandResult result ->
           zoom appStateAddWalletL $
             handleAddWalletWidgetEvent langFace $

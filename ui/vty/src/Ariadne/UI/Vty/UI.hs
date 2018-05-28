@@ -28,6 +28,11 @@ data BrickName
   | BrickAddWalletRestoreFull
   | BrickAddWalletRestoreButton
 
+  | BrickWalletSendAddress
+  | BrickWalletSendAmount
+  | BrickWalletSendPass
+  | BrickWalletSendButton
+
   | BrickNone  -- For empty focus selection
   deriving (Eq, Ord, Show)
 
