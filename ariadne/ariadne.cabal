@@ -3,6 +3,8 @@ version:        0.1.0.0
 description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
 homepage:       https://github.com/serokell/ariadne#readme
 bug-reports:    https://github.com/serokell/ariadne/issues
+license:        MIT
+license-file:   LICENSE
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
 build-type:     Simple
@@ -37,6 +39,8 @@ library
     , cardano-sl-update
     , cardano-sl-util
     , cardano-sl-wallet
+    , Cabal
+    , MissingH
     , conduit
     , contravariant
     , constraints
@@ -48,6 +52,7 @@ library
     , formatting
     , http-client
     , http-client-tls
+    , filepath
     , kademlia
     , knit
     , lens
