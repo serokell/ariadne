@@ -40,6 +40,7 @@ library
     , cardano-sl-util
     , cardano-sl-wallet
     , Cabal
+    , MissingH
     , conduit
     , contravariant
     , constraints

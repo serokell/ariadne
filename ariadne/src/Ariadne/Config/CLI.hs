@@ -12,6 +12,7 @@ import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Control.Lens (makeLensesWith, (%=))
+import Data.List.Utils (replace)
 import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
@@ -33,7 +34,8 @@ import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util (sec)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
-import System.Directory (doesFileExist)
+import System.Directory
+  (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
 
@@ -200,12 +202,18 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
 merge :: Maybe a -> a -> a
 merge = flip fromMaybe
 
+data ConfigDirectories = ConfigDirectories
+  { cdDataDir :: !FilePath
+  , cdPWD :: !FilePath }
+
 getConfig :: IO AriadneConfig
 getConfig = do
-  (configPath, printVersion, cli_config) <- Opt.execParser opts
+  xdgConfigPath <- getXdgDirectory XdgConfig "ariadne"
+  (configPath, printVersion, cli_config) <- Opt.execParser (opts xdgConfigPath)
   when printVersion $ do
     putText $ sformat ("Ariadne v"%string) (showVersion version)
     exitSuccess
+
   config <- ifM (doesFileExist configPath)
     (do
       -- Dhall will throw well formatted colourful error message
@@ -214,24 +222,22 @@ getConfig = do
       -- Passing path as dhall import is needed for relative import paths
       -- to be relative to the config path.
       unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
-      resolved <- resolvePaths unresolved configPath
-      return resolved)
+      configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
+      return (resolvePaths unresolved configPath configDirs))
     (do
       putText $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return defaultAriadneConfig)
 
   return $ mergeConfigs cli_config config
     where
-      resolvePaths :: AriadneConfig -> FilePath -> IO AriadneConfig
-      resolvePaths unresolved ariadneConfigPath = do
-        let ariadneConfigDir = takeDirectory ariadneConfigPath
+      resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> AriadneConfig
+      resolvePaths unresolved ariadneConfigPath configDirs =
+        execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
-        return $ execState (resolveState ariadneConfigDir) unresolved
-
-      resolveState :: FilePath -> State AriadneConfig ()
-      resolveState ariadneConfigDir = do
+      resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
+      resolveState ariadneConfigDir configDirs = do
         let commNodeArgsL = acCardanoL . getCardanoConfigL
-            resolve_ = resolve ariadneConfigDir
+            resolve_ = resolve ariadneConfigDir configDirs
         commNodeArgsL.networkConfigOptsL.ncoTopologyL %= (fmap resolve_)
         commNodeArgsL.commonArgsL.logConfigL %= (fmap resolve_)
         commNodeArgsL.commonArgsL.logPrefixL %= (fmap resolve_)
@@ -240,8 +246,10 @@ getConfig = do
         commNodeArgsL.commonArgsL.configurationOptionsL.cfoFilePathL %= resolve_
         commNodeArgsL.keyfilePathL %= resolve_
 
-      resolve :: FilePath -> FilePath -> FilePath
-      resolve prefix path
+      resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
+      resolve prefix ConfigDirectories{..} path
+        | isPrefixOf "@DATA" path = replace "@DATA" cdDataDir path
+        | isPrefixOf "@PWD" path = replace "@PWD" cdPWD path
         | isAbsoluteConsiderTilde path = path
         | otherwise = prefix </> path
 
@@ -259,18 +267,18 @@ getConfig = do
             | isAbsoluteConsiderTilde path = path --relative paths without `.` are invalid in dhall.
             | otherwise = "." </> path
 
-opts :: Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
-opts = Opt.info (parseOptions <**> Opt.helper)
+opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
+opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
   <> Opt.progDesc "Runs Ariadne CLI"
   <> Opt.header "Ariadne CLI" )
 
-parseOptions :: Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
-parseOptions = do
+parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
+parseOptions xdgConfigPath = do
   configPath <- strOption_ $ mconcat
     [ long "config"
     , metavar "FILEPATH"
-    , value "config/ariadne-config.dhall"
+    , value (xdgConfigPath </> "ariadne-config.dhall")
     , help "Path to ariadne .dhall configuration file"
     ]
   printVersion <- switch $ mconcat
