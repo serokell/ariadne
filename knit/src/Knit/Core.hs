@@ -262,13 +262,13 @@ tyInt :: Elem components Core => TyProjection components Int
 tyInt = TyProjection "Int" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
 
 tyWord :: Elem components Core => TyProjection components Word
-tyWord = TyProjection "Word" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+tyWord = TyProjection "UInt" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
 
 tyWord8 :: Elem components Core => TyProjection components Word8
-tyWord8 = TyProjection "Word8" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+tyWord8 = TyProjection "UInt8" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
 
 tyWord32 :: Elem components Core => TyProjection components Word32
-tyWord32 = TyProjection "Word32" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+tyWord32 = TyProjection "UInt32" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
 
 tyWord64 :: Elem components Core => TyProjection components Word64
-tyWord64 = TyProjection "Word64" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
+tyWord64 = TyProjection "UInt64" (toBoundedInteger <=< preview _ValueNumber <=< fromValue)
