@@ -1,10 +1,18 @@
-module Ariadne.UI.Vty.Widget.Help where
+module Ariadne.UI.Vty.Widget.Help
+       ( HelpWidgetState
+       , initHelpWidget
+       , drawHelpWidget
+
+       , HelpWidgetEvent(..)
+       , handleHelpWidgetEvent
+       ) where
 
 import Universum
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.UI
 import Control.Lens (makeLensesWith)
 import IiExtras
 
@@ -12,37 +20,30 @@ import qualified Brick as B
 import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-data HelpWidgetState n =
+data HelpWidgetState =
   HelpWidgetState
-    { helpWidgetData :: [PP.Doc]
-    , helpWidgetBrickName :: n
+    { helpWidgetData :: ![PP.Doc]
     }
 
 makeLensesWith postfixLFields ''HelpWidgetState
 
-initHelpWidget
-  :: (Ord n, Show n)
-  => UiLangFace
-  -> n
-  -> HelpWidgetState n
-initHelpWidget UiLangFace{..} name = HelpWidgetState
+widgetName :: BrickName
+widgetName = BrickHelp
+
+initHelpWidget :: UiLangFace -> HelpWidgetState
+initHelpWidget UiLangFace{..} = HelpWidgetState
   { helpWidgetData = langGetHelp
-  , helpWidgetBrickName = name
   }
 
-drawHelpWidget
-  :: (Ord n, Show n)
-  => HelpWidgetState n
-  -> B.Widget n
+drawHelpWidget :: HelpWidgetState -> B.Widget BrickName
 drawHelpWidget helpWidgetState =
-  B.viewport name B.Vertical $
-    B.cached name B.Widget
+  B.viewport widgetName B.Vertical $
+      B.cached widgetName B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
       }
   where
-    name = helpWidgetState ^. helpWidgetBrickNameL
     render = do
       rdrCtx <- B.getContext
       let
@@ -62,11 +63,9 @@ data HelpWidgetEvent
   = HelpScrollingEvent ScrollingAction
 
 handleHelpWidgetEvent
-  :: (Ord n, Show n)
-  => HelpWidgetEvent
-  -> StateT (HelpWidgetState n) (B.EventM n) ()
+  :: HelpWidgetEvent
+  -> StateT HelpWidgetState (B.EventM BrickName) ()
 handleHelpWidgetEvent ev = do
-  name <- use helpWidgetBrickNameL
   case ev of
     HelpScrollingEvent action ->
-      lift $ handleScrollingEvent name action
+      lift $ handleScrollingEvent widgetName action

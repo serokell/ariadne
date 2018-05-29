@@ -1,21 +1,25 @@
 module Ariadne.UI.Vty.Face
        ( UiCommandId (..)
-       , UiCommandResultEvent (..)
+       , UiCommandEvent (..)
        , UiWalletEvent (..)
        , UiCardanoStatusUpdate (..)
        , UiCardanoEvent (..)
-       , UiCommandEvent (..)
+       , UiCommandAction (..)
        , UiEvent (..)
-       , UiOperation (..)
+       , UiCommand (..)
+       , UiCommandResult (..)
+       , UiBalanceCommandResult (..)
+       , UiNewWalletCommandResult (..)
+       , UiRestoreWalletCommandResult (..)
        , UiSelectedItem (..)
        , UiLangFace (..)
        , UiFace (..)
 
-       , UiWalletTreeItem (..)
-       , UiWalletTree
-       , UiWalletTreeSelection(..)
-       , UiWalletPaneInfoType(..)
-       , UiWalletPaneInfo(..)
+       , UiTreeItem (..)
+       , UiTree
+       , UiTreeSelection(..)
+       , UiWalletInfoType(..)
+       , UiWalletInfo(..)
        , TreePath
        ) where
 
@@ -42,8 +46,11 @@ data UiCommandId =
   , cmdTaskId :: Maybe Natural
   }
 
+instance Eq UiCommandId where
+  a == b = cmdIdEqObject a == cmdIdEqObject b
+
 -- A REPL command has either finished or sent some information.
-data UiCommandResultEvent
+data UiCommandEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
@@ -61,13 +68,13 @@ data UiCardanoEvent
 
 data UiWalletEvent =
   UiWalletUpdate
-    { wuTrees :: [UiWalletTree]
-    , wuSelection :: Maybe UiWalletTreeSelection
-    , wuPaneInfoUpdate :: Maybe UiWalletPaneInfo
+    { wuTrees :: [UiTree]
+    , wuSelection :: Maybe UiTreeSelection
+    , wuPaneInfoUpdate :: Maybe UiWalletInfo
     }
 
 -- UI event triggered by REPL command
-data UiCommandEvent
+data UiCommandAction
   = UiCommandHelp
   | UiCommandLogs
 
@@ -75,17 +82,39 @@ data UiCommandEvent
 -- events in the 'Glue' module. They must be independent from the backends and
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
-  = UiCommandResultEvent UiCommandId UiCommandResultEvent
+  = UiCommandEvent UiCommandId UiCommandEvent
+  | UiCommandResult UiCommandId UiCommandResult
+  | UiCommandAction UiCommandAction
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiCommandEvent UiCommandEvent
   | UiNewVersionEvent Version
 
-data UiOperation
+-- | Commands issued by the UI widgets
+data UiCommand
   = UiSelect [Word]
   | UiBalance
+  | UiNewWallet Text Text  -- ^ Name, passphrase
+  | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiKill Natural
   | UiCopySelection
+
+-- | Results of commands issued by the UI widgets
+data UiCommandResult
+  = UiBalanceCommandResult UiBalanceCommandResult
+  | UiNewWalletCommandResult UiNewWalletCommandResult
+  | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
+
+data UiBalanceCommandResult
+  = UiBalanceCommandSuccess Text
+  | UiBalanceCommandFailure Text
+
+data UiNewWalletCommandResult
+  = UiNewWalletCommandSuccess [Text]
+  | UiNewWalletCommandFailure Text
+
+data UiRestoreWalletCommandResult
+  = UiRestoreWalletCommandSuccess
+  | UiRestoreWalletCommandFailure Text
 
 -- | Item which is currently selected by the backend.
 data UiSelectedItem
@@ -98,12 +127,12 @@ data UiSelectedItem
 data UiLangFace =
   forall err expr. UiLangFace
   { langPutCommand :: expr -> IO UiCommandId
+  , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
-  , langMkExpr :: UiOperation -> expr
   }
 
 -- API for the UI.
@@ -120,7 +149,7 @@ data UiFace =
 ----------------------------------------------------------------------------
 
 -- | A node in HD-wallet tree.
-data UiWalletTreeItem = UiWalletTreeItem
+data UiTreeItem = UiTreeItem
     { wtiLabel :: !(Maybe Text)
     -- ^ Some text to display (e. g. wallet's name).
     , wtiPath :: ![Word]
@@ -130,7 +159,7 @@ data UiWalletTreeItem = UiWalletTreeItem
     -- ^ Whether the path should be displayed.
     }
 
-type UiWalletTree = Tree UiWalletTreeItem
+type UiTree = Tree UiTreeItem
 
 -- | Path in a 'Tree'.
 --
@@ -139,8 +168,8 @@ type UiWalletTree = Tree UiWalletTreeItem
 -- to be an issue, we may consider changing it.
 type TreePath = [Word]
 
-data UiWalletTreeSelection =
-  UiWalletTreeSelection
+data UiTreeSelection =
+  UiTreeSelection
     { wtsWalletIdx :: Word
     , wtsPath :: TreePath
     }
@@ -149,14 +178,14 @@ data UiWalletTreeSelection =
 -- Wallet pane widget model
 ----------------------------------------------------------------------------
 
-data UiWalletPaneInfoType
-  = UiWalletPaneInfoWallet
-  | UiWalletPaneInfoAccount [Word32]
-  | UiWalletPaneInfoAddress [Word32]
+data UiWalletInfoType
+  = UiWalletInfoWallet
+  | UiWalletInfoAccount [Word32]
+  | UiWalletInfoAddress [Word32]
 
-data UiWalletPaneInfo
-  = UiWalletPaneInfo
-    { wpiType :: !(Maybe UiWalletPaneInfoType)
+data UiWalletInfo
+  = UiWalletInfo
+    { wpiType :: !(Maybe UiWalletInfoType)
     , wpiLabel :: !(Maybe Text)
     , wpiWalletIdx :: !Word
     , wpiPath :: !TreePath

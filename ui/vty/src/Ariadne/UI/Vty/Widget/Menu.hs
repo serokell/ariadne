@@ -1,4 +1,15 @@
-module Ariadne.UI.Vty.Widget.Menu where
+module Ariadne.UI.Vty.Widget.Menu
+       ( MenuWidgetState
+       , MenuWidgetElem(..)
+       , initMenuWidget
+       , drawMenuWidget
+       , menuWidgetNavMode
+       , menuWidgetSel
+
+       , MenuWidgetEvent(..)
+       , keyToMenuWidgetEvent
+       , handleMenuWidgetEvent
+       ) where
 
 import Universum
 
@@ -16,52 +27,49 @@ import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Keyboard
+import Ariadne.UI.Vty.UI
 
 import IiExtras
 
-data MenuWidgetState a n =
+data MenuWidgetState a =
   MenuWidgetState
-    { menuWidgetElems :: Vector (MenuWidgetElem a)
+    { menuWidgetElems :: !(Vector (MenuWidgetElem a))
     , menuWidgetSelection :: Int -- invariant: (`mod` length xs)
-    , menuWidgetNavMode :: Bool
-    , menuWidgetBrickName :: n
+    , menuWidgetNavMode :: !Bool
     }
 
 data MenuWidgetElem a =
   MenuWidgetElem
-    { menuWidgetElemSelector :: a
-    , menuWidgetElemText :: Text
-    , menuWidgetElemKey :: Char
+    { menuWidgetElemSelector :: !a
+    , menuWidgetElemText :: !Text
+    , menuWidgetElemKey :: !Char
     }
 
 makeLensesWith postfixLFields ''MenuWidgetState
 makeLensesWith postfixLFields ''MenuWidgetElem
 
-menuWidgetSel :: MenuWidgetState a n -> a
+menuWidgetSel :: MenuWidgetState a -> a
 menuWidgetSel MenuWidgetState{..} =
   -- the lookup is safe due to the invariant on 'menuWidgetSelection'
   menuWidgetElemSelector $ menuWidgetElems Vector.! menuWidgetSelection
 
-menuWidgetCharToSel :: Char -> MenuWidgetState a n -> Maybe a
+menuWidgetCharToSel :: Char -> MenuWidgetState a -> Maybe a
 menuWidgetCharToSel key MenuWidgetState{..} =
   view menuWidgetElemSelectorL <$> Vector.find ((== toLower key) . menuWidgetElemKey) menuWidgetElems
 
-initMenuWidget :: NonEmpty (MenuWidgetElem a) -> Int -> n -> MenuWidgetState a n
-initMenuWidget xs i name =
+initMenuWidget :: NonEmpty (MenuWidgetElem a) -> Int -> MenuWidgetState a
+initMenuWidget xs i =
   fix $ \this -> MenuWidgetState
     { menuWidgetElems = Vector.fromList (NonEmpty.toList xs)
     , menuWidgetSelection = i `mod` Vector.length (menuWidgetElems this)
     , menuWidgetNavMode = False
-    , menuWidgetBrickName = name
     }
 
-drawMenuWidget
-  :: MenuWidgetState a n
-  -> B.Widget n
+drawMenuWidget :: MenuWidgetState a -> B.Widget BrickName
 drawMenuWidget MenuWidgetState{..} =
   B.withAttr "menu" $
     B.hCenter $
-    B.clickable menuWidgetBrickName B.Widget
+    B.clickable BrickMenu B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -115,7 +123,7 @@ data MenuWidgetEvent a
 
 keyToMenuWidgetEvent
   :: Eq a
-  => MenuWidgetState a n
+  => MenuWidgetState a
   -> KeyboardEvent
   -> Maybe (MenuWidgetEvent a)
 keyToMenuWidgetEvent menuWidgetState = \case
@@ -131,7 +139,7 @@ keyToMenuWidgetEvent menuWidgetState = \case
 
 handleMenuWidgetEvent
   :: MenuWidgetEvent a
-  -> StateT (MenuWidgetState a n) (B.EventM n) ()
+  -> StateT (MenuWidgetState a) (B.EventM BrickName) ()
 handleMenuWidgetEvent ev = do
   len <- uses menuWidgetElemsL Vector.length
   let
