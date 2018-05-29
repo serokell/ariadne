@@ -18,14 +18,14 @@ data BrickName
   | BrickHelp
   | BrickLogs
 
-  | BrickNewWalletName
-  | BrickNewWalletPass
-  | BrickNewWalletCreateButton
-  | BrickNewWalletRestoreName
-  | BrickNewWalletRestoreMnemonic
-  | BrickNewWalletRestorePass
-  | BrickNewWalletRestoreFull
-  | BrickNewWalletRestoreButton
+  | BrickAddWalletName
+  | BrickAddWalletPass
+  | BrickAddWalletCreateButton
+  | BrickAddWalletRestoreName
+  | BrickAddWalletRestoreMnemonic
+  | BrickAddWalletRestorePass
+  | BrickAddWalletRestoreFull
+  | BrickAddWalletRestoreButton
 
   | BrickNone  -- For empty focus selection
   deriving (Eq, Ord, Show)
