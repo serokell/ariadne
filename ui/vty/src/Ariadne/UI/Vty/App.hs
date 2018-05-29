@@ -21,10 +21,10 @@ import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget.AddWallet
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
-import Ariadne.UI.Vty.Widget.NewWallet
 import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
@@ -56,7 +56,7 @@ data AppState =
     , appStateHelp :: HelpWidgetState
     , appStateLogs :: LogsWidgetState
     , appStateTree :: TreeWidgetState
-    , appStateNewWallet :: NewWalletWidgetState
+    , appStateAddWallet :: AddWalletWidgetState
     , appStateWallet :: WalletWidgetState
     }
 
@@ -72,7 +72,7 @@ initialAppState langFace history =
     , appStateHelp = initHelpWidget langFace
     , appStateLogs = initLogsWidget
     , appStateTree = initTreeWidget
-    , appStateNewWallet = initNewWalletWidget
+    , appStateAddWallet = initAddWalletWidget
     , appStateWallet = initWalletWidget
     }
   where
@@ -183,10 +183,10 @@ drawAppWidget AppState{..} =
       case treeWidgetSelection appStateTree of
         TreeSelectionNone ->
           B.txt "Select a wallet, an account, or an address"
-        TreeSelectionNewWallet ->
-          drawNewWalletWidget
+        TreeSelectionAddWallet ->
+          drawAddWalletWidget
             (appStateFocus == AppFocusPane)
-            appStateNewWallet
+            appStateAddWallet
         TreeSelectionWallet ->
           drawWalletWidget
             (appStateFocus == AppFocusPane)
@@ -273,15 +273,15 @@ handleAppEvent langFace ev =
         -- Switch focus between widgets
         | key `elem` [KeyFocusNext, KeyFocusPrev],
           AppFocusPane <- focus,
-          TreeSelectionNewWallet <- treeSel -> do
-            unlessM (zoom appStateNewWalletL $ handleNewWalletFocus $ key == KeyFocusPrev) $
+          TreeSelectionAddWallet <- treeSel -> do
+            unlessM (zoom appStateAddWalletL $ handleAddWalletFocus $ key == KeyFocusPrev) $
               appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
         | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
             let focus' = rotateFocus sel focus (key == KeyFocusPrev)
             appStateFocusL .= focus'
-            when (focus' == AppFocusPane && treeSel == TreeSelectionNewWallet) $
-              zoom appStateNewWalletL $ handleNewWalletFocusIn $ key == KeyFocusPrev
+            when (focus' == AppFocusPane && treeSel == TreeSelectionAddWallet) $
+              zoom appStateAddWalletL $ handleAddWalletFocusIn $ key == KeyFocusPrev
             return AppInProgress
 
 
@@ -325,9 +325,9 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         | AppFocusPane <- focus,
-          TreeSelectionNewWallet <- treeSel -> do
-            zoom appStateNewWalletL $ handleNewWalletWidgetEvent langFace $
-              NewWalletKeyEvent key vtyEv
+          TreeSelectionAddWallet <- treeSel -> do
+            zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
+              AddWalletKeyEvent key vtyEv
             return AppInProgress
 
         | otherwise ->
@@ -365,14 +365,14 @@ handleAppEvent langFace ev =
           return AppInProgress
         _
           | name `elem`
-            [ BrickNewWalletName, BrickNewWalletPass, BrickNewWalletCreateButton
-            , BrickNewWalletRestoreName, BrickNewWalletRestoreMnemonic
-            , BrickNewWalletRestorePass, BrickNewWalletRestoreFull
-            , BrickNewWalletRestoreButton
+            [ BrickAddWalletName, BrickAddWalletPass, BrickAddWalletCreateButton
+            , BrickAddWalletRestoreName, BrickAddWalletRestoreMnemonic
+            , BrickAddWalletRestorePass, BrickAddWalletRestoreFull
+            , BrickAddWalletRestoreButton
             ] -> do
               appStateFocusL .= AppFocusPane
-              zoom appStateNewWalletL $ handleNewWalletWidgetEvent langFace $
-                NewWalletMouseDownEvent name coords
+              zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
+                AddWalletMouseDownEvent name coords
               return AppInProgress
           | otherwise ->
               return AppInProgress
@@ -418,13 +418,13 @@ handleAppEvent langFace ev =
             handleWalletWidgetEvent langFace $
               WalletBalanceCommandResult commandId result
         UiNewWalletCommandResult result ->
-          zoom appStateNewWalletL $
-            handleNewWalletWidgetEvent langFace $
-              NewWalletNewWalletCommandResult commandId result
+          zoom appStateAddWalletL $
+            handleAddWalletWidgetEvent langFace $
+              AddWalletNewWalletCommandResult commandId result
         UiRestoreWalletCommandResult result ->
-          zoom appStateNewWalletL $
-            handleNewWalletWidgetEvent langFace $
-              NewWalletRestoreWalletCommandResult commandId result
+          zoom appStateAddWalletL $
+            handleAddWalletWidgetEvent langFace $
+              AddWalletRestoreWalletCommandResult commandId result
       return AppInProgress
     B.AppEvent (UiCardanoEvent cardanoEvent) -> do
       case cardanoEvent of

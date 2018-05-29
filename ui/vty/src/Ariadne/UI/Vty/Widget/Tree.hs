@@ -46,14 +46,14 @@ data TreeWidgetState =
 
 data TreeSelection
   = TreeSelectionNone
-  | TreeSelectionNewWallet
+  | TreeSelectionAddWallet
   | TreeSelectionWallet
   deriving (Eq)
 
 data TreeItemType
   = TreeItemLoading
   | TreeItemSeparator
-  | TreeItemNewWallet
+  | TreeItemAddWallet
   | TreeItemPath
 
 data TreeItem =
@@ -74,12 +74,12 @@ treeItemLoading, treeItemSeparator :: TreeItem
 treeItemLoading = TreeItem TreeItemLoading "" "Loading..." Nothing False
 treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 
-treeItemNewWallet :: Bool -> TreeItem
-treeItemNewWallet = TreeItem TreeItemNewWallet "" "[ + New wallet ]" (Just [])
+treeItemAddWallet :: Bool -> TreeItem
+treeItemAddWallet = TreeItem TreeItemAddWallet "" "[ + Add wallet ]" (Just [])
 
 treeWidgetSelection :: TreeWidgetState -> TreeSelection
 treeWidgetSelection TreeWidgetState{..} = case selectedItemType of
-  Just TreeItemNewWallet -> TreeSelectionNewWallet
+  Just TreeItemAddWallet -> TreeSelectionAddWallet
   Just TreeItemPath -> TreeSelectionWallet
   _ -> TreeSelectionNone
   where
@@ -99,7 +99,7 @@ initTreeWidget = TreeWidgetState
 walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> Bool -> [TreeItem]
 walletsToItems wallets selection initialized =
   intercalate [treeItemSeparator] $
-  [treeItemNewWallet $ initialized && isNothing selection] : map' (go [] []) (enumerate wallets)
+  [treeItemAddWallet $ initialized && isNothing selection] : map' (go [] []) (enumerate wallets)
   where
     selPath :: Maybe [Word]
     selPath = do
