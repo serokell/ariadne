@@ -3,7 +3,7 @@ let
   nixpkgs = import (builtins.fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz") {
     overlays = [ overlay ];
   };
-  
+
   # TODO: this should rather go into the overlay
   nix-bundle = import (builtins.fetchGit "https://github.com/serokell/nix-bundle") { inherit nixpkgs; };
 
@@ -13,11 +13,9 @@ in
 
 with nixpkgs;
 let
-  ariadne-bin = nixpkgs.haskell.lib.justStaticExecutables (ariadne { withQt = false; });
+  ariadne-bin = haskell.lib.justStaticExecutables (ariadne { withQt = false; });
   # runs in the chroot
-  ariadne-run = nixpkgs.writeShellScriptBin "run-ariadne.sh" ''
-    #!/bin/sh
-    set -e
+  ariadne-run = writeShellScriptBin "run-ariadne.sh" ''
     [ -z "$XDG_CACHE_HOME" ] && export XDG_CACHE_HOME="$HOME/.cache"
     [ -z "$XDG_CONFIG_HOME" ] && export XDG_CONFIG_HOME="$HOME/.config"
     [ -z "$XDG_DATA_HOME" ] && export XDG_DATA_HOME="$HOME/.local/share"
@@ -29,15 +27,11 @@ let
     mkdir -p "$CACHE_DIR" "$DATA_DIR"
 
     if [ ! -e "$CONFIG_DIR" ]; then
-      cp --no-preserve=mode -r ${ariadne-config} "$CONFIG_DIR"
+      cp --no-preserve=mode -r "${ariadne-config}" "$CONFIG_DIR"
     fi
 
     export LOCALE_ARCHIVE="${glibcLocales.override { allLocales = false; }}/lib/locale/locale-archive";
-    if [ ! -d "$DATA_DIR/config" ]; then
-      cp -r ${ariadne-bin}/config/* "$CONFIG_DIR/
-    fi
-    cd $DATA_DIR
-    exec ${ariadne-bin}/bin/ariadne	"$@"
+    exec ${ariadne-bin}/bin/ariadne "$@"
   '';
 in
 nix-bundle.nix-bootstrap-nix {
