@@ -97,7 +97,7 @@ initAddWalletWidget =
 drawAddWalletWidget :: Bool -> AddWalletWidgetState -> B.Widget BrickName
 drawAddWalletWidget _hasFocus AddWalletWidgetState{..} =
   B.vBox
-    [ visible BrickAddWalletName . pad $ B.txt "Create new wallet"
+    [ visible BrickNone . pad $ B.txt "Create new wallet"
     , visible BrickAddWalletName $ renderField "       Name: " $ addWalletFieldNewName
     , visible BrickAddWalletPass $ renderField " Passphrase: " $ addWalletFieldNewPass
     , button "[ Create ]" BrickAddWalletCreateButton

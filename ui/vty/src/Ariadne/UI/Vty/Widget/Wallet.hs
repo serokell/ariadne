@@ -83,15 +83,15 @@ initWalletWidget =
 drawWalletWidget :: Bool -> WalletWidgetState -> B.Widget BrickName
 drawWalletWidget _hasFocus WalletWidgetState{..} =
   B.vBox
-    [       pad . B.txt $ " Wallet name: " <> walletName
+    [ visible BrickNone . pad . B.txt $ " Wallet name: " <> walletName
     , pad . pad . B.txt $ "     Balance: " <> drawBalance
 
     , pad $ B.txt "Send transaction"
-    , renderField "     Address: " $ walletFieldSendAddress
-    , renderField " Amount, ADA: " $ walletFieldSendAmount
-    , renderField "  Passphrase: " $ walletFieldSendPass
+    , visible BrickWalletSendAddress $ renderField "     Address: " $ walletFieldSendAddress
+    , visible BrickWalletSendAmount  $ renderField " Amount, ADA: " $ walletFieldSendAmount
+    , visible BrickWalletSendPass    $ renderField "  Passphrase: " $ walletFieldSendPass
     , button "[ Send ]" BrickWalletSendButton
-    , drawSendResult
+    , visible BrickWalletSendButton . pad $ drawSendResult
     ]
   where
     pad = B.padBottom (B.Pad 1)
@@ -100,12 +100,16 @@ drawWalletWidget _hasFocus WalletWidgetState{..} =
       pad $
         B.txt label B.<+>
         B.renderFormFieldState walletFocusRing field
+    visible name =
+      if B.focusGetCurrent walletFocusRing == Just name
+      then B.visible
+      else identity
     withFocus name =
       if B.focusGetCurrent walletFocusRing == Just name
-      then B.withAttr "selected"
+      then B.visible . B.withAttr "selected"
       else identity
     button label name =
-      pad . padLeft . B.clickable name . withFocus name $ B.txt label
+      visible name . pad . padLeft . B.clickable name . withFocus name $ B.txt label
     drawBalance = case walletBalance of
       BalanceResultNone -> ""
       BalanceResultWaiting _ -> "calculating..."
@@ -149,6 +153,7 @@ handleWalletWidgetEvent langFace@UiLangFace{..} = \case
   WalletUpdateEvent itemInfo -> do
     whenJust itemInfo $ \UiWalletInfo{..} -> case wpiType of
       Just UiWalletInfoWallet -> do
+        walletFocusRingL %= B.focusSetCurrent BrickNone
         walletNameL .= fromMaybe "" wpiLabel
         use walletBalanceL >>= \case
           BalanceResultWaiting commandId
