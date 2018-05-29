@@ -13,7 +13,27 @@ in
 
 with nixpkgs;
 let
+  copyDynamicExecutables = drv: runCommandCC "${drv.name}-bin" {
+    buildInputs = [ glibc removeReferencesTo ];
+  } ''
+    mkdir -p $out/bin
+    cp ${drv}/bin/* $out/bin
+    mkdir -p $out/lib
+    echo moving libs
+    for binary in $out/bin/*; do
+      for library in $(ldd $binary | awk '{print $3}' | grep lib/ghc); do
+        cp -n -L $library $out/lib
+        remove-references-to -t $(echo $library | cut -d"/" -f1-4) $out/lib/$(basename $library)
+      done
+    done
+    for elf in $out/bin/* $out/lib/*; do
+      chmod +w $elf
+      patchelf --set-rpath $(patchelf --print-rpath $elf | tr : \\n | grep -v lib/ghc | tr \\n :)$out/lib $elf
+      chmod -w $elf
+    done
+  '';
   ariadne-bin = haskell.lib.justStaticExecutables (ariadne { withQt = false; });
+  ariadne-qt-bin = copyDynamicExecutables (ariadne { withQt = true; });
   # runs in the chroot
   ariadne-run = writeShellScriptBin "run-ariadne.sh" ''
     [ -z "$XDG_CACHE_HOME" ] && export XDG_CACHE_HOME="$HOME/.cache"
@@ -34,7 +54,7 @@ let
     exec ${ariadne-bin}/bin/ariadne "$@"
   '';
 in
-nix-bundle.nix-bootstrap-nix {
+(nix-bundle.nix-bootstrap-nix {
   target = ariadne-run;
   run = "/bin/run-ariadne.sh";
 
@@ -47,4 +67,4 @@ nix-bundle.nix-bootstrap-nix {
         ;;
     esac
   '';
-}
+}) // { passthru = { inherit ariadne-qt-bin; }; }
