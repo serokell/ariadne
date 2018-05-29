@@ -33,6 +33,7 @@ import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
 
+import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
@@ -50,6 +51,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
      , Elem components Knit.Core
+     , Elem components Knit.Cardano
      , Elem components Knit.TaskManager
      )
   => UiFace
@@ -57,36 +59,95 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = \expr -> do
-        cid <- newUnique
-        fmap (commandIdToUI cid) . putKnitCommand (commandHandle cid) $ expr
+    { langPutCommand = putCommand commandHandle
+    , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
     , langGetHelp = getKnitHelp (Proxy @components)
-    , langMkExpr = convertOperation
     }
   where
-    convertOperation = \case
-      UiSelect ws ->
-        Knit.ExprProcCall
-          (Knit.ProcCall Knit.selectCommandName
-           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
-          )
-      UiBalance -> Knit.ExprProcCall (Knit.ProcCall Knit.balanceCommandName [])
-      UiKill commandId ->
-        Knit.ExprProcCall
-          (Knit.ProcCall Knit.killCommandName
-            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
-          )
-      UiCopySelection -> Knit.ExprProcCall (Knit.ProcCall Knit.copySelectionCommandName [])
+    putCommand handle expr = do
+      cid <- newUnique
+      fmap (commandIdToUI cid) . putKnitCommand (handle cid) $ expr
     commandHandle commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
       , putCommandOutput = \tid doc ->
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
+
+    putUiCommand op = case opToExpr op of
+      Left err -> return $ Left err
+      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
+    uiCommandHandle op commandId = KnitCommandHandle
+      { putCommandResult = \mtid result ->
+          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
+      , putCommandOutput = \_ _ ->
+          return ()
+      }
+
+    opToExpr = \case
+      UiSelect ws ->
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.selectCommandName
+           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+          )
+      UiBalance ->
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.balanceCommandName [])
+      UiKill commandId ->
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.killCommandName
+            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+          )
+      UiCopySelection -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.copySelectionCommandName [])
+      UiNewWallet name passphrase -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newWalletCommandName $
+            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
+            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+          )
+      UiRestoreWallet name mnemonic passphrase full -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.restoreCommandName $
+            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
+            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+            ] ++
+            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
+            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+          )
+
+    resultToUI result = \case
+      UiBalance ->
+        Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
+            _ -> Left "Unrecognized return value"
+      UiNewWallet _ _ ->
+        Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
+            _ -> Left "Unrecognized return value"
+      UiRestoreWallet _ _ _ _ ->
+        Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
+          fromResult result
+      _ -> Nothing
+
+    fromResult = \case
+      KnitCommandSuccess v -> Right v
+      KnitCommandEvalError _ -> Left $ "Invalid arguments"
+      KnitCommandException e -> Left $ fromString $ displayException e
+      KnitCommandProcError _ -> error "Undefined command used"
+
+    fromValue
+      :: Elem components component
+      => Knit.Value components
+      -> Either Text (Knit.ComponentValue components component)
+    fromValue = maybeToRight "Unrecognized return value" . Knit.fromValue
 
 commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
@@ -106,7 +167,7 @@ knitCommandResultToUI
   => UiCommandId
   -> KnitCommandResult components
   -> Maybe UiEvent
-knitCommandResultToUI commandId = Just . UiCommandResultEvent commandId . \case
+knitCommandResultToUI commandId = Just . UiCommandEvent commandId . \case
   KnitCommandSuccess v ->
     UiCommandSuccess $ Knit.ppValue v
   KnitCommandEvalError e ->
@@ -117,7 +178,7 @@ knitCommandResultToUI commandId = Just . UiCommandResultEvent commandId . \case
     UiCommandFailure $ PP.text (displayException e)
 
 knitCommandOutputToUI :: UiCommandId -> PP.Doc -> UiEvent
-knitCommandOutputToUI commandId doc = UiCommandResultEvent commandId (UiCommandOutput doc)
+knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput doc)
 
 ----------------------------------------------------------------------------
 -- Glue between the Cardano backend and Vty frontend
@@ -158,60 +219,60 @@ walletEventToUI = \case
         (walletSelectionToUI <$> sel)
         (walletSelectionToPane us <$> sel)
 
-walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
+walletSelectionToUI :: WalletSelection -> UiTreeSelection
 walletSelectionToUI WalletSelection{..} =
-  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+  UiTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
-userSecretToTree :: UserSecret -> [UiWalletTree]
+userSecretToTree :: UserSecret -> [UiTree]
 userSecretToTree = map toTree . view usWallets
   where
-    toTree :: WalletData -> UiWalletTree
+    toTree :: WalletData -> UiTree
     toTree WalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
+            { rootLabel = UiTreeItem (Just _wdName) [] False
             , subForest = toList $ map toAccountNode _wdAccounts
             }
       where
-        toAccountNode :: AccountData -> UiWalletTree
+        toAccountNode :: AccountData -> UiTree
         toAccountNode AccountData {..} =
             Node
                 { rootLabel =
-                      UiWalletTreeItem
+                      UiTreeItem
                           { wtiLabel = Just _adName
                           , wtiPath = [fromIntegral _adPath]
                           , wtiShowPath = True
                           }
                 , subForest = toList $ map (toAddressNode _adPath) _adAddresses
                 }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
+        toAddressNode :: Word32 -> (Word32, Address) -> UiTree
         toAddressNode accIdx (addrIdx, address) =
             pure $
-            UiWalletTreeItem
+            UiTreeItem
                 { wtiLabel = Just (pretty address)
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
 
-walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletPaneInfo
-walletSelectionToPane us WalletSelection{..} = UiWalletPaneInfo{..}
+walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletInfo
+walletSelectionToPane us WalletSelection{..} = UiWalletInfo{..}
   where
     wpiWalletIdx = wsWalletIndex
     wpiPath = wsPath
     (wpiType, wpiLabel) = case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> error "Invalid wallet index"
       Just WalletData{..} -> case wsPath of
-        [] -> (Just UiWalletPaneInfoWallet, Just _wdName)
+        [] -> (Just UiWalletInfoWallet, Just _wdName)
         accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just AccountData{..} -> case accPath of
-            [] -> (Just $ UiWalletPaneInfoAccount [_adPath], Just _adName)
+            [] -> (Just $ UiWalletInfoAccount [_adPath], Just _adName)
             addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
-              Just (addrPath, address) -> (Just $ UiWalletPaneInfoAddress [_adPath, addrPath], Just $ pretty address)
+              Just (addrPath, address) -> (Just $ UiWalletInfoAddress [_adPath, addrPath], Just $ pretty address)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.

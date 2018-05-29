@@ -46,18 +46,20 @@ library
       Ariadne.UI.Vty.AnsiToVty
       Ariadne.UI.Vty.Clipboard
       Ariadne.UI.Vty.CommandHistory
-      Ariadne.UI.Vty.Widget.Help
-      Ariadne.UI.Vty.Widget.Logs
-      Ariadne.UI.Vty.Widget.Menu
-      Ariadne.UI.Vty.Widget.Repl
-      Ariadne.UI.Vty.Widget.Status
-      Ariadne.UI.Vty.Widget.WalletTree
-      Ariadne.UI.Vty.Widget.WalletPane
       Ariadne.UI.Vty.Face
       Ariadne.UI.Vty.Keyboard
       Ariadne.UI.Vty.Knit
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
+      Ariadne.UI.Vty.UI
+      Ariadne.UI.Vty.Widget.AddWallet
+      Ariadne.UI.Vty.Widget.Help
+      Ariadne.UI.Vty.Widget.Logs
+      Ariadne.UI.Vty.Widget.Menu
+      Ariadne.UI.Vty.Widget.Repl
+      Ariadne.UI.Vty.Widget.Status
+      Ariadne.UI.Vty.Widget.Tree
+      Ariadne.UI.Vty.Widget.Wallet
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

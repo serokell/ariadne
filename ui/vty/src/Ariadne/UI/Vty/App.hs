@@ -20,13 +20,15 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
+import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget.AddWallet
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
 import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
-import Ariadne.UI.Vty.Widget.WalletPane
-import Ariadne.UI.Vty.Widget.WalletTree
+import Ariadne.UI.Vty.Widget.Tree
+import Ariadne.UI.Vty.Widget.Wallet
 
 -- | Selected menu item and, consequently, visible screen
 data AppSelector
@@ -37,35 +39,25 @@ data AppSelector
 
 -- | Currently focused widget
 data AppFocus
-  = AppFocusWalletTree
-  | AppFocusWalletPane
+  = AppFocusTree
+  | AppFocusPane
   | AppFocusReplOutput
   | AppFocusReplInput
   | AppFocusHelp
   | AppFocusLogs
   deriving (Eq)
 
--- | Brick-specific ID for scrolling viewports, widget cache items and clickable widgets
-data AppBrickName
-  = AppBrickMenu
-  | AppBrickWalletTree
-  | AppBrickWalletPane
-  | AppBrickReplOutput
-  | AppBrickReplInput
-  | AppBrickHelp
-  | AppBrickLogs
-  deriving (Eq, Ord, Show)
-
 data AppState =
   AppState
-    { appStateFocus :: AppFocus
-    , appStateRepl :: ReplWidgetState AppBrickName
-    , appStateMenu :: MenuWidgetState AppSelector AppBrickName
+    { appStateFocus :: !AppFocus
+    , appStateRepl :: ReplWidgetState
+    , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
-    , appStateHelp :: HelpWidgetState AppBrickName
-    , appStateLogs :: LogsWidgetState AppBrickName
-    , appStateWalletTree :: WalletTreeWidgetState AppBrickName
-    , appStateWalletPane :: WalletPaneWidgetState AppBrickName
+    , appStateHelp :: HelpWidgetState
+    , appStateLogs :: LogsWidgetState
+    , appStateTree :: TreeWidgetState
+    , appStateAddWallet :: AddWalletWidgetState
+    , appStateWallet :: WalletWidgetState
     }
 
 makeLensesWith postfixLFields ''AppState
@@ -74,13 +66,14 @@ initialAppState :: UiLangFace -> CommandHistory -> AppState
 initialAppState langFace history =
   AppState
     { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace history AppBrickReplOutput AppBrickReplInput
-    , appStateMenu = initMenuWidget menuItems 0 AppBrickMenu
+    , appStateRepl = initReplWidget langFace history
+    , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
-    , appStateHelp = initHelpWidget langFace AppBrickHelp
-    , appStateLogs = initLogsWidget AppBrickLogs
-    , appStateWalletTree = initWalletTreeWidget AppBrickWalletTree
-    , appStateWalletPane = initWalletPaneWidget AppBrickWalletPane
+    , appStateHelp = initHelpWidget langFace
+    , appStateLogs = initLogsWidget
+    , appStateTree = initTreeWidget
+    , appStateAddWallet = initAddWalletWidget
+    , appStateWallet = initWalletWidget
     }
   where
     menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
@@ -93,23 +86,23 @@ initialAppState langFace history =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: UiLangFace -> B.App AppState UiEvent AppBrickName
+app :: UiLangFace -> B.App AppState UiEvent BrickName
 app langFace = B.App{..} where
 
-  appDraw :: AppState -> [B.Widget AppBrickName]
+  appDraw :: AppState -> [B.Widget BrickName]
   appDraw = drawAppWidget
 
   -- We do not use this feature of Brick.
   appChooseCursor
     :: AppState
-    -> [B.CursorLocation AppBrickName]
-    -> Maybe (B.CursorLocation AppBrickName)
+    -> [B.CursorLocation BrickName]
+    -> Maybe (B.CursorLocation BrickName)
   appChooseCursor = B.showFirstCursor
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent AppBrickName UiEvent
-    -> B.EventM AppBrickName (B.Next AppState)
+    -> B.BrickEvent BrickName UiEvent
+    -> B.EventM BrickName (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <-
       runStateT (handleAppEvent langFace ev) appState
@@ -118,13 +111,13 @@ app langFace = B.App{..} where
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState -> B.EventM AppBrickName AppState
+  appStartEvent :: AppState -> B.EventM BrickName AppState
   appStartEvent = return
 
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap = const defaultAttrMap
 
-drawAppWidget :: AppState -> [B.Widget AppBrickName]
+drawAppWidget :: AppState -> [B.Widget BrickName]
 drawAppWidget AppState{..} =
   let
     navMode = menuWidgetNavMode appStateMenu
@@ -143,8 +136,8 @@ drawAppWidget AppState{..} =
       | navMode
           = B.withAttr "focus.key" $ B.txt $
             case focus of
-              AppFocusWalletTree -> "T"
-              AppFocusWalletPane -> "P"
+              AppFocusTree -> "T"
+              AppFocusPane -> "P"
               AppFocusReplOutput -> "O"
               AppFocusReplInput  -> "R"
               _                  -> " "
@@ -178,25 +171,33 @@ drawAppWidget AppState{..} =
         , B.hBorder
         , drawReplInput
         ]
-    drawWalletTree =
+    drawTree =
       B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusWalletTree $
-      drawWalletTreeWidget
-        (appStateFocus == AppFocusWalletTree)
-        appStateWalletTree
-    drawWalletPane =
+      withFocus AppFocusTree $
+      drawTreeWidget
+        (appStateFocus == AppFocusTree)
+        appStateTree
+    drawPane =
       B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusWalletPane $
-      drawWalletPaneWidget
-        (appStateFocus == AppFocusWalletPane)
-        appStateWalletPane
+      withFocus AppFocusPane $ B.viewport BrickPane B.Vertical $
+      case treeWidgetSelection appStateTree of
+        TreeSelectionNone ->
+          B.txt "Select a wallet, an account, or an address"
+        TreeSelectionAddWallet ->
+          drawAddWalletWidget
+            (appStateFocus == AppFocusPane)
+            appStateAddWallet
+        TreeSelectionWallet ->
+          drawWalletWidget
+            (appStateFocus == AppFocusPane)
+            appStateWallet
     drawDefaultView =
       B.withAttr defAttr $ B.vBox
         [ drawMenu
         , B.hBox
-            [ drawWalletTree
+            [ drawTree
             , B.joinBorders B.vBorder
-            , drawWalletPane
+            , drawPane
             ]
         , B.joinBorders B.hBorder
         , drawRepl
@@ -226,8 +227,8 @@ drawAppWidget AppState{..} =
 
 handleAppEvent
   :: UiLangFace
-  -> B.BrickEvent AppBrickName UiEvent
-  -> StateT AppState (B.EventM AppBrickName) AppCompleted
+  -> B.BrickEvent BrickName UiEvent
+  -> StateT AppState (B.EventM BrickName) AppCompleted
 handleAppEvent langFace ev =
   case ev of
     B.VtyEvent (V.EvPaste bs) -> do
@@ -240,6 +241,7 @@ handleAppEvent langFace ev =
       focus <- use appStateFocusL
       menuState <- use appStateMenuL
       replState <- use appStateReplL
+      treeSel <- uses appStateTreeL treeWidgetSelection
       let
         sel = menuWidgetSel menuState
         navMode = menuWidgetNavMode menuState
@@ -269,9 +271,19 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         -- Switch focus between widgets
-        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
-            appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
+        | key `elem` [KeyFocusNext, KeyFocusPrev],
+          AppFocusPane <- focus,
+          TreeSelectionAddWallet <- treeSel -> do
+            unlessM (zoom appStateAddWalletL $ handleAddWalletFocus $ key == KeyFocusPrev) $
+              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
             return AppInProgress
+        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
+            let focus' = rotateFocus sel focus (key == KeyFocusPrev)
+            appStateFocusL .= focus'
+            when (focus' == AppFocusPane && treeSel == TreeSelectionAddWallet) $
+              zoom appStateAddWalletL $ handleAddWalletFocusIn $ key == KeyFocusPrev
+            return AppInProgress
+
 
         -- REPL editor events
         | Just replEv <- keyToReplInputEvent replState editKey,
@@ -301,60 +313,84 @@ handleAppEvent langFace ev =
             return AppInProgress
 
         -- Widget-specific events
-        | Just walletTreeEv <- keyToWalletTreeEvent key,
-          AppFocusWalletTree <- focus -> do
-            zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace walletTreeEv
+        | AppFocusTree <- focus,
+          Just treeEv <- keyToTreeEvent key -> do
+            zoom appStateTreeL $ handleTreeWidgetEvent langFace treeEv
             return AppInProgress
 
-        | Just walletPaneEv <- keyToWalletPaneEvent key,
-          AppFocusWalletPane <- focus -> do
-            zoom appStateWalletPaneL $ handleWalletPaneWidgetEvent langFace walletPaneEv
+        | AppFocusPane <- focus,
+          TreeSelectionWallet <- treeSel,
+          Just walletEv <- keyToWalletEvent key -> do
+            zoom appStateWalletL $ handleWalletWidgetEvent langFace walletEv
+            return AppInProgress
+
+        | AppFocusPane <- focus,
+          TreeSelectionAddWallet <- treeSel -> do
+            zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
+              AddWalletKeyEvent key vtyEv
             return AppInProgress
 
         | otherwise ->
             return AppInProgress
     B.MouseDown name V.BLeft [] coords ->
       case name of
-        AppBrickMenu -> do
+        BrickMenu -> do
           zoom appStateMenuL $ handleMenuWidgetEvent $
             MenuMouseDownEvent coords
           newSel <- uses appStateMenuL menuWidgetSel
           focus <- use appStateFocusL
           appStateFocusL .= restoreFocus newSel focus
           return AppInProgress
-        AppBrickWalletTree -> do
-          appStateFocusL .= AppFocusWalletTree
-          zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
-            WalletTreeMouseDownEvent coords
+        BrickTree -> do
+          appStateFocusL .= AppFocusTree
+          zoom appStateTreeL $ handleTreeWidgetEvent langFace $
+            TreeMouseDownEvent coords
           return AppInProgress
-        AppBrickWalletPane -> do
-          appStateFocusL .= AppFocusWalletPane
-          zoom appStateWalletPaneL $ handleWalletPaneWidgetEvent langFace $
-            WalletPaneMouseDownEvent coords
+        BrickPane -> do
+          appStateFocusL .= AppFocusPane
+          uses appStateTreeL treeWidgetSelection >>= \case
+            TreeSelectionWallet ->
+              zoom appStateWalletL $ handleWalletWidgetEvent langFace $
+                WalletMouseDownEvent coords
+            _ ->
+              return ()
           return AppInProgress
-        AppBrickReplOutput -> do
+        BrickReplOutput -> do
           appStateFocusL .= AppFocusReplOutput
           return AppInProgress
-        AppBrickReplInput -> do
+        BrickReplInput -> do
           appStateFocusL .= AppFocusReplInput
           void $ zoom appStateReplL $ handleReplInputEvent langFace $
             ReplMouseDownEvent coords
           return AppInProgress
-        _ ->
-          return AppInProgress
+        _
+          | name `elem`
+            [ BrickAddWalletName, BrickAddWalletPass, BrickAddWalletCreateButton
+            , BrickAddWalletRestoreName, BrickAddWalletRestoreMnemonic
+            , BrickAddWalletRestorePass, BrickAddWalletRestoreFull
+            , BrickAddWalletRestoreButton
+            ] -> do
+              appStateFocusL .= AppFocusPane
+              zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
+                AddWalletMouseDownEvent name coords
+              return AppInProgress
+          | otherwise ->
+              return AppInProgress
     B.MouseDown name button [] _
       | Just scrollAction <- buttonToScrollAction button -> do
           case name of
-            AppBrickWalletTree ->
-              zoom appStateWalletTreeL $ handleWalletTreeWidgetEvent langFace $
-                WalletTreeScrollingEvent scrollAction
-            AppBrickReplOutput ->
+            BrickTree ->
+              zoom appStateTreeL $ handleTreeWidgetEvent langFace $
+                TreeScrollingEvent scrollAction
+            BrickPane ->
+              lift $ handleScrollingEvent BrickPane scrollAction
+            BrickReplOutput ->
               zoom appStateReplL $ handleReplOutputEvent $
                 ReplOutputScrollingEvent scrollAction
-            AppBrickHelp ->
+            BrickHelp ->
               zoom appStateHelpL $ handleHelpWidgetEvent $
                 HelpScrollingEvent scrollAction
-            AppBrickLogs ->
+            BrickLogs ->
               zoom appStateLogsL $ handleLogsWidgetEvent $
                 LogsScrollingEvent scrollAction
             _ ->
@@ -363,23 +399,35 @@ handleAppEvent langFace ev =
     B.AppEvent (UiWalletEvent walletEvent) -> do
       case walletEvent of
         UiWalletUpdate{..} -> do
-          zoom appStateWalletTreeL $
-            handleWalletTreeWidgetEvent langFace $
-              WalletTreeUpdateEvent wuTrees wuSelection
-          zoom appStateWalletPaneL $
-            handleWalletPaneWidgetEvent langFace  $
-              WalletPaneUpdateEvent wuPaneInfoUpdate
+          zoom appStateTreeL $
+            handleTreeWidgetEvent langFace $
+              TreeUpdateEvent wuTrees wuSelection
+          zoom appStateWalletL $
+            handleWalletWidgetEvent langFace $
+              WalletUpdateEvent wuPaneInfoUpdate
       return AppInProgress
-    B.AppEvent (UiCommandResultEvent commandId commandEvent) -> do
-        zoom appStateWalletPaneL $
-          handleWalletPaneCommandEvent $
-            WalletPaneCommandEvent commandId commandEvent
+    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
         completed <- zoom appStateReplL $
           handleReplInputEvent langFace $
             ReplCommandEvent commandId commandEvent
         return $ case completed of
           ReplCompleted -> AppCompleted
           ReplInProgress -> AppInProgress
+    B.AppEvent (UiCommandResult commandId commandResult) -> do
+      case commandResult of
+        UiBalanceCommandResult result ->
+          zoom appStateWalletL $
+            handleWalletWidgetEvent langFace $
+              WalletBalanceCommandResult commandId result
+        UiNewWalletCommandResult result ->
+          zoom appStateAddWalletL $
+            handleAddWalletWidgetEvent langFace $
+              AddWalletNewWalletCommandResult commandId result
+        UiRestoreWalletCommandResult result ->
+          zoom appStateAddWalletL $
+            handleAddWalletWidgetEvent langFace $
+              AddWalletRestoreWalletCommandResult commandId result
+      return AppInProgress
     B.AppEvent (UiCardanoEvent cardanoEvent) -> do
       case cardanoEvent of
         UiCardanoLogEvent message ->
@@ -396,8 +444,8 @@ handleAppEvent langFace ev =
         handleStatusWidgetEvent $
           StatusNewVersionEvent ver
       return AppInProgress
-    B.AppEvent (UiCommandEvent commandEvent) -> do
-      case commandEvent of
+    B.AppEvent (UiCommandAction commandAction) -> do
+      case commandAction of
         UiCommandHelp -> do
           focus <- use appStateFocusL
           zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorHelp)
@@ -419,15 +467,15 @@ buttonToScrollAction = \case
 
 charToFocus :: Char -> Maybe (AppSelector, AppFocus)
 charToFocus = \case
-  't' -> Just (AppSelectorWallet, AppFocusWalletTree)
-  'p' -> Just (AppSelectorWallet, AppFocusWalletPane)
+  't' -> Just (AppSelectorWallet, AppFocusTree)
+  'p' -> Just (AppSelectorWallet, AppFocusPane)
   'o' -> Just (AppSelectorWallet, AppFocusReplOutput)
   'r' -> Just (AppSelectorWallet, AppFocusReplInput)
   _   -> Nothing
 
 focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
 focusesBySel sel = NE.fromList $ case sel of
-  AppSelectorWallet -> [AppFocusReplInput, AppFocusWalletTree, AppFocusWalletPane, AppFocusReplOutput]
+  AppSelectorWallet -> [AppFocusReplInput, AppFocusTree, AppFocusPane, AppFocusReplOutput]
   AppSelectorHelp -> [AppFocusHelp]
   AppSelectorLogs -> [AppFocusLogs]
 

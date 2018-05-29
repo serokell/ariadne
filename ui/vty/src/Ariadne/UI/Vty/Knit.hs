@@ -69,7 +69,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
-            putUiEvent $ UiCommandEvent UiCommandHelp
+            putUiEvent $ UiCommandAction UiCommandHelp
             return $ toValue ValueUnit
         , cpHelp = "Show help screen"
         }
@@ -78,7 +78,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
-            putUiEvent $ UiCommandEvent UiCommandLogs
+            putUiEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit
         , cpHelp = "Show logs screen"
         }
