@@ -97,33 +97,37 @@ initAddWalletWidget =
 drawAddWalletWidget :: Bool -> AddWalletWidgetState -> B.Widget BrickName
 drawAddWalletWidget _hasFocus AddWalletWidgetState{..} =
   B.vBox
-    [ pad $ B.txt "Create new wallet"
-    , renderField "       Name: " $ addWalletFieldNewName
-    , renderField " Passphrase: " $ addWalletFieldNewPass
+    [ visible BrickAddWalletName . pad $ B.txt "Create new wallet"
+    , visible BrickAddWalletName $ renderField "       Name: " $ addWalletFieldNewName
+    , visible BrickAddWalletPass $ renderField " Passphrase: " $ addWalletFieldNewPass
     , button "[ Create ]" BrickAddWalletCreateButton
-    , pad . pad $ drawNewResult
+    , visible BrickAddWalletCreateButton . pad . pad $ drawNewResult
 
     , pad $ B.txt "Restore wallet from a mnemonic"
-    , renderField "       Name: " $ addWalletFieldRestoreName
-    , renderField "   Mnemonic: " $ addWalletFieldRestoreMnemonic
-    , renderField " Passphrase: " $ addWalletFieldRestorePass
+    , visible BrickAddWalletRestoreName     $ renderField "       Name: " $ addWalletFieldRestoreName
+    , visible BrickAddWalletRestoreMnemonic $ renderField "   Mnemonic: " $ addWalletFieldRestoreMnemonic
+    , visible BrickAddWalletRestorePass     $ renderField " Passphrase: " $ addWalletFieldRestorePass
     , pad $ padLeft $ withFocus BrickAddWalletRestoreFull $ B.renderFormFieldState addWalletFocusRing addWalletFieldRestoreFull
     , button "[ Restore ]" BrickAddWalletRestoreButton
-    , drawRestoreResult
+    , visible BrickAddWalletRestoreButton . pad $ drawRestoreResult
     ]
   where
     pad = B.padBottom (B.Pad 1)
     padLeft = B.padLeft (B.Pad 13)
+    visible name =
+      if B.focusGetCurrent addWalletFocusRing == Just name
+      then B.visible
+      else identity
     renderField label field =
       pad $
         B.txt label B.<+>
         B.renderFormFieldState addWalletFocusRing field
     withFocus name =
       if B.focusGetCurrent addWalletFocusRing == Just name
-      then B.withAttr "selected"
+      then B.visible . B.withAttr "selected"
       else identity
     button label name =
-      pad . padLeft . B.clickable name . withFocus name $ B.txt label
+      visible name . pad . padLeft . B.clickable name . withFocus name $ B.txt label
     drawNewResult = padLeft $ case addWalletNewResult of
       NewResultNone -> B.emptyWidget
       NewResultWaiting _ -> B.txt "Creating..."
