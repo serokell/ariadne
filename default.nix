@@ -6,7 +6,7 @@ let
 in
 
 with nixpkgs;
-
+{ withQt ? true }:
 buildStack {
   package = "ariadne";
   src = lib.cleanSource ./.;
@@ -16,6 +16,16 @@ buildStack {
       buildTools = (drv.buildTools or []) ++ [ git ];
       # https://github.com/NixOS/nixpkgs/issues/25585
       preFixup = ''rm -rf "$(pwd)"'';
+      enableSharedExecutables = withQt;
+      buildTarget = if (!withQt) then "lib:ariadne exe:ariadne" else "";
+      # ugly hack: installer can't deal with missing ariadne-qt
+      preInstall = lib.optionalString (!withQt) ''
+        mkdir -p dist/build/ariadne-qt
+        cp dist/build/ariadne/ariadne dist/build/ariadne-qt/ariadne-qt
+      '';
+      postInstall = lib.optionalString (!withQt) ''
+        rm $out/bin/ariadne-qt
+      '';
     });
     ariadne-qt-ui = disableLibraryProfiling previous.ariadne-qt-ui;
     qtah-cpp = overrideCabal previous.qtah-cpp (self: {

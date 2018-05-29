@@ -12,20 +12,12 @@ let
 in
 
 with nixpkgs;
-
-nix-bundle.nix-bootstrap-nix {
-  target = ariadne;
-  run = "/bin/ariadne";
-  
-  preStart = ''
-    case "$(realpath -q /etc/services)" in
-      /nix/store/*)
-        echo "Ironically, you can't use this bundle on NixOS." >&2
-        echo "Use Nix-specific installation instructions instead!" >&2
-        exit 1
-        ;;
-    esac
-
+let
+  ariadne-bin = nixpkgs.haskell.lib.justStaticExecutables (ariadne { withQt = false; });
+  # runs in the chroot
+  ariadne-run = nixpkgs.writeShellScriptBin "run-ariadne.sh" ''
+    #!/bin/sh
+    set -e
     [ -z "$XDG_CACHE_HOME" ] && export XDG_CACHE_HOME="$HOME/.cache"
     [ -z "$XDG_CONFIG_HOME" ] && export XDG_CONFIG_HOME="$HOME/.config"
     [ -z "$XDG_DATA_HOME" ] && export XDG_DATA_HOME="$HOME/.local/share"
@@ -41,7 +33,24 @@ nix-bundle.nix-bootstrap-nix {
     fi
 
     export LOCALE_ARCHIVE="${glibcLocales.override { allLocales = false; }}/lib/locale/locale-archive";
+    if [ ! -d "$DATA_DIR/config" ]; then
+      cp -r ${ariadne-bin}/config/* "$CONFIG_DIR/
+    fi
+    cd $DATA_DIR
+    exec ${ariadne-bin}/bin/ariadne	"$@"
   '';
-    
-  workingDir = "$DATA_DIR";
+in
+nix-bundle.nix-bootstrap-nix {
+  target = ariadne-run;
+  run = "/bin/run-ariadne.sh";
+
+  preStart = ''
+    case "$(realpath -q /etc/services)" in
+      /nix/store/*)
+        echo "Ironically, you can't use this bundle on NixOS." >&2
+        echo "Use Nix-specific installation instructions instead!" >&2
+        exit 1
+        ;;
+    esac
+  '';
 }
