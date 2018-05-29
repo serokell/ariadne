@@ -4,6 +4,7 @@ import Universum
 
 import Control.Concurrent.Async
 import IiExtras
+import Named ((!))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
@@ -11,10 +12,11 @@ import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Knit.Backend
+import Ariadne.Meta.URL
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
-import Ariadne.Wallet.Backend
 import Ariadne.Update.Backend
+import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -33,7 +35,7 @@ main = do
       walletConfig = acWallet ariadneConfig
       updateConfig = acUpdate ariadneConfig
 
-  (uiFace, mkUiAction) <- createAriadneUI
+  (uiFace, mkUiAction) <- createAriadneUI ! #ariadne_url ariadneURL
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace

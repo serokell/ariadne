@@ -9,6 +9,7 @@ import Universum
 import Control.Lens (makeLensesWith, uses, zoom, (.=))
 import Data.List ((!!))
 import IiExtras
+import Named (Named(..))
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -86,11 +87,11 @@ initialAppState langFace history =
 data AppCompleted = AppCompleted | AppInProgress
 
 -- The Ariadne UI view and controller a single record.
-app :: UiLangFace -> B.App AppState UiEvent BrickName
-app langFace = B.App{..} where
+app :: Text `Named` "ariadne_url" -> UiLangFace -> B.App AppState UiEvent BrickName
+app ariadneURL langFace = B.App{..} where
 
   appDraw :: AppState -> [B.Widget BrickName]
-  appDraw = drawAppWidget
+  appDraw = drawAppWidget ariadneURL
 
   -- We do not use this feature of Brick.
   appChooseCursor
@@ -117,8 +118,8 @@ app langFace = B.App{..} where
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap = const defaultAttrMap
 
-drawAppWidget :: AppState -> [B.Widget BrickName]
-drawAppWidget AppState{..} =
+drawAppWidget :: Text `Named` "ariadne_url" -> AppState -> [B.Widget BrickName]
+drawAppWidget ariadneURL AppState{..} =
   let
     navMode = menuWidgetNavMode appStateMenu
     defAttr :: B.AttrName
@@ -154,7 +155,7 @@ drawAppWidget AppState{..} =
     -- in case default terminal background differs from our theme background
     drawBG = B.withAttr defAttr $ B.fill ' '
     drawMenu = drawMenuWidget appStateMenu
-    drawStatus = drawStatusWidget appStateStatus
+    drawStatus = drawStatusWidget ariadneURL appStateStatus
     drawReplInput =
       withFocus AppFocusReplInput $
       drawReplInputWidget

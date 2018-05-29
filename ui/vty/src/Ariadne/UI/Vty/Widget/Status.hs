@@ -7,11 +7,12 @@ module Ariadne.UI.Vty.Widget.Status
        , handleStatusWidgetEvent
        ) where
 
+import Universum
+
 import Control.Lens (makeLensesWith, (.=))
 import Data.List as List
-import Data.Text as Text
 import Data.Version (Version, showVersion)
-import Universum
+import Named (Named(..))
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -38,10 +39,8 @@ initStatusWidget = StatusWidgetState
     , statusWidgetNewVersion = Nothing
     }
 
-drawStatusWidget
-  :: StatusWidgetState
-  -> B.Widget name
-drawStatusWidget statusWidgetState =
+drawStatusWidget :: Text `Named` "ariadne_url" -> StatusWidgetState -> B.Widget name
+drawStatusWidget (Named ariadneURL) statusWidgetState =
   B.padTop (B.Pad 1) $
     B.updateAttrMap (B.mapAttrName "status" B.borderAttr) $
     B.withAttr "status" $
@@ -64,7 +63,8 @@ drawStatusWidget statusWidgetState =
 
     updateNotification :: Version -> B.Widget name
     updateNotification ver = B.txt $
-      "Version " <> (fromString $ showVersion ver) <> " is available! Download it at https://ariadnewallet.io/"
+      "Version " <> (fromString $ showVersion ver) <>
+      " is available! Download it at " <> ariadneURL
 
     drawItem :: (Text, Text) -> B.Widget name
     drawItem (title, content) = B.padLeftRight 1 $ B.hBox
