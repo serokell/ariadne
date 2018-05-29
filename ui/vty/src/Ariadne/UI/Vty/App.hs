@@ -179,7 +179,7 @@ drawAppWidget AppState{..} =
         appStateTree
     drawPane =
       B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusPane $ fixedViewport BrickPane B.Vertical $
+      withFocus AppFocusPane $ B.viewport BrickPane B.Vertical $
       case treeWidgetSelection appStateTree of
         TreeSelectionNone ->
           B.txt "Select a wallet, an account, or an address"
@@ -382,6 +382,8 @@ handleAppEvent langFace ev =
             BrickTree ->
               zoom appStateTreeL $ handleTreeWidgetEvent langFace $
                 TreeScrollingEvent scrollAction
+            BrickPane ->
+              lift $ handleScrollingEvent BrickPane scrollAction
             BrickReplOutput ->
               zoom appStateReplL $ handleReplOutputEvent $
                 ReplOutputScrollingEvent scrollAction
