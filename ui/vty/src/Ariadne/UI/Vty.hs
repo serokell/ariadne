@@ -5,7 +5,7 @@ module Ariadne.UI.Vty
 
 import Universum
 
-import Control.Monad (void)
+import Named (Named(..))
 
 import qualified Brick as B
 import Brick.BChan
@@ -21,22 +21,23 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: IO (UiFace, UiAction)
-createAriadneUI = do
+createAriadneUI :: Text `Named` "ariadne_url" -> IO (UiFace, UiAction)
+createAriadneUI ariadneURL = do
   eventChan <- mkEventChan
   -- TODO: remove hardcoded filepath, make configurable
   commandHistory <- openCommandHistory "ariadne_history"
-  return (mkUiFace eventChan, runUI eventChan commandHistory)
+  return (mkUiFace eventChan, runUI ariadneURL eventChan commandHistory)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
 runUI
-  :: BChan UiEvent
+  :: Text `Named` "ariadne_url"
+  -> BChan UiEvent
   -> CommandHistory
   -> UiLangFace
   -> IO ()
-runUI eventChan history langFace = do
+runUI ariadneURL eventChan history langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -64,7 +65,7 @@ runUI eventChan history langFace = do
 
     -- The third argument to 'customMain' is a record that contains the view
     -- and the controller.
-    (app langFace)
+    (app ariadneURL langFace)
 
     -- The fourth argument to 'customMain' is the initial application state.
     (initialAppState langFace history)

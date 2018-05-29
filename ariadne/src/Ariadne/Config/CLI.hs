@@ -11,6 +11,7 @@ import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Meta.URL (ariadneURL)
 import Control.Lens (makeLensesWith, (%=))
 import Data.List.Utils (replace)
 import Data.Version (showVersion)
@@ -270,7 +271,8 @@ getConfig = do
 opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
-  <> Opt.header "Ariadne wallet" )
+  <> Opt.header "Ariadne wallet"
+  <> Opt.footer ("For more details see " <> toString ariadneURL))
 
 parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
