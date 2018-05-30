@@ -140,9 +140,7 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
       Ariadne.Wallet.Cardano.Kernel.Diffusion
-      Ariadne.Wallet.Cardano.Kernel.Mode
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-      Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
   default-extensions:
       ApplicativeDo
