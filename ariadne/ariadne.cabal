@@ -124,8 +124,8 @@ library
       Ariadne.Knit.Help
       Ariadne.Meta.URL
 
+      Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions
-      Ariadne.Wallet.Cardano.Kernel.Types
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -142,6 +142,7 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
       Ariadne.Wallet.Cardano.Kernel.Diffusion
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
+      Ariadne.Wallet.Cardano.Kernel.Types
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

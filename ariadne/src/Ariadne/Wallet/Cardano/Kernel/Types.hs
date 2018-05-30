@@ -135,5 +135,5 @@ fromRawResolvedBlock rb = ResolvedBlock {
 -------------------------------------------------------------------------------}
 
 getBlockTxs :: MainBlock -> [TxAux]
-getBlockTxs b = zipWith TxAux (toList (b ^. gbBody ^. mbTxs))
+getBlockTxs b = zipWith TxAux (b ^. gbBody ^. mbTxs)
                               (b ^. gbBody ^. mbWitnesses)
