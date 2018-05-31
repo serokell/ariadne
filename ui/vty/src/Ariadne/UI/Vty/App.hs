@@ -16,7 +16,6 @@ import qualified Brick.Widgets.Border as B
 import qualified Data.List.NonEmpty as NE
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
@@ -69,11 +68,11 @@ data AppState =
 
 makeLensesWith postfixLFields ''AppState
 
-initialAppState :: UiLangFace -> CommandHistory -> AppState
-initialAppState langFace history =
+initialAppState :: UiLangFace -> UiHistoryFace -> AppState
+initialAppState langFace historyFace =
   AppState
     { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace history
+    , appStateRepl = initReplWidget langFace historyFace
     , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget langFace

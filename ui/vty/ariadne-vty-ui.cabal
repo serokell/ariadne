@@ -45,7 +45,6 @@ library
       Ariadne.UI.Vty.App
       Ariadne.UI.Vty.AnsiToVty
       Ariadne.UI.Vty.Clipboard
-      Ariadne.UI.Vty.CommandHistory
       Ariadne.UI.Vty.Face
       Ariadne.UI.Vty.Keyboard
       Ariadne.UI.Vty.Knit

@@ -14,6 +14,7 @@ module Ariadne.UI.Vty.Face
        , UiRestoreWalletCommandResult (..)
        , UiSelectedItem (..)
        , UiLangFace (..)
+       , UiHistoryFace (..)
        , UiFace (..)
 
        , UiTreeItem (..)
@@ -141,6 +142,15 @@ data UiLangFace =
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
   }
+
+-- Interface for the command history
+data UiHistoryFace =
+  UiHistoryFace
+    { historyAddCommand :: Text -> IO ()
+    , historySetPrefix :: Text -> IO ()
+    , historyNextCommand :: IO (Maybe Text)
+    , historyPrevCommand :: IO (Maybe Text)
+    }
 
 -- API for the UI.
 data UiFace =

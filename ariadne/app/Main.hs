@@ -17,6 +17,7 @@ import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
 import Ariadne.Update.Backend
 import Ariadne.Wallet.Backend
+import Ariadne.UX.CommandHistory
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -35,7 +36,10 @@ main = do
       walletConfig = acWallet ariadneConfig
       updateConfig = acUpdate ariadneConfig
 
-  (uiFace, mkUiAction) <- createAriadneUI ! #ariadne_url ariadneURL
+  history <- openCommandHistory "ariadne_history"
+  let historyFace = historyToUI history
+
+  (uiFace, mkUiAction) <- createAriadneUI historyFace ! #ariadne_url ariadneURL
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace

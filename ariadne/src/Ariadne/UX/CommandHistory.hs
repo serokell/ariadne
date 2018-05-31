@@ -1,8 +1,8 @@
-module Ariadne.UI.Vty.CommandHistory
+module Ariadne.UX.CommandHistory
     ( CommandHistory
     , openCommandHistory
-    , setCurrCommand
-    , startNewCommand
+    , addCommand
+    , setPrefix
     , toNextCommand
     , toPrevCommand
     ) where
@@ -16,24 +16,20 @@ import qualified Data.Text as T
 
 data CommandHistory =
     CommandHistory
-    { currCommand :: IORef Text
-    , historyFile :: FilePath
+    { historyFile :: FilePath
     , counter :: IORef Int
+    , currentPrefix :: IORef Text
     }
 
 openCommandHistory :: FilePath -> IO CommandHistory
-openCommandHistory path = do
-    currCommandRef <- newIORef ""
+openCommandHistory historyFile = do
     -- starts at -1 because we're "one away" from the last command entered
-    counterRef <- newIORef (-1)
-    fileExists <- doesFileExist path
-    unless fileExists $ writeFile path ""
-    return
-        CommandHistory
-        { currCommand = currCommandRef
-        , historyFile = path
-        , counter = counterRef
-        }
+    counter <- newIORef (-1)
+    currentPrefix <- newIORef ""
+
+    unlessM (doesFileExist historyFile) $ writeFile historyFile ""
+
+    return CommandHistory{..}
 
 toPrevCommand :: CommandHistory -> IO (Maybe Text)
 toPrevCommand ch =
@@ -46,7 +42,7 @@ toNextCommand ch =
 changeCommand :: CommandHistory -> Int -> IO (Maybe Text)
 changeCommand ch counterChange = do
     newCounter <- (+counterChange) <$> readIORef (counter ch)
-    prefix <- T.strip <$> readIORef (currCommand ch)
+    prefix <- readIORef (currentPrefix ch)
 
     history <- lines <$> readFile (historyFile ch)
     let result = filter (prefix `T.isPrefixOf`) history ^? ix newCounter
@@ -55,20 +51,19 @@ changeCommand ch counterChange = do
 
     return result
 
-setCurrCommand :: CommandHistory -> Text -> IO ()
-setCurrCommand ch cmd = do
+setPrefix :: CommandHistory -> Text -> IO ()
+setPrefix ch (T.strip -> prefix) = do
     writeIORef (counter ch) (-1)
-    writeIORef (currCommand ch) cmd
+    writeIORef (currentPrefix ch) prefix
 
-startNewCommand :: CommandHistory -> IO ()
-startNewCommand ch = do
+addCommand :: CommandHistory -> Text -> IO ()
+addCommand ch (T.strip -> command) = do
     writeIORef (counter ch) (-1)
-    command <- readIORef $ currCommand ch
-    writeIORef (currCommand ch) ""
+    writeIORef (currentPrefix ch) ""
 
     -- write command to first line of history file
-    unless (command == "\n") $ do
+    unless (null command) $ do
       file <- readFile $ historyFile ch
       let temp = historyFile ch ++ ".tmp"
-      writeFile temp $ command <> toText file
+      writeFile temp $ command <> "\n" <> toText file
       renameFile temp $ historyFile ch
