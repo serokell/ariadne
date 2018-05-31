@@ -9,11 +9,10 @@ module Ariadne.UI.Vty.CommandHistory
 
 import Universum
 
-import Control.Monad (unless, when)
-import Data.Maybe (isNothing)
-import Data.Text (Text)
-import qualified Data.Text as T
+import Control.Lens (ix)
 import System.Directory (doesFileExist, renameFile)
+
+import qualified Data.Text as T
 
 data CommandHistory =
     CommandHistory
@@ -46,19 +45,15 @@ toNextCommand ch =
 
 changeCommand :: CommandHistory -> Int -> IO (Maybe Text)
 changeCommand ch counterChange = do
-    modifyIORef (counter ch) (+counterChange)
-    prefix' <- readIORef $ currCommand ch
-    let prefix = T.strip prefix'
-    count <- readIORef $ counter ch
-    file <- readFile $ historyFile ch
-    let result = maybeIndex count . filter (prefix `T.isPrefixOf`) . lines $ file
-    when (isNothing result) $ modifyIORef (counter ch) (subtract counterChange)
-    return result
+    newCounter <- (+counterChange) <$> readIORef (counter ch)
+    prefix <- T.strip <$> readIORef (currCommand ch)
 
-maybeIndex :: Int -> [a] -> Maybe a
-maybeIndex _ [] = Nothing
-maybeIndex 0 (x:_) = Just x
-maybeIndex n (_:xs) = maybeIndex (n - 1) xs
+    history <- lines <$> readFile (historyFile ch)
+    let result = filter (prefix `T.isPrefixOf`) history ^? ix newCounter
+
+    when (isJust result) $ writeIORef (counter ch) newCounter
+
+    return result
 
 setCurrCommand :: CommandHistory -> Text -> IO ()
 setCurrCommand ch cmd = do
