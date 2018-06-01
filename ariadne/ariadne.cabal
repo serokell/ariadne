@@ -51,7 +51,6 @@ library
     , formatting
     , http-client
     , http-client-tls
-    , hashable
     , filepath
     , kademlia
     , knit
