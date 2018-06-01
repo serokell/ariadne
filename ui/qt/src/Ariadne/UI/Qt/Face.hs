@@ -13,6 +13,7 @@ module Ariadne.UI.Qt.Face
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
        , UiLangFace (..)
+       , UiHistoryFace (..)
        , UiFace (..)
 
        , UiWalletTreeItem (..)
@@ -127,6 +128,15 @@ data UiLangFace =
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
   }
+
+-- Interface for the command history
+data UiHistoryFace =
+  UiHistoryFace
+    { historyAddCommand :: Text -> IO ()
+    , historySetPrefix :: Text -> IO ()
+    , historyNextCommand :: IO (Maybe Text)
+    , historyPrevCommand :: IO (Maybe Text)
+    }
 
 -- API for the UI.
 data UiFace = UiFace
