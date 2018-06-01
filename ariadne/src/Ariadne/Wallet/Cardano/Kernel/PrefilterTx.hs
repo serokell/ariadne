@@ -14,12 +14,12 @@ import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
 import Serokell.Util (listJson, mapJson)
 
-import Pos.Core (Address(..))
+import Ariadne.Wallet.Cardano.Kernel.Decrypt
+  (WalletDecrCredentials, eskToWalletDecrCredentials, selectOwnAddresses)
+import Pos.Core (Address(..), HasConfiguration)
 import Pos.Core.Txp (TxIn(..), TxOut(..), TxOutAux(..))
 import Pos.Crypto (EncryptedSecretKey)
 import Pos.Txp.Toil.Types (Utxo)
-import Pos.Wallet.Web.Tracking.Decrypt
-  (WalletDecrCredentials, eskToWalletDecrCredentials, selectOwnAddresses)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (fromDb)
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved

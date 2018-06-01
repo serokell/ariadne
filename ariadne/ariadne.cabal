@@ -38,7 +38,6 @@ library
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
-    , cardano-sl-wallet
     , Cabal
     , MissingH
     , conduit
@@ -52,6 +51,7 @@ library
     , formatting
     , http-client
     , http-client-tls
+    , hashable
     , filepath
     , kademlia
     , knit
@@ -145,6 +145,7 @@ library
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
+      Ariadne.Wallet.Cardano.Kernel.Decrypt
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
