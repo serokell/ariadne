@@ -22,6 +22,7 @@ import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
 import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.AddWallet
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
@@ -35,6 +36,7 @@ import Ariadne.UI.Vty.Widget.Wallet
 data AppSelector
   = AppSelectorWallet
   | AppSelectorHelp
+  | AppSelectorAbout
   | AppSelectorLogs
   deriving (Eq)
 
@@ -45,6 +47,7 @@ data AppFocus
   | AppFocusReplOutput
   | AppFocusReplInput
   | AppFocusHelp
+  | AppFocusAbout
   | AppFocusLogs
   deriving (Eq)
 
@@ -55,6 +58,7 @@ data AppState =
     , appStateMenu :: MenuWidgetState AppSelector
     , appStateStatus :: StatusWidgetState
     , appStateHelp :: HelpWidgetState
+    , appStateAbout :: AboutWidgetState
     , appStateLogs :: LogsWidgetState
     , appStateTree :: TreeWidgetState
     , appStateAddWallet :: AddWalletWidgetState
@@ -71,6 +75,7 @@ initialAppState langFace history =
     , appStateMenu = initMenuWidget menuItems 0
     , appStateStatus = initStatusWidget
     , appStateHelp = initHelpWidget langFace
+    , appStateAbout = initAboutWidget
     , appStateLogs = initLogsWidget
     , appStateTree = initTreeWidget
     , appStateAddWallet = initAddWalletWidget
@@ -81,6 +86,7 @@ initialAppState langFace history =
     menuItems = NE.fromList
       [ MenuWidgetElem AppSelectorWallet "Wallet" 'w'
       , MenuWidgetElem AppSelectorHelp "Help" 'h'
+      , MenuWidgetElem AppSelectorAbout "About" 'a'
       , MenuWidgetElem AppSelectorLogs "Logs" 'l'
       ]
 
@@ -212,6 +218,14 @@ drawAppWidget ariadneURL AppState{..} =
         , drawHelp
         , drawStatus
         ]
+    drawAbout =
+      drawAboutWidget appStateAbout
+    drawAboutView =
+      B.withAttr defAttr $ B.vBox
+        [ drawMenu
+        , drawAbout
+        , drawStatus
+        ]
     drawLogs =
       drawLogsWidget appStateLogs
     drawLogsView =
@@ -223,6 +237,7 @@ drawAppWidget ariadneURL AppState{..} =
   in
     case menuWidgetSel appStateMenu of
       AppSelectorHelp -> [drawHelpView, drawBG]
+      AppSelectorAbout -> [drawAboutView, drawBG]
       AppSelectorLogs -> [drawLogsView, drawBG]
       _ -> [drawDefaultView, drawBG]
 
@@ -309,6 +324,10 @@ handleAppEvent langFace ev =
             zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
             return AppInProgress
         | Just scrollAction <- keyToScrollingAction key,
+          AppFocusAbout <- focus -> do
+            zoom appStateAboutL $ handleAboutWidgetEvent $ AboutScrollingEvent scrollAction
+            return AppInProgress
+        | Just scrollAction <- keyToScrollingAction key,
           AppFocusLogs <- focus -> do
             zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
             return AppInProgress
@@ -391,6 +410,9 @@ handleAppEvent langFace ev =
             BrickHelp ->
               zoom appStateHelpL $ handleHelpWidgetEvent $
                 HelpScrollingEvent scrollAction
+            BrickAbout ->
+              zoom appStateAboutL $ handleAboutWidgetEvent $
+                AboutScrollingEvent scrollAction
             BrickLogs ->
               zoom appStateLogsL $ handleLogsWidgetEvent $
                 LogsScrollingEvent scrollAction
@@ -478,6 +500,7 @@ focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
 focusesBySel sel = NE.fromList $ case sel of
   AppSelectorWallet -> [AppFocusReplInput, AppFocusTree, AppFocusPane, AppFocusReplOutput]
   AppSelectorHelp -> [AppFocusHelp]
+  AppSelectorAbout -> [AppFocusAbout]
   AppSelectorLogs -> [AppFocusLogs]
 
 rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
