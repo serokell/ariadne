@@ -16,6 +16,7 @@ data BrickName
   | BrickReplOutput
   | BrickReplInput
   | BrickHelp
+  | BrickAbout
   | BrickLogs
 
   | BrickAddWalletName

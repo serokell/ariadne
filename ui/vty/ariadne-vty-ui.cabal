@@ -52,6 +52,7 @@ library
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
       Ariadne.UI.Vty.UI
+      Ariadne.UI.Vty.Widget.About
       Ariadne.UI.Vty.Widget.AddWallet
       Ariadne.UI.Vty.Widget.Help
       Ariadne.UI.Vty.Widget.Logs
