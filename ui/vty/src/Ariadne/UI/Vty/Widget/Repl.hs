@@ -165,27 +165,49 @@ drawReplInputWidget hasFocus replWidgetState =
       rdrCtx <- B.getContext
       let
         defAttr = rdrCtx ^. B.attrL
+        replInputWidth = max 1 $ (rdrCtx ^. B.availWidthL) - length replWidgetPrompt
+
         attrFn :: (Int, Int) -> V.Attr -> V.Attr
         attrFn loc =
           case replWidgetParseResult replWidgetState of
             ReplParseFailure{..} | inSpans rpfParseErrSpans loc ->
               (`V.withBackColor` V.red)
             _ -> identity
+
+        wrapLines :: Text -> [Text]
+        wrapLines line = List.unfoldr f line
+          where
+            f line' =
+              if Text.null line'
+              then Nothing
+              else Just $ Text.splitAt replInputWidth line'
+
+        linesToImage :: Int -> [Text] -> V.Image
+        linesToImage row textLines = V.vertCat
+          [ V.horizCat
+            [ V.char (attrFn (row, column) defAttr) char
+            | (column, char) <- List.zip [1 + subRow * replInputWidth..] (toString line)
+            ]
+          | (subRow, line) <- List.zip [0..] textLines
+          ]
+
         zipper = replWidgetTextZipper replWidgetState
         img =
           V.vertCat $
           List.zipWith V.horizJoin
             (V.string defAttr replWidgetPrompt :
               List.repeat (V.string defAttr replWidgetPromptCont))
-            [ V.horizCat
-              [ V.char (attrFn (row, column) defAttr) char
-              | (column, char) <- List.zip [1..] (toString line)
-              ]
+            [ linesToImage row $ wrapLines line
             | (row, line) <- List.zip [1..] (getText zipper)
             ]
         curLoc =
-          let (y, x) = cursorPosition zipper
-          in B.CursorLocation (B.Location (x + length replWidgetPrompt, y)) Nothing
+          let
+            (y, x) = cursorPosition zipper
+            -- We need to take all lines above current, calculate how many screen lines they occupy
+            -- and sum these values to get screen line for the current text line
+            prevLines = sum $ map (\n -> 1 + n `div` replInputWidth) $ take y $ lineLengths zipper
+            (subY, subX) = x `divMod` replInputWidth
+          in B.CursorLocation (B.Location (subX + length replWidgetPrompt, prevLines + subY)) Nothing
       return $
         B.emptyResult
           & B.imageL .~ img
