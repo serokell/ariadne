@@ -97,6 +97,18 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiBalance ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.balanceCommandName [])
+      UiSend address amount passphrase -> do
+        argAddress <- decodeTextAddress address
+        argCoin <- readEither amount
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.sendCommandName $
+            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
+                [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
+                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+                ]
+            ] ++
+            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+          )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
@@ -126,6 +138,11 @@ knitFaceToUI UiFace{..} KnitFace{..} =
         Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
+            _ -> Left "Unrecognized return value"
+      UiSend _ _ _ ->
+        Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
       UiNewWallet _ _ ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $

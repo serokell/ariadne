@@ -48,6 +48,7 @@ data TreeSelection
   = TreeSelectionNone
   | TreeSelectionAddWallet
   | TreeSelectionWallet
+  | TreeSelectionAccount
   deriving (Eq)
 
 data TreeItemType
@@ -78,15 +79,15 @@ treeItemAddWallet :: Bool -> TreeItem
 treeItemAddWallet = TreeItem TreeItemAddWallet "" "[ + Add wallet ]" (Just [])
 
 treeWidgetSelection :: TreeWidgetState -> TreeSelection
-treeWidgetSelection TreeWidgetState{..} = case selectedItemType of
-  Just TreeItemAddWallet -> TreeSelectionAddWallet
-  Just TreeItemPath -> TreeSelectionWallet
-  _ -> TreeSelectionNone
-  where
-    selectedItemType = do
-      idx <- treeSelection
-      item <- treeItems ^? ix idx
-      Just $ treeItemType item
+treeWidgetSelection TreeWidgetState{..} = fromMaybe TreeSelectionNone $ do
+  idx <- treeSelection
+  item <- treeItems ^? ix idx
+  case treeItemType item of
+    TreeItemAddWallet -> Just TreeSelectionAddWallet
+    TreeItemPath
+      | Just [_] <- treeItemPath item -> Just TreeSelectionWallet
+      | otherwise -> Just TreeSelectionAccount
+    _ -> Nothing
 
 initTreeWidget :: TreeWidgetState
 initTreeWidget = TreeWidgetState
