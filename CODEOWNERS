@@ -13,7 +13,7 @@ knit/                           @int-index @hithroc
 # Wallet
 TaskManager/                    @hithroc
 Update/                         @hithroc
-Wallet/                         @thatguy @gromakovsky
+Wallet/                         @Pastafarianist @gromakovsky
 
 # UIs
 ui/qt/                          @goodsoft @maksbotan
