@@ -85,10 +85,12 @@ deriveSafeCopySimple 1 'base ''NewPendingError
 newPending :: HdAccountId
            -> InDb (Core.TxAux)
            -> Update DB (Either NewPendingError ())
-newPending accountId tx = runUpdate' . zoom dbHdWallets $
+newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
     zoomHdAccountId NewPendingUnknown accountId $
-    zoom hdAccountCheckpoints $
-      mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+      zoom hdAccountCheckpoints $
+        mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+    -- TODO: update address checkpoints for child addresses
+    -- of this account
 
 -- | Apply a block
 --
@@ -99,9 +101,11 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $
 -- (although concurrent calls to 'applyBlock' cannot interfere with each
 -- other, 'applyBlock' must be called in the right order.)
 applyBlock :: (ResolvedBlock, BlockMeta) -> Update DB ()
-applyBlock block = runUpdateNoErrors $
+applyBlock block = runUpdateNoErrors $ do
     zoomAll (dbHdWallets . hdWalletsAccounts) $
       hdAccountCheckpoints %~ Spec.applyBlock block
+    zoomAll (dbHdWallets . hdWalletsAddresses) $
+      hdAddressCheckpoints %~ Spec.applyBlock block
 
 -- | Switch to a fork
 --
@@ -112,9 +116,11 @@ applyBlock block = runUpdateNoErrors $
 switchToFork :: Int
              -> [(ResolvedBlock, BlockMeta)]
              -> Update DB ()
-switchToFork n blocks = runUpdateNoErrors $
+switchToFork n blocks = runUpdateNoErrors $ do
     zoomAll (dbHdWallets . hdWalletsAccounts) $
       hdAccountCheckpoints %~ Spec.switchToFork n (OldestFirst blocks)
+    zoomAll (dbHdWallets . hdWalletsAddresses) $
+      hdAddressCheckpoints %~ Spec.switchToFork n (OldestFirst blocks)
 
 {-------------------------------------------------------------------------------
   Wrap HD C(R)UD operations
@@ -131,7 +137,7 @@ createHdRoot rootId name hasPass assurance created = runUpdate' . zoom dbHdWalle
 
 createHdAccount :: HdRootId
                 -> AccountName
-                -> Checkpoint
+                -> AccCheckpoint
                 -> Update DB (Either HD.CreateHdAccountError HdAccountId)
 createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
     HD.createHdAccount rootId name checkpoint
@@ -139,9 +145,10 @@ createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
 createHdAddress :: HdAddressId
                 -> InDb Core.Address
                 -> HdAddressChain
+                -> AddrCheckpoint
                 -> Update DB (Either HD.CreateHdAddressError ())
-createHdAddress addrId address chain = runUpdate' . zoom dbHdWallets $
-    HD.createHdAddress addrId address chain
+createHdAddress addrId address chain checkpoint = runUpdate' . zoom dbHdWallets $
+    HD.createHdAddress addrId address chain checkpoint
 
 updateHdRootAssurance :: HdRootId
                       -> AssuranceLevel

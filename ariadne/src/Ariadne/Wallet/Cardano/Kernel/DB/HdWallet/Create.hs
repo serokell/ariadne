@@ -93,7 +93,7 @@ createHdRoot rootId name hasPass assurance created =
 -- store a public key or an address or something?
 createHdAccount :: HdRootId
                 -> AccountName
-                -> Checkpoint
+                -> AccCheckpoint
                 -> Update' HdWallets CreateHdAccountError HdAccountId
 createHdAccount rootId name checkpoint = do
     -- Check that the root ID exists
@@ -126,8 +126,9 @@ createHdAccount rootId name checkpoint = do
 createHdAddress :: HdAddressId
                 -> InDb Core.Address
                 -> HdAddressChain
+                -> AddrCheckpoint
                 -> Update' HdWallets CreateHdAddressError ()
-createHdAddress addrId address chain = do
+createHdAddress addrId address chain checkpoint = do
     -- Check that the account ID exists
     zoomHdAccountId CreateHdAddressUnknown (addrId ^. hdAddressIdParent) $
       return ()
@@ -139,8 +140,9 @@ createHdAddress addrId address chain = do
   where
     hdAddress :: HdAddress
     hdAddress = HdAddress {
-          _hdAddressId      = addrId
-        , _hdAddressAddress = address
-        , _hdAddressIsUsed  = error "TODO: _hdAddressIsUsed"
-        , _hdAddressChain   = chain
+          _hdAddressId          = addrId
+        , _hdAddressAddress     = address
+        , _hdAddressIsUsed      = error "TODO: _hdAddressIsUsed"
+        , _hdAddressChain       = chain
+        , _hdAddressCheckpoints = checkpoint :| []
         }
