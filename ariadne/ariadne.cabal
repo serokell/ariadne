@@ -4,7 +4,7 @@ description:    Please see the README on Github at <https://github.com/serokell/
 homepage:       https://github.com/serokell/ariadne#readme
 bug-reports:    https://github.com/serokell/ariadne/issues
 license:        MPL-2.0
-license-file:   LICENSE
+license-file:   COPYING.md
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
 build-type:     Simple
