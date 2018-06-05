@@ -3,8 +3,8 @@ version:        0.1.0.0
 description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
 homepage:       https://github.com/serokell/ariadne#readme
 bug-reports:    https://github.com/serokell/ariadne/issues
-license:        MIT
-license-file:   LICENSE
+license:        MPL-2.0
+license-file:   COPYING.md
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
 build-type:     Simple
