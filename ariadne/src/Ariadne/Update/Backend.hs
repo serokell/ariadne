@@ -39,5 +39,5 @@ updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
 runUpdateCheck :: UpdateConfig -> (Version -> IO ()) -> IO ()
 runUpdateCheck uc@UpdateConfig{..} notifyUpdate = do
   man <- newTlsManager
-  req <- parseRequest $ T.unpack ucVersionCheckUrl ++ "/ariadne/version"
+  req <- parseRequest $ T.unpack ucVersionCheckUrl ++ "/version"
   updateCheckLoop uc req man notifyUpdate
