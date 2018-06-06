@@ -32,7 +32,7 @@ language and can be typed in a console
 
 Ariadne TUI can be built and works on Linux and Mac OS.
 
-GUI works only on Linux. Windows and Mac OS will be supported soon.
+GUI only works on Linux. Windows and Mac OS will be supported soon.
 
 ### Build using Stack
 
@@ -50,10 +50,12 @@ GUI works only on Linux. Windows and Mac OS will be supported soon.
 If you have Homebrew, run:
 
 ```
-brew install coreutils icu4c rocksdb openssl qt xz 
+brew install bash coreutils icu4c rocksdb openssl qt xz 
 ```
 
-Then add this to `~/.stack/config.yaml`:
+If you haven't had `bash` previously installed, close terminal session
+and then open a new one. You will also need to add icu and OpenSSL to
+`~/.stack/config.yaml`:
 
 ```
 extra-include-dirs:
