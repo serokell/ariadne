@@ -43,6 +43,7 @@ let
     export CACHE_DIR="$XDG_CACHE_HOME/ariadne"
     export CONFIG_DIR="$XDG_CONFIG_HOME/ariadne"
     export DATA_DIR="$XDG_DATA_HOME/ariadne"
+    export PATH="${xsel}/bin:$PATH"
 
     mkdir -p "$CACHE_DIR" "$DATA_DIR"
 
