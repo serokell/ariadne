@@ -44,10 +44,16 @@ GUI works only on Linux. Windows and Mac OS will be supported soon.
   - ICU
 3. Run `stack build ariadne`.
 
-#### Mac OS
+#### macOS
 
-If you are using Mac OS, it may be necessary to add the following
-lines to `~/.stack/config.yaml`:
+
+If you have Homebrew, run:
+
+```
+brew install coreutils icu4c rocksdb openssl qt xz 
+```
+
+Then add this to `~/.stack/config.yaml`:
 
 ```
 extra-include-dirs:
