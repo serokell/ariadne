@@ -49,7 +49,7 @@ Qt GUI only works on Linux. Windows and macOS will be supported soon.
 
 If you have Homebrew, run:
 
-```
+```sh
 brew install bash coreutils icu4c rocksdb openssl qt xz 
 ```
 
@@ -57,7 +57,7 @@ If you haven't had `bash` previously installed, close terminal session
 and then open a new one. You will also need to add icu and OpenSSL to
 `~/.stack/config.yaml`:
 
-```
+```yaml
 extra-include-dirs:
 - /usr/local/opt/openssl/include
 - /usr/local/opt/icu4c/include
@@ -68,7 +68,7 @@ extra-lib-dirs:
 
 Now, to build, run:
 
-```
+```sh
 QTAH_QMAKE=/usr/local/opt/qt/bin/qmake stack build ariadne
 ```
 
