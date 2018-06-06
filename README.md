@@ -30,9 +30,9 @@ language and can be typed in a console
 
 ### Supported platforms
 
-Ariadne TUI can be built and works on Linux and Mac OS.
+Ariadne TUI can be built and works on Linux and macOS.
 
-GUI only works on Linux. Windows and Mac OS will be supported soon.
+Qt GUI only works on Linux. Windows and macOS will be supported soon.
 
 ### Build using Stack
 
@@ -64,6 +64,12 @@ extra-include-dirs:
 extra-lib-dirs:
 - /usr/local/opt/openssl/lib
 - /usr/local/opt/icu4c/lib
+```
+
+Now, to build, run:
+
+```
+QTAH_QMAKE=/usr/local/opt/qt/bin/qmake stack build ariadne
 ```
 
 ## Configuration [↑](#-ariadne)
