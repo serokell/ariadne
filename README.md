@@ -85,7 +85,12 @@ default `<XdgConfig>/ariadne/ariadne-config.dhall` is used, where
 configuration files (`~/.config` on Linux or MacOS, %APPDATA% on
 Windows). If some value in the configuration is a relative file path,
 it's treated as relative to the directory in which main configuration
-file (e. g. `ariadne-config.dhall`) is located.
+file (e. g. `ariadne-config.dhall`) is located. There are special
+values which can be used in configuration as file paths:
+* `@DATA` is a system-dependent standard directory for local
+data (`~/.local/share` on Linux or MacOS, %APPDATA% on
+Windows) suffixed with `/ariadne`.
+* `@PWD` is the directory from which Ariadne executable is launched.
 
 Each option from the configuration can be overridden from the command
 like. Use `--help` flag for more details.
