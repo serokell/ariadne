@@ -1,7 +1,7 @@
 { withQt ? true }:
 
 let
-  overlay = import ''${builtins.fetchGit "ssh://git@github.com:/serokell/serokell-overlay.git"}/pkgs'';
+  overlay = import ''${builtins.fetchTarball "https://github.com/serokell/serokell-public-overlay/archive/public.tar.gz"}/pkgs'';
   nixpkgs = import (builtins.fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz") {
     overlays = [ overlay ];
   };
