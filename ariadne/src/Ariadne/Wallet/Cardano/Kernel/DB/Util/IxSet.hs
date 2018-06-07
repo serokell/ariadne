@@ -16,6 +16,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , getEQ
   , member
   , size
+    -- * Modification
+  , updateIxManyM
     -- * Construction
   , fromList
   , omap
@@ -151,6 +153,19 @@ member pk = isJust . view (Lens.at pk)
 
 size :: IxSet a -> Int
 size = IxSet.size . unwrapIxSet
+
+{-------------------------------------------------------------------------------
+  Modification
+-------------------------------------------------------------------------------}
+
+updateIxManyM
+    :: (Indexable a, IsIndexOf ix a, Applicative f)
+    => ix -> (a -> f a) -> IxSet a -> f (IxSet a)
+updateIxManyM pk f (WrapIxSet s) = do
+    let originalValues = toList $ IxSet.toSet $ IxSet.getEQ pk s
+    mappedValues <- traverse (Lens.coerced f) originalValues
+    pure $ WrapIxSet $
+      foldr IxSet.insert (foldr IxSet.delete s originalValues) mappedValues
 
 {-------------------------------------------------------------------------------
   Construction

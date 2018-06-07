@@ -44,6 +44,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update as Spec
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 
 {-------------------------------------------------------------------------------
@@ -89,8 +90,22 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
     zoomHdAccountId NewPendingUnknown accountId $
       zoom hdAccountCheckpoints $
         mapUpdateErrors NewPendingFailed $ Spec.newPending tx
-    -- TODO: update address checkpoints for child addresses
-    -- of this account
+    zoom hdWalletsAddresses $ do
+      allAddresses <- get
+      newAddresses <- flip (IxSet.updateIxManyM accountId) allAddresses $ \addr ->
+        coerceAction addr $ mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+      put newAddresses
+  where
+    coerceAction
+        :: HdAddress
+        -> Update' AddrCheckpoints NewPendingError ()
+        -> Update' a NewPendingError HdAddress
+    coerceAction addr action =
+        let oldCheckpoints = view hdAddressCheckpoints addr
+            checkpointsOrErr = runIdentity $ runExceptT $ runStateT action oldCheckpoints
+        in case checkpointsOrErr of
+          Left err -> throwError err
+          Right ((), newCheckpoints) -> pure $ set hdAddressCheckpoints newCheckpoints addr
 
 -- | Apply a block
 --
