@@ -38,13 +38,13 @@ data MainWindow =
 
 makeLensesWith postfixLFields ''MainWindow
 
-initMainWindow :: UiLangFace -> IO MainWindow
-initMainWindow langFace = do
+initMainWindow :: UiLangFace -> UiHistoryFace -> IO MainWindow
+initMainWindow langFace historyFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
 
   (qWallet, wallet) <- initWallet langFace
-  (qRepl, repl) <- initRepl langFace
+  (qRepl, repl) <- initRepl langFace historyFace
   (qMenuBar, menuBar) <- initMenuBar
   (qLogs, logs) <- initLogs
   (qHelp, help) <- initHelp langFace

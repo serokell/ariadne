@@ -38,7 +38,6 @@ import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.CommandHistory
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
@@ -63,7 +62,7 @@ data ReplWidgetState =
     { replWidgetParseResult :: ReplParseResult
     , replWidgetTextZipper :: !(TextZipper Text)
     , replWidgetOut :: ![OutputElement]
-    , replWidgetHistory :: !CommandHistory
+    , replWidgetHistoryFace :: !UiHistoryFace
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
@@ -100,13 +99,13 @@ replReparse langFace = do
   t <- gets replWidgetText
   replWidgetParseResultL .= mkReplParseResult langFace t
 
-initReplWidget :: UiLangFace -> CommandHistory -> ReplWidgetState
-initReplWidget langFace history =
+initReplWidget :: UiLangFace -> UiHistoryFace -> ReplWidgetState
+initReplWidget langFace historyFace =
   fix $ \this -> ReplWidgetState
     { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
     , replWidgetTextZipper = textZipper [] Nothing
     , replWidgetOut = [OutputInfo ariadneBanner]
-    , replWidgetHistory = history
+    , replWidgetHistoryFace = historyFace
     }
 
 drawReplOutputWidget :: Bool -> ReplWidgetState -> B.Widget BrickName
@@ -339,9 +338,9 @@ handleReplInputEvent langFace = fix $ \go -> \case
         BreakLine -> smartBreakLine
         ReplaceBreakLine -> smartBreakLine . deletePrevChar
     replReparse langFace
-    history <- gets replWidgetHistory
+    history <- gets replWidgetHistoryFace
     t <- gets replWidgetText
-    liftIO $ setCurrCommand history t
+    liftIO $ historySetPrefix history t
     return ReplInProgress
   ReplInputNavigationEvent nav -> do
     zoom replWidgetTextZipperL $ modify $
@@ -361,11 +360,11 @@ handleReplInputEvent langFace = fix $ \go -> \case
     return ReplInProgress
   ReplCommandNavigationEvent cmdAction -> do
     -- TODO: handle multi-line commands
-    history <- gets replWidgetHistory
+    historyFace <- gets replWidgetHistoryFace
     let action = case cmdAction of
-                    NextCommand -> toNextCommand
-                    PrevCommand -> toPrevCommand
-    cmd <- liftIO $ action history
+                    NextCommand -> historyNextCommand
+                    PrevCommand -> historyPrevCommand
+    cmd <- liftIO $ action historyFace
     zoom replWidgetTextZipperL $ modify $ insertMany (fromMaybe "" cmd) . clearZipper
     replReparse langFace
     return ReplInProgress
@@ -379,10 +378,9 @@ handleReplInputEvent langFace = fix $ \go -> \case
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
   ReplSendEvent -> do
-    history <- gets replWidgetHistory
+    history <- gets replWidgetHistoryFace
     t <- gets replWidgetText
-    liftIO $ setCurrCommand history t
-    liftIO $ startNewCommand history
+    liftIO $ historyAddCommand history t
     replParseResult <- use replWidgetParseResultL
     case replParseResult of
       ReplParseFailure{..} -> do

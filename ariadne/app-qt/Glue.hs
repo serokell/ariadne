@@ -10,6 +10,9 @@ module Glue
 
          -- * Wallet ↔ Qt
        , putWalletEventToUI
+
+         -- * Command history ↔ Vty
+       , historyToUI
        ) where
 
 import Universum
@@ -24,6 +27,7 @@ import Ariadne.Cardano.Face
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
+import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Face
 
 import qualified Knit
@@ -261,3 +265,15 @@ userSecretToTree = map toTree . view usWallets
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True
                 }
+
+----------------------------------------------------------------------------
+-- Glue between command history and Vty frontend
+----------------------------------------------------------------------------
+
+historyToUI :: CommandHistory -> UiHistoryFace
+historyToUI ch = UiHistoryFace
+  { historyAddCommand = addCommand ch
+  , historySetPrefix = setPrefix ch
+  , historyNextCommand = toNextCommand ch
+  , historyPrevCommand = toPrevCommand ch
+  }

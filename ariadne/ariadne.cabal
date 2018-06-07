@@ -123,6 +123,7 @@ library
       Ariadne.Knit.Face
       Ariadne.Knit.Help
       Ariadne.Meta.URL
+      Ariadne.UX.CommandHistory
 
       Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions

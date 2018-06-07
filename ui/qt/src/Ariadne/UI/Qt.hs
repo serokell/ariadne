@@ -8,7 +8,7 @@ import Universum
 import Control.Concurrent
 import Control.Monad.Extra (loopM)
 
-import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiLangFace)
+import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -26,18 +26,18 @@ type UiAction = UiLangFace -> IO ()
 
 type UiEventBQueue = TBQueue UiEvent
 
-createAriadneUI :: IO (UiFace, UiAction)
-createAriadneUI = do
+createAriadneUI :: UiHistoryFace -> IO (UiFace, UiAction)
+createAriadneUI historyFace = do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
-  return (mkUiFace eventQueue dispatcherIORef, runUIEventLoop eventQueue dispatcherIORef)
+  return (mkUiFace eventQueue dispatcherIORef, runUIEventLoop eventQueue dispatcherIORef historyFace)
 
-runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiAction
-runUIEventLoop eventIORef dispatcherIORef langFace =
+runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFace -> UiAction
+runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
-    mainWindow <- initMainWindow langFace
+    mainWindow <- initMainWindow langFace historyFace
     void $ Event.onEvent eventDispatcher $
       \(_ :: QEvent.QEvent) -> handleAppEvent langFace eventIORef mainWindow >> return True
 

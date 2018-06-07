@@ -15,6 +15,9 @@ module Glue
 
          -- * Update ↔ Vty
        , putUpdateEventToUI
+
+         -- * Command history ↔ Vty
+       , historyToUI
        ) where
 
 import Universum
@@ -32,6 +35,7 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.Wallet.Face
+import Ariadne.UX.CommandHistory
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -321,3 +325,15 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
 
 putUpdateEventToUI :: UiFace -> Version -> IO ()
 putUpdateEventToUI UiFace{..} ver = putUiEvent $ UiNewVersionEvent ver
+
+----------------------------------------------------------------------------
+-- Glue between command history and Vty frontend
+----------------------------------------------------------------------------
+
+historyToUI :: CommandHistory -> UiHistoryFace
+historyToUI ch = UiHistoryFace
+  { historyAddCommand = addCommand ch
+  , historySetPrefix = setPrefix ch
+  , historyNextCommand = toNextCommand ch
+  , historyPrevCommand = toPrevCommand ch
+  }

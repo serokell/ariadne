@@ -13,10 +13,13 @@ import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Graphics.UI.Qtah.Core.Types
-  (QtCursorShape(IBeamCursor), alignTop, textSelectableByMouse)
+  (QtCursorShape(IBeamCursor), QtKey(..), alignTop, textSelectableByMouse)
 import Graphics.UI.Qtah.Signal (connect_)
 
+import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QPalette as QPalette
+import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QKeyEvent as QKeyEvent
 import qualified Graphics.UI.Qtah.Widgets.QAbstractScrollArea as QAbstractScrollArea
 import qualified Graphics.UI.Qtah.Widgets.QAbstractSlider as QAbstractSlider
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
@@ -56,8 +59,8 @@ data CommandOutput =
 makeLensesWith postfixLFields ''Repl
 makeLensesWith postfixLFields ''CommandOutput
 
-initRepl :: UiLangFace -> IO (QVBoxLayout.QVBoxLayout, Repl)
-initRepl langFace = do
+initRepl :: UiLangFace -> UiHistoryFace -> IO (QVBoxLayout.QVBoxLayout, Repl)
+initRepl langFace historyFace = do
   cmdLine <- QLineEdit.new
 
   (historyWidget, historyLayout) <- initHistory
@@ -76,11 +79,15 @@ initRepl langFace = do
   let repl = Repl{..}
 
   connectSignal repl cmdLine QLineEdit.returnPressedSignal $
-    returnPressed langFace
+    returnPressed langFace historyFace
 
   scrollBar <- QAbstractScrollArea.verticalScrollBar historyWidget
-  liftIO $ connect_ scrollBar QAbstractSlider.rangeChangedSignal $
+  connect_ scrollBar QAbstractSlider.rangeChangedSignal $
     \minValue maxValue -> runUI (scrollDown minValue maxValue) repl
+
+  connect_ cmdLine QLineEdit.textEditedSignal $ historySetPrefix historyFace . fromString
+
+  void $ Event.onEvent cmdLine $ handleKeyEvent historyFace cmdLine
 
   QWidget.setFocus cmdLine
 
@@ -137,8 +144,8 @@ addNewCommand commandId command = do
     modifyIORef' commandOutputs (commandOutput:)
     QBoxLayout.addLayout historyLayout $ view coLayoutL commandOutput
 
-returnPressed :: UiLangFace -> UI Repl ()
-returnPressed UiLangFace{..} = do
+returnPressed :: UiLangFace -> UiHistoryFace -> UI Repl ()
+returnPressed UiLangFace{..} historyFace = do
   cmdLine <- view cmdLineL
   cmd <- liftIO $ QLineEdit.text cmdLine
   case langParse $ toText cmd of
@@ -146,6 +153,8 @@ returnPressed UiLangFace{..} = do
     Right expr -> do
       commandId <- liftIO $ langPutCommand expr
       void $ addNewCommand commandId $ renderToHTML $ langPpExpr expr
+
+      liftIO $ historyAddCommand historyFace $ fromString cmd
 
       liftIO $ QLineEdit.clear cmdLine
 
@@ -193,3 +202,25 @@ displayParseFailure str = do
   liftIO $ do
     newLine <- QLabel.newWithText str
     QLayout.addWidget historyLayout newLine
+
+handleKeyEvent :: UiHistoryFace -> QLineEdit.QLineEdit -> QKeyEvent.QKeyEvent -> IO Bool
+handleKeyEvent historyFace cmdLine event = do
+  eventType <- QEvent.eventType event
+  if eventType == QEvent.KeyRelease
+    then QKeyEvent.key event >>= handleKey historyFace cmdLine . toEnum
+    else return False
+
+handleKey :: UiHistoryFace -> QLineEdit.QLineEdit -> QtKey -> IO Bool
+handleKey historyFace cmdLine key = do
+  case keyToAction key of
+    Just action -> do
+      historyItem <- fromMaybe "" <$> action historyFace
+      QLineEdit.setText cmdLine $ toString historyItem
+      return True
+    Nothing -> return False
+
+  where
+    keyToAction = \case
+      KeyDown -> Just historyNextCommand
+      KeyUp -> Just historyPrevCommand
+      _ -> Nothing
