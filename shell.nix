@@ -34,6 +34,7 @@ nixpkgs.haskell.lib.buildStackProject {
       gmp
       haskellPackages.cpphs
       haskellPackages.happy
+      icu
       lzma
       ncurses
       openssl
