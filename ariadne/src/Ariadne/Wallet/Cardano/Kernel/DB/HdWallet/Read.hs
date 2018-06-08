@@ -72,12 +72,11 @@ check f g = using' f (const g)
 
 -- | Current balance of the entire root
 hdRootBalance :: HdRootId -> HdQuery Integer
-hdRootBalance rootId =
-    sumCoins
-    . map hdAddressBalance
-    . toList
-    . IxSet.getEQ rootId
-    . view hdWalletsAddresses
+hdRootBalance rootId = sumCoins
+                     . map hdAccountBalance
+                     . toList
+                     . IxSet.getEQ rootId
+                     . view hdWalletsAccounts
 
 -- | Current balance of an account
 hdAccountBalance :: HdAccount -> Coin
