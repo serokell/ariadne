@@ -23,9 +23,9 @@ import Ariadne.UI.Vty.Face
 
 data StatusWidgetState =
   StatusWidgetState
-    { statusWidgetTipHeaderHash :: !Text
-    , statusWidgetTipSlot :: !Text
-    , statusWidgetSlot :: !Text
+    { statusWidgetSyncProgress :: !(Maybe Text)
+    , statusWidgetBlockchainLocal :: !Text
+    , statusWidgetBlockchainNetwork :: !Text
     , statusWidgetNewVersion :: !(Maybe Version)
     }
 
@@ -33,36 +33,38 @@ makeLensesWith postfixLFields ''StatusWidgetState
 
 initStatusWidget :: StatusWidgetState
 initStatusWidget = StatusWidgetState
-    { statusWidgetTipHeaderHash = "<unknown>"
-    , statusWidgetTipSlot = "<unknown>"
-    , statusWidgetSlot = "<unknown>"
+    { statusWidgetSyncProgress = Nothing
+    , statusWidgetBlockchainLocal = "<unknown>"
+    , statusWidgetBlockchainNetwork = "<unknown>"
     , statusWidgetNewVersion = Nothing
     }
 
 drawStatusWidget :: Text `Named` "ariadne_url" -> StatusWidgetState -> B.Widget name
-drawStatusWidget (Named ariadneURL) statusWidgetState =
+drawStatusWidget (Named ariadneURL) StatusWidgetState{..} =
   B.padTop (B.Pad 1) $
     B.updateAttrMap (B.mapAttrName "status" B.borderAttr) $
     B.withAttr "status" $
-    (case statusWidgetState ^. statusWidgetNewVersionL of
-      Just ver -> (B.<=> B.padLeftRight 1 (updateNotification ver))
-      Nothing -> identity
-    ) $
+    maybe identity (\ver -> (B.<=> updateNotification ver)) statusWidgetNewVersion $
+    maybe identity (\_ -> (B.<=> inaccurateNotification)) statusWidgetSyncProgress $
     B.vLimit 1 $
     B.padRight B.Max $
     B.hBox $
     List.intersperse B.vBorder $
-    List.map drawItem items
+    List.map drawItem $ catMaybes items
   where
-    items :: [(Text, Text)]
+    items :: [Maybe (Text, Text)]
     items =
-      [ ("Tip hash", statusWidgetState ^. statusWidgetTipHeaderHashL)
-      , ("Tip slot", statusWidgetState ^. statusWidgetTipSlotL)
-      , ("Current slot", statusWidgetState ^. statusWidgetSlotL)
+      [ statusWidgetSyncProgress >>= \progress -> Just ("Syncing", progress)
+      , Just ("Local", statusWidgetBlockchainLocal)
+      , Just ("Network", statusWidgetBlockchainNetwork)
       ]
 
+    inaccurateNotification :: B.Widget name
+    inaccurateNotification = B.padLeftRight 1 . B.txt $
+      "Blockchain not synced yet, balances can be inaccurate"
+
     updateNotification :: Version -> B.Widget name
-    updateNotification ver = B.txt $
+    updateNotification ver = B.padLeftRight 1 . B.txt $
       "Version " <> (fromString $ showVersion ver) <>
       " is available! Download it at " <> ariadneURL
 
@@ -81,7 +83,7 @@ handleStatusWidgetEvent
   -> StateT StatusWidgetState (B.EventM n) ()
 handleStatusWidgetEvent = \case
   StatusUpdateEvent UiCardanoStatusUpdate{..} -> do
-    statusWidgetTipHeaderHashL .= tipHeaderHash
-    statusWidgetTipSlotL .= tipSlot
-    statusWidgetSlotL .= currentSlot
+    statusWidgetSyncProgressL .= syncProgress
+    statusWidgetBlockchainLocalL .= blockchainLocal
+    statusWidgetBlockchainNetworkL .= blockchainNetwork
   StatusNewVersionEvent ver -> statusWidgetNewVersionL .= Just ver

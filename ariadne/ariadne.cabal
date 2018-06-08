@@ -201,6 +201,7 @@ executable ariadne
     , async
     , base >=4.7 && <5
     , containers
+    , double-conversion
     , ii-extras
     , knit
     , lens
