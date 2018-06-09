@@ -14,12 +14,12 @@ import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
 import Serokell.Util (listJson, mapJson)
 
+import Ariadne.Wallet.Cardano.Kernel.Decrypt
+  (HDPassphrase, eskToHDPassphrase, selectOwnAddresses)
 import Pos.Core (Address(..))
 import Pos.Core.Txp (TxIn(..), TxOut(..), TxOutAux(..))
 import Pos.Crypto (EncryptedSecretKey)
 import Pos.Txp.Toil.Types (Utxo)
-import Pos.Wallet.Web.Tracking.Decrypt
-  (WalletDecrCredentials, eskToWalletDecrCredentials, selectOwnAddresses)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (fromDb)
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
@@ -51,35 +51,35 @@ prefilterBlock esk block = PrefilteredBlock {
   where
     inpss :: [[(TxIn, TxOutAux)]]
     outss :: [Utxo]
-    (inpss, outss) = unzip $ map (prefilterTx wdc) (block ^. rbTxs)
+    (inpss, outss) = unzip $ map (prefilterTx hdPass) (block ^. rbTxs)
 
-    wdc :: WalletDecrCredentials
-    wdc = eskToWalletDecrCredentials esk
+    hdPass :: HDPassphrase
+    hdPass = eskToHDPassphrase esk
 
-prefilterTx :: WalletDecrCredentials
+prefilterTx :: HDPassphrase
             -> ResolvedTx
             -> ([(TxIn, TxOutAux)], Utxo)
-prefilterTx wdc tx = (
-      ourResolvedTxPairs wdc (toList (tx ^. rtxInputs  . fromDb))
-    , ourUtxo_           wdc         (tx ^. rtxOutputs . fromDb)
+prefilterTx hdPass tx = (
+      ourResolvedTxPairs hdPass (toList (tx ^. rtxInputs  . fromDb))
+    , ourUtxo_           hdPass         (tx ^. rtxOutputs . fromDb)
     )
 
-ourResolvedTxPairs :: WalletDecrCredentials
+ourResolvedTxPairs :: HDPassphrase
                    -> [(TxIn, TxOutAux)]
                    -> [(TxIn, TxOutAux)]
-ourResolvedTxPairs wdc = ours wdc (txOutAddress . toaOut . snd)
+ourResolvedTxPairs hdPass = ours hdPass (txOutAddress . toaOut . snd)
 
 ourUtxo :: EncryptedSecretKey -> Utxo -> Utxo
-ourUtxo esk = ourUtxo_ $ eskToWalletDecrCredentials esk
+ourUtxo esk = ourUtxo_ $ eskToHDPassphrase esk
 
-ourUtxo_ :: WalletDecrCredentials -> Utxo -> Utxo
-ourUtxo_ wdc utxo = Map.fromList $ ourResolvedTxPairs wdc $ Map.toList utxo
+ourUtxo_ :: HDPassphrase -> Utxo -> Utxo
+ourUtxo_ hdPass utxo = Map.fromList $ ourResolvedTxPairs hdPass $ Map.toList utxo
 
-ours :: WalletDecrCredentials
+ours :: HDPassphrase
      -> (a -> Address)
      -> [a]
      -> [a]
-ours wdc selectAddr rtxs = map fst $ selectOwnAddresses wdc selectAddr rtxs
+ours hdPass selectAddr rtxs = map fst $ selectOwnAddresses hdPass selectAddr rtxs
 
 {-------------------------------------------------------------------------------
   Pretty-printing
