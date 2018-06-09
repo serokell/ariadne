@@ -54,9 +54,9 @@ data UiCommandEvent
   | UiCommandOutput Doc
 
 data UiCardanoStatusUpdate = UiCardanoStatusUpdate
-  { tipHeaderHash :: Text
-  , tipSlot :: Text
-  , currentSlot :: Text
+  { syncProgress :: Maybe Text
+  , blockchainLocal :: Text
+  , blockchainNetwork :: Text
   }
 
 -- Update current displayed slot, chain difficulty, etc
