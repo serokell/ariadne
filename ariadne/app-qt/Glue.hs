@@ -205,7 +205,7 @@ cardanoEventToUI = \case
   CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
     Just $ UiCardanoEvent $
       UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
-        { syncProgress = syncProgress >>= \frac -> return $ toFixed 1 (fromRational $ frac * 100) <> "%"
+        { syncProgress = (<> "%") . toFixed 1 . fromRational . (* 100) <$> syncProgress
         , blockchainLocal = "block " <> pretty tipHeaderHash <> ", " <> pEpochOrSlot tipEpochOrSlot
         , blockchainNetwork = pSlotId currentSlot
         }

@@ -61,7 +61,7 @@ drawStatusWidget (Named ariadneURL) StatusWidgetState{..} =
 
     inaccurateNotification :: B.Widget name
     inaccurateNotification = B.padLeftRight 1 . B.txt $
-      "Blockchain not synced yet, balances can be inaccurate"
+      "Blockchain not synced yet, balances may be inaccurate."
 
     updateNotification :: Version -> B.Widget name
     updateNotification ver = B.padLeftRight 1 . B.txt $

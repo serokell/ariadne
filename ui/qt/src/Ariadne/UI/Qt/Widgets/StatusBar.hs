@@ -7,7 +7,6 @@ module Ariadne.UI.Qt.Widgets.StatusBar
 import Universum
 
 import Control.Lens (makeLensesWith)
-import Formatting
 import IiExtras
 
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
@@ -45,13 +44,13 @@ displayBlockchainInfo UiCardanoStatusUpdate{..} = do
   StatusBar{..} <- ask
   liftIO $ do
     QLabel.setText blockchainLocalLabel $ toString $
-      format ("Local: " % stext) blockchainLocal
+      "Local: " <> blockchainLocal
     QLabel.setText blockchainNetworkLabel $ toString $
-      format ("Network: " % stext) blockchainNetwork
+      "Network: " <> blockchainNetwork
     case syncProgress of
       Just progress -> do
         QLabel.setText syncProgressLabel $ toString $
-          format ("Syncing blockchain: " % stext % ". Balances can be inaccurate." ) progress
+          "Syncing blockchain: " <> progress <> ". Balances may be inaccurate."
         QStatusBar.addWidget statusBar syncProgressLabel
       Nothing -> do
         QStatusBar.removeWidget statusBar syncProgressLabel
