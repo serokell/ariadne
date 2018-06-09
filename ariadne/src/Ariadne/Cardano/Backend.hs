@@ -5,6 +5,7 @@ import Universum
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
+import Data.Ratio ((%))
 import IiExtras
 import Mockable (runProduction)
 import Pos.Binary ()
@@ -13,7 +14,7 @@ import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
 import Pos.Communication.Types.Protocol (OutSpecs)
 import Pos.Communication.Util (toAction)
-import Pos.Core (epochOrSlotG, headerHash)
+import Pos.Core (epochOrSlotG, flattenSlotId, flattenEpochOrSlot, headerHash)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.Diffusion.Types (Diffusion)
 import Pos.Launcher
@@ -86,16 +87,23 @@ statusPollingWorker
   :: (HasConfigurations)
   => (CardanoEvent -> IO ())
   -> ([WorkerSpec CardanoMode], OutSpecs)
-statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ ->
+statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ -> do
+  initialTipHeader <- DB.getTipHeader
+  let initialSlotIdx = fromIntegral . flattenEpochOrSlot $ initialTipHeader ^. epochOrSlotG
   forever $ do
     currentSlot <- getCurrentSlot
     currentSlotInaccurate <- getCurrentSlotInaccurate
     tipHeader <- DB.getTipHeader
+    let
+      tipSlotIdx = fromIntegral . flattenEpochOrSlot $ tipHeader ^. epochOrSlotG
+      currentSlotIdx = fromIntegral . flattenSlotId $ currentSlotInaccurate
+      syncProgress = (tipSlotIdx - initialSlotIdx) % (currentSlotIdx - initialSlotIdx)
     liftIO $ sendCardanoEvent $ CardanoStatusUpdateEvent CardanoStatusUpdate
       { tipHeaderHash = headerHash tipHeader
       , tipEpochOrSlot = tipHeader ^. epochOrSlotG
       , currentSlot = fromMaybe currentSlotInaccurate currentSlot
       , isInaccurate = isNothing currentSlot
+      , syncProgress = maybe (Just syncProgress) (const Nothing) currentSlot
       }
     sleep 1.0
 

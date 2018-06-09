@@ -18,6 +18,7 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
+import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
 import IiExtras
@@ -204,11 +205,14 @@ cardanoEventToUI = \case
   CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
     Just $ UiCardanoEvent $
       UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
-        { tipHeaderHash = pretty tipHeaderHash
-        , tipSlot = pretty tipEpochOrSlot
-        , currentSlot = pretty currentSlot
-                     <> if isInaccurate then " (inaccurate)" else ""
+        { syncProgress = (<> "%") . toFixed 1 . fromRational . (* 100) <$> syncProgress
+        , blockchainLocal = "block " <> pretty tipHeaderHash <> ", " <> pEpochOrSlot tipEpochOrSlot
+        , blockchainNetwork = pSlotId currentSlot
         }
+  where
+    pEpoch = ("epoch " <>) . pretty . getEpochIndex
+    pSlotId SlotId{..} = pEpoch siEpoch <> ", slot " <> pretty (getSlotIndex siSlot)
+    pEpochOrSlot = either pEpoch pSlotId . unEpochOrSlot
 
 putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
 putCardanoEventToUI UiFace{..} ev =

@@ -201,6 +201,7 @@ executable ariadne
     , async
     , base >=4.7 && <5
     , containers
+    , double-conversion
     , ii-extras
     , knit
     , lens
@@ -258,18 +259,19 @@ executable ariadne-qt
       app-qt
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ariadne
+      ansi-wl-pprint
+    , ariadne
     , ariadne-qt-ui
-    , knit
-    , ii-extras
-    , base >=4.7 && <5
     , async
-    , vinyl
-    , universum
-    , lens
+    , base >=4.7 && <5
     , containers
-    , ansi-wl-pprint
+    , double-conversion
+    , ii-extras
+    , knit
+    , lens
     , text
+    , universum
+    , vinyl
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
