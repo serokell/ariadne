@@ -131,7 +131,7 @@ packages:
 # Not for Cardano SL
 - location:
     git: https://github.com/serokell/qtah.git
-    commit: 6bb0cdfb46239a63fdb38ceacc70a23bc38d8335
+    commit: de0de826290b96b04ecb4d4aebeadd54d5fb162c
   extra-dep: true
   subdirs:
   - qtah-generator
@@ -207,9 +207,9 @@ extra-deps:
 - named-0.1.0.0
 
 # Ariadne Qt GUI
-- hoppy-runtime-0.4.0
-- hoppy-generator-0.4.0
-- hoppy-std-0.4.0
+- hoppy-runtime-0.5.0
+- hoppy-generator-0.5.0
+- hoppy-std-0.5.0
 - haskell-src-1.0.2.0   # https://github.com/commercialhaskell/stack/issues/3151
 - html-entities-1.1.4.1 # https://github.com/nikita-volkov/html-entities/issues/8
 
