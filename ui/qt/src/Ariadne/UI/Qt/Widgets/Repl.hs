@@ -19,6 +19,7 @@ import Graphics.UI.Qtah.Signal (connect_)
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QPalette as QPalette
 import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
 import qualified Graphics.UI.Qtah.Gui.QKeyEvent as QKeyEvent
 import qualified Graphics.UI.Qtah.Widgets.QAbstractScrollArea as QAbstractScrollArea
 import qualified Graphics.UI.Qtah.Widgets.QAbstractSlider as QAbstractSlider
@@ -44,6 +45,8 @@ data Repl =
     , historyLayout :: QVBoxLayout.QVBoxLayout
 
     , commandOutputs :: IORef [CommandOutput]
+
+    , beamCursor :: QCursor.QCursor
     }
 
 data CommandOutput =
@@ -75,6 +78,8 @@ initRepl langFace historyFace = do
   QBoxLayout.addLayout layout cmdLineLayout
 
   commandOutputs <- newIORef []
+
+  beamCursor <- QCursor.newWithCursorShape IBeamCursor
 
   let repl = Repl{..}
 
@@ -109,8 +114,8 @@ initHistory = do
 
   return (scrollArea, layout)
 
-createCommandOutput :: UiCommandId -> String -> IO CommandOutput
-createCommandOutput commandId command = do
+createCommandOutput :: QCursor.QCursor -> UiCommandId -> String -> IO CommandOutput
+createCommandOutput beamCursor commandId command = do
   let UiCommandId{..} = commandId
 
   coLayout <- QGridLayout.new
@@ -125,8 +130,8 @@ createCommandOutput commandId command = do
   QLabel.setTextInteractionFlags commandLabel textSelectableByMouse
   QLabel.setTextInteractionFlags outputLabel textSelectableByMouse
 
-  QWidget.setCursor commandLabel IBeamCursor
-  QWidget.setCursor outputLabel IBeamCursor
+  QWidget.setCursor commandLabel beamCursor
+  QWidget.setCursor outputLabel beamCursor
 
   QGridLayout.addWidgetWithSpanAndAlignment coLayout promptLabel 0 0 1 1 alignTop
   QGridLayout.addWidgetWithSpanAndAlignment coLayout statusLabel 1 0 1 1 alignTop
@@ -139,7 +144,7 @@ addNewCommand :: UiCommandId -> String -> UI Repl ()
 addNewCommand commandId command = do
   Repl{..} <- ask
   liftIO $ do
-    commandOutput <- createCommandOutput commandId command
+    commandOutput <- createCommandOutput beamCursor commandId command
 
     modifyIORef' commandOutputs (commandOutput:)
     QBoxLayout.addLayout historyLayout $ view coLayoutL commandOutput
