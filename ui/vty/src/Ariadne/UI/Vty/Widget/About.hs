@@ -62,7 +62,7 @@ aboutBanner defAttr selAttr = V.vertCat
   , V.horizCat [ V.text' defAttr "                            ", V.text' selAttr "ARIADNE"]
   , V.text' defAttr "A cryptocurrency wallet developed by Serokell."
   , V.text' defAttr ""
-  , V.text' defAttr "Ariadne is distributed on the terms of the MPL 2.0 license."
+  , V.text' defAttr "Ariadne is distributed under the terms of the MPL 2.0 license."
   , V.horizCat
       [ V.text' defAttr "For details, please, see: "
       , V.text' selAttr "https://serokell.io/ariadne/license"
