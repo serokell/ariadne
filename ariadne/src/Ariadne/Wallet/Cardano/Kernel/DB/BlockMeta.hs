@@ -10,7 +10,7 @@ import Universum
 
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as Map
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 
@@ -27,7 +27,7 @@ data BlockMeta = BlockMeta {
     }
 
 makeLenses ''BlockMeta
-deriveSafeCopy 1 'base ''BlockMeta
+deriveSafeCopySimple 1 'base ''BlockMeta
 
 -- | Monoid instance to update 'BlockMeta' in 'applyBlock' (see wallet spec)
 instance Monoid BlockMeta where

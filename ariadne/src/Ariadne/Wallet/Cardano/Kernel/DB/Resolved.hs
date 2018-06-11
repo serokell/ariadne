@@ -14,7 +14,7 @@ import Universum
 
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map as Map
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
 import Serokell.Util (listJson, mapJson)
@@ -61,8 +61,8 @@ data ResolvedBlock = ResolvedBlock {
 makeLenses ''ResolvedTx
 makeLenses ''ResolvedBlock
 
-deriveSafeCopy 1 'base ''ResolvedTx
-deriveSafeCopy 1 'base ''ResolvedBlock
+deriveSafeCopySimple 1 'base ''ResolvedTx
+deriveSafeCopySimple 1 'base ''ResolvedBlock
 
 {-------------------------------------------------------------------------------
   Pretty-printing

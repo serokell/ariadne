@@ -30,7 +30,7 @@ import Universum
 
 import Control.Lens.TH (makeLenses)
 import Data.Acid (Query, Update, makeAcidic)
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 import Pos.Util.Chrono (OldestFirst(..))
@@ -66,7 +66,7 @@ data DB = DB {
     }
 
 makeLenses ''DB
-deriveSafeCopy 1 'base ''DB
+deriveSafeCopySimple 1 'base ''DB
 
 {-------------------------------------------------------------------------------
   Wrap wallet spec
@@ -80,7 +80,7 @@ data NewPendingError =
     -- | Some inputs are not in the wallet utxo
   | NewPendingFailed Spec.NewPendingFailed
 
-deriveSafeCopy 1 'base ''NewPendingError
+deriveSafeCopySimple 1 'base ''NewPendingError
 
 newPending :: HdAccountId
            -> InDb (Core.TxAux)

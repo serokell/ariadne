@@ -10,7 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update (
 
 import Universum
 
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 import Pos.Util.Chrono (OldestFirst(..))
@@ -30,7 +30,7 @@ data NewPendingFailed =
     -- | Some inputs are not in the wallet utxo
     NewPendingInputUnavailable (InDb (Core.TxIn))
 
-deriveSafeCopy 1 'base ''NewPendingFailed
+deriveSafeCopySimple 1 'base ''NewPendingFailed
 
 {-------------------------------------------------------------------------------
   Wallet spec mandated updates
