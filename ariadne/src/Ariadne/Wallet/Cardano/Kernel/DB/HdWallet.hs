@@ -57,7 +57,7 @@ import Universum
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
 import qualified Data.IxSet.Typed as IxSet
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 import qualified Pos.Crypto as Core
@@ -105,13 +105,13 @@ data HasSpendingPassword =
     -- | If there is a spending password, we record when it was last updated.
   | HasSpendingPassword (InDb Core.Timestamp)
 
-deriveSafeCopy 1 'base ''WalletName
-deriveSafeCopy 1 'base ''AccountName
-deriveSafeCopy 1 'base ''HdAccountIx
-deriveSafeCopy 1 'base ''HdAddressChain
-deriveSafeCopy 1 'base ''HdAddressIx
-deriveSafeCopy 1 'base ''AssuranceLevel
-deriveSafeCopy 1 'base ''HasSpendingPassword
+deriveSafeCopySimple 1 'base ''WalletName
+deriveSafeCopySimple 1 'base ''AccountName
+deriveSafeCopySimple 1 'base ''HdAccountIx
+deriveSafeCopySimple 1 'base ''HdAddressChain
+deriveSafeCopySimple 1 'base ''HdAddressIx
+deriveSafeCopySimple 1 'base ''AssuranceLevel
+deriveSafeCopySimple 1 'base ''HasSpendingPassword
 
 {-------------------------------------------------------------------------------
   HD wallets
@@ -205,13 +205,13 @@ makeLenses ''HdRoot
 makeLenses ''HdAccount
 makeLenses ''HdAddress
 
-deriveSafeCopy 1 'base ''HdRootId
-deriveSafeCopy 1 'base ''HdAccountId
-deriveSafeCopy 1 'base ''HdAddressId
+deriveSafeCopySimple 1 'base ''HdRootId
+deriveSafeCopySimple 1 'base ''HdAccountId
+deriveSafeCopySimple 1 'base ''HdAddressId
 
-deriveSafeCopy 1 'base ''HdRoot
-deriveSafeCopy 1 'base ''HdAccount
-deriveSafeCopy 1 'base ''HdAddress
+deriveSafeCopySimple 1 'base ''HdRoot
+deriveSafeCopySimple 1 'base ''HdAccount
+deriveSafeCopySimple 1 'base ''HdAddress
 
 {-------------------------------------------------------------------------------
   Derived lenses
@@ -265,9 +265,9 @@ embedUnknownHdAccount = go
     go (UnknownHdAccountRoot rootId) = UnknownHdAddressRoot rootId
     go (UnknownHdAccount accountId)  = UnknownHdAddressAccount accountId
 
-deriveSafeCopy 1 'base ''UnknownHdRoot
-deriveSafeCopy 1 'base ''UnknownHdAddress
-deriveSafeCopy 1 'base ''UnknownHdAccount
+deriveSafeCopySimple 1 'base ''UnknownHdRoot
+deriveSafeCopySimple 1 'base ''UnknownHdAddress
+deriveSafeCopySimple 1 'base ''UnknownHdAccount
 
 {-------------------------------------------------------------------------------
   IxSet instantiations
@@ -322,7 +322,7 @@ data HdWallets = HdWallets {
   , _hdWalletsAddresses :: IxSet HdAddress
   }
 
-deriveSafeCopy 1 'base ''HdWallets
+deriveSafeCopySimple 1 'base ''HdWallets
 makeLenses ''HdWallets
 
 zoomHdRootId :: forall e a.

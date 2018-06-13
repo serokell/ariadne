@@ -13,7 +13,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create (
 import Universum
 
 import Control.Lens (at, (.=))
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 
@@ -45,9 +45,9 @@ data CreateHdAddressError =
     -- | Address already used
   | CreateHdAddressExists HdAddressId
 
-deriveSafeCopy 1 'base ''CreateHdRootError
-deriveSafeCopy 1 'base ''CreateHdAccountError
-deriveSafeCopy 1 'base ''CreateHdAddressError
+deriveSafeCopySimple 1 'base ''CreateHdRootError
+deriveSafeCopySimple 1 'base ''CreateHdAccountError
+deriveSafeCopySimple 1 'base ''CreateHdAddressError
 
 {-------------------------------------------------------------------------------
   CREATE

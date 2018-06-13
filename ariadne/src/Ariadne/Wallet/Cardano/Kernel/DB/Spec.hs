@@ -29,7 +29,7 @@ import Universum
 import Control.Lens (to)
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as M
-import Data.SafeCopy (base, deriveSafeCopy)
+import Data.SafeCopy (base, deriveSafeCopySimple)
 import Data.Text.Buildable (build)
 import Formatting (bprint, (%))
 import Serokell.Util.Text (listJsonIndent)
@@ -87,8 +87,8 @@ type Checkpoints = NonEmpty Checkpoint
 makeLenses ''Pending
 makeLenses ''Checkpoint
 
-deriveSafeCopy 1 'base ''Pending
-deriveSafeCopy 1 'base ''Checkpoint
+deriveSafeCopySimple 1 'base ''Pending
+deriveSafeCopySimple 1 'base ''Checkpoint
 
 {-------------------------------------------------------------------------------
   Lenses for accessing current checkpoint
