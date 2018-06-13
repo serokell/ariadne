@@ -29,6 +29,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
 import Universum
 
 import Control.Lens.TH (makeLenses)
+import Control.Monad.Trans.Except (runExcept)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
@@ -44,8 +45,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update as Spec
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 
 {-------------------------------------------------------------------------------
   Top-level database
@@ -102,10 +103,10 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
         -> Update' a NewPendingError HdAddress
     coerceAction addr action =
         let oldCheckpoints = view hdAddressCheckpoints addr
-            checkpointsOrErr = runIdentity $ runExceptT $ runStateT action oldCheckpoints
+            checkpointsOrErr = runExcept $ execStateT action oldCheckpoints
         in case checkpointsOrErr of
           Left err -> throwError err
-          Right ((), newCheckpoints) -> pure $ set hdAddressCheckpoints newCheckpoints addr
+          Right newCheckpoints -> pure $ set hdAddressCheckpoints newCheckpoints addr
 
 -- | Apply a block
 --
