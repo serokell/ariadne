@@ -209,12 +209,12 @@ data ConfigDirectories = ConfigDirectories
   { cdDataDir :: !FilePath
   , cdPWD :: !FilePath }
 
-getConfig :: IO AriadneConfig
-getConfig = do
+getConfig :: String -> IO AriadneConfig
+getConfig commitHash = do
   xdgConfigPath <- getXdgDirectory XdgConfig "ariadne"
   (configPath, printVersion, cli_config) <- Opt.execParser (opts xdgConfigPath)
   when printVersion $ do
-    putText $ sformat ("Ariadne v"%string) (showVersion version)
+    putTextLn $ sformat ("Ariadne v"%string%" commit:"%string) (showVersion version) commitHash
     exitSuccess
 
   config <- ifM (doesFileExist configPath)
