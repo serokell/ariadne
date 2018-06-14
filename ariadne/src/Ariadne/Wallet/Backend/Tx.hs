@@ -52,7 +52,7 @@ instance Exception SendTxException where
 
 -- | Send a transaction from selected to wallet to the list of 'TxOut's.
 sendTx ::
-       (HasConfigurations, HasCompileInfo)
+       (HasConfigurations)
     => WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)

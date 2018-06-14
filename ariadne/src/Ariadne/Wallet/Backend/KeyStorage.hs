@@ -489,7 +489,7 @@ renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
 
 -- Helpers
 
-findFirstUnique :: (Num a, Ord a, Enum a) => a -> Vector a -> a
+findFirstUnique :: (Ord a, Enum a) => a -> Vector a -> a
 findFirstUnique lastIdx paths = head
     . fromMaybe (error "Can't find a unique path!")
     . nonEmpty
