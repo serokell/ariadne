@@ -12,21 +12,18 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Communication.Types.Protocol (OutSpecs)
-import Pos.Communication.Util (toAction)
-import Pos.Core (epochOrSlotG, flattenSlotId, flattenEpochOrSlot, headerHash)
+import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
 import qualified Pos.DB.BlockIndex as DB
-import Pos.Diffusion.Types (Diffusion)
+import Pos.Infra.Diffusion.Types (Diffusion)
+import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
-import Pos.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (usVss)
-import Pos.Worker.Types (WorkerSpec, worker)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
-  showTimeB)
+  showTimeB, usingLoggerName)
 
 import Ariadne.Cardano.Face
 
@@ -69,25 +66,27 @@ runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
           cfg <- readLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
       nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
-      extractionWorker =
-        ( [toAction $ \sendActions -> do
-              ask >>= putMVar cardanoContextVar
-              putMVar diffusionVar sendActions]
-        , mempty )
-  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ runProduction $ do
-      nodeParams <- CLI.getNodeParams "ariadne" commonArgs nodeArgs
+      extractionWorker diffusion = do
+          ask >>= putMVar cardanoContextVar
+          putMVar diffusionVar diffusion
+  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
+      nodeParams <- usingLoggerName ("ariadne" <> "cardano" <> "init") $
+          CLI.getNodeParams "ariadne" commonArgs nodeArgs
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
-      let workers = updateTriggerWorker
-                 <> extractionWorker
-                 <> statusPollingWorker sendCardanoEvent
+      let workers =
+              [ updateTriggerWorker
+              , extractionWorker
+              , statusPollingWorker sendCardanoEvent
+              ]
       runNodeReal nodeParams sscParams workers
 
-statusPollingWorker
-  :: (HasConfigurations)
-  => (CardanoEvent -> IO ())
-  -> ([WorkerSpec CardanoMode], OutSpecs)
-statusPollingWorker sendCardanoEvent = first pure $ worker mempty $ \_ -> do
+statusPollingWorker ::
+       (HasConfigurations)
+    => (CardanoEvent -> IO ())
+    -> Diffusion CardanoMode
+    -> CardanoMode ()
+statusPollingWorker sendCardanoEvent _diffusion = do
   initialTipHeader <- DB.getTipHeader
   let initialSlotIdx = fromIntegral . flattenEpochOrSlot $ initialTipHeader ^. epochOrSlotG
   forever $ do

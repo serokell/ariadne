@@ -6,9 +6,9 @@ import Universum
 
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (parseField)
-import Ariadne.Config.Wallet
 import Ariadne.Config.Update
-import qualified Data.Map as Map
+import Ariadne.Config.Wallet
+import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
@@ -18,7 +18,8 @@ import Dhall.TypeCheck (X)
 defaultAriadneConfig :: AriadneConfig
 defaultAriadneConfig = AriadneConfig defaultCardanoConfig defaultWalletConfig defaultUpdateConfig
 
-parseFieldAriadne :: Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseFieldAriadne ::
+       Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
 parseFieldAriadne = parseField ariadneFieldModifier
 
 ariadneFieldModifier :: D.Text -> D.Text

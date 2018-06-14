@@ -19,8 +19,8 @@ import Universum
 
 import Ariadne.Cardano.Orphans ()
 import Data.Functor.Contravariant (Contravariant(..))
-import qualified Data.Map as Map
-import qualified Data.Text.Lazy.Builder as Builder
+import qualified Data.HashMap.Strict.InsOrd as Map
+import Data.String (fromString)
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
@@ -34,7 +34,12 @@ defalultIfNothing def_ mMba = fromMaybe def_ <$> mMba
 
 type FieldNameModifier = D.Text -> D.Text
 
-parseField :: FieldNameModifier -> Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseField ::
+       FieldNameModifier
+    -> Map.InsOrdHashMap D.Text (Expr Src X)
+    -> D.Text
+    -> D.Type a
+    -> Maybe a
 parseField fm dhallRec name type_ = Map.lookup (fm name) dhallRec >>= D.extract type_
 
 interpretFilePath :: D.Type FilePath
@@ -64,7 +69,7 @@ injectFilePath :: D.InputType FilePath
 injectFilePath = D.InputType {..}
   where
     embed fp =
-        TextLit $ Builder.fromString fp
+        TextLit $ fromString fp
     declared = Text
 
 injectByteStringUTF8 :: D.InputType ByteString

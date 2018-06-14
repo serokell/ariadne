@@ -132,14 +132,12 @@ instance (HasPrimKey a, Indexable a) => Lens.At (IxSet a) where
   Standard and @universum@ type class instances
 -------------------------------------------------------------------------------}
 
-type instance Element (IxSet a) = a
-
-instance ToList (IxSet a) where
-    toList = coerce . IxSet.toList . unwrapIxSet
-    null   = IxSet.null . unwrapIxSet
+instance Container (IxSet a)
 
 instance Foldable IxSet where
-    foldr f e = foldr f e . toList
+    null = IxSet.null . unwrapIxSet
+    toList = coerce . IxSet.toList . unwrapIxSet
+    foldr f e = foldr f e . Data.Foldable.toList
 
 {-------------------------------------------------------------------------------
   Queries

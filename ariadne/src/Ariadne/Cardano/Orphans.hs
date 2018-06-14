@@ -5,9 +5,9 @@ import Universum
 
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Launcher
-import Pos.Network.CLI (NetworkConfigOpts(..))
-import Pos.Statistics (EkgParams(..), StatsdParams(..))
 
 deriving instance Eq CommonNodeArgs
 deriving instance Eq NetworkConfigOpts

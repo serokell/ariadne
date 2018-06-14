@@ -36,10 +36,10 @@ import Data.Constraint (Dict(..))
 import IiExtras
 import Mockable (Production)
 import Pos.Core
-  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash, LocalSlotIndex (..),
-  SlotId(..), TxId, TxOut(..), decodeTextAddress)
+  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash,
+  LocalSlotIndex(..), SlotId(..), TxId, TxOut(..), decodeTextAddress)
 import Pos.Crypto (PassPhrase)
-import Pos.Diffusion.Types (Diffusion)
+import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.UserSecret

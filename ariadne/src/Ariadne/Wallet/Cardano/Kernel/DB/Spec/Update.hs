@@ -11,7 +11,7 @@ import Universum
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
-import Pos.Util.Chrono (OldestFirst(..))
+import Pos.Core.Chrono (OldestFirst(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb

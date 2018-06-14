@@ -46,12 +46,13 @@ library
     , containers
     , data-default
     , directory
-    , exceptions
     , dhall
+    , exceptions
+    , filepath
     , formatting
     , http-client
     , http-client-tls
-    , filepath
+    , insert-ordered-containers
     , kademlia
     , knit
     , lens

@@ -2,18 +2,19 @@ module Ariadne.Update.Backend where
 
 import Universum
 
-import Data.Version (Version (..), parseVersion, showVersion)
-import Control.Exception.Safe (Exception (..), throwIO, tryAny)
 import Control.Concurrent (threadDelay)
-import Network.HTTP.Client (Manager, Request (..), httpLbs, parseRequest, responseBody)
-import Network.HTTP.Client.TLS (newTlsManager)
-import Text.ParserCombinators.ReadP (readP_to_S)
-import System.Wlog (usingLoggerName, logDebug, logWarning)
+import Control.Exception.Safe (Exception(..), throwIO, tryAny)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
+import Data.Version (Version(..), parseVersion, showVersion)
+import Network.HTTP.Client
+  (Manager, Request(..), httpLbs, parseRequest, responseBody)
+import Network.HTTP.Client.TLS (newTlsManager)
 import Paths_ariadne (version)
+import System.Wlog (logDebug, logWarning, usingLoggerName)
+import Text.ParserCombinators.ReadP (readP_to_S)
 
-import Ariadne.Config.Update (UpdateConfig (..))
+import Ariadne.Config.Update (UpdateConfig(..))
 
 data FailedToParseResponse = FailedToParseResponse
   deriving (Eq, Show)
@@ -24,7 +25,9 @@ instance Exception FailedToParseResponse where
 updateCheckLoop :: UpdateConfig -> Request -> Manager -> (Version -> IO ()) -> IO ()
 updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
   let
-    getVersionParse = fmap fst . head . sortBy (\(_, s) (_, s') -> compare s s') -- sort by the most greedily parsed
+    getVersionParse =
+        fmap fst . fmap head . nonEmpty .
+        sortBy (\(_, s) (_, s') -> compare s s') -- sort by the most greedily parsed
     readVersion = maybe (throwIO FailedToParseResponse) pure . getVersionParse . readP_to_S parseVersion
   (mVer :: Either SomeException Version) <- tryAny $ httpLbs req man >>= readVersion . BS.unpack . BS.init . responseBody
   case mVer of

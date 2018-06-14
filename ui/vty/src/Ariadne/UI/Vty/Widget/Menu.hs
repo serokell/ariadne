@@ -148,13 +148,13 @@ handleMenuWidgetEvent ev = do
     colToSelection :: Vector (MenuWidgetElem a) -> Int -> Maybe Int
     colToSelection = go 0
       where
-        go acc elems col
-          | Vector.null elems = Nothing
+        go acc elements col
+          | Vector.null elements = Nothing
           | col < 1 = Nothing -- 1-char space between items
           | col <= w = Just acc
-          | otherwise = go (acc + 1) (Vector.tail elems) (col - w - 1)
+          | otherwise = go (acc + 1) (Vector.tail elements) (col - w - 1)
           where
-            el = Vector.head elems
+            el = Vector.head elements
             -- Width of menu item, including 1-char padding on both sides
             w = 2 + T.length (menuWidgetElemText el)
   case ev of
@@ -167,5 +167,5 @@ handleMenuWidgetEvent ev = do
       whenJust mI (assign menuWidgetSelectionL)
       menuWidgetNavModeL .= False
     MenuMouseDownEvent (B.Location (col, _)) -> do
-      elems <- use menuWidgetElemsL
-      whenJust (colToSelection elems col) (assign menuWidgetSelectionL)
+      elements <- use menuWidgetElemsL
+      whenJust (colToSelection elements col) (assign menuWidgetSelectionL)

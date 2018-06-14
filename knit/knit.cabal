@@ -28,6 +28,7 @@ library
       text-format,
       generic-arbitrary,
       QuickCheck,
+      quickcheck-instances,
       containers,
       lens,
       mtl,

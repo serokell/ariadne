@@ -5,7 +5,6 @@ module Ariadne.Knit.Backend
 
 import Universum hiding (atomically)
 
-import Control.Exception
 import Data.Vinyl.TypeLevel
 import IiExtras
 import Text.PrettyPrint.ANSI.Leijen (Doc)
@@ -45,10 +44,10 @@ createKnitBackend mkExecCtxs TaskManagerFace{..} =
         case res of
           Left e -> do
             putCommandResult (Just taskId) $ KnitCommandException e
-            throwIO e
+            throwM e
           Right (Left e) -> do
             putCommandResult (Just taskId) $ KnitCommandEvalError e
-            throwIO $ EvalErrorException (show $ Knit.ppEvalError e)
+            throwM $ EvalErrorException (show $ Knit.ppEvalError e)
           Right (Right v) -> do
             putCommandResult (Just taskId) $ KnitCommandSuccess v
             return v
