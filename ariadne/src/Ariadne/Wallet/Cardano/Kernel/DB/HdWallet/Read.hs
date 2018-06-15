@@ -70,6 +70,7 @@ check f g = using' f (const g)
   Computed balances information
 -------------------------------------------------------------------------------}
 
+-- | Current balance of the entire root
 hdRootBalance :: HdRootId -> HdQuery Integer
 hdRootBalance rootId = sumCoins
                      . map hdAccountBalance
@@ -79,7 +80,11 @@ hdRootBalance rootId = sumCoins
 
 -- | Current balance of an account
 hdAccountBalance :: HdAccount -> Coin
-hdAccountBalance = view (hdAccountCheckpoints . currentUtxoBalance)
+hdAccountBalance = view (hdAccountCheckpoints . currentAccUtxoBalance)
+
+-- | Current balance of an address
+hdAddressBalance :: HdAddress -> Coin
+hdAddressBalance = view (hdAddressCheckpoints . currentAddrUtxoBalance)
 
 {-------------------------------------------------------------------------------
   Accumulate across wallets/accounts

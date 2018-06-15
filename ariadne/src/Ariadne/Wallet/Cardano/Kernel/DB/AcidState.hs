@@ -29,6 +29,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
 import Universum
 
 import Control.Lens.TH (makeLenses)
+import Control.Monad.Trans.Except (runExcept)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
@@ -45,6 +46,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update as Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 
 {-------------------------------------------------------------------------------
   Top-level database
@@ -85,10 +87,26 @@ deriveSafeCopySimple 1 'base ''NewPendingError
 newPending :: HdAccountId
            -> InDb (Core.TxAux)
            -> Update DB (Either NewPendingError ())
-newPending accountId tx = runUpdate' . zoom dbHdWallets $
+newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
     zoomHdAccountId NewPendingUnknown accountId $
-    zoom hdAccountCheckpoints $
-      mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+      zoom hdAccountCheckpoints $
+        mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+    zoom hdWalletsAddresses $ do
+      allAddresses <- get
+      newAddresses <- flip (IxSet.updateIxManyM accountId) allAddresses $ \addr ->
+        coerceAction addr $ mapUpdateErrors NewPendingFailed $ Spec.newPending tx
+      put newAddresses
+  where
+    coerceAction
+        :: HdAddress
+        -> Update' AddrCheckpoints NewPendingError ()
+        -> Update' a NewPendingError HdAddress
+    coerceAction addr action =
+        let oldCheckpoints = view hdAddressCheckpoints addr
+            checkpointsOrErr = runExcept $ execStateT action oldCheckpoints
+        in case checkpointsOrErr of
+          Left err -> throwError err
+          Right newCheckpoints -> pure $ set hdAddressCheckpoints newCheckpoints addr
 
 -- | Apply a block
 --
@@ -99,9 +117,11 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $
 -- (although concurrent calls to 'applyBlock' cannot interfere with each
 -- other, 'applyBlock' must be called in the right order.)
 applyBlock :: (ResolvedBlock, BlockMeta) -> Update DB ()
-applyBlock block = runUpdateNoErrors $
+applyBlock block = runUpdateNoErrors $ do
     zoomAll (dbHdWallets . hdWalletsAccounts) $
       hdAccountCheckpoints %~ Spec.applyBlock block
+    zoomAll (dbHdWallets . hdWalletsAddresses) $
+      hdAddressCheckpoints %~ Spec.applyBlock block
 
 -- | Switch to a fork
 --
@@ -112,9 +132,11 @@ applyBlock block = runUpdateNoErrors $
 switchToFork :: Int
              -> [(ResolvedBlock, BlockMeta)]
              -> Update DB ()
-switchToFork n blocks = runUpdateNoErrors $
+switchToFork n blocks = runUpdateNoErrors $ do
     zoomAll (dbHdWallets . hdWalletsAccounts) $
       hdAccountCheckpoints %~ Spec.switchToFork n (OldestFirst blocks)
+    zoomAll (dbHdWallets . hdWalletsAddresses) $
+      hdAddressCheckpoints %~ Spec.switchToFork n (OldestFirst blocks)
 
 {-------------------------------------------------------------------------------
   Wrap HD C(R)UD operations
@@ -131,7 +153,7 @@ createHdRoot rootId name hasPass assurance created = runUpdate' . zoom dbHdWalle
 
 createHdAccount :: HdRootId
                 -> AccountName
-                -> Checkpoint
+                -> AccCheckpoint
                 -> Update DB (Either HD.CreateHdAccountError HdAccountId)
 createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
     HD.createHdAccount rootId name checkpoint
@@ -139,9 +161,10 @@ createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
 createHdAddress :: HdAddressId
                 -> InDb Core.Address
                 -> HdAddressChain
+                -> AddrCheckpoint
                 -> Update DB (Either HD.CreateHdAddressError ())
-createHdAddress addrId address chain = runUpdate' . zoom dbHdWallets $
-    HD.createHdAddress addrId address chain
+createHdAddress addrId address chain checkpoint = runUpdate' . zoom dbHdWallets $
+    HD.createHdAddress addrId address chain checkpoint
 
 updateHdRootAssurance :: HdRootId
                       -> AssuranceLevel

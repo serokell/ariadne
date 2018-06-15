@@ -36,6 +36,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , hdAddressAddress
   , hdAddressIsUsed
   , hdAddressChain
+  , hdAddressCheckpoints
     -- ** Composite lenses
   , hdAccountRootId
   , hdAddressRootId
@@ -174,8 +175,9 @@ data HdAccount = HdAccount {
       -- | Account name
     , _hdAccountName        :: AccountName
 
-      -- | State of the " wallet " as stipulated by the wallet specification
-    , _hdAccountCheckpoints :: NonEmpty Checkpoint
+      -- | Part of the wallet state pertaining to this account,
+      -- as stipulated by the wallet specification
+    , _hdAccountCheckpoints :: NonEmpty AccCheckpoint
     }
 
 -- | Address in an account of a HD wallet
@@ -196,6 +198,10 @@ data HdAddress = HdAddress {
       -- Invariant: this must match the actual derivation scheme which
       -- yields _hdAddressAddress.
     , _hdAddressChain   :: HdAddressChain
+
+      -- | Part of the wallet state pertaining to this address,
+      -- as stipulated by the wallet specification
+    , _hdAddressCheckpoints :: NonEmpty AddrCheckpoint
     }
 
 makeLenses ''HdAccountId
