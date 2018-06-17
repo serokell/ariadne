@@ -14,7 +14,7 @@ buildStackApplication {
   src = lib.cleanSource ./.;
 
   overrides = final: previous: with haskell.lib; {
-    ariadne = overrideCabal previous.ariadne (drv: {
+    ariadne = haskell.lib.doCheck (overrideCabal previous.ariadne (drv: {
       buildTools = (drv.buildTools or []) ++ [ git ];
       # https://github.com/NixOS/nixpkgs/issues/25585
       preFixup = ''rm -rf "$(pwd)"'';
@@ -31,9 +31,11 @@ buildStackApplication {
       postInstall = lib.optionalString (!withQt) ''
         rm $out/bin/ariadne-qt
       '';
-    });
-    
+    }));
+
     ariadne-qt-ui = disableLibraryProfiling previous.ariadne-qt-ui;
+
+    knit = haskell.lib.doCheck previous.knit;
     
     qtah-cpp = overrideCabal previous.qtah-cpp (self: {
       librarySystemDepends = (self.librarySystemDepends or []) ++ [ qt5.qtbase ];
