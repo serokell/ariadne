@@ -21,7 +21,7 @@ support multiple currencies in the future.
 * [x] Optimized block storage (compared to Daedalus)
 * [x] All actions correspond to commands in the [Knit](knit/README.md)
 language and can be typed in a console
-* [ ] Notifications about new software versions
+* [x] Notifications about new software versions
 * [ ] Automatic software updates
 * [ ] Integration with hardware wallets
 * [ ] Staking and delegation
