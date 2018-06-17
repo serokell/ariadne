@@ -35,8 +35,6 @@ buildStackApplication {
 
     ariadne-qt-ui = disableLibraryProfiling previous.ariadne-qt-ui;
 
-    knit = haskell.lib.doCheck previous.knit;
-    
     qtah-cpp = overrideCabal previous.qtah-cpp (self: {
       librarySystemDepends = (self.librarySystemDepends or []) ++ [ qt5.qtbase ];
     });
