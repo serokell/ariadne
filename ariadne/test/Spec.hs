@@ -5,6 +5,7 @@ import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
+import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Lens (makeLensesWith)
 import IiExtras (postfixLFields)
@@ -40,9 +41,12 @@ propHandleCardanoConfig conf = monadicIO $ do
   assert (conf == parsed)
 
 overrideConfigUnitTest :: Expectation
-overrideConfigUnitTest = (`mergeConfigs` ariadneConfigSample) . snd <$>
-  Opt.getParseResult
-    (Opt.execParserPure Opt.defaultPrefs opts cliArgs) `shouldBe` Just expectedAriadneConfig
+overrideConfigUnitTest = actual `shouldBe` Just expectedAriadneConfig
+  where
+    opts' = opts "doesNotMatter"
+    actual =
+        (`mergeConfigs` ariadneConfigSample) . view _3 <$>
+        Opt.getParseResult (Opt.execParserPure Opt.defaultPrefs opts' cliArgs)
 
 cliArgs :: [String]
 cliArgs =
@@ -69,7 +73,6 @@ cliArgs =
   , "--cardano:configuration-seed", "9"
   , "--cardano:update-latest-path", "new-update-latest-path"
   , "--cardano:update-with-package", "True"
-  , "--cardano:no-ntp", "False"
   , "--cardano:route53-health-check", "255.255.255.253:8888"
   , "--cardano:metrics", "True"
   , "--cardano:ekg-params", "255.255.255.252:8888"
@@ -80,7 +83,8 @@ cliArgs =
   , "--cardano:statsd-suffix", "new-statsd-suffix"
   , "--cardano:dump-genesis-data-to", "new-dump-genesis-data-to"
   , "--cardano:dump-configuration", "True"
-  , "--wallet:entropy-size", "32"]
+  , "--wallet:entropy-size", "32"
+  ]
 
 
 expectedAriadneConfig :: AriadneConfig
@@ -114,7 +118,6 @@ expectedAriadneConfig = AriadneConfig
           }
         , updateLatestPath = "new-update-latest-path"
         , updateWithPackage = True
-        , noNTP = False
         , route53Params = Just ("255.255.255.253",8888)
         , enableMetrics = True
         , ekgParams = Just (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
@@ -131,6 +134,10 @@ expectedAriadneConfig = AriadneConfig
         }
     }
   , acWallet = WalletConfig {wcEntropySize = fromBytes 32}
+  , acUpdate = UpdateConfig
+      { ucVersionCheckUrl = "https://ariadnewallet.io"
+      , ucCheckDelay = 3600
+      }
   }
 
 ariadneConfigSample :: AriadneConfig
