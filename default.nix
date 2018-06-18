@@ -31,7 +31,7 @@ let
         '';
       });
 
-      ariadne-qt-ui = disableLibraryProfiling previous.ariadne-qt-ui;
+      ariadne-qt = disableLibraryProfiling previous.ariadne-qt;
     
       qtah-cpp = overrideCabal previous.qtah-cpp (self: {
         librarySystemDepends = (self.librarySystemDepends or []) ++ [ qt5.qtbase ];
