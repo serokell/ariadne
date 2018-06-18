@@ -21,7 +21,6 @@ import Pos.Core (Address, largestHDAddressBoot)
 import Pos.Core.Configuration (HasConfiguration)
 import Pos.Launcher.Configuration (HasConfigurations)
 import Pos.Txp.DB.Utxo (getFilteredUtxo)
-import Pos.Util.CompileInfo (HasCompileInfo)
 
 import Ariadne.Cardano.Face (CardanoMode)
 
@@ -29,13 +28,12 @@ instance HasConfiguration => MonadBalances CardanoMode where
     getOwnUtxos addrs = getFilteredUtxo addrs
     getBalance = getBalanceFromUtxo
 
-instance (HasConfigurations, HasCompileInfo) => MonadTxHistory CardanoMode where
+instance HasConfigurations => MonadTxHistory CardanoMode where
     getBlockHistory = getBlockHistoryDefault
     getLocalHistory = getLocalHistoryDefault
     saveTx = saveTxDefault
 
-instance (HasConfigurations, HasCompileInfo) =>
-         MonadAddresses CardanoMode where
+instance MonadAddresses CardanoMode where
     type AddrData CardanoMode = Address
     getNewAddress = pure
     -- FIXME: do not assume bootstrap era.

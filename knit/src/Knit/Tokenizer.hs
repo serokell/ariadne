@@ -19,7 +19,7 @@ import Formatting (build, sformat, (%))
 import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
-import Text.Megaparsec hiding (Token)
+import Text.Megaparsec hiding (Token, many)
 import Text.Megaparsec.Char
 
 import Knit.Name

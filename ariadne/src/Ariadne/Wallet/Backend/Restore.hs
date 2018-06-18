@@ -5,18 +5,19 @@ module Ariadne.Wallet.Backend.Restore
        , restoreFromKeyFile
        ) where
 
-import Universum
+import Universum hiding (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non)
+import qualified Data.ByteString as BS
 import Data.List (init)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
-import qualified Data.ByteString as BS
 
 import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
+import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)
 import Pos.Crypto.HD (deriveHDPassphrase)
 import Pos.Crypto.HDDiscovery (discoverHDAddress)
@@ -24,7 +25,6 @@ import Pos.Crypto.Signing
   (EncryptedSecretKey, encToPublic, safeDeterministicKeyGen)
 import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
 import Pos.Util.UserSecret (usKeys0)
-import Pos.Binary.Class (decodeFull')
 
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
 import Ariadne.Wallet.Face

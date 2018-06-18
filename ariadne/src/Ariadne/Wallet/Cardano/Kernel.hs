@@ -30,26 +30,27 @@ module Ariadne.Wallet.Cardano.Kernel (
   , hasPending
   ) where
 
-import           Universum hiding (State)
+import Universum hiding (State, init)
 
-import           Control.Lens.TH
+import Control.Lens.TH
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import           Data.Maybe (fromJust)
+import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 
-import           System.Wlog (Severity (..))
+import System.Wlog (Severity(..))
 
-import           Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
-import           Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion (..))
-import           Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredBlock (..), ourUtxo, prefilterBlock)
-import           Ariadne.Wallet.Cardano.Kernel.Types (txUtxo)
+import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
+import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
+  (PrefilteredBlock(..), ourUtxo, prefilterBlock)
+import Ariadne.Wallet.Cardano.Kernel.Types (txUtxo)
 
-import           Pos.Core (TxAux, sumCoins)
-import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxIn (..), TxOut (..), TxOutAux (..))
-import           Pos.Crypto (EncryptedSecretKey, hash)
-import           Pos.Txp (Utxo)
-import           Pos.Util.Chrono (OldestFirst)
+import Pos.Core (TxAux, sumCoins)
+import Pos.Core.Chrono (OldestFirst)
+import Pos.Core.Txp (Tx(..), TxAux(..), TxId, TxIn(..), TxOut(..), TxOutAux(..))
+import Pos.Crypto (EncryptedSecretKey, hash)
+import Pos.Txp (Utxo)
 
 -- import           Ariadne.Wallet.Cardano.Orphans ()
 
@@ -281,10 +282,7 @@ applyBlock' pw b wid = do
     updateWalletState pw wid $ State utxo'' pending'' balance''
 
 -- | Apply the ResolvedBlocks, one at a time, to all wallets in the PassiveWallet
-applyBlocks :: Container (f ResolvedBlock)
-              => PassiveWallet
-              -> OldestFirst f ResolvedBlock
-              -> IO ()
+applyBlocks :: PassiveWallet -> OldestFirst [] ResolvedBlock -> IO ()
 applyBlocks pw = mapM_ (applyBlock pw)
 
 updateUtxo :: PrefilteredBlock -> Utxo -> (Utxo, Balance)

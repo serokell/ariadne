@@ -9,9 +9,8 @@ import Universum
 import Ariadne.Config.DhallUtil
 import Data.Default (def)
 import Data.Functor.Contravariant (Contravariant(..))
-import qualified Data.Map as Map
-import qualified Data.Text.Lazy.Builder as Builder
-import Data.Time.Units (Microsecond, Second, convertUnit)
+import qualified Data.HashMap.Strict.InsOrd as Map
+import Data.Time.Units (Microsecond, Second, convertUnit, fromMicroseconds)
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
@@ -20,12 +19,11 @@ import Dhall.TypeCheck (X)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Infra.Network.Types (NodeName(..))
+import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
+import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
-import Pos.Network.CLI (NetworkConfigOpts(..))
-import Pos.Network.Types (NodeName(..))
-import Pos.Statistics (EkgParams(..), StatsdParams(..))
-import Pos.Util.TimeWarp (NetworkAddress)
-import Serokell.Util (sec)
 
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
@@ -74,7 +72,8 @@ instance D.Interpret CardanoConfig where
 instance D.Inject CardanoConfig where
   injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
-parseFieldCardano :: Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseFieldCardano ::
+       Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
 parseFieldCardano = parseField cardanoFieldModifier
 
 cardanoFieldModifier :: D.Text -> D.Text
@@ -148,6 +147,9 @@ interpretNetworkAddress = D.Type extractOut expectedOut
 -- Assume that natural number in config represents time in seconds
 interpretTimestampSec :: D.Type Timestamp
 interpretTimestampSec = (Timestamp . sec . fromIntegral) <$> D.natural
+  where
+    sec :: Int -> Microsecond
+    sec = fromMicroseconds . fromIntegral . (*) 1000000
 
 interpretNetworkConfigOpts :: D.Type NetworkConfigOpts
 interpretNetworkConfigOpts = D.Type extractOut expectedOut
@@ -301,7 +303,7 @@ injectNodeName :: D.InputType NodeName
 injectNodeName = D.InputType {..}
   where
     embed (NodeName t) =
-        TextLit $ Builder.fromText t
+        TextLit $ fromString $ toString t
     declared = Text
 
 injectNetworkAddress :: D.InputType NetworkAddress

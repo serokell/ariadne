@@ -173,7 +173,7 @@ resolveAccountRef walletSelRef runCardanoMode accountRef = do
                 case mWalletSelection of
                     Nothing -> throwM NoWalletSelection
                     Just WalletSelection {..} ->
-                        case headMay wsPath of
+                        case head <$> nonEmpty wsPath of
                             Nothing -> throwM NoAccountSelection
                             Just accIdx -> return (fromIntegral accIdx)
             AccountRefByIndex accIdx _ -> return accIdx
@@ -489,8 +489,10 @@ renameSelection WalletFace{..} walletSelRef runCardanoMode name = do
 
 -- Helpers
 
-findFirstUnique :: (Num a, Ord a, Enum a) => a -> Vector a -> a
-findFirstUnique lastIdx paths = fromMaybe (error "Can't find a unique path!")
-    . head $ dropWhile (`S.member` pathsSet) [lastIdx..]
+findFirstUnique :: (Ord a, Enum a) => a -> Vector a -> a
+findFirstUnique lastIdx paths = head
+    . fromMaybe (error "Can't find a unique path!")
+    . nonEmpty
+    $ dropWhile (`S.member` pathsSet) [lastIdx..]
   where
     pathsSet = V.foldr S.insert S.empty paths

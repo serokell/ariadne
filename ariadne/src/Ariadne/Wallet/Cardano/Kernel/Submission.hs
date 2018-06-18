@@ -239,10 +239,10 @@ makeLenses ''WalletSubmissionState
 
 instance Buildable Schedule where
     build (Schedule ss nursery) =
-        let elems = IntMap.toList ss
+        let items = IntMap.toList ss
         in bprint ("Schedule { scheduled = " % (F.later mapBuilder) %
                            " , nursery   = " % (listJsonIndent 4)
-                  ) elems nursery
+                  ) items nursery
 
 instance Arbitrary SubmissionCount where
     arbitrary = SubmissionCount <$> choose (0, 255)

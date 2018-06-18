@@ -29,7 +29,11 @@ createWalletBackend walletConfig = do
   return $ \cf@CardanoFace {..} sendWalletEvent ->
     let
       Nat runCardanoMode = cardanoRunCardanoMode
-      withDicts = withDict cardanoConfigurations . withDict cardanoCompileInfo
+      withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
+      withDicts r =
+          withDict cardanoConfigurations $
+          withDict cardanoCompileInfo $
+          r
       mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace
           { walletNewAddress = newAddress this walletSelRef runCardanoMode

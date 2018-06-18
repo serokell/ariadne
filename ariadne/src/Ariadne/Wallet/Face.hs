@@ -24,7 +24,7 @@ data WalletSelection =
 -- | Name of a wallet.
 newtype WalletName = WalletName
     { unWalletName :: Text
-    } deriving (Show, Eq, IsString, Monoid, ToString)
+    } deriving (Show, Eq, IsString, ToString)
 
 data WalletReference
   = WalletRefSelection

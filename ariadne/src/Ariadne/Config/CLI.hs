@@ -7,13 +7,9 @@ module Ariadne.Config.CLI
 
 import Universum
 
-import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
-import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
-import Ariadne.Meta.URL (ariadneURL)
 import Control.Lens (makeLensesWith, (%=))
 import Data.List.Utils (replace)
+import Data.Time.Units (fromMicroseconds)
 import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
@@ -26,19 +22,25 @@ import Paths_ariadne (version)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Infra.Network.Types (NodeName(..))
+import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
+import Pos.Infra.Util.TimeWarp
+  (NetworkAddress, addrParser, addrParserNoWildcard)
 import Pos.Launcher
-import Pos.Network.CLI (NetworkConfigOpts(..))
-import Pos.Network.Types (NodeName(..))
-import Pos.Statistics (EkgParams(..), StatsdParams(..))
-import Pos.Util.TimeWarp (NetworkAddress, addrParser, addrParserNoWildcard)
 import Serokell.Data.Memory.Units (Byte, fromBytes)
-import Serokell.Util (sec)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
   (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
+
+import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
+import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
+import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Meta.URL (ariadneURL)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
   {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
@@ -276,7 +278,7 @@ opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
 
 parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
-  configPath <- strOption_ $ mconcat
+  configPath <- strOption $ mconcat
     [ long "config"
     , metavar "FILEPATH"
     , value (xdgConfigPath </> "ariadne-config.dhall")
@@ -311,7 +313,7 @@ cliWalletParser = do
 
 cliCommonNodeArgsParser :: Opt.Parser CLI_CommonNodeArgs
 cliCommonNodeArgsParser = do
-  cli_dbPath <- optional $ strOption_ $ mconcat
+  cli_dbPath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "dbPath"
     , metavar "FILEPATH"
     , help "Path to directory with all DBs used by the node. \
@@ -328,19 +330,19 @@ cliCommonNodeArgsParser = do
     , metavar "INT"
     , help "Used genesis secret key index."
     ]
-  cli_keyfilePath <- optional $ strOption_ $ mconcat
+  cli_keyfilePath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "keyfilePath"
     , metavar "FILEPATH"
     , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkConfigOpts <- cliNetworkConfigOption
-  cli_jlPath <- optional $ strOption_ $ mconcat
+  cli_jlPath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "jlPath"
     , metavar "FILEPATH"
     , help "Path to JSON log file."
     ]
   cli_commonArgs <- cliCommonArgsParser
-  cli_updateLatestPath <- optional $ strOption_ $ mconcat
+  cli_updateLatestPath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "updateLatestPath"
     , metavar "FILEPATH"
     , help "Path to update installer file, \
@@ -364,7 +366,7 @@ cliCommonNodeArgsParser = do
   cli_ekgParams <- optional cliEkgParamsOption
   cli_statsdParams <- cliStatsdParamsOption
 
-  cli_cnaDumpGenesisDataPath <- optional $ strOption_ $ mconcat
+  cli_cnaDumpGenesisDataPath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "cnaDumpGenesisDataPath"
     , metavar "FILEPATH"
     , help "Dump genesis data in canonical JSON format to this file."
@@ -405,12 +407,12 @@ cliStatsdParamsOption = do
     , metavar "BOOL"
     , help "Enable statsd debug mode"
     ]
-  prefix <- optional $ strOption_ $ mconcat
+  prefix <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "statsdPrefix"
     , metavar "TEXT"
     , help "Prefix for statsd"
     ]
-  suffix <- optional $ strOption_ $ mconcat
+  suffix <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "statsdSuffix"
     , metavar "TEXT"
     , help "Suffix for statsd"
@@ -435,17 +437,17 @@ cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $ mconcat
 
 cliNetworkConfigOption :: Opt.Parser CLI_NetworkConfigOpts
 cliNetworkConfigOption = do
-  cli_ncoTopology <- optional $ strOption_ $ mconcat
+  cli_ncoTopology <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ncoTopology"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network topology"
     ]
-  cli_ncoKademlia <- optional $ strOption_ $ mconcat
+  cli_ncoKademlia <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ncoKademlia"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the kademlia configuration"
     ]
-  cli_ncoSelf <- optional $ strOption_ $ mconcat
+  cli_ncoSelf <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ncoSelf"
     , metavar "NODE_ID"
     , help "Identifier for this node within the network"
@@ -455,7 +457,7 @@ cliNetworkConfigOption = do
     , metavar "PORT"
     , help "Port number for IP address to node ID translation"
     ]
-  cli_ncoPolicies <- optional $ strOption_ $ mconcat
+  cli_ncoPolicies <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ncoPolicies"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network policies"
@@ -484,17 +486,20 @@ cliListenNetworkAddressOption = optional $ option (fromParsec addrParserNoWildca
 
 cliConfigurationOptionsParser :: Opt.Parser CLI_ConfigurationOptions
 cliConfigurationOptionsParser = do
-  cli_cfoFilePath  <- optional $ strOption_ $ mconcat
+  cli_cfoFilePath  <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "cfoFilePath"
     , metavar "FILEPATH"
     , help "Path to a yaml configuration file"
     ]
-  cli_cfoKey <- optional $ strOption_ $ mconcat
+  cli_cfoKey <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "cfoKey"
     , metavar "TEXT"
     , help "Key within the configuration file to use"
     ]
-  cli_cfoSystemStart <- (fmap . fmap) (Timestamp . sec) $ optional $ option auto $ mconcat
+  cli_cfoSystemStart <-
+      (fmap . fmap) (Timestamp . fromMicroseconds . (*) 1000000) $
+      optional $ option auto $
+      mconcat
     [ long $ toOptionNameCardano "cfoSystemStart"
     , metavar "TIMESTAMP"
     , help "System start time. Format - seconds since Unix Epoch."
@@ -508,12 +513,12 @@ cliConfigurationOptionsParser = do
 
 cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
 cliCommonArgsParser = do
-  cli_logConfig <- optional $ strOption_ $ mconcat
+  cli_logConfig <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "logConfig"
     , metavar "FILEPATH"
     , help "Path to logger configuration."
     ]
-  cli_logPrefix <- optional $ strOption_ $ mconcat
+  cli_logPrefix <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "logPrefix"
     , metavar "FILEPATH"
     , help "Prefix to logger output path."
@@ -531,9 +536,6 @@ cliCommonArgsParser = do
 
   cli_configurationOptions <- cliConfigurationOptionsParser
   pure CLI_CommonArgs {..}
-
-strOption_ :: IsString s => Opt.Mod Opt.OptionFields String -> Opt.Parser s
-strOption_ m = fromString <$> (strOption m)
 
 toOptionNameCardano :: D.Text -> String
 toOptionNameCardano = ("cardano:" <>) . toString . cardanoFieldModifier

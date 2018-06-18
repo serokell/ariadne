@@ -4,7 +4,6 @@ import Universum
 
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)
-import Numeric.Natural
 
 -- | This type reperesents a unique task identifier.
 -- The uniqueness is handled by the backend: each time a command is spawned

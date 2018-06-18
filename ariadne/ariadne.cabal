@@ -46,12 +46,13 @@ library
     , containers
     , data-default
     , directory
-    , exceptions
     , dhall
+    , exceptions
+    , filepath
     , formatting
     , http-client
     , http-client-tls
-    , filepath
+    , insert-ordered-containers
     , kademlia
     , knit
     , lens
@@ -184,7 +185,10 @@ library
   other-modules:
       Paths_ariadne
   default-language: Haskell2010
-  ghc-options: -Wall -Werror -Wno-unused-top-binds
+  ghc-options: -Wall -Wcompat -Werror
+               -Wincomplete-uni-patterns -Wincomplete-record-updates
+               -Wredundant-constraints
+               -Wno-unused-top-binds
 
   build-tools: cpphs >= 1.19
 
@@ -250,7 +254,9 @@ executable ariadne
       ViewPatterns
       EmptyCase
       PartialTypeSignatures
-  ghc-options: -Wall -Werror -fno-warn-partial-type-signatures
+  ghc-options: -Wall -Wcompat -Werror
+               -Wincomplete-uni-patterns -Wincomplete-record-updates
+               -Wredundant-constraints
 
 executable ariadne-qt
   main-is: Main.hs
@@ -310,7 +316,10 @@ executable ariadne-qt
       ViewPatterns
       EmptyCase
       PartialTypeSignatures
-  ghc-options: -Wall -Werror -fno-warn-partial-type-signatures -dynamic
+  ghc-options: -Wall -Wcompat -Werror
+               -Wincomplete-uni-patterns -Wincomplete-record-updates
+               -Wredundant-constraints
+               -dynamic
 
 test-suite ariadne-test
   type: exitcode-stdio-1.0
@@ -374,4 +383,6 @@ test-suite ariadne-test
         ViewPatterns
         EmptyCase
         PartialTypeSignatures
-  ghc-options: -Wall -Werror -Wno-unused-top-binds
+  ghc-options: -Wall -Wcompat -Werror
+               -Wincomplete-uni-patterns -Wincomplete-record-updates
+               -Wredundant-constraints

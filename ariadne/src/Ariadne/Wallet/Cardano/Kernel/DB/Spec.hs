@@ -151,5 +151,5 @@ neHead f (x :| xs) = (:| xs) <$> f x
 
 instance Buildable Pending where
     build (Pending p) =
-      let elems = p ^. fromDb . to M.toList
-      in bprint ("Pending " % listJsonIndent 4) (map fst elems)
+      let elements = p ^. fromDb . to M.toList
+      in bprint ("Pending " % listJsonIndent 4) (map fst elements)

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 import Universum
 
 import Ariadne.Cardano.Orphans ()
@@ -12,10 +14,10 @@ import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Infra.Network.Types (NodeName(..))
+import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Launcher
-import Pos.Network.CLI (NetworkConfigOpts(..))
-import Pos.Network.Types (NodeName(..))
-import Pos.Statistics (EkgParams(..), StatsdParams(..))
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)

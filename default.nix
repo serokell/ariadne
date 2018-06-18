@@ -12,6 +12,7 @@ with nixpkgs;
 buildStackApplication {
   package = "ariadne";
   src = lib.cleanSource ./.;
+  ghc = haskell.compiler.ghc822;
 
   overrides = final: previous: with haskell.lib; {
     ariadne = haskell.lib.doCheck (overrideCabal previous.ariadne (drv: {

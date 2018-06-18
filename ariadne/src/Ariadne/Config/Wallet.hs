@@ -6,7 +6,7 @@ module Ariadne.Config.Wallet
 import Universum
 
 import Ariadne.Config.DhallUtil (interpretByte, parseField)
-import qualified Data.Map as Map
+import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
@@ -16,7 +16,8 @@ import Serokell.Data.Memory.Units (Byte)
 defaultWalletConfig :: WalletConfig
 defaultWalletConfig = WalletConfig 16
 
-parseFieldWallet :: Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseFieldWallet ::
+       Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
 parseFieldWallet = parseField walletFieldModifier
 
 walletFieldModifier :: D.Text -> D.Text

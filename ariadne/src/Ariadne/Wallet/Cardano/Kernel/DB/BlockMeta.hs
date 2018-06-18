@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -fno-warn-semigroup #-}
+{-# OPTIONS_GHC -fno-warn-noncanonical-monoid-instances #-}
+
 -- | Block metadata conform the wallet specification
 module Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (
     -- * Block metadata

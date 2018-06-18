@@ -6,7 +6,7 @@ module Ariadne.Config.Update
 import Universum
 
 import Ariadne.Config.DhallUtil (interpretInt, parseField)
-import qualified Data.Map as Map
+import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
@@ -15,7 +15,8 @@ import Dhall.TypeCheck (X)
 defaultUpdateConfig :: UpdateConfig
 defaultUpdateConfig = UpdateConfig "https://ariadnewallet.io" 3600
 
-parseFieldUpdate :: Map D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
+parseFieldUpdate ::
+       Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
 parseFieldUpdate = parseField updateFieldModifier
 
 updateFieldModifier :: D.Text -> D.Text
