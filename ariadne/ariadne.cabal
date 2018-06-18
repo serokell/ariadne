@@ -75,6 +75,7 @@ library
     , scientific
     , stm
     , serokell-util
+    , sqlite-simple
     , text
     , text-format
     , temporary

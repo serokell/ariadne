@@ -10,9 +10,13 @@ module Ariadne.UX.CommandHistory
 import Universum
 
 import Control.Lens (ix)
-import System.Directory (doesFileExist, renameFile)
+import Database.SQLite.Simple
 
 import qualified Data.Text as T
+
+data Row = Row Int T.Text deriving (Show)
+instance FromRow Row where
+  fromRow = Row <$> field <*> field
 
 data CommandHistory =
     CommandHistory
@@ -27,7 +31,8 @@ openCommandHistory historyFile = do
     counter <- newIORef (-1)
     currentPrefix <- newIORef ""
 
-    unlessM (doesFileExist historyFile) $ writeFile historyFile ""
+    conn <- open historyFile
+    execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
 
     return CommandHistory{..}
 
@@ -44,11 +49,14 @@ changeCommand ch counterChange = do
     newCounter <- (+counterChange) <$> readIORef (counter ch)
     prefix <- readIORef (currentPrefix ch)
 
-    history <- lines <$> readFile (historyFile ch)
-    let result = filter (prefix `T.isPrefixOf`) history ^? ix newCounter
+    -- do as little logic in sql as possible
+    conn <- open (historyFile ch)
+    history <- query_ conn "SELECT * FROM history ORDER BY id DESC" :: IO [Row]
+
+    let commands = [ cmd | Row _ cmd <- history ]
+    let result = filter (prefix `T.isPrefixOf`) commands ^? ix newCounter
 
     when (isJust result) $ writeIORef (counter ch) newCounter
-
     return result
 
 setPrefix :: CommandHistory -> Text -> IO ()
@@ -61,9 +69,6 @@ addCommand ch (T.strip -> command) = do
     writeIORef (counter ch) (-1)
     writeIORef (currentPrefix ch) ""
 
-    -- write command to first line of history file
     unless (null command) $ do
-      file <- readFile $ historyFile ch
-      let temp = historyFile ch ++ ".tmp"
-      writeFile temp $ command <> "\n" <> toText file
-      renameFile temp $ historyFile ch
+      conn <- open (historyFile ch)
+      execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
