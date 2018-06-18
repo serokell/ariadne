@@ -34,7 +34,6 @@ genCommonNodeArgs = do
     commonArgs <- genCommonArgs
     updateLatestPath <- genValidString
     updateWithPackage <- arbitrary
-    noNTP <- arbitrary
     route53Params <- genMaybe genNetworkAddress
     enableMetrics <- arbitrary
     ekgParams <- genMaybe genEkgParams
