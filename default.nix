@@ -14,7 +14,9 @@ let
     overrides = final: previous: with haskell.lib; {
       ariadne = overrideCabal previous.ariadne (drv: {
         buildTools = (drv.buildTools or []) ++ [ git ];
+
         # https://github.com/NixOS/nixpkgs/issues/25585
+        # RPATH of binary contains a forbidden reference to /tmp/nix-build...
         preFixup = ''rm -rf "$(pwd)"'';
       
         enableSharedExecutables = withQt;
@@ -31,7 +33,9 @@ let
         '';
       });
 
-      ariadne-qt = disableLibraryProfiling previous.ariadne-qt;
+      ariadne-qt = overrideCabal (disableLibraryProfiling previous.ariadne-qt) (super: {
+        preFixup = ''rm -rf "$(pwd)"'';
+      });
     
       qtah-cpp = overrideCabal previous.qtah-cpp (self: {
         librarySystemDepends = (self.librarySystemDepends or []) ++ [ qt5.qtbase ];
