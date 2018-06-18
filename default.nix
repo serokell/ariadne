@@ -10,7 +10,7 @@ in
 with nixpkgs;
 
 let
-  closure = (stackClosure haskell.compiler.ghc802 ./.).override {
+  closure = (stackClosure haskell.compiler.ghc822 ./.).override {
     overrides = final: previous: with haskell.lib; {
       ariadne = overrideCabal previous.ariadne (drv: {
         buildTools = (drv.buildTools or []) ++ [ git ];
