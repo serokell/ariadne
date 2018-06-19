@@ -42,7 +42,8 @@ Qt GUI only works on Linux. Windows and macOS will be supported soon.
   - OpenSSL
   - Qt 5 (if you want to build GUI)
   - ICU
-3. Run `stack build ariadne`.
+3. Run `stack build ariadne-vty` to build terminal text-based interface
+and `stack build ariadne-qt` for Qt-based GUI. Or just `stack build` for both.
 
 #### macOS
 
