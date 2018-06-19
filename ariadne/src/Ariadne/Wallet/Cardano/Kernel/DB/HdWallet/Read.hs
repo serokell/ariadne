@@ -40,8 +40,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 
-{-# ANN module ("HLint: ignore Unnecessary hiding" :: Text) #-}
-
 {-------------------------------------------------------------------------------
   Infrastructure
 -------------------------------------------------------------------------------}
