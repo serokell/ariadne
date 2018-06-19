@@ -23,6 +23,9 @@ library
     , ansi-wl-pprint
     , acid-state
     , async
+    , beam-core
+    , beam-migrate
+    , beam-sqlite
     , bytestring
     , cardano-sl
     , cardano-sl-block
@@ -75,6 +78,8 @@ library
     , scientific
     , stm
     , serokell-util
+    , sqlite-simple
+    , sqlite-simple-errors
     , text
     , text-format
     , temporary
@@ -138,14 +143,16 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Resolved
       Ariadne.Wallet.Cardano.Kernel.DB.Spec
       Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update
+      Ariadne.Wallet.Cardano.Kernel.DB.Sqlite
       Ariadne.Wallet.Cardano.Kernel.DB.TxMeta
+      Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types
       Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+      Ariadne.Wallet.Cardano.Kernel.Decrypt
       Ariadne.Wallet.Cardano.Kernel.Diffusion
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
-      Ariadne.Wallet.Cardano.Kernel.Decrypt
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

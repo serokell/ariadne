@@ -9,6 +9,10 @@ module Ariadne.Wallet.Cardano.Kernel.Types (
   , RawResolvedBlock(..)
   , invRawResolvedBlock
   , mkRawResolvedBlock
+  -- ** Abstract Wallet/AccountIds
+  , WalletId (..)
+  , WalletESKs
+  , accountToWalletId
     -- ** From raw to derived types
   , fromRawResolvedTx
   , fromRawResolvedBlock
@@ -24,12 +28,46 @@ import Data.Word (Word32)
 import Pos.Core
   (MainBlock, Tx, TxAux(..), TxIn(..), TxOut, TxOutAux(..), gbBody, mbTxs,
   mbWitnesses, txInputs, txOutputs)
+import Pos.Crypto (EncryptedSecretKey)
 import Pos.Crypto.Hashing (hash)
 import Pos.Txp (Utxo)
 import Serokell.Util (enumerate)
 
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
+
+{-------------------------------------------------------------------------------
+  Abstract WalletId and AccountId
+-------------------------------------------------------------------------------}
+
+-- | Wallet Id
+--
+-- A Wallet Id can take several forms, the simplest of which is a hash
+-- of the Wallet public key
+data WalletId =
+    -- | HD wallet with randomly generated addresses
+  WalletIdHdRnd HD.HdRootId
+
+    {- potential future kinds of wallet IDs:
+    -- | HD wallet with sequentially generated addresses
+    | WalletIdHdSeq ...
+
+    -- | External wallet (all crypto done off-site, like hardware wallets)
+    | WalletIdExt ...
+    -}
+
+    deriving (Eq, Ord)
+
+-- | Map of Wallet Master keys indexed by WalletId
+--
+-- TODO: We may need to rethink having this in-memory
+-- ESK should _not_ end up in the wallet's acid-state log
+type WalletESKs = Map WalletId EncryptedSecretKey
+
+accountToWalletId :: HD.HdAccountId -> WalletId
+accountToWalletId accountId
+    = WalletIdHdRnd $ accountId ^. HD.hdAccountIdParent
 
 {-------------------------------------------------------------------------------
   Input resolution: raw types

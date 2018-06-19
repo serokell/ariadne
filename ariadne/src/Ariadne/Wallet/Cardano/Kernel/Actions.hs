@@ -1,4 +1,3 @@
-
 module Ariadne.Wallet.Cardano.Kernel.Actions
     ( WalletAction(..)
     , WalletActionInterp(..)
@@ -39,9 +38,9 @@ data WalletAction b
 --   the worker uses these to invoke changes to the
 --   underlying wallet.
 data WalletActionInterp m b = WalletActionInterp
-    { applyBlocks :: OldestFirst NE b -> m ()
+    { applyBlocks  :: OldestFirst NE b -> m ()
     , switchToFork :: Int -> OldestFirst [] b -> m ()
-    , emit :: Text -> m ()
+    , emit         :: Text -> m ()
     }
 
 -- | Internal state of the wallet worker.
