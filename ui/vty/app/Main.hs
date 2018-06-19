@@ -11,6 +11,7 @@ import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
+import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
 import Ariadne.Meta.URL
 import Ariadne.TaskManager.Backend
@@ -31,7 +32,7 @@ type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager, Knit
 
 main :: IO ()
 main = do
-  ariadneConfig <- getConfig
+  ariadneConfig <- getConfig $(getCommitHash)
   let cardanoConfig = acCardano ariadneConfig
       walletConfig = acWallet ariadneConfig
       updateConfig = acUpdate ariadneConfig
