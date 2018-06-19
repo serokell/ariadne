@@ -83,13 +83,13 @@ compatible with Cardano SL mainnet.
 Path to the configuration file can be specified using `--config` option. By
 default `<XdgConfig>/ariadne/ariadne-config.dhall` is used, where
 `<XdgConfig>` is a system-dependent standard directory for local
-configuration files (`~/.config` on Linux or MacOS, %APPDATA% on
+configuration files (`~/.config` on Linux or MacOS, `%APPDATA%` on
 Windows). If some value in the configuration is a relative file path,
 it's treated as relative to the directory in which main configuration
 file (e. g. `ariadne-config.dhall`) is located. There are special
 values which can be used in configuration as file paths:
 * `@DATA` is a system-dependent standard directory for local
-data (`~/.local/share` on Linux or MacOS, %APPDATA% on
+data (`~/.local/share` on Linux or MacOS, `%APPDATA%` on
 Windows) suffixed with `/ariadne`.
 * `@PWD` is the directory from which Ariadne executable is launched.
 
@@ -104,17 +104,7 @@ ariadne` to launch the executable. In order to use GUI launch
 `ariadne-qt`. Make sure to copy [configuration](#Configuration) into
 the default location or pass its location explicitly.
 
-### TUI
-
-By default the `Wallet` tab is open which has a bunch of widgets. To
-switch between widgets use `Tab` and `Shift-Tab`. To change active
-tab, press `Esc` and use arrows or press a hotkey (they will be
-highlighted). The `Help` tab displays all available commands, their
-short description and information about arguments. The `Logs` tab
-displays logs produced by Cardano node and Ariadne itself.
-
-Mouse actions are also supported, you can press buttons or even scroll
-widgets using mouse. Hold `Shift` to select text using mouse.
+For complete usage guide visit [TUI](docs/usage-tui.md) page.
 
 ## For Contributors [↑](#-ariadne)
 
