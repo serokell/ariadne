@@ -31,8 +31,8 @@ openCommandHistory historyFile = do
     counter <- newIORef (-1)
     currentPrefix <- newIORef ""
 
-    conn <- open historyFile
-    execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
+    withConnection historyFile $
+      \conn -> execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
 
     return CommandHistory{..}
 
@@ -50,14 +50,14 @@ changeCommand ch counterChange = do
     prefix <- readIORef (currentPrefix ch)
 
     -- do as little logic in sql as possible
-    conn <- open (historyFile ch)
-    history <- query_ conn "SELECT * FROM history ORDER BY id DESC" :: IO [Row]
+    withConnection (historyFile ch) $ \conn -> do
+      history <- query_ conn "SELECT * FROM history ORDER BY id DESC" :: IO [Row]
 
-    let commands = [ cmd | Row _ cmd <- history ]
-    let result = filter (prefix `T.isPrefixOf`) commands ^? ix newCounter
+      let commands = [ cmd | Row _ cmd <- history ]
+      let result = filter (prefix `T.isPrefixOf`) commands ^? ix newCounter
 
-    when (isJust result) $ writeIORef (counter ch) newCounter
-    return result
+      when (isJust result) $ writeIORef (counter ch) newCounter
+      return result
 
 setPrefix :: CommandHistory -> Text -> IO ()
 setPrefix ch (T.strip -> prefix) = do
@@ -69,6 +69,6 @@ addCommand ch (T.strip -> command) = do
     writeIORef (counter ch) (-1)
     writeIORef (currentPrefix ch) ""
 
-    unless (null command) $ do
-      conn <- open (historyFile ch)
-      execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
+    unless (null command) $
+      withConnection (historyFile ch) $
+        \conn -> execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
