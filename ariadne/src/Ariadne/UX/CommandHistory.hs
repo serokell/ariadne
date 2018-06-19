@@ -11,7 +11,6 @@ import Universum
 
 import Control.Lens (ix)
 import Database.SQLite.Simple
-
 import qualified Data.Text as T
 
 data Row = Row Int T.Text deriving (Show)
