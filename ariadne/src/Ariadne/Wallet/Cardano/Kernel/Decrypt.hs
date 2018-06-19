@@ -3,7 +3,9 @@
 -- decrypting of HDPayload.
 
 module Ariadne.Wallet.Cardano.Kernel.Decrypt
-       ( THEntryExtra (..)
+       ( WAddressMeta (..)
+
+       , THEntryExtra (..)
        , isTxEntryInteresting
        , buildTHEntryExtra
 

@@ -83,6 +83,7 @@ library
     , text
     , text-format
     , temporary
+    , time
     , time-units
     , universum
     , unliftio
@@ -91,16 +92,11 @@ library
     , transformers
     , loc
     , Earley
-    , time-units
-    , serokell-util
     , ii-extras
     , parsec
     , QuickCheck
-    , universum
     , unordered-containers
-    , vector
     , vinyl
-    , word-wrap
   exposed-modules:
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend
@@ -142,7 +138,9 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.InDb
       Ariadne.Wallet.Cardano.Kernel.DB.Resolved
       Ariadne.Wallet.Cardano.Kernel.DB.Spec
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
       Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util
       Ariadne.Wallet.Cardano.Kernel.DB.Sqlite
       Ariadne.Wallet.Cardano.Kernel.DB.TxMeta
       Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types

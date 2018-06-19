@@ -2,6 +2,8 @@
 module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
     -- * Wallet state as mandated by the spec
     Pending(..)
+  , PendingTxs
+  , Balance
   , AccCheckpoint(..)
   , AccCheckpoints
   , AddrCheckpoint(..)
@@ -25,6 +27,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , currentAccUtxoBalance
   , currentAccExpected
   , currentAccPending
+  , currentAccPendingTxs
   , currentAccBlockMeta
   , currentAddrCheckpoint
   , currentAddrUtxoBalance
@@ -54,9 +57,13 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
   Wallet state as mandated by the spec
 -------------------------------------------------------------------------------}
 
+type Balance = Integer
+
+type PendingTxs = Map Core.TxId Core.TxAux
+
 -- | Pending transactions
 data Pending = Pending {
-      _pendingTransactions :: !(InDb (Map Core.TxId Core.TxAux))
+      _pendingTransactions :: InDb PendingTxs
      } deriving Eq
 
 
@@ -125,12 +132,14 @@ currentAccUtxoBalance :: Lens' AccCheckpoints Core.Coin
 currentAccExpected    :: Lens' AccCheckpoints Core.Utxo
 currentAccPending     :: Lens' AccCheckpoints Pending
 currentAccBlockMeta   :: Lens' AccCheckpoints BlockMeta
+currentAccPendingTxs  :: Lens' AccCheckpoints PendingTxs
 
 currentAccUtxo        = currentAccCheckpoint . accCheckpointUtxo        . fromDb
 currentAccUtxoBalance = currentAccCheckpoint . accCheckpointUtxoBalance . fromDb
 currentAccExpected    = currentAccCheckpoint . accCheckpointExpected    . fromDb
-currentAccPending     = currentAccCheckpoint . accCheckpointPending
 currentAccBlockMeta   = currentAccCheckpoint . accCheckpointBlockMeta
+currentAccPending     = currentAccCheckpoint . accCheckpointPending
+currentAccPendingTxs  = currentAccPending . pendingTransactions . fromDb
 
 currentAddrCheckpoint :: Lens' AddrCheckpoints AddrCheckpoint
 currentAddrCheckpoint = neHead

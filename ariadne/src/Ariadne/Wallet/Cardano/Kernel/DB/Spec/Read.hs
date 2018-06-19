@@ -42,21 +42,21 @@ ourUtxo :: IxSet HdAddress -> Utxo -> Utxo
 ourUtxo addrs = Map.filter (ourTxOut addrs)
 
 {-------------------------------------------------------------------------------
-  Pure functions that support read-only operations on an account Checkpoint, as
+  Pure functions that support read-only operations on an AccCheckpoint, as
   defined in the Wallet Spec
 -------------------------------------------------------------------------------}
 
-accountUtxo :: Checkpoint -> Utxo
-accountUtxo = view (checkpointUtxo . fromDb)
+accountUtxo :: AccCheckpoint -> Utxo
+accountUtxo = view (accCheckpointUtxo . fromDb)
 
-accountUtxoBalance :: Checkpoint -> Core.Coin
-accountUtxoBalance = view (checkpointUtxoBalance . fromDb)
+accountUtxoBalance :: AccCheckpoint -> Core.Coin
+accountUtxoBalance = view (accCheckpointUtxoBalance . fromDb)
 
-accountPendingTxs :: Checkpoint -> PendingTxs
-accountPendingTxs = view (checkpointPending . pendingTransactions . fromDb)
+accountPendingTxs :: AccCheckpoint -> PendingTxs
+accountPendingTxs = view (accCheckpointPending . pendingTransactions . fromDb)
 
 -- | The Available Balance is the cached utxo balance minus any (pending) spent utxo
-accountAvailableBalance :: Checkpoint -> Core.Coin
+accountAvailableBalance :: AccCheckpoint -> Core.Coin
 accountAvailableBalance c =
     fromMaybe subCoinErr balance'
     where
@@ -71,15 +71,15 @@ accountAvailableBalance c =
 --   account (represented by the given checkpoint).
 --
 -- NOTE: computing 'change' requires filtering "our" addresses
-accountChange :: (Utxo -> Utxo) -> Checkpoint -> Utxo
+accountChange :: (Utxo -> Utxo) -> AccCheckpoint -> Utxo
 accountChange ours
     = ours . pendingUtxo . accountPendingTxs
 
 -- | The Account Total Balance is the 'available' balance plus any 'change'
 --
 -- NOTE: computing 'total balance' requires filtering "our" addresses, which requires
---       the full set of addresses for this Account Checkpoint
-accountTotalBalance :: IxSet HdAddress -> Checkpoint -> Core.Coin
+--       the full set of addresses for this Account AccCheckpoint
+accountTotalBalance :: IxSet HdAddress -> AccCheckpoint -> Core.Coin
 accountTotalBalance addrs c
     = add' availableBalance changeBalance
     where

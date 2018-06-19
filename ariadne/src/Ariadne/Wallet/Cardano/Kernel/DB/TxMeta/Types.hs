@@ -46,7 +46,6 @@ import Pos.Crypto (shortHashF)
 import Serokell.Util.Text (listJsonIndent, mapBuilder)
 import Test.QuickCheck (Arbitrary(..), Gen, suchThat)
 
-import Pos.Arbitrary.Core ()
 import qualified Pos.Core as Core
 
 {-------------------------------------------------------------------------------
