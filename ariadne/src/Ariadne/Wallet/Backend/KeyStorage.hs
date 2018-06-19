@@ -13,6 +13,7 @@ module Ariadne.Wallet.Backend.KeyStorage
        , getSelectedAddresses
        , renameSelection
        , removeSelection
+       , deriveBip44KeyPair
 
          -- * Exceptions
        , NoWalletSelection (..)
@@ -37,10 +38,11 @@ import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Numeric.Natural (Natural)
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
-import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
+import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair, makePubKeyHdwAddress)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdAccountIx (..), HdAddressIx (..), HdAddressChain (..))
 import Serokell.Data.Memory.Units (Byte)
 
 import Ariadne.Wallet.Face
@@ -123,7 +125,6 @@ data NotARenamableItem = NotARenamableItem
 instance Exception NotARenamableItem where
  displayException NotARenamableItem =
     "This item cannot be renamed."
-
 
 -- | Utility function that runs CatchT monad inside a StateT and rollbacks the state on failure
 runCatchInState :: Functor m => StateT s (CatchT m) a -> StateT s m (Either SomeException a)
@@ -496,3 +497,49 @@ findFirstUnique lastIdx paths = head
     $ dropWhile (`S.member` pathsSet) [lastIdx..]
   where
     pathsSet = V.foldr S.insert S.empty paths
+
+-- ^ This function derives a 3-level address using account index, change index
+--   and address index. The input key should be the master key (not the key
+--   that was derived from purpose and coin type)
+deriveBip44KeyPair ::
+       IsBootstrapEraAddr
+    -> PassPhrase
+    -> EncryptedSecretKey
+    -> HdAccountIx
+    -> HdAddressChain
+    -> HdAddressIx
+    -> Maybe (Address, EncryptedSecretKey)
+deriveBip44KeyPair era pp sk (HdAccountIx accountIdx) change (HdAddressIx addressIdx) =
+    derivePathKeyPair era pp sk
+        [ firstHardened + purpose
+        , firstHardened + coinType
+        , firstHardened + accountIdx
+        , firstNonHardened + case change of
+            HdChainInternal -> 1
+            HdChainExternal -> 0
+        , firstNonHardened + addressIdx
+        ]
+  where
+    -- ADA coin index. This is the year when Ada Lovelace was born.
+    -- https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+    coinType = 1815
+    -- BIP-44 derivation constant
+    purpose = 44
+
+-- ^ This function derives a key (and an address) following an arbitrary derivation path.
+derivePathKeyPair ::
+       IsBootstrapEraAddr
+    -> PassPhrase
+    -> EncryptedSecretKey
+    -> [Word32]
+    -> Maybe (Address, EncryptedSecretKey)
+derivePathKeyPair era pp sk derPath = do
+    addrKey <- mAddrKey
+    let hdPP = deriveHDPassphrase $ encToPublic sk
+        hdPayload = packHDAddressAttr hdPP derPath
+    return (makePubKeyHdwAddress era hdPayload (encToPublic addrKey), addrKey)
+  where
+    mAddrKey = foldM
+        (\sk' (check, idx) -> deriveHDSecretKey (ShouldCheckPassphrase check) pp sk' idx)
+        sk
+        (zip (True:repeat False) derPath) -- check passphrase only once
