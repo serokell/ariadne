@@ -78,9 +78,7 @@ instance Elem components Knit.Cardano => ComponentTokenGen components Knit.Carda
   componentTokenGen =
     [ toToken . Knit.TokenAddress <$> arbitrary
     , toToken . Knit.TokenPublicKey <$> arbitrary
-    , toToken . Knit.TokenStakeholderId <$> arbitrary
     , toToken . Knit.TokenHash <$> arbitrary
-    , toToken . Knit.TokenBlockVersion <$> arbitrary
     ]
 
 instance Elem components Knit.TaskManager => ComponentTokenGen components Knit.TaskManager where
