@@ -99,18 +99,14 @@ test-suite knit-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
-    , universum
-    , ariadne
-    , formatting
-    , scientific
-    , loc
-    , knit
-    , ii-extras
-    , megaparsec
-    , generic-arbitrary
-    , text
     , hspec
+    , ii-extras
+    , knit
+    , loc
+    , megaparsec
     , QuickCheck
+    , text
+    , universum
   other-modules:
   default-language: Haskell2010
   default-extensions:
