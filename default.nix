@@ -20,6 +20,8 @@ let
         preFixup = ''rm -rf "$(pwd)"'';
       }));
 
+      knit = haskell.lib.doCheck previous.knit;
+
       qtah-cpp = overrideCabal previous.qtah-cpp (super: {
         librarySystemDepends = [ qt5.qtbase ];
       });
