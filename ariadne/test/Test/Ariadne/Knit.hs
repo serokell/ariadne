@@ -21,7 +21,7 @@ import Knit
 import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck
-  (Arbitrary(..), Gen, Property, elements, listOf, property)
+  (Arbitrary(..), Gen, Property, elements, listOf, property, (===))
 import Test.QuickCheck.Gen (listOf1, oneof)
 
 knitSpec :: Spec
@@ -42,7 +42,8 @@ propAcceptsAnyInput :: Property
 propAcceptsAnyInput = property $ isJust . (tokenize' @Components) . fromString
 
 propHandlesValidInput :: Property
-propHandlesValidInput = property $ liftA2 (==) (map snd . tokenize . (detokenize @Components)) identity
+propHandlesValidInput =
+    property $ \x -> (map snd $ tokenize $ detokenize @Components x) === x
 
 instance Arbitrary (Token Components) where
   arbitrary = genTokenComponents @Components
