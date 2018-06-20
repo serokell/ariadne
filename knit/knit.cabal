@@ -143,4 +143,4 @@ test-suite knit-test
       TypeOperators
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall
+  ghc-options: -Wall -Werror
