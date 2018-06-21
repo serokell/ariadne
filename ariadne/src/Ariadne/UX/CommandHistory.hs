@@ -9,7 +9,6 @@ module Ariadne.UX.CommandHistory
 
 import Universum
 
-import Control.Lens (ix)
 import Database.SQLite.Simple
 import qualified Data.Text as T
 
@@ -26,14 +25,13 @@ data CommandHistory =
 
 openCommandHistory :: FilePath -> IO CommandHistory
 openCommandHistory historyFile = do
-    -- starts at -1 because we're "one away" from the last command entered
-    counter <- newIORef (-1)
     currentPrefix <- newIORef ""
-
+    currentCounter <- newIORef 0
     withConnection historyFile $
       \conn -> execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
-
-    return CommandHistory{..}
+    let ch = CommandHistory historyFile currentCounter currentPrefix
+    resetCounter ch
+    return ch
 
 toPrevCommand :: CommandHistory -> IO (Maybe Text)
 toPrevCommand ch =
@@ -46,28 +44,37 @@ toNextCommand ch =
 changeCommand :: CommandHistory -> Int -> IO (Maybe Text)
 changeCommand ch counterChange = do
     newCounter <- (+counterChange) <$> readIORef (counter ch)
+    resetCounter ch
     prefix <- readIORef (currentPrefix ch)
+    let comp = if counterChange < 0 then "<=" else ">=" :: Text
+    let order = if counterChange < 0 then "ASC" else "DESC" :: Text
 
-    -- do as little logic in sql as possible
     withConnection (historyFile ch) $ \conn -> do
-      history <- query_ conn "SELECT * FROM history ORDER BY id DESC" :: IO [Row]
-
-      let commands = [ cmd | Row _ cmd <- history ]
-      let result = filter (prefix `T.isPrefixOf`) commands ^? ix newCounter
-
-      when (isJust result) $ writeIORef (counter ch) newCounter
-      return result
+      queryResult <- query conn "SELECT * FROM history WHERE command LIKE '?%' AND id ? ? ORDER BY id ? LIMIT 1" (prefix, comp, newCounter, order)
+      case queryResult of
+        [Row _ cmd] -> return $ Just cmd
+        _ -> do
+          resetCounter ch
+          return Nothing
 
 setPrefix :: CommandHistory -> Text -> IO ()
 setPrefix ch (T.strip -> prefix) = do
-    writeIORef (counter ch) (-1)
+    resetCounter ch
     writeIORef (currentPrefix ch) prefix
 
 addCommand :: CommandHistory -> Text -> IO ()
 addCommand ch (T.strip -> command) = do
-    writeIORef (counter ch) (-1)
+    resetCounter ch
     writeIORef (currentPrefix ch) ""
 
     unless (null command) $
       withConnection (historyFile ch) $
         \conn -> execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
+
+resetCounter :: CommandHistory -> IO ()
+resetCounter ch =
+  withConnection (historyFile ch) $ \conn -> do
+    queryResult <- query_ conn "SELECT MAX(id) FROM history"
+    case queryResult of
+      [[maxId]] -> writeIORef (counter ch) maxId
+      _ -> return ()
