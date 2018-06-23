@@ -46,14 +46,15 @@ instance Exception SecretsDecodingError where
 
 restoreWallet ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> PassPhrase
     -> Maybe WalletName
     -> Mnemonic
     -> WalletRestoreType
     -> IO ()
-restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
+restoreWallet acidDb face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
           lastWord <- NE.last <$> nonEmpty mnemonicWords
@@ -67,78 +68,81 @@ restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
               Left e -> throwM $ WrongMnemonic e
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
-    restoreFromSecretKey face runCardanoMode mbWalletName esk rType
+    restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType
 
 restoreFromKeyFile ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> FilePath
     -> WalletRestoreType
     -> IO ()
-restoreFromKeyFile face runCardanoMode mbWalletName path rType = do
+restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
     keyFile <- BS.readFile path
     us <- case decodeFull' keyFile of
       Left e -> throwM $ SecretsDecodingError path e
       Right us -> pure us
     let templateName i (WalletName n) = WalletName $ n <> " " <> pretty i
     traverse_
-        (\(i,esk) -> restoreFromSecretKey face runCardanoMode (templateName i <$> mbWalletName) esk rType)
+        (\(i,esk) -> restoreFromSecretKey acidDb face runCardanoMode (templateName i <$> mbWalletName) esk rType)
         (zip [(0 :: Int)..] $ us ^. usKeys0)
 
 restoreFromSecretKey ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> EncryptedSecretKey
     -> WalletRestoreType
     -> IO ()
-restoreFromSecretKey face runCardanoMode mbWalletName esk rType = do
+restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType = do
     accounts <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull -> runCardanoMode $ findAccounts esk
-    addWallet face runCardanoMode esk mbWalletName accounts
+    addWallet acidDb face runCardanoMode esk mbWalletName accounts
 
 findAccounts ::
        HasConfiguration
     => EncryptedSecretKey
-    -> CardanoMode (Vector AccountData)
-findAccounts esk = convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPublic esk))
-  where
-    convertRes :: [(Address, [Word32])] -> Vector AccountData
-    convertRes = convertGroups . groupAddresses . filterAddresses
+    -> CardanoMode (Vector HdAccount)
+findAccounts esk = undefined
+--      convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPublic esk))
+--   where
+--     convertRes :: [(Address, [Word32])] -> Vector AccountData
+--     convertRes = convertGroups . groupAddresses . filterAddresses
 
-    -- TODO: simply ignoring addresses which are not at the 2nd level
-    -- is not perfect (though normal users shouldn't have addresses at
-    -- different levels). We should probably at least show some
-    -- message if we encounter such addresses. Let's do it after
-    -- switching to modern wallet data layer.
+--     -- TODO: simply ignoring addresses which are not at the 2nd level
+--     -- is not perfect (though normal users shouldn't have addresses at
+--     -- different levels). We should probably at least show some
+--     -- message if we encounter such addresses. Let's do it after
+--     -- switching to modern wallet data layer.
 
-    -- TODO: how to deduce chain type?
-    filterAddresses :: [(Address, [Word32])] -> [(Address, (Word32, Word32))]
-    filterAddresses =
-        let twoIndices [α, β] = Just (α, β)
-            twoIndices _ = Nothing
-        in mapMaybe (\(addr, indices) -> (addr,) <$> twoIndices indices)
+--     -- TODO: how to deduce chain type?
+--     filterAddresses :: [(Address, [Word32])] -> [(Address, (Word32, Word32))]
+--     filterAddresses =
+--         let twoIndices [α, β] = Just (α, β)
+--             twoIndices _ = Nothing
+--         in mapMaybe (\(addr, indices) -> (addr,) <$> twoIndices indices)
 
-    groupAddresses ::
-        [(Address, (Word32, Word32))] -> Map Word32 [(Word32, Address)]
-    groupAddresses =
-        let step :: Map Word32 [(Word32, Address)] ->
-                    (Address, (Word32, Word32)) ->
-                    Map Word32 [(Word32, Address)]
-            step res (addr, (accIdx, addrIdx)) =
-                res & at accIdx . non mempty %~ ((addrIdx, addr):)
-        in foldl' step mempty
+--     groupAddresses ::
+--         [(Address, (Word32, Word32))] -> Map Word32 [(Word32, Address)]
+--     groupAddresses =
+--         let step :: Map Word32 [(Word32, Address)] ->
+--                     (Address, (Word32, Word32)) ->
+--                     Map Word32 [(Word32, Address)]
+--             step res (addr, (accIdx, addrIdx)) =
+--                 res & at accIdx . non mempty %~ ((addrIdx, addr):)
+--         in foldl' step mempty
 
-    convertGroups :: Map Word32 [(Word32, Address)] -> Vector AccountData
-    convertGroups =
-        let toAccountData (accIdx, addrs) = AccountData
-              { _adName = "Restored account " <> pretty accIdx
-              , _adLastIndex = 0
-              , _adPath = accIdx
-              , _adAddresses = V.fromList addrs
-              }
-        in V.fromList . map toAccountData . Map.toList
+--     convertGroups :: Map Word32 [(Word32, Address)] -> Vector AccountData
+--     convertGroups =
+--         let toAccountData (accIdx, addrs) = AccountData
+--               { _adName = "Restored account " <> pretty accIdx
+--               , _adLastIndex = 0
+--               , _adPath = accIdx
+--               , _adAddresses = V.fromList addrs
+--               }
+--         in V.fromList . map toAccountData . Map.toList

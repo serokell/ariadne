@@ -27,6 +27,7 @@ import Control.Exception (Exception(displayException))
 import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.List (findIndex)
+import Data.Acid (update, query, AcidState)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -35,6 +36,8 @@ import qualified Data.Vector as V
   (findIndex, foldr, fromList, ifilter, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
@@ -58,7 +61,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdAccountIx (..), HdAddressIx 
 import Serokell.Data.Memory.Units (Byte)
 import qualified Data.Map as Map
 
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
@@ -155,7 +157,6 @@ runCatchInState m = StateT $ \s ->
     Right (a, s') -> (Right a, s')
 
 -- | Get the wallet HdRootId by name or using current selection.
--- resolveWalletRef
 resolveWalletRef
   :: IORef (Maybe WalletSelection)
   -> WalletReference
@@ -189,12 +190,11 @@ resolveWalletRef walRef walletSelRef db = case walRef of
     getHdRootId (AccountPath acId) = acId ^. hdAccountIdParent
     getHdRootId (AddressPath adId) = adId ^. hdAddressIdParent . hdAccountIdParent
 
-    getHdRootIdByName :: WalletName -> HdWallets -> Maybe HdRootId
-    getHdRootIdByName wn hdWallets = case IxSet.toList (IxSet.getEQ wn hdWallets) of
+    getHdRootIdByName :: WalletName -> Maybe HdRootId
+    getHdRootIdByName wn = case IxSet.toList (IxSet.getEQ wn hdWallets) of
       [hdWallet] -> Just (hdWallet ^. hdRootId)
       [] -> Nothing
       [f:_] -> error "Bug: _hdRootName duplication"
-
 
   -- TODO: Finish
 resolveAccountRef
@@ -439,7 +439,7 @@ select acidDB WalletFace{..} walletSelRef mWalletRef wsPath = do
               -- validate address
               hdAddr <- maybeThrow
                 (AddressDoesNotExist $ pretty addrIdx)
-                ((IxSet.toList getAddresses wallets (hdAccount ^. hdAccountId)) ^? ix (fromIntegral accIdx))
+                ((toAddressList (getAddresses wallets (hdAccount ^. hdAccountId))) ^? ix (fromIntegral accIdx))
               return $ Just $ AddressPath $ hdAddr ^. hdAddressId
             Just (_ :| _) -> throwM SelectIsTooDeep
   atomicWriteIORef walletSelRef (WalletSelection <$> mbPath)

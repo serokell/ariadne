@@ -60,6 +60,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , zoomOrCreateHdAddress
   , assumeHdRootExists
   , assumeHdAccountExists
+    -- * Helpers
+    toAddressList
   ) where
 
 import Universum
@@ -340,6 +342,8 @@ instance IxSet.Indexable (HdAddressId ': HdAddressIxs)
 -- We use a flat "relational" structure rather than nested maps so that we can
 -- go from address to wallet just as easily as the other way around.
 data HdWallets = HdWallets {
+  -- it should be IxSet (ixs :: [*]) (a :: *),
+  -- but it seems to be IxSet (a :: *)
     _hdWalletsRoots     :: IxSet HdRoot
   , _hdWalletsAccounts  :: IxSet HdAccount
   , _hdWalletsAddresses :: IxSet HdAddress
@@ -476,3 +480,8 @@ instance Buildable UnknownHdAccount where
         = bprint ("UnknownHdAccountRoot: "%build) rootId
     build (UnknownHdAccount accountId)
         = bprint ("UnknownHdAccount accountId: "%build) accountId
+
+toAddressList :: IxSet HdAddress -> [HdAddress]
+toAddressList s = concat2 (partition (^. hdAddressChain == HdChainExternal) (IxSet.toList s))
+  where
+    concat2 (a,b) = a ++ b

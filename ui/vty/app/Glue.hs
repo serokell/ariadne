@@ -22,6 +22,7 @@ module Glue
 
 import Universum
 
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
@@ -46,6 +47,8 @@ import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
+
+import Data.List.Index (indexed)
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
@@ -259,25 +262,39 @@ toUiWalletDatas db = toUiWalletData <$> hdRoots
     toUiWalletData :: HdRoot -> UiWalletData
     toUiWalletData HdRoot {..} = UiWalletData
       { _uwdName = unHdRootName _hdRootName
-      , _uwdAccounts = toUiAccountData <$> IxSet.toList $
+      , _uwdAccounts = toUiAccountData <$> indexed IxSet.toAscList (Proxy :: AccountName) $
         fromRight (error "Bug: RootId not found") (readAccountsByRootId _hdRootId)
       }
 
-    toUiAccountData :: HdAccount -> UiAccountData
-    toUiAccountData HdAccount {..} = UiAccountData
+    -- TODO: use the same indexation as in select
+    toUiAccountData :: (Word32, HdAccount) -> UiAccountData
+    toUiAccountData (accIdx, HdAccount {..}) = UiAccountData
       { _uadName = _hdAccountName
-      , _uadPath =  _hdAccountId ^. _hdAccountIdIx -- TODO: Check if I guessed it right.
-      , _uadAddresses = toUiAddresses <$> IxSet.toList $
-        fromRight (error "Bug: AccountId not found") (readAddressesByAccountId _hdAccountId)
+      -- path indexation should be the same as in selection
+      , _uadPath =  [accIdx]
+
+      , _uadAddresses = map toUiAddresses indexed $ getAccountAddrs _hdAccountId
       }
-    -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess.
-    toUiAddresses :: HdAddress -> ((HdAddressChain, Word32), Address)
-    toUiAddresses HdAddress {..} =
-      ((_hdAddressChain, unHdAccountIx (_hdAddressId ^. hdAccountIdIx)), fromIndb _hdAddressAddress)
+
+    -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess, but
+    -- AFAIU we don't want a new layer, so addresses of both types wiil be in one list -- External first.
+
+    toUiAddresses :: (Word32, HdAddress) -> (Word32, Address)
+    toUiAddresses (addrIx, HdAddress {..}) = (addrIx, fromIndb _hdAddressAddress)
 
     unHdAccountIx (HdAccountIx w) = w
 
     fromIndb (InDb x) = x
+
+    -- External chain listed first
+    getAccountAddrs _hdAccountId = toAddressList $
+      fromRight (error "Bug: AccountId not found") (readAddressesByAccountId hdRoots _hdAccountId)
+
+
+-- TODO:
+-- class IxSetConvertable a where
+--   toList :: IxSet a -> [a]
+--   fromList :: [a] -> HdWallets -> WalletSelection
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
 -- event couldn't be mapped to a UI event.
@@ -287,14 +304,61 @@ walletEventToUI = \case
     Just $ UiWalletEvent $
       UiWalletUpdate
         (uiWalletDatasToTree uiwd)
-        (walletSelectionToUI <$> sel)
-        (walletSelectionToPane uiwd <$> sel)
+        (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
+        ((walletSelectionToPane uiwd) . (toUiWalletSelection db) <$> sel)
   where
     uiwd = toUiWalletDatas (db ^. hdWallets)
 
-walletSelectionToUI :: WalletSelection -> UiTreeSelection
-walletSelectionToUI WalletSelection{..} =
-  UiTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+data UiWalletSelection = UiWalletSelection
+  { uwsWalletIdx :: Word
+  , uwsPath :: [Word]
+  }
+
+toUiWalletSelection :: DB -> WalletSelection -> UiWalletSelection
+toUiWalletSelection db WalletSelection{..} = case wsPath of
+  RootPath rootId ->
+    UiWalletSelection (getHdRootIdx rootId) []
+  AccountPath accountId ->
+    let
+      parentRootId = accountId ^. hdAccountIdParent
+    in
+      UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx parentRootId accountId)]
+  AddressPath addressId ->
+    let
+      parentAccountId = addressId ^. hdAddressIdParent
+      parentRootId = parentAccountId ^. hdAccountIdParent
+    in
+      UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx accountId), (getAddressIdx addressId)]
+  where
+    walletList = indexed . IxSet.toAscList (Proxy :: WalletName) $ readAllHdRoots (db ^. hdWallets)
+
+    -- Does selection always exist?
+    accountList = indexed . IxSet.toAscList (Proxy :: AccountName) $
+      fromRight
+        (error "Bug: parentRootId does not exist")
+        (readAccountsByRootId parentRootId (db ^. hdWallets))
+
+    addressList = indexed . toAddressList $
+      fromRight
+        (error "Bug: parentRootId does not exist")
+        (readAccountsByRootId parentRootId (db ^. hdWallets))
+
+    getHdRootIdx rootId = fromMaybe
+      (error "Bug: selected Wallet does not exist.")
+      (head filter (\(idx, wal) -> wal ^. hdRootId == rootId) walletList)
+
+    getAccountIdx accountId = fromMaybe
+      (error "Bug: selected Account does not exist.")
+      (head filter (\(idx, acc) -> acc ^. hdAccountId == accountId) accountList)
+
+    getAddressIdx addressId = fromMaybe
+      (error "Bug: selected Address does not exist.")
+      (head filter (\(idx, addr) -> addr ^. hdAddressId == addressId) addressList)
+
+uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
+uiWalletSelectionToTreeSelection UiWalletSelection{..} =
+  UiWalletTreeSelection { wtsWalletIdx = uwsWalletIndex, wtsPath = uwsPath }
+
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
@@ -331,11 +395,11 @@ uiWalletDatasToTree = map toTree
                 }
 
 -- TODO: chnge to use chain type level
-walletSelectionToPane :: [UiWalletData] -> WalletSelection -> UiWalletPaneInfo
-walletSelectionToPane uiwd WalletSelection{..} = UiWalletPaneInfo{..}
+walletSelectionToPane :: [UiWalletData] -> UiWalletSelection -> UiWalletPaneInfo
+walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletPaneInfo{..}
   where
-    wpiWalletIdx = wsWalletIndex
-    wpiPath = wsPath
+    wpiWalletIdx = uwsWalletIndex
+    wpiPath = uwsPath
     (wpiType, wpiLabel) = case uiwd ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> error "Invalid wallet index"
       Just WalletData{..} -> case wsPath of
