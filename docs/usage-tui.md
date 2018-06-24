@@ -44,6 +44,14 @@ All widgets that have a lot of text (e.g. About and Logs) can be scrolled with m
 On the `Wallet` tab you can see all your wallets with their accounts and addresses organized in a
 tree. To the right of the tree you can see details of the selected wallet, account or address.
 
+The tree can be navigated in several ways. First of all, you can select any entry by clicking it
+with mouse. You can also change the current selection with the keyboard. Up and Down keys will go to
+the previous and the next item respectively, including the `[ + Add wallet ]` button. Right key will
+go to the first child of the current item and Left key will go to the parent. Ctrl-Up and Ctrl-Down
+can be used to switch between items of the same type &mdash; e.g. go to the next or previous wallet,
+if a wallet is currently selected. Finally, `h`, `j`, `k`, `l` keys will work exactly as arrow keys
+(without Ctrl).
+
 To create a new wallet, select `[ + Add wallet ]` line in the tree, so that a special widget appears
 to the right. There you can either create a completely new wallet by specifying its name and a
 passphrase, or restore an existing one. When a new wallet is created, Ariadne will print you its

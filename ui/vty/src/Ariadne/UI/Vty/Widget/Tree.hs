@@ -180,18 +180,22 @@ data TreeWidgetEvent
   | TreeNavigationDown
   | TreeNavigationLeft
   | TreeNavigationRight
+  | TreeNavigationPrev
+  | TreeNavigationNext
 
 keyToTreeEvent
   :: KeyboardEvent
   -> Maybe TreeWidgetEvent
 keyToTreeEvent = \case
-  KeyUp -> Just TreeNavigationUp
-  KeyDown -> Just TreeNavigationDown
+  KeyCtrlUp -> Just TreeNavigationUp
+  KeyCtrlDown -> Just TreeNavigationDown
+  KeyUp -> Just TreeNavigationPrev
+  KeyDown -> Just TreeNavigationNext
   KeyLeft -> Just TreeNavigationLeft
   KeyRight -> Just TreeNavigationRight
   KeyChar 'h' -> Just TreeNavigationLeft
-  KeyChar 'j' -> Just TreeNavigationDown
-  KeyChar 'k' -> Just TreeNavigationUp
+  KeyChar 'j' -> Just TreeNavigationNext
+  KeyChar 'k' -> Just TreeNavigationPrev
   KeyChar 'l' -> Just TreeNavigationRight
   _ -> Nothing
 
@@ -218,8 +222,23 @@ handleTreeWidgetEvent UiLangFace{..} = \case
   TreeNavigationDown -> defaultPath $ applyToLast (\x -> if maxBound == x then x else succ x)
   TreeNavigationLeft -> defaultPath $ NE.init
   TreeNavigationRight -> defaultPath $ (++ [0]) . toList
+
+  TreeNavigationPrev -> whenJustM (modifiedPath False) putSelect
+  TreeNavigationNext -> whenJustM (modifiedPath True) putSelect
+
   where
     putSelect = void . liftIO . langPutUiCommand . UiSelect
     applyToLast :: (Word -> Word) -> NE.NonEmpty Word -> [Word]
     applyToLast f xs = NE.init xs ++ [f (NE.last xs)]
     defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect
+
+    modifiedPath forward = runMaybeT $ do
+      selection <- MaybeT $ use treeSelectionL
+      items <- use treeItemsL
+
+      let restItems =
+            if forward
+               then drop (selection + 1) items
+               else reverse $ take selection items
+
+      MaybeT $ return $ asum $ map treeItemPath restItems
