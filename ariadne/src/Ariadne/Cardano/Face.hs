@@ -1,6 +1,7 @@
 module Ariadne.Cardano.Face
        ( CardanoContext
-       , CardanoMode
+       , CardanoMode (..)
+       , CardanoModeMonad
        , CardanoStatusUpdate (..)
        , CardanoEvent (..)
        , CardanoFace (..)
@@ -26,19 +27,36 @@ module Ariadne.Cardano.Face
 
 import Universum
 
+import Control.Monad.Base (MonadBase)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Trans.Reader (ReaderT)
+import Crypto.Random (MonadRandom)
 import Data.Constraint (Dict(..))
 import IiExtras
-import Mockable (Production)
+import Mockable
+  (ChannelT, Counter, Distribution, Gauge, MFunctor', Mockable, Production,
+  Promise, SharedAtomicT, SharedExclusiveT, ThreadId, hoist', liftMockable)
+import Pos.Block.BListener (MonadBListener, onApplyBlocks, onRollbackBlocks)
 import Pos.Core
-  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HeaderHash,
-  LocalSlotIndex(..), SlotId(..), TxId, TxOut(..), decodeTextAddress)
+  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HasConfiguration,
+  HeaderHash, LocalSlotIndex(..), SlotId(..), TxId, TxOut(..),
+  decodeTextAddress)
 import Pos.Crypto (PassPhrase)
+import Pos.DB (MonadGState(..))
+import Pos.DB.Block (dbGetSerBlockRealDefault, dbGetSerUndoRealDefault)
+import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
+import Pos.DB.Rocks (dbGetDefault, dbIterSourceDefault)
 import Pos.Infra.Diffusion.Types (Diffusion)
+import Pos.Infra.Reporting (MonadReporting(..))
+import Pos.Infra.Slotting.Class (MonadSlots(..))
+import Pos.Infra.Util.TimeWarp (CanJsonLog(..))
 import Pos.Launcher (HasConfigurations)
+import Pos.Txp (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..))
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.UserSecret (UserSecret, usWallets)
 import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
+import System.Wlog (CanLog, HasLoggerName(..), logDebug)
 
 data CardanoStatusUpdate = CardanoStatusUpdate
   { tipHeaderHash :: HeaderHash
@@ -58,7 +76,69 @@ data CardanoEvent
 
 type CardanoContext = RealModeContext EmptyMempoolExt
 
-type CardanoMode = ReaderT CardanoContext Production
+type CardanoModeMonad = ReaderT CardanoContext Production
+newtype CardanoMode a
+  = CardanoMode
+  { unwrapCardanoMode :: CardanoModeMonad a
+  }
+  deriving
+    ( HasLoggerName
+    , CanLog
+    , Functor
+    , Applicative
+    , Monad
+    , MonadReader CardanoContext
+    , MonadIO
+    , MonadThrow
+    , MonadCatch
+    , MonadMask
+    , MonadBase IO
+    , MonadBaseControl IO
+    , MonadRandom
+    , CanJsonLog
+    , MonadUnliftIO
+    )
+
+type instance ThreadId CardanoMode = ThreadId CardanoModeMonad
+type instance Promise CardanoMode = Promise CardanoModeMonad
+type instance SharedAtomicT CardanoMode = SharedAtomicT CardanoModeMonad
+type instance SharedExclusiveT CardanoMode = SharedExclusiveT CardanoModeMonad
+type instance ChannelT CardanoMode = ChannelT CardanoModeMonad
+type instance Gauge CardanoMode = Gauge CardanoModeMonad
+type instance Counter CardanoMode = Counter CardanoModeMonad
+type instance Distribution CardanoMode = Distribution CardanoModeMonad
+type instance MempoolExt CardanoMode = MempoolExt CardanoModeMonad
+
+-- Cardano instances
+deriving instance HasConfiguration => MonadSlots CardanoContext CardanoMode
+deriving instance HasConfiguration => MonadGState CardanoMode
+deriving instance HasConfiguration => MonadDB CardanoMode
+deriving instance (HasConfiguration, HasTxpConfiguration) => MonadTxpLocal CardanoMode
+deriving instance MonadReporting CardanoMode
+
+instance MonadBListener CardanoMode where
+  onApplyBlocks _ = do
+    logDebug "BListener: Apply"
+    pure mempty
+  onRollbackBlocks _ = do
+    logDebug "BListener Debug"
+    pure mempty
+
+instance
+  ( Mockable d Production
+  , MFunctor' d CardanoMode CardanoModeMonad
+  , MFunctor' d CardanoModeMonad Production
+  )
+  => Mockable d CardanoMode where
+  liftMockable = CardanoMode . liftMockable . hoist' unwrapCardanoMode
+
+-- For some reason using `deriving instance` on this one didn't work
+-- so I define it manually
+instance HasConfiguration => MonadDBRead CardanoMode where
+    dbGet = dbGetDefault
+    dbIterSource = dbIterSourceDefault
+    dbGetSerBlock = dbGetSerBlockRealDefault
+    dbGetSerUndo = dbGetSerUndoRealDefault
 
 data CardanoFace = CardanoFace
     { cardanoRunCardanoMode :: CardanoMode :~> IO
