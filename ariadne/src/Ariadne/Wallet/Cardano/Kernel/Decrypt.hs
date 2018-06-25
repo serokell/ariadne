@@ -118,7 +118,7 @@ decryptAddress hdPass addr = do
     toTuple5 [a, b, c, d, e] = Just (a, b, c, d, e)
     toTuple5 _ = Nothing
 
-    -- TODO (thatguy): use Word31 as output type
+    -- TODO (AD-219): use Word31 as output type
     fromNonHardened :: Word32 -> Maybe Word32
     fromNonHardened idx = do
         guard $ isNonHardened idx
@@ -140,7 +140,7 @@ decryptAddress hdPass addr = do
     mkAddressChain 1 = Just HdChainInternal
     mkAddressChain _ = Nothing
 
-    -- TODO (thatguy): refactor these constants together with similar ones in KeyStorage
+    -- TODO (AD-219): refactor these constants together with similar ones in KeyStorage
     -- into a separate file
     bip44Purpose :: Word32
     bip44Purpose = 44
