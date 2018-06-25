@@ -23,12 +23,18 @@ module Ariadne.Wallet.Backend.KeyStorage
 
 import Universum
 
+import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
+import Data.Acid (AcidState, query, update)
 import Data.List (findIndex)
-import Data.Acid (update, query, AcidState)
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
@@ -36,8 +42,6 @@ import qualified Data.Vector as V
   (findIndex, foldr, fromList, ifilter, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
@@ -57,9 +61,9 @@ import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdAccountIx (..), HdAddressIx (..), HdAddressChain (..))
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Serokell.Data.Memory.Units (Byte)
-import qualified Data.Map as Map
 
 import Ariadne.Wallet.Face
 
@@ -202,9 +206,8 @@ resolveAccountRef
   -> AccountReference
   -> DB
   -> IO HdAccountId
-resolveAccountRef walletSelRef accountRef acidDb = undefined
+resolveAccountRef walletSelRef accountRef walletDb = undefined
   -- mWalletSelection <- readIORef walletSelRef
-  -- walletDb <- query acidDB Snapshot
   -- accId <- case accountRef of
   --   AccountRefSelection -> do
   --     mWalletSelection <- readIORef walletSelRef
@@ -239,7 +242,8 @@ newAddress dbACID WalletFace {..} walletSelRef accRef chain pp = do
 
   hdAccountId <- resolveAccountRef walletSelRef walletDb accRef
 
-  let hdAddressId = HdAccountId
+  let
+    hdAddressId = HdAccountId
       { _hdAddressIdParent = hdAccountId
       , _hdAddressIdIx = mkAddrIdx walletDb hdAccountId
       }
@@ -295,7 +299,8 @@ newAccount acidDB WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
   walletDb <- query acidDB Snapshot
   hdRootId <- resolveWalletRef walletSelRef walletDb walletRef
   -- need to query ixSet to find if the name already in db
-  let accounts = case readAccountsByRootId hdRootId walletDb of
+  let
+    accounts = case readAccountsByRootId hdRootId walletDb of
       Left err -> throwM err
       Right acc -> acc
 
@@ -390,14 +395,14 @@ addWallet acidDB wf@WalletFace {..} runCardanoMode esk mbWalletName accounts = d
   let assurance = undefined
 
   update acidDB (CreateHdRoot hdRootId walletName hasPass assurance timestamp)
-  forM_ accounts \acc ->
+  forM_ accounts (\acc ->
     newAccount
       acidDB
       wf
       Nothing
       (WalletRefByHdRootId hdRootId)
       (Just acc ^. hdAccountName)
-      (Just head (acc ^. hdAccountCheckpoints))
+      (Just head (acc ^. hdAccountCheckpoints)))
     -- Drawbacks:
     -- * This will spawn a sequence of walletState events
     -- * What if exeption (e.g. duplicate accoun name) raised
