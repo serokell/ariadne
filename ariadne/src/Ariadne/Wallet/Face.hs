@@ -4,6 +4,7 @@ module Ariadne.Wallet.Face
   , WalletEvent(..)
   , WalletReference(..)
   , AccountReference(..)
+  , LocalAccountReference(..)
   , WalletSelection(..)
   , WalletName(..)
   , Mnemonic(..)
@@ -36,6 +37,13 @@ data AccountReference
   | AccountRefByIndex !Word32 !WalletReference
   | AccountRefByName !Text !WalletReference
 
+-- | Reference to an account inside a wallet.
+data LocalAccountReference
+  = LocalAccountRefByIndex !Word
+  -- ^ Reference by index in UI.
+  | LocalAccountRefByName !Text
+  -- ^ Reference by account name.
+
 -- | Single string representing a mnemonic, presumably space-separated
 -- list of words.
 newtype Mnemonic = Mnemonic
@@ -62,7 +70,8 @@ data WalletFace =
     , walletRemove :: IO ()
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
-    , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId
+    , walletSend ::
+        PassPhrase -> WalletReference -> [LocalAccountReference] -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, UserSecret)
     , walletBalance :: IO Coin
     }
