@@ -14,16 +14,20 @@ import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
 import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
 import qualified Pos.DB.BlockIndex as DB
-import Pos.Infra.Diffusion.Types (Diffusion)
+import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
 import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
+import Pos.Txp (txpGlobalSettings)
+import Pos.Launcher.Resource (NodeResources (..), bracketNodeResources)
+import Pos.DB.DB (initNodeDBs)
 import Pos.Util.UserSecret (usVss)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
   showTimeB, usingLoggerName)
+import Mockable (Production (..))
 
 import Ariadne.Cardano.Face
 
@@ -44,7 +48,7 @@ createCardanoBackend cardanoConfig = do
           , runCardanoNode cardanoContextVar diffusionVar commonArgs)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
-runCardanoMode cardanoContextVar act = do
+runCardanoMode cardanoContextVar (CardanoMode act) = do
   cardanoContext <- readMVar cardanoContextVar
   runProduction $ runReaderT act cardanoContext
 
@@ -79,7 +83,11 @@ runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
               , extractionWorker
               , statusPollingWorker sendCardanoEvent
               ]
-      runNodeReal nodeParams sscParams workers
+      let convertMode f = unwrapCardanoMode . f . hoistDiffusion CardanoMode
+      let runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
+            $ \nr@NodeResources{..} ->
+                Production . runRealMode nr . convertMode $ runNode nr workers
+      runProduction runMode
 
 statusPollingWorker ::
        (HasConfigurations)
