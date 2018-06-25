@@ -43,8 +43,8 @@ type UtxoWithAddrId = Map TxIn (TxOutAux,HdAddressId)
 --   the Address in the context of the Wallet/Accounts/Addresses hierarchy.
 type AddrWithId = (HdAddressId,Address)
 
--- | Utxo along with all (extended) addresses ocurring in the Utxo
-type PrefilteredUtxo = (Utxo,[AddrWithId])
+-- | A mapping from (extended) addresses to their corresponding Utxo
+type PrefilteredUtxo = Map AddrWithId Utxo
 
 -- | Prefiltered block
 --
@@ -66,14 +66,26 @@ deriveSafeCopySimple 1 'base ''PrefilteredBlock
 type WalletKey = (WalletId, HDPassphrase)
 
 toPrefilteredUtxo :: UtxoWithAddrId -> PrefilteredUtxo
-toPrefilteredUtxo utxoWithAddrs = (Map.fromList utxo', addrs')
-    where
-        toUtxo  (txIn,(txOutAux,_))         = (txIn,txOutAux)
-        toAddrs (_   ,(txOutAux,addressId)) = (addressId, txOutAddress . toaOut $ txOutAux)
+toPrefilteredUtxo utxoWithAddrs =
+    mapValues Map.fromList $ groupBy key value utxoWithAddrs
+  where
+    key :: (TxIn, (TxOutAux, HdAddressId)) -> AddrWithId
+    key (_, (txOutAux, addrId)) = (addrId, txOutAddress . toaOut $ txOutAux)
+    value :: (TxIn, (TxOutAux, HdAddressId)) -> (TxIn, TxOutAux)
+    value (txIn, (txOutAux, _)) = (txIn, txOutAux)
 
-        utxoWithAddrs' = Map.toList utxoWithAddrs
-        utxo'  = map toUtxo  utxoWithAddrs'
-        addrs' = map toAddrs utxoWithAddrs'
+    groupBy
+        :: (Ord k2)
+        => ((k1, v1) -> k2)
+        -> ((k1, v1) -> v2)
+        -> Map k1 v1
+        -> Map k2 [v2]
+    groupBy getKey getValue =
+      Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
+
+    -- TODO: Is there a more efficient way to do this?
+    mapValues :: Ord k => (v1 -> v2) -> Map k v1 -> Map k v2
+    mapValues f = Map.fromList . map (\(k, v) -> (k, f v)) . Map.toList
 
 -- | Prefilter the transactions of a resolved block for the given wallet.
 --
@@ -90,8 +102,10 @@ prefilterBlock wid esk block
         where
             byAccountId accId'' def dict = fromMaybe def $ Map.lookup accId'' dict
 
-            inps'           =                    byAccountId accId' Set.empty inpAll
-            (outs', addrs') = toPrefilteredUtxo (byAccountId accId' Map.empty outAll)
+            inps'    =                    byAccountId accId' Set.empty inpAll
+            prefUtxo = toPrefilteredUtxo (byAccountId accId' Map.empty outAll)
+            addrs'   = Map.keys prefUtxo
+            outs'    = Map.unions $ Map.elems prefUtxo
 
     hdPass :: HDPassphrase
     hdPass = eskToHDPassphrase esk
@@ -172,11 +186,13 @@ prefilter (wid,hdPass) selectAddr rtxs
           toAddressId :: WalletId -> WAddressMeta -> HdAddressId
           toAddressId (WalletIdHdRnd rootId) meta' = addressId
               where
-                  accountIx = HdAccountIx (_wamAccountIndex meta')
+                  accountIx = _wamAccountIndex meta'
                   accountId = HdAccountId rootId accountIx
 
-                  addressIx = HdAddressIx (_wamAddressIndex meta')
-                  addressId = HdAddressId accountId addressIx
+                  addressChain = _wamAddressChain meta'
+
+                  addressIx = _wamAddressIndex meta'
+                  addressId = HdAddressId accountId addressChain addressIx
 
 {-------------------------------------------------------------------------------
   Pretty-printing

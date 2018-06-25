@@ -160,14 +160,12 @@ initHdAccount accountId checkpoint = HdAccount {
 -- address index, as we do not have access to a random number generator here.
 initHdAddress :: HdAddressId
               -> InDb Core.Address
-              -> HdAddressChain
               -> AddrCheckpoint
               -> HdAddress
-initHdAddress addrId address chain checkpoint = HdAddress {
+initHdAddress addrId address checkpoint = HdAddress {
       _hdAddressId          = addrId
     , _hdAddressAddress     = address
     , _hdAddressIsUsed      = error "TODO: _hdAddressIsUsed"
-    , _hdAddressChain       = chain
     , _hdAddressCheckpoints = checkpoint :| []
     }
 

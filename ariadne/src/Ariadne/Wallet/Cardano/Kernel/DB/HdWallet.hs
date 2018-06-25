@@ -26,6 +26,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , hdAccountIdIx
   , hdAddressIdParent
   , hdAddressIdIx
+  , hdAddressIdChain
   , hdRootId
   , hdRootName
   , hdRootHasPassword
@@ -38,7 +39,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , hdAddressId
   , hdAddressAddress
   , hdAddressIsUsed
-  , hdAddressChain
   , hdAddressCheckpoints
     -- ** Composite lenses
   , hdAccountRootId
@@ -92,15 +92,15 @@ newtype AccountName = AccountName Text
 
 -- | Account index
 newtype HdAccountIx = HdAccountIx Word32
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Address index
 newtype HdAddressIx = HdAddressIx Word32
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Wallet assurance level
 --
@@ -144,6 +144,7 @@ data HdAccountId = HdAccountId {
 -- | HD wallet address ID
 data HdAddressId = HdAddressId {
       _hdAddressIdParent :: HdAccountId
+    , _hdAddressIdChain  :: HdAddressChain
     , _hdAddressIdIx     :: HdAddressIx
     }
   deriving (Eq, Ord)
@@ -205,11 +206,6 @@ data HdAddress = HdAddress {
       -- TODO: How is this determined? What is the definition? How is it set?
       -- TODO: This will likely move to the 'BlockMeta' instead.
     , _hdAddressIsUsed  :: Bool
-
-      -- | Whether this address is derived on the external or internal chain.
-      -- Invariant: this must match the actual derivation scheme which
-      -- yields _hdAddressAddress.
-    , _hdAddressChain   :: HdAddressChain
 
       -- | Part of the wallet state pertaining to this address,
       -- as stipulated by the wallet specification
@@ -458,13 +454,17 @@ instance Buildable HdAccountId where
     build (HdAccountId parentId accountIx)
         = bprint ("HdAccountId: "%build%", "%build) parentId accountIx
 
+instance Buildable HdAddressChain where
+    build HdChainInternal = bprint "internal"
+    build HdChainExternal = bprint "external"
+
 instance Buildable HdAddressIx where
     build (HdAddressIx ix)
         = bprint ("HdAddressIx: "%build) ix
 
 instance Buildable HdAddressId where
-    build (HdAddressId parentId addressIx)
-        = bprint ("HdAddressId: "%build%", "%build) parentId addressIx
+    build (HdAddressId parentId chain addressIx)
+        = bprint ("HdAddressId: "%build%", "%build%", "%build) parentId chain addressIx
 
 instance Buildable UnknownHdAccount where
     build (UnknownHdAccountRoot rootId)

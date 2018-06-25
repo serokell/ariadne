@@ -42,7 +42,7 @@ import Pos.Core.Chrono (OldestFirst(..))
 import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-  (AddrWithId, PrefilteredBlock(..), PrefilteredUtxo)
+  (PrefilteredBlock(..), PrefilteredUtxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -146,15 +146,16 @@ applyBlock (blocksByAccount,meta) = runUpdateNoErrors $ zoom dbHdWallets $
         initUtxoAndAddrs
         (\prefBlock -> zoom hdAccountCheckpoints $
                            modify $ Spec.applyBlock (prefBlock,meta))
+        (\prefBlock -> zoom hdAddressCheckpoints $
+                           modify $ Spec.applyBlock (prefBlock,meta))
         blocksByAccount
-        -- TODO update address checkpoints here
   where
     -- Accounts are discovered during wallet creation (if the account was given
     -- a balance in the genesis block) or otherwise, during ApplyBlock. For
     -- accounts discovered during ApplyBlock, we can assume that there was no
     -- genesis utxo, hence we use empty initial utxo for such new accounts.
-    initUtxoAndAddrs :: PrefilteredBlock -> (Utxo, [AddrWithId])
-    initUtxoAndAddrs pb = (Map.empty, pfbAddrs pb)
+    initUtxoAndAddrs :: PrefilteredBlock -> PrefilteredUtxo
+    initUtxoAndAddrs pb = Map.fromList [(addr, Map.empty) | addr <- pfbAddrs pb]
 
 -- | Switch to a fork
 --
@@ -186,8 +187,12 @@ createHdWallet newRoot utxoByAccount = runUpdate' . zoom dbHdWallets $ do
       HD.createHdRoot newRoot
       createPrefiltered
         identity
-        (\_ -> return ()) -- we just want to create the accounts
+        doNothing -- we just want to create the accounts
+        doNothing
         utxoByAccount
+  where
+    doNothing :: forall p a e. p -> Update' a e ()
+    doNothing _ = return ()
 
 {-------------------------------------------------------------------------------
   Internal auxiliary: apply a function to a prefiltered block/utxo
@@ -196,42 +201,51 @@ createHdWallet newRoot utxoByAccount = runUpdate' . zoom dbHdWallets $ do
 -- | For each of the specified accounts, create them if they do not exist,
 -- and apply the specified function.
 createPrefiltered :: forall p e.
-                     (p -> (Utxo, [AddrWithId]))
-                      -- ^ Initial UTxO (when we are creating the account),
-                      -- as well as set of addresses the account should have
+                     (p -> PrefilteredUtxo)
+                      -- ^ Initial UTxO for each of the addresses in the
+                      -- newly created account, as well as the addresses
+                      -- themselves
                   -> (p -> Update' HdAccount e ())
                       -- ^ Function to apply to the account
-                  -> Map HdAccountId p -> Update' HdWallets e ()
-createPrefiltered initUtxoAndAddrs applyP accs = do
+                  -> (p -> Update' HdAddress e ())
+                      -- ^ Function to apply to the address
+                  -> Map HdAccountId p
+                  -> Update' HdWallets e ()
+createPrefiltered initUtxoAndAddrs accApplyP addrApplyP accs =
       forM_ (Map.toList accs) $ \(accId, p) -> do
-        let utxo  :: Utxo
-            addrs :: [AddrWithId]
-            (utxo, addrs) = initUtxoAndAddrs p
+        let prefUtxo :: PrefilteredUtxo
+            prefUtxo = initUtxoAndAddrs p
+            accUtxo :: Utxo
+            accUtxo = Map.unions $ Map.elems prefUtxo
 
         -- apply the update to the account
         zoomOrCreateHdAccount
             assumeHdRootExists
-            (newAccount accId utxo)
+            (newAccount accId accUtxo)
             accId
-            (applyP p)
+            (accApplyP p)
 
         -- create addresses (if they don't exist)
-        forM_ addrs $ \(addressId, address) -> do
-            let newAddress :: HdAddress
-                newAddress = HD.initHdAddress addressId (InDb address) (error "chain") (error "checkpoints")
+        forM_ (Map.toList prefUtxo) $ \((addressId, address), addrUtxo) -> do
+            let firstAddrCheckpoint = AddrCheckpoint {
+                  _addrCheckpointUtxo        = InDb addrUtxo
+                , _addrCheckpointUtxoBalance = InDb $ Spec.balance addrUtxo
+                }
+                newAddress :: HdAddress
+                newAddress = HD.initHdAddress addressId (InDb address) firstAddrCheckpoint
 
             zoomOrCreateHdAddress
                 assumeHdAccountExists -- we created it above
                 newAddress
                 addressId
-                (return ())
+                (addrApplyP p)
 
         where
             newAccount :: HdAccountId -> Utxo -> HdAccount
-            newAccount accId' utxo' = HD.initHdAccount accId' (firstCheckpoint utxo')
+            newAccount accId' utxo' = HD.initHdAccount accId' (firstAccCheckpoint utxo')
 
-            firstCheckpoint :: Utxo -> AccCheckpoint
-            firstCheckpoint utxo' = AccCheckpoint {
+            firstAccCheckpoint :: Utxo -> AccCheckpoint
+            firstAccCheckpoint utxo' = AccCheckpoint {
                   _accCheckpointUtxo        = InDb utxo'
                 , _accCheckpointUtxoBalance = InDb $ Spec.balance utxo'
                 , _accCheckpointExpected    = InDb Map.empty
