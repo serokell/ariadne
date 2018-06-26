@@ -168,14 +168,23 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
+            accRefs <- getArgMany tyLocalAccountRef "account"
             passPhrase <- getPassPhraseArg
             outs <- getArgSome tyTxOut "out"
-            return (walletRef, passPhrase, outs)
-        , cpRepr = \(walletRef, passPhrase, outs) -> CommandAction $ \WalletFace{..} -> do
-            txId <- walletSend passPhrase walletRef outs
+            return (walletRef, accRefs, passPhrase, outs)
+        , cpRepr = \(walletRef, accRefs, passPhrase, outs) -> CommandAction $
+          \WalletFace{..} -> do
+            txId <- walletSend passPhrase walletRef accRefs outs
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
-        , cpHelp = "Send a transaction from the specified wallet. When no wallet \
-                   \is specified, uses the selected wallet."
+        , cpHelp =
+            "Send a transaction from the specified wallet. When no wallet \
+            \is specified, uses the selected wallet. A list of accounts \
+            \can be specified. Subset of these accounts will be used as \
+            \inputs. If no account is specified, behavior depends on \
+            \current selection. If an account in the input wallet is \
+            \selected, only this account will be used as input. \
+            \Otherwise, all accounts from the input wallet can be used \
+            \as inputs."
         }
     , CommandProc
         { cpName = balanceCommandName
@@ -271,6 +280,12 @@ getAccountRefArgOpt =
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
 tyWalletRef =
     either (WalletRefByName . WalletName) WalletRefByIndex <$>
+    tyString `tyEither` tyWord
+
+tyLocalAccountRef ::
+       Elem components Core => TyProjection components LocalAccountReference
+tyLocalAccountRef =
+    either LocalAccountRefByName LocalAccountRefByIndex <$>
     tyString `tyEither` tyWord
 
 mkPassPhrase :: Maybe Text -> PassPhrase
