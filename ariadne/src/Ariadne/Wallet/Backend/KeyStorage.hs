@@ -22,7 +22,6 @@ module Ariadne.Wallet.Backend.KeyStorage
 
 import Universum
 
-import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
@@ -37,14 +36,20 @@ import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Numeric.Natural (Natural)
+import Serokell.Data.Memory.Units (Byte)
+
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
-import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair, makePubKeyHdwAddress)
+import Pos.Core.Common
+  (IsBootstrapEraAddr(..), deriveLvl2KeyPair, makePubKeyHdwAddress)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdAccountIx (..), HdAddressIx (..), HdAddressChain (..))
-import Serokell.Data.Memory.Units (Byte)
 
+import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), encodeBip44DerivationPath)
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
@@ -509,22 +514,10 @@ deriveBip44KeyPair ::
     -> HdAddressChain
     -> HdAddressIx
     -> Maybe (Address, EncryptedSecretKey)
-deriveBip44KeyPair era pp sk (HdAccountIx accountIdx) change (HdAddressIx addressIdx) =
-    derivePathKeyPair era pp sk
-        [ firstHardened + purpose
-        , firstHardened + coinType
-        , firstHardened + accountIdx
-        , firstNonHardened + case change of
-            HdChainInternal -> 1
-            HdChainExternal -> 0
-        , firstNonHardened + addressIdx
-        ]
-  where
-    -- ADA coin index. This is the year when Ada Lovelace was born.
-    -- https://github.com/satoshilabs/slips/blob/master/slip-0044.md
-    coinType = 1815
-    -- BIP-44 derivation constant
-    purpose = 44
+deriveBip44KeyPair era pp sk hdAccountIx hdAddressChain hdAddressIx =
+    derivePathKeyPair era pp sk $
+        encodeBip44DerivationPath $
+            Bip44DerivationPath hdAccountIx hdAddressChain hdAddressIx
 
 -- ^ This function derives a key (and an address) following an arbitrary derivation path.
 derivePathKeyPair ::

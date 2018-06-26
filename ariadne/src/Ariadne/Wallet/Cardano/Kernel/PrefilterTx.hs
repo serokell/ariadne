@@ -25,6 +25,7 @@ import Pos.Core.Txp (TxIn(..), TxOut(..), TxOutAux(..))
 import Pos.Crypto (EncryptedSecretKey)
 import Pos.Txp.Toil.Types (Utxo)
 
+import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (fromDb)
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
@@ -186,12 +187,12 @@ prefilter (wid,hdPass) selectAddr rtxs
           toAddressId :: WalletId -> WAddressMeta -> HdAddressId
           toAddressId (WalletIdHdRnd rootId) meta' = addressId
               where
-                  accountIx = _wamAccountIndex meta'
+                  accountIx = bip44AccountIndex $ _wamDerivationPath meta'
                   accountId = HdAccountId rootId accountIx
 
-                  addressChain = _wamAddressChain meta'
+                  addressChain = bip44AddressChain $ _wamDerivationPath meta'
 
-                  addressIx = _wamAddressIndex meta'
+                  addressIx = bip44AddressIndex $ _wamDerivationPath meta'
                   addressId = HdAddressId accountId addressChain addressIx
 
 {-------------------------------------------------------------------------------
