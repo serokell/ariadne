@@ -20,6 +20,7 @@ import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Launcher
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
+import Test.Ariadne.Knit (knitSpec)
 import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Property)
@@ -30,10 +31,12 @@ makeLensesWith postfixLFields ''AriadneConfig
 makeLensesWith postfixLFields ''CardanoConfig
 
 main :: IO ()
-main = hspec spec
+main = hspec $ do
+    configSpec
+    knitSpec
 
-spec :: Spec
-spec = describe "Ariadne.Config" $ do
+configSpec :: Spec
+configSpec = describe "Ariadne.Config" $ do
   it "CLI can override any field" overrideConfigUnitTest
   prop "handles any CardanoConfig" propHandleCardanoConfig
 

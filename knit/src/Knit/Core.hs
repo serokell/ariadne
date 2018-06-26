@@ -93,9 +93,21 @@ instance Elem components Core => ComponentTokenizer components Core where
         return $ if p then n / 100 else n
 
       pString :: Tokenizer String
-      pString =
-        P.char '\"' *>
-        P.manyTill (P.charLiteral <|> P.anyChar) (P.char '\"')
+      pString = do
+        () <$ P.char '\"'
+        -- Previous version was parsing characters using the following
+        -- parser for a single character:
+        -- `charLiteral <|> anyChar`
+        -- It didn't account for a special character combination `\&`, which
+        -- is like absence of a character.
+        -- New parser for a character returns `Maybe Char`, because for `\&`
+        -- there is no character.
+        let pChar :: Tokenizer (Maybe Char)
+            pChar =
+              (Just <$> P.charLiteral) <|>
+              (Nothing <$ P.string "\\&") <|>
+              (Just <$> P.anyChar)
+        catMaybes <$> P.manyTill pChar (P.char '\"')
 
       pFilePath :: Tokenizer FilePath
       pFilePath = do

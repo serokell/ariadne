@@ -65,6 +65,7 @@ library
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
+      MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
       NegativeLiterals
@@ -124,6 +125,7 @@ executable ariadne-qt
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
+      MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
       NegativeLiterals

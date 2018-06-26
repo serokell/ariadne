@@ -171,6 +171,7 @@ library
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
+      MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
       NegativeLiterals
@@ -216,17 +217,20 @@ test-suite ariadne-test
     , cardano-sl
     , cardano-sl-core
     , ii-extras
+    , hspec
+    , knit
     , lens
     , optparse-applicative
-    , universum
+    , QuickCheck
+    , scientific
     , serokell-util
     , text
     , time-units
-    , QuickCheck
-    , hspec
+    , universum
   other-modules:
       Paths_ariadne
       Test.Ariadne.Cardano.Arbitrary
+      Test.Ariadne.Knit
   default-language: Haskell2010
   default-extensions:
         ApplicativeDo
@@ -243,6 +247,7 @@ test-suite ariadne-test
         GADTs
         GeneralizedNewtypeDeriving
         LambdaCase
+        MonadFailDesugaring
         MultiParamTypeClasses
         MultiWayIf
         NegativeLiterals
