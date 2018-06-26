@@ -69,10 +69,10 @@ vtyToKey = \case
 
     EvKey KLeft        _        -> KeyLeft
     EvKey KRight       _        -> KeyRight
-    EvKey KUp          []       -> KeyUp
-    EvKey KDown        []       -> KeyDown
     EvKey KUp          [MCtrl]  -> KeyCtrlUp
     EvKey KDown        [MCtrl]  -> KeyCtrlDown
+    EvKey KUp          _        -> KeyUp
+    EvKey KDown        _        -> KeyDown
     EvKey KPageUp      _        -> KeyPageUp
     EvKey KPageDown    _        -> KeyPageDown
     EvKey KHome        _        -> KeyHome
