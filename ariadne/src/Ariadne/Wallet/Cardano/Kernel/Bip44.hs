@@ -50,7 +50,7 @@ decodeBip44DerivationPath derPathList = do
     guard $ coinType == bip44CoinType
 
     bip44AccountIndex <- HdAccountIx <$> fromHardened accIdx'
-    bip44AddressChain <- join $ mkAddressChain <$> fromNonHardened chainType
+    bip44AddressChain <- mkAddressChain =<< fromNonHardened chainType
     bip44AddressIndex <- HdAddressIx <$> fromNonHardened addrIdx
     pure $ Bip44DerivationPath {..}
   where

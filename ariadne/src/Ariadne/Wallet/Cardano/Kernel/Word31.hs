@@ -37,15 +37,11 @@ instance Bounded Word31 where
 -- | Makes a 'Word31' but is _|_ if that number exceeds 2^31 - 1
 unsafeMkWord31 :: Word32 -> Word31
 unsafeMkWord31 n =
-    either (error . toText . displayException) (const word31) (checkWord31 word31)
-  where
-    word31 = Word31 n
+    if n <= maxWord31 then
+        Word31 n
+    else
+        bug $ Word31Overflow n
 {-# INLINE unsafeMkWord31 #-}
-
-checkWord31 :: MonadError Word31Exception m => Word31 -> m ()
-checkWord31 (Word31 n)
-    | n <= maxWord31 = pure ()
-    | otherwise      = throwError $ Word31Overflow n
 
 word31ToWord32 :: Word31 -> Word32
 word31ToWord32 (Word31 n) = n
