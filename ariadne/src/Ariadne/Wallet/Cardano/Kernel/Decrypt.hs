@@ -99,7 +99,9 @@ decryptAddress :: HDPassphrase -> Address -> Maybe WAddressMeta
 decryptAddress hdPass addr = do
     hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
     derPath <- unpackHDAddressAttr hdPass hdPayload
-    (purpose', coinType', accIdx', chainType, addrIdx) <- toTuple5 derPath
+    -- The bang is needed due to a GHC bug with ApplicativeDo
+    -- (https://ghc.haskell.org/trac/ghc/ticket/14105, fixed in 8.4.1)
+    ![purpose', coinType', accIdx', chainType, addrIdx] <- pure derPath
 
     purpose  <- fromHardened purpose'
     guard $ purpose  == bip44Purpose
@@ -114,10 +116,6 @@ decryptAddress hdPass addr = do
     -- we don't know the corresponding HdRootId at this point.
     pure $ WAddressMeta hdAccountIx hdAddressChain hdAddressIx addr
   where
-    -- TODO (thatguy): is there a better way?
-    toTuple5 [a, b, c, d, e] = Just (a, b, c, d, e)
-    toTuple5 _ = Nothing
-
     -- TODO (AD-219): use Word31 as output type
     fromNonHardened :: Word32 -> Maybe Word32
     fromNonHardened idx = do

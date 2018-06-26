@@ -455,8 +455,8 @@ instance Buildable HdAccountId where
         = bprint ("HdAccountId: "%build%", "%build) parentId accountIx
 
 instance Buildable HdAddressChain where
-    build HdChainInternal = bprint "internal"
-    build HdChainExternal = bprint "external"
+    build HdChainInternal = "internal"
+    build HdChainExternal = "external"
 
 instance Buildable HdAddressIx where
     build (HdAddressIx ix)
