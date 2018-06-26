@@ -226,7 +226,7 @@ handleTreeWidgetEvent UiLangFace{..} = \case
       _ -> [x]
   TreeNavigationNextWallet -> defaultPath $ \p@(x :| _) -> if maxBound == x then toList p else [succ x]
 
-  TreeNavigationParent -> defaultPath $ \p -> if length p == 1 then p else NE.init p
+  TreeNavigationParent -> defaultPath $ \p -> if length p == 1 then toList p else NE.init p
   TreeNavigationFirstChild -> defaultPath $ (++ [0]) . toList
 
   TreeNavigationPrevItem -> whenJustM (modifiedPath False) putSelect
