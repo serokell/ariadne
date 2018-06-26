@@ -3,7 +3,9 @@
 -- decrypting of HDPayload.
 
 module Ariadne.Wallet.Cardano.Kernel.Decrypt
-       ( THEntryExtra (..)
+       ( WAddressMeta (..)
+
+       , THEntryExtra (..)
        , isTxEntryInteresting
        , buildTHEntryExtra
 
@@ -15,7 +17,6 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
 
 import Universum
 
-import Data.List ((!!))
 import qualified Data.List.NonEmpty as NE
 import Pos.Client.Txp.History (TxHistoryEntry(..))
 import Pos.Core
@@ -25,12 +26,16 @@ import Pos.Core.Txp
   (Tx(..), TxIn(..), TxOut, TxOutAux(..), TxUndo, toaOut, txOutAddress)
 import Pos.Crypto
   (EncryptedSecretKey, HDPassphrase, WithHash(..), deriveHDPassphrase,
-  encToPublic, unpackHDAddressAttr)
+  encToPublic, unpackHDAddressAttr, firstHardened, firstNonHardened)
 import Serokell.Util (enumerate)
 
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
+
 data WAddressMeta = WAddressMeta
-    { _wamAccountIndex :: Word32
-    , _wamAddressIndex :: Word32
+    { _wamAccountIndex :: HdAccountIx
+    , _wamAddressChain :: HdAddressChain
+    , _wamAddressIndex :: HdAddressIx
     , _wamAddress      :: Address
     } deriving (Eq, Ord, Show, Generic, Typeable)
 
@@ -94,5 +99,49 @@ decryptAddress :: HDPassphrase -> Address -> Maybe WAddressMeta
 decryptAddress hdPass addr = do
     hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
     derPath <- unpackHDAddressAttr hdPass hdPayload
-    guard $ length derPath == 2
-    pure $ WAddressMeta (derPath !! 0) (derPath !! 1) addr
+    -- The bang is needed due to a GHC bug with ApplicativeDo
+    -- (https://ghc.haskell.org/trac/ghc/ticket/14105, fixed in 8.4.1)
+    ![purpose', coinType', accIdx', chainType, addrIdx] <- pure derPath
+
+    purpose  <- fromHardened purpose'
+    guard $ purpose  == bip44Purpose
+    coinType <- fromHardened coinType'
+    guard $ coinType == bip44CoinType
+
+    hdAccountIx    <- HdAccountIx <$> fromHardened accIdx'
+    hdAddressChain <- join $ mkAddressChain <$> fromNonHardened chainType
+    hdAddressIx    <- HdAddressIx <$> fromNonHardened addrIdx
+
+    -- In fact, this is almost HdAddressId, with the exception that
+    -- we don't know the corresponding HdRootId at this point.
+    pure $ WAddressMeta hdAccountIx hdAddressChain hdAddressIx addr
+  where
+    -- TODO (AD-219): use Word31 as output type
+    fromNonHardened :: Word32 -> Maybe Word32
+    fromNonHardened idx = do
+        guard $ isNonHardened idx
+        pure $ idx - firstNonHardened
+      where
+        isNonHardened :: Word32 -> Bool
+        isNonHardened idx' = (firstNonHardened <= idx') && (idx' < firstHardened)
+
+    fromHardened :: Word32 -> Maybe Word32
+    fromHardened idx = do
+        guard $ isHardened idx
+        pure $ idx - firstHardened
+      where
+        isHardened :: Word32 -> Bool
+        isHardened idx' = firstHardened <= idx'
+
+    mkAddressChain :: Word32 -> Maybe HdAddressChain
+    mkAddressChain 0 = Just HdChainExternal
+    mkAddressChain 1 = Just HdChainInternal
+    mkAddressChain _ = Nothing
+
+    -- TODO (AD-219): refactor these constants together with similar ones in KeyStorage
+    -- into a separate file
+    bip44Purpose :: Word32
+    bip44Purpose = 44
+
+    bip44CoinType :: Word32
+    bip44CoinType = 1815
