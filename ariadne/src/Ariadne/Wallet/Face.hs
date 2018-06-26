@@ -1,5 +1,7 @@
 module Ariadne.Wallet.Face
   ( module Ariadne.Cardano.Face
+  , InputSelectionPolicy (..)
+
   , WalletFace(..)
   , WalletEvent(..)
   , WalletReference(..)
@@ -14,6 +16,7 @@ module Ariadne.Wallet.Face
 import Universum
 
 import Ariadne.Cardano.Face
+import Pos.Client.Txp.Util (InputSelectionPolicy(..))
 import Serokell.Data.Memory.Units (Byte)
 
 data WalletSelection =
@@ -71,7 +74,8 @@ data WalletFace =
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
-        PassPhrase -> WalletReference -> [LocalAccountReference] -> NonEmpty TxOut -> IO TxId
+        PassPhrase -> WalletReference -> [LocalAccountReference] ->
+        InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, UserSecret)
     , walletBalance :: IO Coin
     }
