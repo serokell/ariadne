@@ -22,6 +22,8 @@ data KeyboardEvent
   | KeyRight
   | KeyUp
   | KeyDown
+  | KeyCtrlUp
+  | KeyCtrlDown
   | KeyPageUp
   | KeyPageDown
   | KeyHome
@@ -67,6 +69,8 @@ vtyToKey = \case
 
     EvKey KLeft        _        -> KeyLeft
     EvKey KRight       _        -> KeyRight
+    EvKey KUp          [MCtrl]  -> KeyCtrlUp
+    EvKey KDown        [MCtrl]  -> KeyCtrlDown
     EvKey KUp          _        -> KeyUp
     EvKey KDown        _        -> KeyDown
     EvKey KPageUp      _        -> KeyPageUp
