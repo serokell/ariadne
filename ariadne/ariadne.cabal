@@ -131,6 +131,7 @@ library
 
       Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Bip44
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -154,6 +155,7 @@ library
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
+      Ariadne.Wallet.Cardano.Kernel.Word31
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

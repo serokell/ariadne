@@ -79,6 +79,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
 
 {-------------------------------------------------------------------------------
   Supporting types
@@ -91,7 +92,7 @@ newtype WalletName = WalletName Text
 newtype AccountName = AccountName Text
 
 -- | Account index
-newtype HdAccountIx = HdAccountIx Word32
+newtype HdAccountIx = HdAccountIx Word31
   deriving (Eq, Ord, Show)
 
 -- | Whether the chain is an external or an internal one
@@ -99,7 +100,7 @@ data HdAddressChain = HdChainExternal | HdChainInternal
   deriving (Eq, Ord, Show)
 
 -- | Address index
-newtype HdAddressIx = HdAddressIx Word32
+newtype HdAddressIx = HdAddressIx Word31
   deriving (Eq, Ord, Show)
 
 -- | Wallet assurance level
