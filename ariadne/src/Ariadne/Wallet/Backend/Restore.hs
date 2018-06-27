@@ -14,8 +14,12 @@ import Data.List (init)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
+import Data.Acid (AcidState, query, update)
 
 import IiExtras
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+import Ariadne.Cardano.Face
 import Loot.Crypto.Bip39 (mnemonicToSeed)
 import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)

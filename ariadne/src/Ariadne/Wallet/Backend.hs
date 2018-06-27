@@ -5,14 +5,15 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Data.Acid (openLocalStateFrom)
 import Data.Constraint (withDict)
-import Data.IxSet.Typed (empty)
 import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Pos.Client.KeyStorage (getSecretDefault)
 
+import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
@@ -21,6 +22,8 @@ import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
+import Pos.Launcher
+
 
 createWalletBackend :: WalletConfig -> IO
   (
@@ -42,12 +45,12 @@ createWalletBackend walletConfig = do
           r
       mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace
-          { walletNewAddress = newAddress acidDb this walletSelRef chain
+          { walletNewAddress = newAddress acidDb this walletSelRef
           , walletNewAccount = newAccount acidDb this walletSelRef Nothing
-          , walletNewWallet = newWallet acidDb walletConfig this walletSelRef runCardanoMode
+          , walletNewWallet = newWallet acidDb walletConfig this runCardanoMode
           , walletRestore = restoreWallet acidDb this runCardanoMode
           , walletRestoreFromFile = restoreFromKeyFile acidDb this runCardanoMode
-          , walletRename = renameSelection acidDb this walletSelRef runCardanoMode
+          , walletRename = renameSelection acidDb this walletSelRef
           , walletRemove = removeSelection acidDb this walletSelRef runCardanoMode
           , walletRefreshState =
               refreshState acidDb walletSelRef sendWalletEvent
@@ -58,12 +61,11 @@ createWalletBackend walletConfig = do
               (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
           , walletBalance = do
             -- TODO: get balance from acidDb
-              mWalletSel <- readIORef walletSelRef
-              addrs <- getSelectedAddresses this walletSelRef
+              addrs <- getSelectedAddresses acidDb this walletSelRef
               runCardanoMode $ getBalance addrs
           }
       initWalletAction =
-        refreshUserSecret walletSelRef runCardanoMode sendWalletEvent
+        refreshState acidDb walletSelRef sendWalletEvent
     in
       (mkWalletFace, initWalletAction)
 
@@ -73,9 +75,9 @@ walletAcidDbPathPlaceholder = ".wallet-db"
 
 emptyDb :: DB
 emptyDb = DB HdWallets
-  { _hdWalletsRoots = empty @HdRoot
-  , _hdWalletsAccounts = empty @HdAccount
-  , _hdWalletsAddresses = empty @HdAddress
+  { _hdWalletsRoots = (fromList [] :: IxSet HdRoot)
+  , _hdWalletsAccounts = (fromList [] :: IxSet HdAccount)
+  , _hdWalletsAddresses = (fromList [] :: IxSet HdAddress)
   }
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.

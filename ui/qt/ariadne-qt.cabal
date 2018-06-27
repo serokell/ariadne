@@ -19,6 +19,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , ilist
     , universum
     , serokell-util
     , text
@@ -102,6 +103,7 @@ executable ariadne-qt
     , containers
     , double-conversion
     , ii-extras
+    , ilist
     , knit
     , lens
     , text

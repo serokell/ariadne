@@ -11,7 +11,9 @@ import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
+import Pos.Crypto (PassPhrase)
 
 import Knit
 
@@ -70,11 +72,11 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
   componentCommandProcs =
     [
       CommandProc
-        { cpName = refreshUserSecretCommandName
+        { cpName = refreshStateCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            walletRefreshUserSecret
+            walletRefreshState
             return $ toValue ValueUnit
         , cpHelp = "Internal function to update the UI."
         }
@@ -96,7 +98,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAccount walletRef (AccountName name)
+            walletNewAccount walletRef (AccountName <$> name)
             return $ toValue ValueUnit
         , cpHelp = "Create and add a new account to the specified wallet. When \
                    \no wallet is specified, uses the selected wallet."
@@ -214,8 +216,8 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         }
     ]
 
-refreshUserSecretCommandName :: CommandId
-refreshUserSecretCommandName = "refresh-user-secret"
+refreshStateCommandName :: CommandId
+refreshStateCommandName = "refresh-user-secret"
 
 newAddressCommandName :: CommandId
 newAddressCommandName = "new-address"
@@ -273,13 +275,12 @@ getAccountRefArgOpt =
         Nothing -> AccountRefSelection
         Just e -> (either
             (flip AccountRefByName walletRef)
-            (flip AccountRefByIndex walletRef)
+            (flip AccountRefByUIindex walletRef)
                   ) e
-
 
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
 tyWalletRef =
-    either (WalletRefByName . WalletName) WalletRefByIndex <$>
+    either (WalletRefByName . WalletName) WalletRefByUIindex <$>
     tyString `tyEither` tyWord
 
 tyLocalAccountRef ::

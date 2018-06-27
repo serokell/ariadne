@@ -115,6 +115,7 @@ executable ariadne
     , containers
     , double-conversion
     , ii-extras
+    , ilist
     , knit
     , lens
     , named

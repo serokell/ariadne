@@ -31,11 +31,10 @@ data HdPath
 
 data WalletReference
   = WalletRefSelection
-  -- If we are, `select` should use resolvewalletRef AccountRefByIndex
-  -- index in IxSet.toAscList hdWalletsRoots (Do we need this?)
-  -- but indexation should be separated from backend, so it is better to have it in only
-  -- in one place in 'select'.
-  -- | WalletRefByIndex Word
+  -- UI indexation should be separated from backend, so it is better to have it in only
+  -- in one place in 'select'. But `WalletRefByIndex` will be here for some time.
+  -- Note: Add/remove wallets cause changes in indexation
+  | WalletRefByUIindex Word
   | WalletRefByHdRootId HdRootId
   | WalletRefByName WalletName
 
@@ -43,7 +42,7 @@ data AccountReference
   = AccountRefSelection
   | AccountRefByHdAccountId HdAccountId
   -- same as for WalletSelection:
-  -- | AccountRefByIndex !Word32 !WalletReference
+  | AccountRefByUIindex !Word32 !WalletReference
   | AccountRefByName !Text !WalletReference
 
 -- | Reference to an account inside a wallet.

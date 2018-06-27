@@ -65,6 +65,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * Helpers
   , toAddressList
   , toAccountsList
+  , toWalletsList
   ) where
 
 import Universum
@@ -95,25 +96,27 @@ import Data.List (partition)
 
 -- | Name of a wallet.
 newtype WalletName = WalletName
-    { unWalletName :: Text
+    { _unWalletName :: Text
     } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
 
 -- | Account name
 newtype AccountName = AccountName
-    { unAccountName :: Text
+    { _unAccountName :: Text
     } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
 
 -- | Account index
-newtype HdAccountIx = HdAccountIx Word31
-  deriving (Eq, Ord, Show)
+newtype HdAccountIx = HdAccountIx
+  { _unHdAccountIx :: Word31
+  } deriving (Eq, Show, Ord)
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
   deriving (Eq, Ord, Show)
 
 -- | Address index
-newtype HdAddressIx = HdAddressIx Word31
-  deriving (Eq, Ord, Show)
+newtype HdAddressIx = HdAddressIx
+  { _unHdAddressIx :: Word31
+  } deriving (Eq, Show, Ord)
 
 -- | Wallet assurance level
 --
@@ -144,11 +147,13 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
 -------------------------------------------------------------------------------}
 
 -- | HD wallet root ID
-data HdRootId = HdRootId (InDb (Core.AddressHash Core.PublicKey))
-  deriving (Eq, Ord)
+data HdRootId = HdRootId
+  {
+    _unHdRootId :: InDb (Core.AddressHash Core.PublicKey)
+  } deriving (Eq, Ord)
 
 instance Prelude.Show HdRootId where
-  show (HdRootId (InDb (addrHash))) = show addrHash
+  show (HdRootId (InDb addrHash)) = show addrHash
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
@@ -289,6 +294,16 @@ data UnknownHdAddress =
     -- | Unknown address (implies the account is known)
   | UnknownHdAddress HdAddressId
   deriving (Eq, Show)
+
+instance Exception UnknownHdRoot where
+  displayException (UnknownHdRoot rootId) =
+    "The wallet " ++ show rootId ++ " does not exist."
+
+instance Exception UnknownHdAccount where
+  displayException (UnknownHdAccountRoot rootId) =
+    "The wallet " ++ show rootId ++ " does not exist."
+  displayException (UnknownHdAccount accId) =
+    "The account " ++ show accId ++ " does not exist."
 
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
@@ -501,6 +516,10 @@ toAddressList s = concat2 partitioned
     concat2 (a,b) = a ++ b
 
 -- TODO:
--- Choose a more suitable list ordering
+-- * Choose a more suitable list ordering
+-- * Get rid of OrdByPrimKey
 toAccountsList :: IxSet HdAccount -> [OrdByPrimKey HdAccount]
 toAccountsList s = IxSet.toAscList (Proxy :: Proxy HdAccountId) (unwrapIxSet s)
+
+toWalletsList :: IxSet HdRoot -> [HdRoot]
+toWalletsList s = unwrapOrdByPrimKey <$> (IxSet.toList (unwrapIxSet s))

@@ -55,6 +55,7 @@ library
     , formatting
     , http-client
     , http-client-tls
+    , ilist
     , insert-ordered-containers
     , kademlia
     , knit
@@ -98,6 +99,7 @@ library
     , QuickCheck
     , unordered-containers
     , vinyl
+    , word-wrap
     , process
     , template-haskell
   exposed-modules:
