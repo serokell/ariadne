@@ -7,7 +7,6 @@ module Ariadne.Wallet.Cardano.Kernel.Word31
 
 import Universum
 
-import Control.Monad.Except (MonadError(throwError))
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable (Buildable (..))
 import Formatting (bprint, int)
