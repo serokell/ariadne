@@ -31,10 +31,10 @@ import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Face
 
-import qualified Knit
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
+import qualified Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Qt frontend
@@ -281,3 +281,6 @@ historyToUI ch = UiHistoryFace
   , historyNextCommand = toNextCommand ch
   , historyPrevCommand = toPrevCommand ch
   }
+
+-- TODO:
+-- * Switch to new backend (copy from vty)

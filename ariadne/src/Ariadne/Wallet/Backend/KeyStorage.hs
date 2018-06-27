@@ -21,25 +21,34 @@ module Ariadne.Wallet.Backend.KeyStorage
        , NoAccountSelection (..)
        ) where
 
-import Universum
+import Universum hiding ((^.))
 
+import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+import Ariadne.Wallet.Cardano.Kernel.DB.InDb
+import Ariadne.Wallet.Cardano.Kernel.DB.Spec
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+import Ariadne.Wallet.Face
 import Control.Exception (Exception(displayException))
-import Control.Lens (ix, zoom, (%=), (.=), (<>=))
+import Control.Lens (ix, zoom, (%=), (.=), (<>=), (^.))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.Acid (AcidState, query, update)
+import qualified Data.IxSet.Typed as IxSet
 import Data.List (findIndex)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
+import Data.Time.Clock (diffTimeToPicoseconds)
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Data.Time.Units (fromMicroseconds)
 import qualified Data.Vector as V
-  (findIndex, foldr, fromList, ifilter, mapMaybe)
+  (elem, findIndex, foldr, fromList, ifilter, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
@@ -48,10 +57,10 @@ import Numeric.Natural (Natural)
 import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
+import Pos.Core
 import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
 import Pos.Core.Common.Address (addressHash)
 import Pos.Crypto
-import Pos.Crypto.Signing.Types.Safe (encToPublic)
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
 
@@ -64,8 +73,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Serokell.Data.Memory.Units (Byte)
-
-import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
   deriving (Eq, Show)
@@ -81,11 +88,11 @@ instance Exception NoAccountSelection where
   displayException NoAccountSelection =
     "Select or specify an account to perform this operation."
 
-data WalletDoesNotExist = WalletDoesNotExist Text
+data WalletDoesNotExist = WalletDoesNotExist WalletName
   deriving (Eq, Show)
 
 instance Exception WalletDoesNotExist where
-  displayException (WalletDoesNotExist t) =
+  displayException (WalletDoesNotExist (WalletName t)) =
     "The wallet " ++ show t ++ " does not exist."
 
 data AccountDoesNotExist = AccountDoesNotExist Text
@@ -118,11 +125,11 @@ instance Exception AddressGenerationFailed where
             AGFailedIncorrectPassPhrase ->
                 "Address generation failed due to incorrect passphrase"
 
-data DuplicateAccountName = DuplicateAccountName Text
+data DuplicateAccountName = DuplicateAccountName AccountName
   deriving (Eq, Show)
 
 instance Exception DuplicateAccountName where
-  displayException (DuplicateAccountName t) =
+  displayException (DuplicateAccountName (AccountName t)) =
     "The account name " ++ show t ++ " already exists."
 
 data DuplicateWalletName = DuplicateWalletName WalletName
@@ -166,21 +173,24 @@ resolveWalletRef
   -> WalletReference
   -> DB
   -> IO HdRootId
-resolveWalletRef walRef walletSelRef db = case walRef of
+resolveWalletRef walletSelRef walRef db = case walRef of
   WalletRefSelection -> do
     mWalletSelection <- readIORef walletSelRef
     case mWalletSelection of
       Nothing -> throwM NoWalletSelection
       Just WalletSelection{..} -> return $ getHdRootId wsPath
   WalletRefByName walletName -> do
-    case getHdRootIdByName walletName hdWallets of
+    case getHdRootIdByName walletName of
       Just hdR -> return hdR
       Nothing -> throwM $ WalletDoesNotExist walletName
-  WalletRefByIndex i -> do
-    -- Note: Add/remove wallets cause changes in indexation
-    case (IxSet.toAscList (Proxy :: WalletName) hdWallets) ^? ix i of
-      Just hdWallet -> return (hdWallet ^. hdRootId)
-      Nothing -> throwM $ WalletIndexOutOfRange i
+  -- I guess we do not need to resolve Ui indexation (WalletRefByIndex) here,
+  -- lets do it in `select` only.
+
+  -- WalletRefByIndex i -> do
+  --   -- Note: Add/remove wallets cause changes in indexation
+  --   case (IxSet.toAscList (Proxy :: WalletName) hdWallets) ^? ix i of
+  --     Just hdWallet -> return (hdWallet ^. hdRootId)
+  --     Nothing -> throwM $ WalletIndexOutOfRange i
   WalletRefByHdRootId hrR -> case readHdRoot hrR hdWallets of
     Right _ -> return hrR
     Left err -> throwM err
@@ -190,17 +200,26 @@ resolveWalletRef walRef walletSelRef db = case walRef of
     hdWallets = db ^. dbHdWallets
 
     getHdRootId :: HdPath -> HdRootId
-    getHdRootId (RootPath rId) = rid
+    getHdRootId (RootPath rId) = rId
     getHdRootId (AccountPath acId) = acId ^. hdAccountIdParent
     getHdRootId (AddressPath adId) = adId ^. hdAddressIdParent . hdAccountIdParent
 
+    -- TODO: Use IxSet filter. Need to add hdRootName to index.
     getHdRootIdByName :: WalletName -> Maybe HdRootId
-    getHdRootIdByName wn = case IxSet.toList (IxSet.getEQ wn hdWallets) of
+    getHdRootIdByName wn = case filter (\w -> (w ^. hdRootName) == wn) walletList of
       [hdWallet] -> Just (hdWallet ^. hdRootId)
       [] -> Nothing
-      [f:_] -> error "Bug: _hdRootName duplication"
+      -- Duplication is checked in `renameSelection` and `addWallet` routines.
+      [f,_] -> error "Bug: _hdRootName duplication"
 
-  -- TODO: Finish
+    walletList :: [HdRoot]
+    walletList = unwrapOrdByPrimKey <$> (IxSet.toList (unwrapIxSet (readAllHdRoots hdWallets)))
+
+  -- TODO:
+  -- * Is it possible, that address or account exist in db
+  --   but has no parents?
+  -- * If so, where do we need to check,
+  --   if account and address parsents exist?
 resolveAccountRef
   :: IORef (Maybe WalletSelection)
   -> AccountReference
@@ -214,19 +233,29 @@ resolveAccountRef walletSelRef accountRef walletDb = undefined
   --     case mWalletSelection of
   --       Nothing -> throwM NoWalletSelection
   --       Just WalletSelection {..} -> case wsPath of
-  --         RootPath hdr -> undefined
-  --         AccountPath accPath -> undefined
-  --         AddressPath addrPath -> undefined
+  --         RootPath _ -> throwM NoAccountSelection
+  --         AccountPath accId_ -> return accId_
+  --         AddressPath addrId -> return $ addrId ^. hdAddressIdParent
+  --   AccountRefByHdAccountId accId -> return accId
+  --   AccountRefByName accName walRef -> do
+  --     rootId <- maybeThrow
+  --       NoWalletSelection
+  --       (readIORef walRef)
+  --       let
+  --         accounts = case readAccountsByRootId hdRootId walletDb of
+  --           Left err -> throwM err
+  --           Right acc -> acc
 
+  --       let namesVec = V.fromList (map (unAccountName . (^. hdAccountName)) accounts)
 
 refreshState
   :: AcidState DB
   -> IORef (Maybe WalletSelection)
   -> (WalletEvent -> IO ())
   -> IO ()
-refreshState acidDB walletSelRef sendWalletEvent = do
+refreshState acidDb walletSelRef sendWalletEvent = do
   walletSel <- readIORef walletSelRef
-  walletDb <- query acidDB Snapshot
+  walletDb <- query acidDb Snapshot
   sendWalletEvent (WalletStateSetEvent walletDb walletSel)
 
 newAddress ::
@@ -237,38 +266,44 @@ newAddress ::
     -> HdAddressChain
     -> PassPhrase
     -> IO ()
-newAddress dbACID WalletFace {..} walletSelRef accRef chain pp = do
-  walletDb <- query dbACID Snapshot
+newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
+  walletDb <- query acidDb Snapshot
 
-  hdAccountId <- resolveAccountRef walletSelRef walletDb accRef
+  hdAccountId <- resolveAccountRef walletSelRef accRef walletDb
 
   let
-    hdAddressId = HdAccountId
+    hdAddressId = HdAddressId
       { _hdAddressIdParent = hdAccountId
       , _hdAddressIdIx = mkAddrIdx walletDb hdAccountId
       }
 
   addr <-
-      case deriveLvl3KeyPair
+      case (deriveLvl3KeyPair
                 (IsBootstrapEraAddr True)
                 (ShouldCheckPassphrase True)
                 pp
-                hdAccountId ^. hdAccountIdIx
+                walletEsk
+                (hdAccountId ^. hdAccountIdIx)
                 chain
-                hdAddressId ^. hdAddressIdIx of
+                (hdAddressId ^. hdAddressIdIx)) of
           Nothing -> throwM AGFailedIncorrectPassPhrase
           Just (a, _) -> pure a
-  update dbACID (CreateHdAddress hdAddressId addr chain)
+  throwLeft_ $ update acidDb (CreateHdAddress hdAddressId (InDb addr) chain emptyCheckpoint)
   walletRefreshState
     where
+      -- TODO: Get it from UserSecret
+      walletEsk :: EncryptedSecretKey
+      walletEsk = undefined
       -- TODO:
       -- get first unique index from account's address set (Mabe toList it and use old function)
       mkAddrIdx :: DB -> HdAccountId -> HdAddressIx
       mkAddrIdx = undefined
 
+      emptyCheckpoint :: AddrCheckpoint
+      emptyCheckpoint = undefined
+
 deriveLvl3KeyPair
-    :: Bi Address'
-    => IsBootstrapEraAddr
+    :: IsBootstrapEraAddr
     -> ShouldCheckPassphrase
     -> PassPhrase
     -> EncryptedSecretKey -- ^ key of wallet
@@ -287,38 +322,51 @@ mkUntitled untitled namesVec =
     then untitled <> "0"
     else untitled <> (show $ (Universum.maximum numbers) + 1)
 
+-- TODO: Move name check to Create.hs
 newAccount
   :: AcidState DB
   -> WalletFace
   -> IORef (Maybe WalletSelection)
-  -> Maybe CheckPoint
+  -> Maybe AccCheckpoint
   -> WalletReference
   -> Maybe AccountName
   -> IO ()
-newAccount acidDB WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountName = do
-  walletDb <- query acidDB Snapshot
-  hdRootId <- resolveWalletRef walletSelRef walletDb walletRef
-  -- need to query ixSet to find if the name already in db
-  let
-    accounts = case readAccountsByRootId hdRootId walletDb of
-      Left err -> throwM err
-      Right acc -> acc
+newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountName = do
+  walletDb <- query acidDb Snapshot
+  hdRootId <- resolveWalletRef walletSelRef walletRef walletDb
 
-  let namesVec = V.fromList (map (unAccountName . (^. hdAccountName)) accounts)
-  accountName <- case mbAccountName of
+  let
+    namesVec = V.fromList
+      (map (unAccountName . (^. hdAccountName)) $ toAccList (walletDb ^. dbHdWallets) hdRootId)
+
+  accountName <- case (unAccountName <$> mbAccountName) of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
     Just accountName_ -> do
-      when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName accountName_
+      when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName (AccountName accountName_)
       return accountName_
 
-  update acidDB (CreateHdAccount
+  throwLeft_ $ update acidDb (CreateHdAccount
     hdRootId
-    accountName
-    (fromMaybe (mempty @CheckPoint) mbCheckPoint))
+    (AccountName accountName)
+    (fromMaybe emptyCheckpoint mbCheckPoint))
 
   walletRefreshState
+  where
+    -- FIXME
+    emptyCheckpoint = undefined
 
+    -- The same function as in `select`. It is unsafe -> not global.
+    -- It is assumed that hdRootId is a valid one.
+    -- It is, because resolveWalletRef always returns a valid HdRootId.
+    getAccounts :: HdWallets -> HdRootId -> IxSet HdAccount
+    getAccounts wallets hdRootId = fromRight
+      (error "Bug: UnknownHdRoot")
+      (readAccountsByRootId hdRootId wallets)
+
+    toAccList :: HdWallets -> HdRootId -> [HdAccount]
+    toAccList wallets rootId =
+      map unwrapOrdByPrimKey (toAccountsList $ getAccounts wallets rootId)
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -337,12 +385,13 @@ newWallet ::
        AcidState DB
     -> WalletConfig
     -> WalletFace
+    -> IORef (Maybe WalletSelection)
     -> (CardanoMode ~> IO)
     -> PassPhrase
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-newWallet acidDB walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
+newWallet acidDb walletConfig face walletSelRef runCardanoMode pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   unless (entropySize `elem` [16, 20, 24, 28, 32]) $
       throwM $ InvalidEntropySize entropySize
@@ -353,18 +402,24 @@ newWallet acidDB walletConfig face runCardanoMode pp mbWalletName mbEntropySize 
   -- advanced feature and do not provide it for now.
   let seed = mnemonicToSeed (unwords mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
-  mnemonic ++ ["ariadne-v0"] <$ addWallet acidDB face runCardanoMode esk mbWalletName mempty
+  mnemonic ++ ["ariadne-v0"] <$ addWallet acidDb face walletSelRef runCardanoMode esk mbWalletName mempty
 
 -- | Construct a wallet from given data and add it to the storage.
+-- Note: selection switches to the new wallet.
+-- It is needed to create accounts, because
+-- one have to pass selection to `addAccout`.
+
+-- TODO: Move name check to Create.hs
 addWallet ::
        AcidState DB
     -> WalletFace
+    -> IORef (Maybe WalletSelection)
     -> (CardanoMode ~> IO)
     -> EncryptedSecretKey
     -> Maybe WalletName
     -> Vector HdAccount
     -> IO ()
-addWallet acidDB wf@WalletFace {..} runCardanoMode esk mbWalletName accounts = do
+addWallet acidDb wf@WalletFace {..} walletSelRef runCardanoMode esk mbWalletName accounts = do
   let addWalletPure :: StateT UserSecret Catch ()
       addWalletPure = do
         eskList <- Map.elems <$> (use usWallets)
@@ -375,39 +430,41 @@ addWallet acidDB wf@WalletFace {..} runCardanoMode esk mbWalletName accounts = d
   runCardanoMode (modifySecretDefault (runCatchInState addWalletPure)) >>=
     eitherToThrow
 
-  walletDb <- query acidDB Snapshot
+  walletDb <- query acidDb Snapshot
   -- need to query ixSet to find if the name already in db
-  let namesList = map unWalletName $ toWalletNamesList (walletDb ^. dbHdWallets)
+  let namesVec = V.fromList (map unWalletName $ toWalletNamesList (walletDb ^. dbHdWallets))
   walletName <- case mbWalletName of
     Nothing ->
-      return (WalletName $ mkUntitled "Untitled wallet " namesList)
+      return (WalletName $ mkUntitled "Untitled wallet " namesVec)
     Just walletName_ -> do
       -- TODO: move duplicate check to `updateHdRootName`
-      when (unWalletName walletName_ `elem` namesList) $
+      when ((unWalletName walletName_) `V.elem` namesVec) $
         throwM $ DuplicateWalletName walletName_
       return walletName_
 
-  timestamp <- (fromMicroseconds . round . (* 10 ^ 6 ) . nominalDiffTimeToSeconds) <$> getPOSIXTime
-  let hdRootId = HdRootId InDb $ addressHash $ encToPublic esk
+  -- getPOSIXTime return seconds with 10^-12 precision
+  timestamp <- (InDb . fromMicroseconds . round . (* 10 ** (-6)) . toRational) <$> getPOSIXTime
+  let hdRootId = HdRootId $ InDb $ addressHash $ encToPublic esk
 
   -- FIXME: This should be passed to `addWallet` I guess.
   let hasPass = undefined
   let assurance = undefined
 
-  update acidDB (CreateHdRoot hdRootId walletName hasPass assurance timestamp)
+  throwLeft_ $ update acidDb (CreateHdRoot hdRootId walletName hasPass assurance timestamp)
+
+  -- FIXME: Make it a single acid-state transaction
   forM_ accounts (\acc ->
     newAccount
-      acidDB
+      acidDb
       wf
-      Nothing
+      walletSelRef
+      (Just $ head (acc ^. hdAccountCheckpoints))
       (WalletRefByHdRootId hdRootId)
-      (Just acc ^. hdAccountName)
-      (Just head (acc ^. hdAccountCheckpoints)))
-    -- Drawbacks:
+      (Just $ acc ^. hdAccountName))
+      -- Drawbacks:
     -- * This will spawn a sequence of walletState events
     -- * What if exeption (e.g. duplicate accoun name) raised
-    --   in the middle of accounts list?
-
+    --   in the middle of accounts list
   walletRefreshState
 
 -- | convert path in index representation and write it to IORef WalletSelection
@@ -421,22 +478,22 @@ select
   -> Maybe WalletReference
   -> [Word]
   -> IO ()
-select acidDB WalletFace{..} walletSelRef mWalletRef wsPath = do
-  walletDb <- query acidDB Snapshot
-  let wallets = walletDb ^. hdWallets
+select acidDb WalletFace{..} walletSelRef mWalletRef wsPath = do
+  walletDb <- query acidDb Snapshot
+  let wallets = walletDb ^. dbHdWallets
   mbPath <- case mWalletRef of
     Nothing -> return Nothing
     Just walletRef -> do
-      -- Throw exception if walletRef not found
-      rootId <- resolveWalletRef walletSelRef walletDb walletRef
+      -- Throw an exception if walletRef is invalid
+      rootId <- resolveWalletRef walletSelRef walletRef walletDb
       case nonEmpty wsPath of
         Nothing -> return $ Just $ RootPath rootId
         Just (accIdx :| acPath) -> do
           -- validate account
-          hdAcc <- maybeThrow
+          hdAccount <- maybeThrow
             (AccountDoesNotExist $ pretty accIdx)
             -- TODO: embed info about convertion rules in path type: [(Word, Ordering Proxy)]
-            ((IxSet.toAscList (Proxy :: AccountName) (getAccounts wallets rootId)) ^? ix (fromIntegral accIdx))
+            ((accList wallets rootId) ^? ix (fromIntegral accIdx))
 
           case nonEmpty acPath of
             Nothing -> return $ Just $ AccountPath $ hdAccount ^. hdAccountId
@@ -444,21 +501,29 @@ select acidDB WalletFace{..} walletSelRef mWalletRef wsPath = do
               -- validate address
               hdAddr <- maybeThrow
                 (AddressDoesNotExist $ pretty addrIdx)
-                ((toAddressList (getAddresses wallets (hdAccount ^. hdAccountId))) ^? ix (fromIntegral accIdx))
+                ((addrList wallets (hdAccount ^. hdAccountId)) ^? ix (fromIntegral addrIdx))
               return $ Just $ AddressPath $ hdAddr ^. hdAddressId
             Just (_ :| _) -> throwM SelectIsTooDeep
   atomicWriteIORef walletSelRef (WalletSelection <$> mbPath)
   walletRefreshState
   where
+    addrList :: HdWallets -> HdAccountId -> [HdAddress]
+    addrList wallets accId =
+      map unwrapOrdByPrimKey (toAddressList $ getAddresses wallets accId)
+
+    accList :: HdWallets -> HdRootId -> [HdAccount]
+    accList wallets rootId =
+      map unwrapOrdByPrimKey (toAccountsList $ getAccounts wallets rootId)
+
     getAccounts :: HdWallets -> HdRootId -> IxSet HdAccount
     getAccounts wallets hdRootId = fromRight
       (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId wallets hdRootId)
+      (readAccountsByRootId hdRootId wallets)
 
     getAddresses :: HdWallets -> HdAccountId -> IxSet HdAddress
     getAddresses wallets hdAccountId = fromRight
       (error "Bug: UnknownHdAccount")
-      (readAddressesByAccountId wallets hdAccountId)
+      (readAddressesByAccountId hdAccountId wallets)
 
 
 -- Do we need this function?
@@ -467,7 +532,7 @@ getSelectedAddresses
   -> WalletFace
   -> IORef (Maybe WalletSelection)
   -> IO [Address]
-getSelectedAddresses acidDB WalletFace{..} walletSelRef = undefined
+getSelectedAddresses acidDb WalletFace{..} walletSelRef = undefined
 
 removeSelection
   :: AcidState DB
@@ -475,24 +540,27 @@ removeSelection
   -> IORef (Maybe WalletSelection)
   -> (CardanoMode ~> IO)
   -> IO ()
-removeSelection acidDB WalletFace{..} walletSelRef runCardanoMode = do
-  walletDB <- query acidDB Snapshot
+removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
+  walletDB <- query acidDb Snapshot
   mWalletSel <- readIORef walletSelRef
   newSelection <- case mWalletSel of
-    Nothing -> pure ()
+    Nothing -> pure Nothing
+    -- FIXME:
+    -- Throw "Nothing selected" here
     Just WalletSelection {..} -> case wsPath of
       RootPath hdrId -> do
         update acidDb (DeleteHdRoot hdrId)
-        runCardanoMode $ modifySecretDefault usWallets %= Map.delete (fromRootId hdrId)
+        runCardanoMode $ modifySecretDefault (usWallets %= Map.delete (fromRootId hdrId))
         return Nothing
       AccountPath accId -> do
-        update acidDb (DeleteHdAccount accId)
+        throwLeft_ $ update acidDb (DeleteHdAccount accId)
         return $ Just $ WalletSelection $ RootPath (accId ^. hdAccountIdParent)
       AddressPath addrId -> undefined
+      -- TODO: Throw "Address con not be removed"
   atomicWriteIORef walletSelRef newSelection
   walletRefreshState
   where
-    fromRootId :: HdRootId -> (Core.AddressHash Core.PublicKey)
+    fromRootId :: HdRootId -> (AddressHash PublicKey)
     fromRootId (HdRootId (InDb x)) = x
 
 
@@ -502,30 +570,43 @@ renameSelection
   -> IORef (Maybe WalletSelection)
   -> Text
   -> IO ()
-renameSelection acidDB WalletFace{..} walletSelRef runCardanoMode name = do
-  walletDB <- query acidDB Snapshot
+renameSelection acidDb WalletFace{..} walletSelRef name = do
+  walletDb <- query acidDb Snapshot
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
     Nothing -> pure ()
     Just WalletSelection{..} -> case wsPath of
       RootPath hdrId -> do
-        let namesList = map unWalletName $ toWalletNamesList (walletDb ^. dbHdWallets)
-        when name `elen` namesList
-          throwM $ DuplicateWalletName name
-        update acidDb updateHdRootName hdrId name
+        let namesList = map unWalletName (toWalletNamesList (walletDb ^. dbHdWallets))
+        when (name `elem` namesList)
+          (throwM $ DuplicateWalletName (WalletName name))
+        throwLeft_ $ update acidDb (UpdateHdRootName hdrId (WalletName name))
+
       AccountPath accId -> do
         accounts <- case
           readAccountsByRootId (accId ^. hdAccountIdParent) (walletDb ^. dbHdWallets) of
-            Rigth accs -> return $ IxSet.toList accs
+            Right accs -> return (map unwrapOrdByPrimKey (IxSet.toList $ unwrapIxSet accs))
             Left err -> throwM err
-        let namesList = map unAccountName accounts
-        when name `elen` namesList
-          throwM $ DuplicateWalletName name
-        update acidDb updateHdRootName hdrId name
-      AddressPath _ -> throwM $ NotARenamableItem
+        let namesList = map (unAccountName . _hdAccountName) accounts
+        when (name `elem` namesList)
+          (throwM $ DuplicateAccountName (AccountName name))
+        throwLeft_ $ update acidDb (UpdateHdAccountName accId (AccountName name))
+
+      AddressPath _ -> throwM NotARenamableItem
   walletRefreshState
 
 -- Helpers
+throwLeft :: (IO a) -> (Either e a) -> (IO a)
+throwLeft exep eith = case eith of
+  Left _ -> exep
+  Right r -> return r
+
+throwLeft_ :: (Exception e) => IO (Either e a) -> IO ()
+throwLeft_ ioEith = do
+  eith <- ioEith
+  case eith of
+    Left err -> throwM err
+    Right _ -> return ()
 
 findFirstUnique :: (Ord a, Enum a) => a -> Vector a -> a
 findFirstUnique lastIdx paths = head
@@ -561,4 +642,4 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
 
 toWalletNamesList :: HdWallets -> [WalletName]
 toWalletNamesList hdw =
-  (^. hdRootName) <$> IxSet.toList (hdw .^ dbHdWallets . hdWalletsRoots)
+  ((^. hdRootName) . unwrapOrdByPrimKey) <$> (IxSet.toList $ unwrapIxSet (hdw ^. hdWalletsRoots))

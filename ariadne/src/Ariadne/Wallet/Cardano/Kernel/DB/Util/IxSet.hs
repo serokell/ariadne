@@ -4,10 +4,10 @@
 module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
     -- * Primary keys
     HasPrimKey(..)
-  , OrdByPrimKey -- opaque
+  , OrdByPrimKey (..) -- opaque
     -- * Wrapper around IxSet
   , IndicesOf
-  , IxSet
+  , IxSet (..)
   , Indexable
     -- * Building 'Indexable' instances
   , ixFun

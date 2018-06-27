@@ -247,7 +247,7 @@ data UiWalletData = UiWalletData
   , _uwdAccounts :: !(Vector UiAccountData)
   } deriving (Show, Generic)
 
-data UiAccountData = AccountData
+data UiAccountData = UiAccountData
   { _uadName      :: !Text
   , _uadPath      :: !Word32
   , _uadAddresses :: !(Vector ((HdAddressChain, Word32), Address))
@@ -338,7 +338,7 @@ toUiWalletSelection db WalletSelection{..} = case wsPath of
         (error "Bug: parentRootId does not exist")
         (readAccountsByRootId parentRootId (db ^. hdWallets))
 
-    addressList = indexed . toAddressList $
+    addressList = indexed . (map unwrapOrdByPrimKey) . toAddressList $
       fromRight
         (error "Bug: parentRootId does not exist")
         (readAccountsByRootId parentRootId (db ^. hdWallets))
@@ -402,11 +402,11 @@ walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletPaneInfo{..}
     wpiPath = uwsPath
     (wpiType, wpiLabel) = case uiwd ^? ix (fromIntegral wsWalletIndex) of
       Nothing -> error "Invalid wallet index"
-      Just WalletData{..} -> case wsPath of
+      Just UiWalletData{..} -> case wsPath of
         [] -> (Just UiWalletPaneInfoWallet, Just _uwdName)
         accIdx:accPath -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
-          Just AccountData{..} -> case accPath of
+          Just UiAccountData{..} -> case accPath of
             [] -> (Just $ UiWalletPaneInfoAccount [_uadPath], Just _uadName)
             addrIdx:_ -> case _uadAddresses ^? ix (fromIntegral addrIdx) of
               Nothing -> error "Invalid address index"
@@ -414,27 +414,30 @@ walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletPaneInfo{..}
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
+
+-- TODO: Convert backend WalletSelection to UiWalletSelection
+-- QUESTION: Need DB to be passed. How caller can do that?
 uiGetSelectedItem :: WalletFace -> IO UiSelectedItem
-uiGetSelectedItem WalletFace {walletGetSelection} =
-    walletGetSelection <&> \case
-        (Nothing, _) -> UiNoSelection
-        (Just WalletSelection {..}, us) ->
-            getItem (us ^? usWallets . ix (fromIntegral wsWalletIndex)) wsPath
-  where
-    getItem :: Maybe WalletData -> [Word] -> UiSelectedItem
-    getItem Nothing _ = error "Non-existing wallet is selected"
-    getItem (Just wd) [] = UiSelectedWallet (_uwdName wd)
-    getItem (Just wd) (accIdx:rest) =
-        case wd ^? wdAccounts . ix (fromIntegral accIdx) of
-            Nothing -> error "Non-existing account is selected"
-            Just ad ->
-                case rest of
-                    [] -> UiSelectedAccount (_uadName ad)
-                    [addrIdx] ->
-                        case ad ^? adAddresses . ix (fromIntegral addrIdx) of
-                            Nothing -> error "Non-existing address is selected"
-                            Just (_, addr) -> UiSelectedAddress (pretty addr)
-                    _ -> error "Invalid selection: too long"
+uiGetSelectedItem WalletFace {walletGetSelection} = undefined
+  --   walletGetSelection <&> \case
+  --       (Nothing, _) -> UiNoSelection
+  --       (Just WalletSelection {..}, us) ->
+  --           getItem (us ^? usWallets . ix (fromIntegral wsWalletIndex)) wsPath
+  -- where
+  --   getItem :: Maybe WalletData -> [Word] -> UiSelectedItem
+  --   getItem Nothing _ = error "Non-existing wallet is selected"
+  --   getItem (Just wd) [] = UiSelectedWallet (_uwdName wd)
+  --   getItem (Just wd) (accIdx:rest) =
+  --       case wd ^? wdAccounts . ix (fromIntegral accIdx) of
+  --           Nothing -> error "Non-existing account is selected"
+  --           Just ad ->
+  --               case rest of
+  --                   [] -> UiSelectedAccount (_uadName ad)
+  --                   [addrIdx] ->
+  --                       case ad ^? adAddresses . ix (fromIntegral addrIdx) of
+  --                           Nothing -> error "Non-existing address is selected"
+  --                           Just (_, addr) -> UiSelectedAddress (pretty addr)
+  --                   _ -> error "Invalid selection: too long"
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend

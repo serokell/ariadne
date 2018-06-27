@@ -44,7 +44,7 @@ createWalletBackend walletConfig = do
          withDicts $ fix $ \this -> WalletFace
           { walletNewAddress = newAddress acidDb this walletSelRef chain
           , walletNewAccount = newAccount acidDb this walletSelRef Nothing
-          , walletNewWallet = newWallet acidDb walletConfig this runCardanoMode
+          , walletNewWallet = newWallet acidDb walletConfig this walletSelRef runCardanoMode
           , walletRestore = restoreWallet acidDb this runCardanoMode
           , walletRestoreFromFile = restoreFromKeyFile acidDb this runCardanoMode
           , walletRename = renameSelection acidDb this walletSelRef runCardanoMode
@@ -53,7 +53,7 @@ createWalletBackend walletConfig = do
               refreshState acidDb walletSelRef sendWalletEvent
           , walletSelect = select acidDb this walletSelRef
           , walletSend =
-              sendTx this cf walletSelRef putCommandOutput
+              sendTx acidDb this cf walletSelRef putCommandOutput
           , walletGetSelection =
               (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
           , walletBalance = do

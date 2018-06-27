@@ -85,6 +85,7 @@ library
     , temporary
     , time
     , time-units
+    , time
     , universum
     , unliftio
     , vector

@@ -96,7 +96,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAccount walletRef name
+            walletNewAccount walletRef (AccountName name)
             return $ toValue ValueUnit
         , cpHelp = "Create and add a new account to the specified wallet. When \
                    \no wallet is specified, uses the selected wallet."

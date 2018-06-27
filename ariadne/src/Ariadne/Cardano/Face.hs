@@ -20,11 +20,6 @@ module Ariadne.Cardano.Face
        , HasCompileInfo
        , decodeTextAddress
 
-       , AccountData (..)
-       , adAddresses
-       , WalletData (..)
-       , wdName
-       , wdAccounts
        , UserSecret
        , usWallets
        ) where
@@ -42,9 +37,7 @@ import Pos.Crypto (PassPhrase)
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util.CompileInfo (HasCompileInfo)
-import Pos.Util.UserSecret
-  (AccountData(..), UserSecret, WalletData(..), adAddresses, usWallets,
-  wdAccounts, wdName)
+import Pos.Util.UserSecret (UserSecret, usWallets)
 import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
 
 data CardanoStatusUpdate = CardanoStatusUpdate

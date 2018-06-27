@@ -11,6 +11,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , HdWallets(..)
   , HdRootId(..)
   , HdAccountId(..)
+  , HdAddressId(..)
+  , HdAccountId(..)
   , HdAddressChain(..)
   , HdAddressId(..)
   , HdRoot(..)
@@ -61,7 +63,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , assumeHdRootExists
   , assumeHdAccountExists
     -- * Helpers
-    toAddressList
+  , toAddressList
+  , toAccountsList
   ) where
 
 import Universum
@@ -76,12 +79,15 @@ import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
 import qualified Pos.Crypto as Core
+import qualified Prelude
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
+
+import Data.List (partition)
 
 {-------------------------------------------------------------------------------
   Supporting types
@@ -141,12 +147,15 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
 data HdRootId = HdRootId (InDb (Core.AddressHash Core.PublicKey))
   deriving (Eq, Ord)
 
+instance Prelude.Show HdRootId where
+  show (HdRootId (InDb (addrHash))) = show addrHash
+
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
       _hdAccountIdParent :: HdRootId
     , _hdAccountIdIx     :: HdAccountIx
     }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | HD wallet address ID
 data HdAddressId = HdAddressId {
@@ -154,7 +163,7 @@ data HdAddressId = HdAddressId {
     , _hdAddressIdChain  :: HdAddressChain
     , _hdAddressIdIx     :: HdAddressIx
     }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | Root of a HD wallet
 --
@@ -258,6 +267,7 @@ hdAccountCurrentCheckpoint = hdAccountCheckpoints . currentAccCheckpoint
 data UnknownHdRoot =
     -- | Unknown root ID
     UnknownHdRoot HdRootId
+    deriving (Eq, Show)
 
 -- | Unknown account
 data UnknownHdAccount =
@@ -266,6 +276,7 @@ data UnknownHdAccount =
 
     -- | Unknown account (implies the root is known)
   | UnknownHdAccount HdAccountId
+  deriving (Eq, Show)
 
 -- | Unknown address
 data UnknownHdAddress =
@@ -277,6 +288,7 @@ data UnknownHdAddress =
 
     -- | Unknown address (implies the account is known)
   | UnknownHdAddress HdAddressId
+  deriving (Eq, Show)
 
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
@@ -481,7 +493,14 @@ instance Buildable UnknownHdAccount where
     build (UnknownHdAccount accountId)
         = bprint ("UnknownHdAccount accountId: "%build) accountId
 
-toAddressList :: IxSet HdAddress -> [HdAddress]
-toAddressList s = concat2 (partition (^. hdAddressChain == HdChainExternal) (IxSet.toList s))
+toAddressList :: IxSet HdAddress -> [OrdByPrimKey HdAddress]
+toAddressList s = concat2 partitioned
   where
+    partitioned = partition ((== HdChainExternal) . (^. hdAddressChain) . unwrapOrdByPrimKey) (IxSet.toList (unwrapIxSet s))
+
     concat2 (a,b) = a ++ b
+
+-- TODO:
+-- Choose a more suitable list ordering
+toAccountsList :: IxSet HdAccount -> [OrdByPrimKey HdAccount]
+toAccountsList s = IxSet.toAscList (Proxy :: Proxy HdAccountId) (unwrapIxSet s)
