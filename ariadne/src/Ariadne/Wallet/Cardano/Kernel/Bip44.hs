@@ -2,6 +2,8 @@ module Ariadne.Wallet.Cardano.Kernel.Bip44
     ( Bip44DerivationPath (..)
     , decodeBip44DerivationPath
     , encodeBip44DerivationPath
+    , encodeBip44DerivationPathToAccount
+    , encodeBip44DerivationPathFromAccount
     ) where
 
 import Universum
@@ -30,6 +32,8 @@ bip44CoinType = unsafeMkWord31 1815
   BIP-44 conversion functions
 -------------------------------------------------------------------------------}
 
+-- | Full derivation path for an address in application-level terms.
+--
 -- In fact, this is almost HdAddressId, with the exception that
 -- it does not include the corresponding HdRootId.
 data Bip44DerivationPath = Bip44DerivationPath
@@ -70,22 +74,37 @@ decodeBip44DerivationPath derPathList = do
         | n == 1 = Just HdChainInternal
         | otherwise = Nothing
 
+-- | Construct a derivation path (a list of indices, as specified in
+-- BIP-32) from root key to address, according to the BIP-44
+-- specification.
 encodeBip44DerivationPath :: Bip44DerivationPath -> [Word32]
 encodeBip44DerivationPath Bip44DerivationPath {..} =
+    encodeBip44DerivationPathToAccount bip44AccountIndex ++
+    encodeBip44DerivationPathFromAccount bip44AddressChain bip44AddressIndex
+
+-- | Construct a derivation path (a list of indices, as specified in
+-- BIP-32) from root key to account, according to the BIP-44
+-- specification.
+encodeBip44DerivationPathToAccount :: HdAccountIx -> [Word32]
+encodeBip44DerivationPathToAccount (HdAccountIx accountIdx) =
     [ toHardened bip44Purpose
     , toHardened bip44CoinType
-    , toHardened $ unwrapHdAccountIx bip44AccountIndex
-    , toNonHardened $ case bip44AddressChain of
+    , toHardened accountIdx
+    ]
+  where
+    toHardened :: Word31 -> Word32
+    toHardened (word31ToWord32 -> n) = firstHardened + n
+
+-- | Construct a derivation path (a list of indices, as specified in
+-- BIP-32) from account to address, according to the BIP-44
+-- specification.
+encodeBip44DerivationPathFromAccount :: HdAddressChain -> HdAddressIx -> [Word32]
+encodeBip44DerivationPathFromAccount hdAddressChain (HdAddressIx addressIdx) =
+    [ toNonHardened $ case hdAddressChain of
         HdChainExternal -> unsafeMkWord31 0
         HdChainInternal -> unsafeMkWord31 1
-    , toNonHardened $ unwrapHdAddressIx bip44AddressIndex
+    , toNonHardened addressIdx
     ]
   where
     toNonHardened :: Word31 -> Word32
     toNonHardened (word31ToWord32 -> n) = firstNonHardened + n
-
-    toHardened :: Word31 -> Word32
-    toHardened (word31ToWord32 -> n) = firstHardened + n
-
-    unwrapHdAccountIx (HdAccountIx accountIdx) = accountIdx
-    unwrapHdAddressIx (HdAddressIx addressIdx) = addressIdx
