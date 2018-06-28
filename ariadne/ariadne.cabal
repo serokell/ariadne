@@ -131,6 +131,7 @@ library
 
       Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Bip32
       Ariadne.Wallet.Cardano.Kernel.Bip44
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
