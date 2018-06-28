@@ -49,8 +49,6 @@ import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Cardano.Kernel.Bip32
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
@@ -511,20 +509,17 @@ deriveBip44KeyPair ::
        IsBootstrapEraAddr
     -> PassPhrase
     -> EncryptedSecretKey
-    -> HdAccountIx
-    -> HdAddressChain
-    -> HdAddressIx
+    -> Bip44DerivationPath
     -> Maybe (Address, EncryptedSecretKey)
-deriveBip44KeyPair era pp rootSK hdAccountIx hdAddressChain hdAddressIx =
+deriveBip44KeyPair era pp rootSK bip44DerPath =
     toPair <$>
     deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
   where
-    bip44DerPath = Bip44DerivationPath hdAccountIx hdAddressChain hdAddressIx
     derPath :: [Word32]
     derPath = encodeBip44DerivationPath bip44DerPath
     toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
     toPair addrSK =
-        ( makePubKeyHdwAddress'
+        ( makePubKeyHdwAddressUsingPath
               era
               derPath
               ! #root (encToPublic rootSK)

@@ -2,7 +2,7 @@
 
 module Ariadne.Wallet.Cardano.Kernel.Bip32
        ( deriveHDSecretKeyByPath
-       , makePubKeyHdwAddress'
+       , makePubKeyHdwAddressUsingPath
        ) where
 
 import Universum
@@ -30,12 +30,13 @@ deriveHDSecretKeyByPath shouldCheck pp sk derPath =
         -- check passphrase at most once
         (zip (shouldCheck : repeat (ShouldCheckPassphrase False)) derPath)
 
--- | Like 'makePubKeyHdwAddress', but also creates HDPassphrase internally.
-makePubKeyHdwAddress' ::
+-- | Like 'makePubKeyHdwAddress', but also creates HDPassphrase
+-- internally using derivation path and root public key.
+makePubKeyHdwAddressUsingPath ::
        IsBootstrapEraAddr
     -> [Word32]
     -> PublicKey `Named` "root" -> PublicKey `Named` "address" -> Address
-makePubKeyHdwAddress' era derPath (Named rootPK) (Named addrPK) =
+makePubKeyHdwAddressUsingPath era derPath (Named rootPK) (Named addrPK) =
     makePubKeyHdwAddress era hdPayload addrPK
   where
     hdPP = deriveHDPassphrase rootPK
