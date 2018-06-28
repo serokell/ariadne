@@ -57,8 +57,7 @@ import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
 import Pos.Core
-import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
-import Pos.Core.Common.Address (addressHash)
+import Pos.Core.Common (IsBootstrapEraAddr(..), addressHash, deriveLvl2KeyPair)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
@@ -284,7 +283,14 @@ newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
                 (hdAddressId ^. hdAddressIdIx)) of
           Nothing -> throwM AGFailedIncorrectPassPhrase
           Just (a, _) -> pure a
-  throwLeft_ $ update acidDb (CreateHdAddress hdAddressId (InDb addr) chain emptyCheckpoint)
+  let
+    hdAddress = HdAddress
+      { _hdAddressId = hdAddressId
+      , _hdAddressAddress = InDb addr
+      , _hdAddressIsUsed = False
+      , _hdAddressCheckpoints = one emptyCheckpoint
+      }
+  throwLeft_ $ update acidDb (CreateHdAddress hdAddress)
   walletRefreshState
     where
       -- TODO: Get it from UserSecret
@@ -342,10 +348,11 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
       when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName (AccountName accountName_)
       return accountName_
 
-  throwLeft_ $ update acidDb (CreateHdAccount
-    hdRootId
-    (AccountName accountName)
-    (fromMaybe emptyCheckpoint mbCheckPoint))
+  undefined -- TODO
+  -- throwLeft_ $ update acidDb (CreateHdAccount
+  --   hdRootId
+  --   (AccountName accountName)
+  --   (fromMaybe emptyCheckpoint mbCheckPoint))
 
   walletRefreshState
   where
@@ -440,7 +447,14 @@ addWallet acidDb wf@WalletFace {..} runCardanoMode esk mbWalletName accounts = d
   let hasPass = undefined
   let assurance = undefined
 
-  throwLeft_ $ update acidDb (CreateHdRoot hdRootId walletName hasPass assurance timestamp)
+  let hdRoot = HdRoot
+          { _hdRootId = hdRootId
+          , _hdRootName = walletName
+          , _hdRootHasPassword = hasPass
+          , _hdRootAssurance = assurance
+          , _hdRootCreatedAt = timestamp
+          }
+  throwLeft_ $ update acidDb (CreateHdRoot hdRoot)
 
   -- FIXME: Make it a single acid-state transaction
   addAccounts acidDb hdRootId accounts
