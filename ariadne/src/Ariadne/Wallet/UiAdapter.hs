@@ -8,27 +8,15 @@ module Ariadne.Wallet.UiAdapter
 
 import Universum
 
-import Control.Exception (displayException)
-import Control.Lens (ix)
-import Data.Unique
 import qualified Data.Vector as V
-import IiExtras
 import Pos.Core
 
-import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
-
--- import qualified Ariadne.Cardano.Knit as Knit
--- import qualified Ariadne.TaskManager.Knit as Knit
--- import qualified Ariadne.UI.Vty.Knit as Knit
--- import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
--- import qualified Ariadne.Wallet.Knit as Knit
--- import qualified Knit
 
 import Data.List.Index (indexed)
 
@@ -58,26 +46,24 @@ toUiWalletDatas db = toUiWalletData <$> walletList
     wallets = (db ^. dbHdWallets)
 
     walletList :: [HdRoot]
-    walletList = toWalletsList (readAllHdRoots wallets)
+    walletList = toList (readAllHdRoots wallets)
 
     accList :: HdRootId -> [HdAccount]
-    accList rootId =
-      map unwrapOrdByPrimKey (toAccountsList $ getAccounts rootId)
+    accList rootId = toList $ getAccounts rootId
 
     getAccounts :: HdRootId -> IxSet HdAccount
-    getAccounts hdRootId = fromRight
+    getAccounts rootId = fromRight
       (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId hdRootId wallets)
+      (readAccountsByRootId rootId wallets)
 
     -- External chain listed first
     addrList :: HdAccountId -> [HdAddress]
-    addrList accId =
-      map unwrapOrdByPrimKey (toAddressList $ getAddresses wallets accId)
+    addrList accId = toList $ getAddresses accId
 
-    getAddresses :: HdWallets -> HdAccountId -> IxSet HdAddress
-    getAddresses wallets hdAccountId = fromRight
+    getAddresses :: HdAccountId -> IxSet HdAddress
+    getAddresses accountId = fromRight
       (error "Bug: UnknownHdAccount")
-      (readAddressesByAccountId hdAccountId wallets)
+      (readAddressesByAccountId accountId wallets)
     ---
 
     toUiWalletData :: HdRoot -> UiWalletData
@@ -101,8 +87,6 @@ toUiWalletDatas db = toUiWalletData <$> walletList
 
     toUiAddresses :: (Word32, HdAddress) -> (Word32, Address)
     toUiAddresses (addrIx, HdAddress {..}) = (addrIx, _fromDb _hdAddressAddress)
-
-    unHdAccountIx (HdAccountIx w) = w
 
 data UiWalletSelection = UiWalletSelection
   { uwsWalletIdx :: Word
@@ -130,31 +114,31 @@ toUiWalletSelection db WalletSelection{..} = case wsPath of
     wallets = (db ^. dbHdWallets)
 
     walletList :: [(Word, HdRoot)]
-    walletList = indexed_ $ toWalletsList (readAllHdRoots wallets)
+    walletList = indexed_ $ toList (readAllHdRoots wallets)
 
     -- Selection always exist
-    getAccountList parentRootId = indexed_ . (map unwrapOrdByPrimKey) . toAccountsList $
+    getAccountList parentRootId = indexed_ . toList $
       fromRight
         (error "Bug: parentRootId does not exist")
         (readAccountsByRootId parentRootId (db ^. dbHdWallets))
 
-    getAddressList parentAccountId = indexed_ . (map unwrapOrdByPrimKey) . toAddressList $
+    getAddressList parentAccountId = indexed_ . toList $
       fromRight
         (error "Bug: parentAccountId does not exist")
         (readAddressesByAccountId parentAccountId (db ^. dbHdWallets))
 
     getHdRootIdx rootId = fst $ fromMaybe
       (error "Bug: selected Wallet does not exist.")
-      (mbHead $ filter (\(idx, wal) -> wal ^. hdRootId == rootId) walletList)
+      (mbHead $ filter (\(_, wal) -> wal ^. hdRootId == rootId) walletList)
 
     getAccountIdx accountId parentRootId = fst $ fromMaybe
       (error "Bug: selected Account does not exist.")
-      (mbHead $ filter (\(idx, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
+      (mbHead $ filter (\(_, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
 
     getAddressIdx addressId parentAccountId = fst $ fromMaybe
       (error "Bug: selected Address does not exist.")
-      (mbHead $ filter (\(idx, addr) -> addr ^. hdAddressId == addressId) (getAddressList parentAccountId))
+      (mbHead $ filter (\(_, addr) -> addr ^. hdAddressId == addressId) (getAddressList parentAccountId))
 
     mbHead :: [a] -> Maybe a
-    mbHead (x:xs) = Just x
+    mbHead (x:_) = Just x
     mbHead [] = Nothing

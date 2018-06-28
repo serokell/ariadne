@@ -9,17 +9,18 @@ import Universum hiding (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non)
+import Data.Acid (AcidState)
 import qualified Data.ByteString as BS
 import Data.List (init)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.Vector as V
-import Data.Acid (AcidState, query, update)
+-- import qualified Data.Map.Strict as Map
 
-import IiExtras
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Cardano.Face
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), decodeBip44DerivationPath)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
 import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)
@@ -112,41 +113,43 @@ findAccounts ::
        HasConfiguration
     => EncryptedSecretKey
     -> CardanoMode (Vector HdAccount)
-findAccounts esk = undefined
---      convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPublic esk))
---   where
---     convertRes :: [(Address, [Word32])] -> Vector AccountData
---     convertRes = convertGroups . groupAddresses . filterAddresses
+findAccounts esk =
+    convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPublic esk))
+  where
+    convertRes :: [(Address, [Word32])] -> Vector HdAccount
+    convertRes = convertGroups . groupAddresses . filterAddresses
 
---     -- TODO: simply ignoring addresses which are not at the 2nd level
---     -- is not perfect (though normal users shouldn't have addresses at
---     -- different levels). We should probably at least show some
---     -- message if we encounter such addresses. Let's do it after
---     -- switching to modern wallet data layer.
+    -- TODO: simply ignoring addresses which are not at the 2nd level
+    -- is not perfect (though normal users shouldn't have addresses at
+    -- different levels). We should probably at least show some
+    -- message if we encounter such addresses. Let's do it after
+    -- switching to modern wallet data layer.
 
---     -- TODO: how to deduce chain type?
---     filterAddresses :: [(Address, [Word32])] -> [(Address, (Word32, Word32))]
---     filterAddresses =
---         let twoIndices [α, β] = Just (α, β)
---             twoIndices _ = Nothing
---         in mapMaybe (\(addr, indices) -> (addr,) <$> twoIndices indices)
+    filterAddresses :: [(Address, [Word32])] -> [(Address, Bip44DerivationPath)]
+    filterAddresses =
+        mapMaybe (\(addr, indices) -> (addr,) <$> decodeBip44DerivationPath indices)
 
---     groupAddresses ::
---         [(Address, (Word32, Word32))] -> Map Word32 [(Word32, Address)]
---     groupAddresses =
---         let step :: Map Word32 [(Word32, Address)] ->
---                     (Address, (Word32, Word32)) ->
---                     Map Word32 [(Word32, Address)]
---             step res (addr, (accIdx, addrIdx)) =
---                 res & at accIdx . non mempty %~ ((addrIdx, addr):)
---         in foldl' step mempty
+    groupAddresses ::
+        [(Address, Bip44DerivationPath)] -> Map HdAccountIx [(Bip44DerivationPath, Address)]
+    groupAddresses =
+        let step ::
+                Map HdAccountIx [(Bip44DerivationPath, Address)] ->
+                (Address, Bip44DerivationPath) ->
+                Map HdAccountIx [(Bip44DerivationPath, Address)]
+            step res (addr, derPath) =
+                res & at (bip44AccountIndex derPath) . non mempty %~ ((derPath, addr):)
+        in foldl' step mempty
 
---     convertGroups :: Map Word32 [(Word32, Address)] -> Vector AccountData
---     convertGroups =
---         let toAccountData (accIdx, addrs) = AccountData
---               { _adName = "Restored account " <> pretty accIdx
---               , _adLastIndex = 0
---               , _adPath = accIdx
---               , _adAddresses = V.fromList addrs
---               }
---         in V.fromList . map toAccountData . Map.toList
+    convertGroups :: Map HdAccountIx [(Bip44DerivationPath, Address)] -> Vector HdAccount
+    convertGroups = undefined
+    -- TODO:
+    -- * Construct AddrCheckpoint
+    -- * Add addresses to accounts
+    -- * Construct AccCheckpoint
+        -- let toAccountData (accIdx, addrs) = AccountData
+        --       { _adName = "Restored account " <> pretty accIdx
+        --       , _adLastIndex = 0
+        --       , _adPath = accIdx
+        --       , _adAddresses = V.fromList addrs
+        --       }
+        -- in V.fromList . map toAccountData . Map.toList

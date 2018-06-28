@@ -8,7 +8,7 @@ module Ariadne.Wallet.Cardano.Kernel.Word31
 import Universum
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable (Buildable (..))
+import qualified Data.Text.Buildable (Buildable(..))
 import Formatting (bprint, int)
 
 {-------------------------------------------------------------------------------
@@ -25,6 +25,10 @@ newtype Word31Exception = Word31Overflow Word32
 instance Exception Word31Exception where
     displayException (Word31Overflow n) =
         "Word31: " <> show n <> " is too large"
+
+instance Enum Word31 where
+    toEnum = unsafeMkWord31 . fromIntegral
+    fromEnum (Word31 w32) = fromIntegral w32
 
 maxWord31 :: Word32
 maxWord31 = 0x7FFFFFFF -- 2^31 - 1

@@ -5,7 +5,6 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Data.Acid (openLocalStateFrom)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
@@ -19,10 +18,8 @@ import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (defDB)
 import Ariadne.Wallet.Face
-import Pos.Launcher
 
 
 createWalletBackend :: WalletConfig -> IO
@@ -34,7 +31,7 @@ createWalletBackend :: WalletConfig -> IO
 createWalletBackend walletConfig = do
   walletSelRef <- newIORef Nothing
   -- TODO: Do I need to close session on exit?
-  acidDb <- openLocalStateFrom walletAcidDbPathPlaceholder emptyDb
+  acidDb <- openLocalStateFrom walletAcidDbPathPlaceholder defDB
   return $ \cf@CardanoFace {..} sendWalletEvent ->
     let
       Nat runCardanoMode = cardanoRunCardanoMode
@@ -72,13 +69,6 @@ createWalletBackend walletConfig = do
 -- TODO: Make it configurable
 walletAcidDbPathPlaceholder :: FilePath
 walletAcidDbPathPlaceholder = ".wallet-db"
-
-emptyDb :: DB
-emptyDb = DB HdWallets
-  { _hdWalletsRoots = (fromList [] :: IxSet HdRoot)
-  , _hdWalletsAccounts = (fromList [] :: IxSet HdAccount)
-  , _hdWalletsAddresses = (fromList [] :: IxSet HdAddress)
-  }
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be

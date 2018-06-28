@@ -19,6 +19,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
   , CreateHdWallet(..)
   , CreateHdRoot(..)
   , CreateHdAddress(..)
+  , CreateHdAccount(..)
     -- *** UPDATE
   , UpdateHdRootAssurance
   , UpdateHdRootName(..)
@@ -267,6 +268,11 @@ createHdAddress :: HdAddress -> Update DB (Either HD.CreateHdAddressError ())
 createHdAddress hdAddress = runUpdate' . zoom dbHdWallets $
     HD.createHdAddress hdAddress
 
+createHdAccount :: HdAccount
+                -> Update DB (Either HD.CreateHdAccountError ())
+createHdAccount hdAccount = runUpdate' . zoom dbHdWallets $
+    HD.createHdAccount hdAccount
+
 updateHdRootAssurance :: HdRootId
                       -> AssuranceLevel
                       -> Update DB (Either UnknownHdRoot ())
@@ -310,6 +316,7 @@ makeAcidic ''DB [
       -- Updates on HD wallets
     , 'createHdRoot
     , 'createHdAddress
+    , 'createHdAccount
     , 'createHdWallet
     , 'updateHdRootAssurance
     , 'updateHdRootName

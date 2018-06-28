@@ -67,6 +67,8 @@ instance Exception CreateHdRootError where
 instance Exception CreateHdAccountError where
   displayException (CreateHdAccountUnknownRoot (UnknownHdRoot rootId)) =
     "The wallet " ++ show rootId ++ " does not exist."
+  displayException (CreateHdAccountExists accountId) =
+    "The account " ++ show accountId ++ " is exist."
 
 instance Exception CreateHdAddressError where
   displayException (CreateHdAddressUnknown (UnknownHdAccountRoot rootId)) =

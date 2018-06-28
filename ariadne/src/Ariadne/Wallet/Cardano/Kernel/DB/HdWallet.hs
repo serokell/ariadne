@@ -60,10 +60,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , zoomOrCreateHdAddress
   , assumeHdRootExists
   , assumeHdAccountExists
-    -- * Helpers
-  , toAddressList
-  , toAccountsList
-  , toWalletsList
   ) where
 
 import Universum
@@ -435,8 +431,8 @@ zoomOrCreateHdRoot :: HdRoot
                    -> HdRootId
                    -> Update' HdRoot    e a
                    -> Update' HdWallets e a
-zoomOrCreateHdRoot newRoot rootId upd =
-    zoomCreate newRoot (hdWalletsRoots . at rootId) $ upd
+zoomOrCreateHdRoot newRoot rootId  =
+    zoomCreate newRoot (hdWalletsRoots . at rootId)
 
 -- | Variation on 'zoomHdAccountId' that creates the 'HdAccount' if it doesn't exist
 --
@@ -508,18 +504,19 @@ instance Buildable UnknownHdAccount where
     build (UnknownHdAccount accountId)
         = bprint ("UnknownHdAccount accountId: "%build) accountId
 
-toAddressList :: IxSet HdAddress -> [OrdByPrimKey HdAddress]
-toAddressList s = concat2 partitioned
-  where
-    partitioned = partition ((== HdChainExternal) . (^. hdAddressChain) . unwrapOrdByPrimKey) (IxSet.toList (unwrapIxSet s))
+class Listable a where
+  toList :: IxSet a -> [a]
 
-    concat2 (a,b) = a ++ b
+instance Listable HdAccount where
+  toList s =
+    map unwrapOrdByPrimKey (IxSet.toAscList (Proxy :: Proxy HdAccountId) (unwrapIxSet s))
 
--- TODO:
--- * Choose a more suitable list ordering
--- * Get rid of OrdByPrimKey
-toAccountsList :: IxSet HdAccount -> [OrdByPrimKey HdAccount]
-toAccountsList s = IxSet.toAscList (Proxy :: Proxy HdAccountId) (unwrapIxSet s)
+instance Listable HdRoot where
+  toList s =
+    map unwrapOrdByPrimKey (IxSet.toList (unwrapIxSet s))
 
-toWalletsList :: IxSet HdRoot -> [HdRoot]
-toWalletsList s = unwrapOrdByPrimKey <$> (IxSet.toList (unwrapIxSet s))
+instance Listable HdAddress where
+  toList s =
+    map unwrapOrdByPrimKey (external <> internal)
+    where
+      (external, internal) = partition ((== HdChainExternal) . (^. hdAddressChain) . unwrapOrdByPrimKey) (IxSet.toList (unwrapIxSet s))

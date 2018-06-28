@@ -22,7 +22,7 @@ import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
-import Pos.Crypto.HD (ShouldCheckPassphrase(..), deriveHDSecretKey)
+import Pos.Crypto.HD (ShouldCheckPassphrase(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
@@ -38,7 +38,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, unwrapOrdByPrimKey)
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
 
 data SendTxException
@@ -181,8 +181,7 @@ walletSigners rootSK wallets pp = foldMap accountSigners
                    )
 
             accountAddresses :: [(HdAddressChain, HdAddressIx, Address)]
-            accountAddresses = map toAddrTuple $
-                map unwrapOrdByPrimKey (toAddressList addressesSet)
+            accountAddresses = map toAddrTuple $ toList addressesSet
 
             addressesSet :: IxSet HdAddress
             addressesSet = fromRight
