@@ -104,6 +104,7 @@ executable ariadne-qt
     , double-conversion
     , ii-extras
     , ilist
+    , cardano-sl-core
     , knit
     , lens
     , text

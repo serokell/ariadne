@@ -30,13 +30,13 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
--- import Pos.Core
+import Ariadne.Wallet.UiAdapter
+import Pos.Core
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -229,70 +229,70 @@ putCardanoEventToUI UiFace{..} ev =
 -- Glue between the Wallet backend and Qt frontend
 ----------------------------------------------------------------------------
 
--- 'WalletData' like data type, used only in UI glue
-data UiWalletData = UiWalletData
-  { _uwdName     :: !Text
-  , _uwdAccounts :: !(Vector UiAccountData)
-  } deriving (Show, Generic)
+-- -- 'WalletData' like data type, used only in UI glue
+-- data UiWalletData = UiWalletData
+--   { _uwdName     :: !Text
+--   , _uwdAccounts :: !(Vector UiAccountData)
+--   } deriving (Show, Generic)
 
-data UiAccountData = UiAccountData
-  { _uadName      :: !Text
-  , _uadPath      :: !Word32
-  , _uadAddresses :: !(Vector ((HdAddressChain, Word32), Address))
-  } deriving (Eq, Show, Generic)
+-- data UiAccountData = UiAccountData
+--   { _uadName      :: !Text
+--   , _uadPath      :: !Word32
+--   , _uadAddresses :: !(Vector ((HdAddressChain, Word32), Address))
+--   } deriving (Eq, Show, Generic)
 
--- TODO: Move common UI (vty, qt) functions to separate module
-toUiWalletDatas :: DB -> [UiWalletData]
-toUiWalletDatas db = toUiWalletData <$> walletList
-  where
-    -- Helpers
-    wallets = (db ^. dbHdWallets)
+-- -- TODO: Move common UI (vty, qt) functions to separate module
+-- toUiWalletDatas :: DB -> [UiWalletData]
+-- toUiWalletDatas db = toUiWalletData <$> walletList
+--   where
+--     -- Helpers
+--     wallets = (db ^. dbHdWallets)
 
-    walletList :: [HdRoot]
-    walletList = toWalletsList (readAllHdRoots wallets)
+--     walletList :: [HdRoot]
+--     walletList = toWalletsList (readAllHdRoots wallets)
 
-    accList :: HdRootId -> [HdAccount]
-    accList rootId =
-      map unwrapOrdByPrimKey (toAccountsList $ getAccounts rootId)
+--     accList :: HdRootId -> [HdAccount]
+--     accList rootId =
+--       map unwrapOrdByPrimKey (toAccountsList $ getAccounts rootId)
 
-    getAccounts :: HdRootId -> IxSet HdAccount
-    getAccounts hdRootId = fromRight
-      (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId hdRootId wallets)
+--     getAccounts :: HdRootId -> IxSet HdAccount
+--     getAccounts hdRootId = fromRight
+--       (error "Bug: UnknownHdRoot")
+--       (readAccountsByRootId hdRootId wallets)
 
-    -- External chain listed first
-    addrList :: HdAccountId -> [HdAddress]
-    addrList accId =
-      map unwrapOrdByPrimKey (toAddressList $ getAddresses wallets accId)
+--     -- External chain listed first
+--     addrList :: HdAccountId -> [HdAddress]
+--     addrList accId =
+--       map unwrapOrdByPrimKey (toAddressList $ getAddresses wallets accId)
 
-    getAddresses :: HdWallets -> HdAccountId -> IxSet HdAddress
-    getAddresses wallets hdAccountId = fromRight
-      (error "Bug: UnknownHdAccount")
-      (readAddressesByAccountId hdAccountId wallets)
-    ---
+--     getAddresses :: HdWallets -> HdAccountId -> IxSet HdAddress
+--     getAddresses wallets hdAccountId = fromRight
+--       (error "Bug: UnknownHdAccount")
+--       (readAddressesByAccountId hdAccountId wallets)
+--     ---
 
-    toUiWalletData :: HdRoot -> UiWalletData
-    toUiWalletData HdRoot {..} = UiWalletData
-      { _uwdName = unHdRootName _hdRootName
-      , _uwdAccounts = toUiAccountData <$> indexed $ accList _hdRootId
-      }
+--     toUiWalletData :: HdRoot -> UiWalletData
+--     toUiWalletData HdRoot {..} = UiWalletData
+--       { _uwdName = unHdRootName _hdRootName
+--       , _uwdAccounts = toUiAccountData <$> indexed $ accList _hdRootId
+--       }
 
-    toUiAccountData :: (Word32, HdAccount) -> UiAccountData
-    toUiAccountData (accIdx, HdAccount {..}) = UiAccountData
-      { _uadName = _hdAccountName
-      -- path indexation should be the same as in selection
-      , _uadPath =  [accIdx]
+--     toUiAccountData :: (Word32, HdAccount) -> UiAccountData
+--     toUiAccountData (accIdx, HdAccount {..}) = UiAccountData
+--       { _uadName = _hdAccountName
+--       -- path indexation should be the same as in selection
+--       , _uadPath =  [accIdx]
 
-      , _uadAddresses = map toUiAddresses indexed $ addrList _hdAccountId
-      }
+--       , _uadAddresses = map toUiAddresses indexed $ addrList _hdAccountId
+--       }
 
-    -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess, but
-    -- AFAIU we don't want a new layer, so addresses of both types wiil be in one list -- External first.
+--     -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess, but
+--     -- AFAIU we don't want a new layer, so addresses of both types wiil be in one list -- External first.
 
-    -- toUiAddresses :: (Word32, HdAddress) -> (Word32, Address)
-    toUiAddresses (addrIx, HdAddress {..}) = (addrIx, _fromDb _hdAddressAddress)
+--     -- toUiAddresses :: (Word32, HdAddress) -> (Word32, Address)
+--     toUiAddresses (addrIx, HdAddress {..}) = (addrIx, _fromDb _hdAddressAddress)
 
-    unHdAccountIx (HdAccountIx w) = w
+--     unHdAccountIx (HdAccountIx w) = w
 
 
 -- The 'Maybe' here is not used for now, but in the future might be, if some
@@ -302,69 +302,62 @@ walletEventToUI = \case
   WalletStateSetEvent db sel ->
     Just $ UiWalletEvent $
       UiWalletUpdate
-        (uiWalletDatasToTree uiwd)
+        (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
-  where
-    uiwd = toUiWalletDatas (db ^. hdWallets)
 
-data UiWalletSelection = UiWalletSelection
-  { uwsWalletIdx :: Word
-  , uwsPath :: [Word]
-  }
+-- data UiWalletSelection = UiWalletSelection
+--   { uwsWalletIdx :: Word
+--   , uwsPath :: [Word]
+--   }
 
-toUiWalletSelection :: DB -> WalletSelection -> UiWalletSelection
-toUiWalletSelection db WalletSelection{..} = case wsPath of
-  RootPath rootId ->
-    UiWalletSelection (getHdRootIdx rootId) []
-  AccountPath accountId ->
-    let
-      parentRootId = accountId ^. hdAccountIdParent
-    in
-      UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx parentRootId accountId)]
-  AddressPath addressId ->
-    let
-      parentAccountId = addressId ^. hdAddressIdParent
-      parentRootId = parentAccountId ^. hdAccountIdParent
-    in
-      UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx accountId), (getAddressIdx addressId)]
-  where
-    wallets = (db ^. dbHdWallets)
+-- toUiWalletSelection :: DB -> WalletSelection -> UiWalletSelection
+-- toUiWalletSelection db WalletSelection{..} = case wsPath of
+--   RootPath rootId ->
+--     UiWalletSelection (getHdRootIdx rootId) []
+--   AccountPath accountId ->
+--     let
+--       parentRootId = accountId ^. hdAccountIdParent
+--     in
+--       UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx parentRootId accountId)]
+--   AddressPath addressId ->
+--     let
+--       parentAccountId = addressId ^. hdAddressIdParent
+--       parentRootId = parentAccountId ^. hdAccountIdParent
+--     in
+--       UiWalletSelection (getHdRootIdx parentRootId) [(getAccountIdx accountId), (getAddressIdx addressId)]
+--   where
+--     wallets = (db ^. dbHdWallets)
 
-    walletList :: [HdRoot]
-    walletList = toWalletsList (readAllHdRoots wallets)
+--     walletList :: [HdRoot]
+--     walletList = toWalletsList (readAllHdRoots wallets)
 
-    -- Selection always exist
-    accountList = indexed . (map unwrapOrdByPrimKey) . toAccountsList $
-      fromRight
-        (error "Bug: parentRootId does not exist")
-        (readAccountsByRootId parentRootId (db ^. hdWallets))
+--     -- Selection always exist
+--     accountList = indexed . (map unwrapOrdByPrimKey) . toAccountsList $
+--       fromRight
+--         (error "Bug: parentRootId does not exist")
+--         (readAccountsByRootId parentRootId (db ^. hdWallets))
 
-    addressList = indexed . (map unwrapOrdByPrimKey) . toAddressList $
-      fromRight
-        (error "Bug: parentRootId does not exist")
-        (readAccountsByRootId parentRootId (db ^. hdWallets))
+--     addressList = indexed . (map unwrapOrdByPrimKey) . toAddressList $
+--       fromRight
+--         (error "Bug: parentRootId does not exist")
+--         (readAccountsByRootId parentRootId (db ^. hdWallets))
 
 
-    getHdRootIdx rootId = fromMaybe
-      (error "Bug: selected Wallet does not exist.")
-      (head filter (\(idx, wal) -> wal ^. hdRootId == rootId) walletList)
+--     getHdRootIdx rootId = fromMaybe
+--       (error "Bug: selected Wallet does not exist.")
+--       (head filter (\(idx, wal) -> wal ^. hdRootId == rootId) walletList)
 
-    getAccountIdx accountId = fromMaybe
-      (error "Bug: selected Account does not exist.")
-      (head filter (\(idx, acc) -> acc ^. hdAccountId == accountId) accountList)
+--     getAccountIdx accountId = fromMaybe
+--       (error "Bug: selected Account does not exist.")
+--       (head filter (\(idx, acc) -> acc ^. hdAccountId == accountId) accountList)
 
-    getAddressIdx addressId = fromMaybe
-      (error "Bug: selected Address does not exist.")
-      (head filter (\(idx, addr) -> addr ^. hdAddressId == addressId) addressList)
+--     getAddressIdx addressId = fromMaybe
+--       (error "Bug: selected Address does not exist.")
+--       (head filter (\(idx, addr) -> addr ^. hdAddressId == addressId) addressList)
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =
-  UiWalletTreeSelection { wtsWalletIdx = uwsWalletIndex, wtsPath = uwsPath }
-
-
-walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
-walletSelectionToUI WalletSelection{..} =
-  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+  UiWalletTreeSelection { wtsWalletIdx = uwsWalletIdx, wtsPath = uwsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
@@ -376,7 +369,7 @@ uiWalletDatasToTree = map toTree
     toTree :: UiWalletData -> UiWalletTree
     toTree UiWalletData {..} =
         Node
-            { rootLabel = UiTreeItem (Just _uwdName) [] False
+            { rootLabel = UiWalletTreeItem (Just _uwdName) [] False
             , subForest = toList $ map toAccountNode _uwdAccounts
             }
       where
@@ -384,17 +377,17 @@ uiWalletDatasToTree = map toTree
         toAccountNode UiAccountData {..} =
             Node
                 { rootLabel =
-                      UiTreeItem
+                      UiWalletTreeItem
                           { wtiLabel = Just _uadName
                           , wtiPath = [fromIntegral _uadPath]
                           , wtiShowPath = True
                           }
                 , subForest = toList $ map (toAddressNode _uadPath) _uadAddresses
                 }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiTree
+        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
         toAddressNode accIdx (addrIdx, address) =
             pure $
-            UiTreeItem
+            UiWalletTreeItem
                 { wtiLabel = Just (pretty address)
                 , wtiPath = map fromIntegral [accIdx, addrIdx]
                 , wtiShowPath = True

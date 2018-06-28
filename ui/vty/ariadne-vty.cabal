@@ -113,6 +113,7 @@ executable ariadne
     , async
     , base >=4.7 && <5
     , containers
+    , cardano-sl-core
     , double-conversion
     , ii-extras
     , ilist
