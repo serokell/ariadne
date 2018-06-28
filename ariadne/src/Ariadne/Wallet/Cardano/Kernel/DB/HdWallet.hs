@@ -68,12 +68,13 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
 
 import Universum
 
+import qualified Data.IxSet.Typed as IxSet
+import qualified Data.Text.Buildable
+
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
-import qualified Data.IxSet.Typed as IxSet
+import Data.List (partition)
 import Data.SafeCopy (base, deriveSafeCopySimple)
-
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
@@ -85,8 +86,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
-
-import Data.List (partition)
 
 {-------------------------------------------------------------------------------
   Supporting types
