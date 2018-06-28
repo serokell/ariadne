@@ -17,6 +17,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
     -- ** Updates on HD wallets
     -- *** CREATE
   , CreateHdWallet(..)
+  , CreateHdRoot(..)
   , CreateHdAddress(..)
     -- *** UPDATE
   , UpdateHdRootAssurance

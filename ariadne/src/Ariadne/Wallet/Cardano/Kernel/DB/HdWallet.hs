@@ -12,9 +12,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , HdRootId(..)
   , HdAccountId(..)
   , HdAddressId(..)
-  , HdAccountId(..)
   , HdAddressChain(..)
-  , HdAddressId(..)
   , HdRoot(..)
   , HdAccount(..)
   , HdAddress(..)
@@ -97,12 +95,12 @@ import Data.List (partition)
 -- | Name of a wallet.
 newtype WalletName = WalletName
     { _unWalletName :: Text
-    } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
+    } deriving (Show, Eq, Ord, IsString, ToString)
 
 -- | Account name
 newtype AccountName = AccountName
     { _unAccountName :: Text
-    } deriving (Show, Eq, Ord, IsString, Monoid, ToString)
+    } deriving (Show, Eq, Ord, IsString, ToString)
 
 -- | Account index
 newtype HdAccountIx = HdAccountIx
@@ -260,6 +258,9 @@ hdAddressAccountId = hdAddressId . hdAddressIdParent
 
 hdAddressRootId :: Lens' HdAddress HdRootId
 hdAddressRootId = hdAddressAccountId . hdAccountIdParent
+
+hdAddressChain :: Lens' HdAddress HdAddressChain
+hdAddressChain = hdAddressId . hdAddressIdChain
 
 hdAccountCurrentCheckpoint :: Lens' HdAccount AccCheckpoint
 hdAccountCurrentCheckpoint = hdAccountCheckpoints . currentAccCheckpoint
