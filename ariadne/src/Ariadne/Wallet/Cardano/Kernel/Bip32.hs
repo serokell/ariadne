@@ -1,0 +1,42 @@
+-- | Helpers to work with BIP-32 implementation in Cardano.
+
+module Ariadne.Wallet.Cardano.Kernel.Bip32
+       ( deriveHDSecretKeyByPath
+       , makePubKeyHdwAddress'
+       ) where
+
+import Universum
+
+import Named (Named(..))
+
+import Pos.Core.Common (Address, IsBootstrapEraAddr(..), makePubKeyHdwAddress)
+import Pos.Crypto.HD
+  (ShouldCheckPassphrase(..), deriveHDPassphrase, deriveHDSecretKey,
+  packHDAddressAttr)
+import Pos.Crypto.Signing (EncryptedSecretKey, PassPhrase, PublicKey)
+
+-- | Like 'deriveHDSecretKey' from Cardano, but can derive not only
+-- direct descendant.
+deriveHDSecretKeyByPath
+    :: ShouldCheckPassphrase
+    -> PassPhrase
+    -> EncryptedSecretKey
+    -> [Word32]
+    -> Maybe EncryptedSecretKey
+deriveHDSecretKeyByPath shouldCheck pp sk derPath =
+    foldM
+        (\sk' (check, idx) -> deriveHDSecretKey check pp sk' idx)
+        sk
+        -- check passphrase at most once
+        (zip (shouldCheck : repeat (ShouldCheckPassphrase False)) derPath)
+
+-- | Like 'makePubKeyHdwAddress', but also creates HDPassphrase internally.
+makePubKeyHdwAddress' ::
+       IsBootstrapEraAddr
+    -> [Word32]
+    -> PublicKey `Named` "root" -> PublicKey `Named` "address" -> Address
+makePubKeyHdwAddress' era derPath (Named rootPK) (Named addrPK) =
+    makePubKeyHdwAddress era hdPayload addrPK
+  where
+    hdPP = deriveHDPassphrase rootPK
+    hdPayload = packHDAddressAttr hdPP derPath
