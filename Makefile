@@ -9,6 +9,9 @@ STACK_DEV_OPTIONS = --fast --ghc-options -Wwarn --file-watch
 dev:
 	stack build $(ARIADNE_PACKAGES) $(VTY_PACKAGES) $(QT_PACKAGES) $(STACK_DEV_OPTIONS)
 
+dev-lib:
+	stack build $(ARIADNE_PACKAGES) $(STACK_DEV_OPTIONS)
+
 dev-vty:
 	stack build $(ARIADNE_PACKAGES) $(VTY_PACKAGES) $(STACK_DEV_OPTIONS)
 
