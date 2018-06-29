@@ -10,6 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * HD wallet types proper
   , HdWallets(..)
   , HdRootId(..)
+  , mkHdRootId
   , HdAccountId(..)
   , HdAddressId(..)
   , HdAddressChain(..)
@@ -148,6 +149,9 @@ data HdRootId = HdRootId
 
 instance Prelude.Show HdRootId where
   show (HdRootId (InDb addrHash)) = show addrHash
+
+mkHdRootId :: Core.EncryptedSecretKey -> HdRootId
+mkHdRootId = HdRootId . InDb . Core.addressHash . Core.encToPublic
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {

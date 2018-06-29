@@ -2,6 +2,7 @@ module Ariadne.Wallet.Cardano.Kernel.Bip44
     ( Bip44DerivationPath (..)
     , decodeBip44DerivationPath
     , encodeBip44DerivationPath
+    , bip44PathToAddressId
     , encodeBip44DerivationPathToAccount
     , encodeBip44DerivationPathFromAccount
     ) where
@@ -11,7 +12,8 @@ import Universum
 import Pos.Crypto.HD (firstHardened, firstNonHardened, isHardened)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
+  (HdAccountId(..), HdAccountIx(..), HdAddressChain(..), HdAddressId(..),
+  HdAddressIx(..), HdRootId)
 import Ariadne.Wallet.Cardano.Kernel.Word31
   (Word31, unsafeMkWord31, word31ToWord32)
 
@@ -81,6 +83,17 @@ encodeBip44DerivationPath :: Bip44DerivationPath -> [Word32]
 encodeBip44DerivationPath Bip44DerivationPath {..} =
     encodeBip44DerivationPathToAccount bip44AccountIndex ++
     encodeBip44DerivationPathFromAccount bip44AddressChain bip44AddressIndex
+
+bip44PathToAddressId :: HdRootId -> Bip44DerivationPath -> HdAddressId
+bip44PathToAddressId hdRootId Bip44DerivationPath {..} =
+    HdAddressId
+        { _hdAddressIdParent = HdAccountId
+            { _hdAccountIdParent = hdRootId
+            , _hdAccountIdIx = bip44AccountIndex
+            }
+        , _hdAddressIdChain = bip44AddressChain
+        , _hdAddressIdIx = bip44AddressIndex
+        }
 
 -- | Construct a derivation path (a list of indices, as specified in
 -- BIP-32) from root key to account, according to the BIP-44
