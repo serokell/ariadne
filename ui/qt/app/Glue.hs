@@ -29,13 +29,8 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter
-import Pos.Core
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit

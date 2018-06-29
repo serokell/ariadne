@@ -12,6 +12,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , singletonPending
   , unionPending
   , removePending
+  , emptyAccCheckpoint
+  , emptyAddrCheckpoint
     -- ** Lenses
   , pendingTransactions
   , accCheckpointUtxo
@@ -100,6 +102,15 @@ data AccCheckpoint = AccCheckpoint {
     , _accCheckpointBlockMeta   :: !BlockMeta
     }
 
+emptyAccCheckpoint :: AccCheckpoint
+emptyAccCheckpoint = AccCheckpoint {
+    _accCheckpointUtxo = InDb M.empty
+  , _accCheckpointUtxoBalance = InDb $ Core.Coin 0
+  , _accCheckpointExpected = InDb M.empty
+  , _accCheckpointPending = emptyPending
+  , _accCheckpointBlockMeta = emptyBlockMeta
+  }
+
 -- | List of account checkpoints
 type AccCheckpoints = NonEmpty AccCheckpoint
 
@@ -108,6 +119,12 @@ data AddrCheckpoint = AddrCheckpoint {
       _addrCheckpointUtxo        :: !(InDb Core.Utxo)
     , _addrCheckpointUtxoBalance :: !(InDb Core.Coin)
     }
+
+emptyAddrCheckpoint :: AddrCheckpoint
+emptyAddrCheckpoint = AddrCheckpoint {
+    _addrCheckpointUtxo = InDb M.empty
+  , _addrCheckpointUtxoBalance = InDb $ Core.Coin 0
+  }
 
 -- | List of address checkpoints
 type AddrCheckpoints = NonEmpty AddrCheckpoint

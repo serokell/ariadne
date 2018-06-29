@@ -42,7 +42,7 @@ createWalletBackend walletConfig = do
           r
       mkWalletFace putCommandOutput =
          withDicts $ fix $ \this -> WalletFace
-          { walletNewAddress = newAddress acidDb this walletSelRef
+          { walletNewAddress = newAddress acidDb this walletSelRef runCardanoMode
           , walletNewAccount = newAccount acidDb this walletSelRef Nothing
           , walletNewWallet = newWallet acidDb walletConfig this runCardanoMode
           , walletRestore = restoreWallet acidDb this runCardanoMode

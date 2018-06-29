@@ -5,6 +5,7 @@
 module Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (
     -- * Block metadata
     BlockMeta(..)
+  , emptyBlockMeta
     -- ** Lenses
   , blockMetaSlotId
   ) where
@@ -28,6 +29,9 @@ data BlockMeta = BlockMeta {
       -- | Slot each transaction got confirmed in
       _blockMetaSlotId :: InDb (Map Core.TxId Core.SlotId)
     }
+
+emptyBlockMeta :: BlockMeta
+emptyBlockMeta = BlockMeta (InDb Map.empty)
 
 makeLenses ''BlockMeta
 deriveSafeCopySimple 1 'base ''BlockMeta

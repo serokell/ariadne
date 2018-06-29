@@ -43,23 +43,28 @@ import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=), (^.))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
 import Data.Acid (AcidState, query, update)
+import Data.Acid.Abstract (groupUpdates)
 import qualified Data.IxSet.Typed as IxSet
+import Data.Map (findWithDefault)
 import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
 import Data.Time.Clock.POSIX (getPOSIXTime)
-import qualified Data.Vector as V (elem, foldr, fromList, mapMaybe)
+import qualified Data.Vector as V
+  (elem, foldr, foldr', fromList, mapMaybe, toList)
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
+import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.KeyStorage (modifySecretDefault)
 import Pos.Core
 import Pos.Core.Common (IsBootstrapEraAddr(..), addressHash)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
+import Pos.Util.UserSecret (usWallets)
 import Serokell.Data.Memory.Units (Byte)
 
 data NoWalletSelection = NoWalletSelection
@@ -140,6 +145,13 @@ data NotARenamableItem = NotARenamableItem
 instance Exception NotARenamableItem where
  displayException NotARenamableItem =
     "This item cannot be renamed."
+
+data NotARemovableItem = NotARemovableItem
+  deriving (Eq, Show)
+
+instance Exception NotARemovableItem where
+ displayException NotARemovableItem =
+    "This item cannot be removed."
 
 data WalletIndexOutOfRange = WalletIndexOutOfRange Word
   deriving (Eq, Show)
@@ -272,31 +284,42 @@ newAddress ::
        AcidState DB
     -> WalletFace
     -> IORef (Maybe WalletSelection)
+    -> (CardanoMode ~> IO)
     -> AccountReference
     -> HdAddressChain
     -> PassPhrase
     -> IO ()
-newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
+newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = do
   walletDb <- query acidDb Snapshot
   accountId <- resolveAccountRef walletSelRef accRef walletDb
+  keysMap <- (^. usWallets) <$> runCardanoMode getSecretDefault
 
   let
+    walletRootId = accountId ^. hdAccountIdParent
+    pubAddrHash = _fromDb (_unHdRootId walletRootId)
     addressId = HdAddressId
       { _hdAddressIdParent = accountId
       , _hdAddressIdChain = chain
       , _hdAddressIdIx = mkAddrIdx accountId walletDb
       }
-
+    -- Wallets creation and deletion organized in a such way that
+    -- an absence of a key is not possible.
+    walletEsk = findWithDefault
+      (error "Bug: _usWallets has no such key.")
+      pubAddrHash
+      keysMap
+    bip44derPath = Bip44DerivationPath
+      { bip44AccountIndex = accountId ^. hdAccountIdIx
+      , bip44AddressChain = chain
+      , bip44AddressIndex = addressId ^. hdAddressIdIx
+      }
 
   addr <-
-      case (deriveLvl3KeyPair
+      case (deriveBip44KeyPair
                 (IsBootstrapEraAddr True)
-                (ShouldCheckPassphrase True)
                 pp
                 walletEsk
-                (accountId ^. hdAccountIdIx)
-                chain
-                (addressId ^. hdAddressIdIx)) of
+                bip44derPath) of
           Nothing -> throwM AGFailedIncorrectPassPhrase
           Just (a, _) -> pure a
   let
@@ -304,15 +327,11 @@ newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
       { _hdAddressId = addressId
       , _hdAddressAddress = InDb addr
       , _hdAddressIsUsed = False
-      , _hdAddressCheckpoints = one emptyCheckpoint
+      , _hdAddressCheckpoints = one emptyAddrCheckpoint
       }
   throwLeftIO $ update acidDb (CreateHdAddress hdAddress)
   walletRefreshState
     where
-      -- TODO: Get it from UserSecret
-      walletEsk :: EncryptedSecretKey
-      walletEsk = undefined
-
       -- Using the sequential indexation as in accounts.
       -- TODO:
       -- * get random index with gap less than 20 (BIP-44)
@@ -334,19 +353,6 @@ newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
         (error "Bug: UnknownHdAccount")
         (readAddressesByAccountId accId wallets)
 
-      emptyCheckpoint :: AddrCheckpoint
-      emptyCheckpoint = undefined
-
-deriveLvl3KeyPair
-    :: IsBootstrapEraAddr
-    -> ShouldCheckPassphrase
-    -> PassPhrase
-    -> EncryptedSecretKey -- ^ key of wallet
-    -> HdAccountIx -- ^ account derivation index
-    -> HdAddressChain
-    -> HdAddressIx -- ^ address derivation index
-    -> Maybe (Address, EncryptedSecretKey)
-deriveLvl3KeyPair = error "AD-126"
 
 mkUntitled :: Text -> Vector Text -> Text
 mkUntitled untitled namesVec =
@@ -387,16 +393,16 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
     account = HdAccount
       { _hdAccountId = HdAccountId rootId (HdAccountIx $ accountIdx rootId wallets)
       , _hdAccountName = AccountName accountName
-      , _hdAccountCheckpoints = one emptyAccCheckpoint
+      , _hdAccountCheckpoints =
+          one $ fromMaybe
+            emptyAccCheckpoint
+            mbCheckPoint
       }
 
   throwLeftIO $ update acidDb (CreateHdAccount account)
 
   walletRefreshState
   where
-    -- FIXME
-    emptyAccCheckpoint = undefined
-
     accIndexes :: HdRootId -> HdWallets -> Vector Word31
     accIndexes rootId wallets =
       V.fromList (
@@ -412,9 +418,9 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
     -- It is assumed that hdRootId is a valid one.
     -- It is, because resolveWalletRef always returns a valid HdRootId.
     getAccounts :: HdWallets -> HdRootId -> IxSet HdAccount
-    getAccounts wallets hdRootId = fromRight
+    getAccounts wallets rootId = fromRight
       (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId hdRootId wallets)
+      (readAccountsByRootId rootId wallets)
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -479,7 +485,8 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName accounts = do
     Nothing ->
       return (WalletName $ mkUntitled "Untitled wallet " namesVec)
     Just walletName_ -> do
-      -- TODO: move duplicate check to `updateHdRootName`
+      -- TODO:
+      -- * move duplicate check to `updateHdRootName`
       when ((_unWalletName walletName_) `V.elem` namesVec) $
         throwM $ DuplicateWalletName walletName_
       return walletName_
@@ -501,23 +508,27 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName accounts = do
           }
   throwLeftIO $ update acidDb (CreateHdRoot hdRoot)
 
-  -- FIXME: Make it a single acid-state transaction
-  addAccounts acidDb rootId accounts
-  -- forM_ accounts (\acc ->
-  --   newAccount
-  --     acidDb
-  --     wf
-  --     walletSelRef
-  --     (Just $ head (acc ^. hdAccountCheckpoints))
-  --     (WalletRefByHdRootId hdRootId)
-  --     (Just $ acc ^. hdAccountName))
-      -- Drawbacks:
-    -- * This will spawn a sequence of walletState events
-    -- * What if exeption (e.g. duplicate accoun name) raised
-    --   in the middle of accounts list
+  addAccounts rootId
   walletRefreshState
   where
-    addAccounts = undefined
+    -- If any of accounts is invalid, all transaction fails.
+    addAccounts :: HdRootId -> IO ()
+    addAccounts rootId = do
+      updateEvents <- V.toList <$> (forM accounts $ \acc -> do
+        let accName = acc ^. hdAccountName . unAccountName
+            parentRoot = acc ^. hdAccountId . hdAccountIdParent
+        when (parentRoot /= rootId) $
+          error "Bug: account's parent rootId does not match created wallet rootId"
+        when (accName `S.member` namesSet) $
+          throwM $ DuplicateAccountName (AccountName accName)
+        return $ CreateHdAccount acc)
+      groupUpdates acidDb updateEvents
+
+    accNamesVec :: Vector Text
+    accNamesVec = (_unAccountName . _hdAccountName) <$> accounts
+
+    namesSet :: Set Text
+    namesSet = V.foldr' S.insert S.empty accNamesVec
 
 -- | convert path in index representation and write it to IORef WalletSelection
 -- TODO:
@@ -544,7 +555,6 @@ select acidDb WalletFace{..} walletSelRef mWalletRef wsPath = do
           -- validate account
           hdAccount <- maybeThrow
             (AccountDoesNotExist $ pretty accIdx)
-            -- TODO: embed info about convertion rules in path type: [(Word, Ordering Proxy)]
             ((accList wallets rootId) ^? ix (fromIntegral accIdx))
 
           case nonEmpty acPath of
@@ -576,14 +586,13 @@ select acidDb WalletFace{..} walletSelRef mWalletRef wsPath = do
       (error "Bug: UnknownHdAccount")
       (readAddressesByAccountId accountId wallets)
 
-
 -- Do we need this function?
 getSelectedAddresses
   :: AcidState DB
   -> WalletFace
   -> IORef (Maybe WalletSelection)
   -> IO [Address]
-getSelectedAddresses acidDb WalletFace{..} walletSelRef = undefined
+getSelectedAddresses = undefined
 
 removeSelection
   :: AcidState DB
@@ -595,8 +604,7 @@ removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
   mWalletSel <- readIORef walletSelRef
   newSelection <- case mWalletSel of
     Nothing -> pure Nothing
-    -- FIXME:
-    -- Throw "Nothing selected" here
+    -- Throw "Nothing selected" here?
     Just WalletSelection {..} -> case wsPath of
       RootPath hdrId -> do
         update acidDb (DeleteHdRoot hdrId)
@@ -605,8 +613,7 @@ removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
       AccountPath accId -> do
         throwLeftIO $ update acidDb (DeleteHdAccount accId)
         return $ Just $ WalletSelection $ RootPath (accId ^. hdAccountIdParent)
-      AddressPath addrId -> undefined
-      -- TODO: Throw "Address con not be removed"
+      AddressPath _ -> throwM NotARemovableItem
   atomicWriteIORef walletSelRef newSelection
   walletRefreshState
   where
@@ -688,4 +695,4 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
 
 toWalletNamesList :: HdWallets -> [WalletName]
 toWalletNamesList hdw =
-  ((^. hdRootName) . unwrapOrdByPrimKey) <$> (IxSet.toList $ unwrapIxSet (hdw ^. hdWalletsRoots))
+  (^. hdRootName) <$> toList (hdw ^. hdWalletsRoots)
