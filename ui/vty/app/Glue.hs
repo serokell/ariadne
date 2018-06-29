@@ -52,8 +52,6 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
-import Data.List.Index (indexed)
-
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
 ----------------------------------------------------------------------------

@@ -22,7 +22,7 @@ import Serokell.Data.Memory.Units (Byte)
 data WalletSelection =
   WalletSelection { wsPath :: HdPath }
 
--- | Each *Id has a parent field, so it represent a path itself.
+-- | Each *Id has a parent field, so it represents a path itself.
 data HdPath
   = RootPath HdRootId
   | AccountPath HdAccountId

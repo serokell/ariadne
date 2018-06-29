@@ -19,7 +19,6 @@ import Universum
 
 import Control.Exception (displayException)
 import Data.Double.Conversion.Text (toFixed)
-import Data.List.Index (indexed)
 import Data.Tree (Tree(..))
 import Data.Unique
 import IiExtras

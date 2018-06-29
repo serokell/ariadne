@@ -19,6 +19,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 
 import Data.List.Index (indexed)
+import Safe (headMay)
 
 -- 'WalletData' like data type, used only in UI glue
 data UiWalletData = UiWalletData
@@ -129,16 +130,12 @@ toUiWalletSelection db WalletSelection{..} = case wsPath of
 
     getHdRootIdx rootId = fst $ fromMaybe
       (error "Bug: selected Wallet does not exist.")
-      (mbHead $ filter (\(_, wal) -> wal ^. hdRootId == rootId) walletList)
+      (headMay $ filter (\(_, wal) -> wal ^. hdRootId == rootId) walletList)
 
     getAccountIdx accountId parentRootId = fst $ fromMaybe
       (error "Bug: selected Account does not exist.")
-      (mbHead $ filter (\(_, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
+      (headMay $ filter (\(_, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
 
     getAddressIdx addressId parentAccountId = fst $ fromMaybe
       (error "Bug: selected Address does not exist.")
-      (mbHead $ filter (\(_, addr) -> addr ^. hdAddressId == addressId) (getAddressList parentAccountId))
-
-    mbHead :: [a] -> Maybe a
-    mbHead (x:_) = Just x
-    mbHead [] = Nothing
+      (headMay $ filter (\(_, addr) -> addr ^. hdAddressId == addressId) (getAddressList parentAccountId))

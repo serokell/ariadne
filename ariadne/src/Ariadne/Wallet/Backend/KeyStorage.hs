@@ -25,14 +25,20 @@ import Universum hiding ((^.))
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Cardano.Kernel.Word31
 import Ariadne.Wallet.Face
+
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=), (^.))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
@@ -49,19 +55,12 @@ import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
-import Serokell.Data.Memory.Units (Byte)
-
 import Pos.Client.KeyStorage (modifySecretDefault)
 import Pos.Core
 import Pos.Core.Common (IsBootstrapEraAddr(..), addressHash)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
-
-import Ariadne.Wallet.Cardano.Kernel.Bip32
-import Ariadne.Wallet.Cardano.Kernel.Bip44
-  (Bip44DerivationPath(..), encodeBip44DerivationPath)
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (HdAccountIx(..), HdAddressChain(..), HdAddressIx(..))
+import Serokell.Data.Memory.Units (Byte)
 
 data NoWalletSelection = NoWalletSelection
   deriving (Eq, Show)
@@ -211,28 +210,53 @@ resolveAccountRef
   -> AccountReference
   -> DB
   -> IO HdAccountId
-resolveAccountRef walletSelRef accountRef walletDb = undefined
-  -- mWalletSelection <- readIORef walletSelRef
-  -- accId <- case accountRef of
-  --   AccountRefSelection -> do
-  --     mWalletSelection <- readIORef walletSelRef
-  --     case mWalletSelection of
-  --       Nothing -> throwM NoWalletSelection
-  --       Just WalletSelection {..} -> case wsPath of
-  --         RootPath _ -> throwM NoAccountSelection
-  --         AccountPath accId_ -> return accId_
-  --         AddressPath addrId -> return $ addrId ^. hdAddressIdParent
-  --   AccountRefByHdAccountId accId -> return accId
-  --   AccountRefByName accName walRef -> do
-  --     rootId <- maybeThrow
-  --       NoWalletSelection
-  --       (readIORef walRef)
-  --       let
-  --         accounts = case readAccountsByRootId hdRootId walletDb of
-  --           Left err -> throwM err
-  --           Right acc -> acc
+resolveAccountRef walletSelRef accountRef walletDb = do
+  accId <- case accountRef of
+    AccountRefSelection -> do
+      mWalletSelection <- readIORef walletSelRef
+      case mWalletSelection of
+        Nothing -> throwM NoWalletSelection
+        Just WalletSelection {..} -> case wsPath of
+          RootPath _ -> throwM NoAccountSelection
+          AccountPath accId_ -> do
+            checkParentRoot accId_
+            return accId_
+          AddressPath addrId -> do
+            let accId_ = (addrId ^. hdAddressIdParent)
+            checkParentRoot accId_
+            return accId_
+    AccountRefByHdAccountId accId_ -> do
+      checkParentRoot accId_
+      return accId_
+    AccountRefByName accName walRef -> do
+      accounts <- getAccList walRef
+      -- TODO: add AccountName to IxSet index and use `getEQ`
+      acc <- oneOnly accName $ filter (\acc -> acc ^. hdAccountName . unAccountName == accName) accounts
+      let accId_ = acc ^. hdAccountId
+      checkParentRoot accId_
+      return accId_
+    AccountRefByUIindex accIdx walRef -> do
+      accounts <- getAccList walRef
+      acc <- maybeThrow
+        (AccountDoesNotExist $ pretty accIdx)
+        (accounts ^? ix (fromIntegral accIdx))
+      let accId_ = acc ^. hdAccountId
+      checkParentRoot accId_
+      return accId_
+  return accId
+  where
+    oneOnly _ [x] = return x
+    oneOnly accName [] = throwM (AccountDoesNotExist accName)
+    oneOnly _ _ = error "Bug: account name duplication"
 
-  --       let namesVec = V.fromList (map (_unAccountName . (^. hdAccountName)) accounts)
+    getAccList walRef = do
+      rootId <- resolveWalletRef walletSelRef walRef walletDb
+      let wallets = walletDb ^. dbHdWallets
+      toList <$> (throwLeft $ readAccountsByRootId rootId wallets)
+
+    checkParentRoot :: HdAccountId -> IO ()
+    checkParentRoot accId =
+      throwLeft $ readHdRoot (accId ^. hdAccountIdParent) (walletDb ^. dbHdWallets) >> return ()
 
 refreshState
   :: AcidState DB
@@ -254,15 +278,15 @@ newAddress ::
     -> IO ()
 newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
   walletDb <- query acidDb Snapshot
-
   accountId <- resolveAccountRef walletSelRef accRef walletDb
 
   let
     addressId = HdAddressId
       { _hdAddressIdParent = accountId
       , _hdAddressIdChain = chain
-      , _hdAddressIdIx = mkAddrIdx walletDb accountId
+      , _hdAddressIdIx = mkAddrIdx accountId walletDb
       }
+
 
   addr <-
       case (deriveLvl3KeyPair
@@ -282,16 +306,33 @@ newAddress acidDb WalletFace {..} walletSelRef accRef chain pp = do
       , _hdAddressIsUsed = False
       , _hdAddressCheckpoints = one emptyCheckpoint
       }
-  throwLeft_ $ update acidDb (CreateHdAddress hdAddress)
+  throwLeftIO $ update acidDb (CreateHdAddress hdAddress)
   walletRefreshState
     where
       -- TODO: Get it from UserSecret
       walletEsk :: EncryptedSecretKey
       walletEsk = undefined
+
+      -- Using the sequential indexation as in accounts.
       -- TODO:
-      -- get random index with gap less than 20 (BIP-44)
-      mkAddrIdx :: DB -> HdAccountId -> HdAddressIx
-      mkAddrIdx = undefined
+      -- * get random index with gap less than 20 (BIP-44)
+      mkAddrIdx :: HdAccountId -> DB -> HdAddressIx
+      mkAddrIdx accId walletDb = HdAddressIx $
+        findFirstUnique
+          (unsafeMkWord31 0)
+          (addrIndexes accId (walletDb ^. dbHdWallets))
+
+      addrIndexes :: HdAccountId -> HdWallets -> Vector Word31
+      addrIndexes accId wallets =
+        V.fromList (
+          ( _unHdAddressIx
+          . _hdAddressIdIx
+          . _hdAddressId) <$> (toList (getAddresses accId wallets)))
+
+      getAddresses :: HdAccountId -> HdWallets -> IxSet HdAddress
+      getAddresses accId wallets = fromRight
+        (error "Bug: UnknownHdAccount")
+        (readAddressesByAccountId accId wallets)
 
       emptyCheckpoint :: AddrCheckpoint
       emptyCheckpoint = undefined
@@ -333,7 +374,7 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
   let
     wallets = walletDb ^. dbHdWallets
     namesVec = V.fromList
-      (map (_unAccountName . (^. hdAccountName)) $ toAccList (walletDb ^. dbHdWallets) rootId)
+      (map (_unAccountName . (^. hdAccountName)) $ toList $ getAccounts (walletDb ^. dbHdWallets) rootId)
 
   accountName <- case (_unAccountName <$> mbAccountName) of
     Nothing ->
@@ -349,7 +390,7 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
       , _hdAccountCheckpoints = one emptyAccCheckpoint
       }
 
-  throwLeft_ $ update acidDb (CreateHdAccount account)
+  throwLeftIO $ update acidDb (CreateHdAccount account)
 
   walletRefreshState
   where
@@ -374,9 +415,6 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
     getAccounts wallets hdRootId = fromRight
       (error "Bug: UnknownHdRoot")
       (readAccountsByRootId hdRootId wallets)
-
-    toAccList :: HdWallets -> HdRootId -> [HdAccount]
-    toAccList wallets rootId = toList $ getAccounts wallets rootId
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -461,7 +499,7 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName accounts = do
           , _hdRootAssurance = assurance
           , _hdRootCreatedAt = timestamp
           }
-  throwLeft_ $ update acidDb (CreateHdRoot hdRoot)
+  throwLeftIO $ update acidDb (CreateHdRoot hdRoot)
 
   -- FIXME: Make it a single acid-state transaction
   addAccounts acidDb rootId accounts
@@ -565,7 +603,7 @@ removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
         runCardanoMode $ modifySecretDefault (usWallets %= Map.delete (fromRootId hdrId))
         return Nothing
       AccountPath accId -> do
-        throwLeft_ $ update acidDb (DeleteHdAccount accId)
+        throwLeftIO $ update acidDb (DeleteHdAccount accId)
         return $ Just $ WalletSelection $ RootPath (accId ^. hdAccountIdParent)
       AddressPath addrId -> undefined
       -- TODO: Throw "Address con not be removed"
@@ -592,7 +630,7 @@ renameSelection acidDb WalletFace{..} walletSelRef name = do
         let namesList = map _unWalletName (toWalletNamesList (walletDb ^. dbHdWallets))
         when (name `elem` namesList)
           (throwM $ DuplicateWalletName (WalletName name))
-        throwLeft_ $ update acidDb (UpdateHdRootName hdrId (WalletName name))
+        throwLeftIO $ update acidDb (UpdateHdRootName hdrId (WalletName name))
 
       AccountPath accId -> do
         accounts <- case
@@ -602,23 +640,19 @@ renameSelection acidDb WalletFace{..} walletSelRef name = do
         let namesList = map (_unAccountName . _hdAccountName) accounts
         when (name `elem` namesList)
           (throwM $ DuplicateAccountName (AccountName name))
-        throwLeft_ $ update acidDb (UpdateHdAccountName accId (AccountName name))
+        throwLeftIO $ update acidDb (UpdateHdAccountName accId (AccountName name))
 
       AddressPath _ -> throwM NotARenamableItem
   walletRefreshState
 
 -- Helpers
-throwLeft :: (IO a) -> (Either e a) -> (IO a)
-throwLeft exep eith = case eith of
-  Left _ -> exep
+throwLeft :: (Exception e) => (Either e a) -> IO a
+throwLeft eith = case eith of
+  Left e -> throwM e
   Right r -> return r
 
-throwLeft_ :: (Exception e) => IO (Either e a) -> IO ()
-throwLeft_ ioEith = do
-  eith <- ioEith
-  case eith of
-    Left err -> throwM err
-    Right _ -> return ()
+throwLeftIO :: (Exception e) => IO (Either e a) -> IO a
+throwLeftIO ioEith = ioEith >>= throwLeft
 
 findFirstUnique :: (Ord a, Enum a, Bounded a) => a -> Vector a -> a
 findFirstUnique lastIdx paths = head

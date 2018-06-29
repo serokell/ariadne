@@ -102,6 +102,7 @@ library
     , word-wrap
     , process
     , template-haskell
+    , safe
   exposed-modules:
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend

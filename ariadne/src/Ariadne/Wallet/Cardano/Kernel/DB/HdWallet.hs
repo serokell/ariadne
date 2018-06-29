@@ -19,6 +19,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- ** Initialiser
   , initHdWallets
     -- ** Lenses
+  , unAccountName
   , hdWalletsRoots
   , hdWalletsAccounts
   , hdWalletsAddresses
@@ -232,6 +233,10 @@ makeLenses ''HdAddressId
 makeLenses ''HdRoot
 makeLenses ''HdAccount
 makeLenses ''HdAddress
+makeLenses ''WalletName
+makeLenses ''AccountName
+makeLenses ''HdAccountIx
+makeLenses ''HdAddressIx
 
 deriveSafeCopySimple 1 'base ''HdRootId
 deriveSafeCopySimple 1 'base ''HdAccountId
