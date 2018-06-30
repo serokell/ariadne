@@ -73,8 +73,8 @@ changeCommand ch counterChange = do
       _ ->
         case counterChange of
           Previous -> do
-            last <- readIORef (lastCommand ch)
-            return $ Just last
+            lastCmd <- readIORef (lastCommand ch)
+            return $ Just lastCmd
           Next -> do
             resetCounter ch
             return $ Just prefix
