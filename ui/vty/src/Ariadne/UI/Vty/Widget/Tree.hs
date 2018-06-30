@@ -176,23 +176,27 @@ data TreeWidgetEvent
   = TreeUpdateEvent [UiTree] (Maybe UiTreeSelection)
   | TreeMouseDownEvent B.Location
   | TreeScrollingEvent ScrollingAction
-  | TreeNavigationUp
-  | TreeNavigationDown
-  | TreeNavigationLeft
-  | TreeNavigationRight
+  | TreeNavigationPrevWallet
+  | TreeNavigationNextWallet
+  | TreeNavigationParent
+  | TreeNavigationFirstChild
+  | TreeNavigationPrevItem
+  | TreeNavigationNextItem
 
 keyToTreeEvent
   :: KeyboardEvent
   -> Maybe TreeWidgetEvent
 keyToTreeEvent = \case
-  KeyUp -> Just TreeNavigationUp
-  KeyDown -> Just TreeNavigationDown
-  KeyLeft -> Just TreeNavigationLeft
-  KeyRight -> Just TreeNavigationRight
-  KeyChar 'h' -> Just TreeNavigationLeft
-  KeyChar 'j' -> Just TreeNavigationDown
-  KeyChar 'k' -> Just TreeNavigationUp
-  KeyChar 'l' -> Just TreeNavigationRight
+  KeyCtrlUp -> Just TreeNavigationPrevWallet
+  KeyCtrlDown -> Just TreeNavigationNextWallet
+  KeyUp -> Just TreeNavigationPrevItem
+  KeyDown -> Just TreeNavigationNextItem
+  KeyLeft -> Just TreeNavigationParent
+  KeyRight -> Just TreeNavigationFirstChild
+  KeyChar 'h' -> Just TreeNavigationParent
+  KeyChar 'j' -> Just TreeNavigationNextItem
+  KeyChar 'k' -> Just TreeNavigationPrevItem
+  KeyChar 'l' -> Just TreeNavigationFirstChild
   _ -> Nothing
 
 handleTreeWidgetEvent
@@ -214,12 +218,31 @@ handleTreeWidgetEvent UiLangFace{..} = \case
   TreeScrollingEvent action -> do
     lift $ handleScrollingEvent widgetName action
     treeScrollBySelectionL .= False
-  TreeNavigationUp -> defaultPath $ applyToLast (\x -> if minBound == x then x else pred x)
-  TreeNavigationDown -> defaultPath $ applyToLast (\x -> if maxBound == x then x else succ x)
-  TreeNavigationLeft -> defaultPath $ NE.init
-  TreeNavigationRight -> defaultPath $ (++ [0]) . toList
+
+  -- Wallet index is always the head of path
+  TreeNavigationPrevWallet -> defaultPath $ \p@(x :| xs) ->
+    case xs of
+      [] -> if minBound == x then toList p else [pred x]
+      _ -> [x]
+  TreeNavigationNextWallet -> defaultPath $ \p@(x :| _) -> if maxBound == x then toList p else [succ x]
+
+  TreeNavigationParent -> defaultPath $ \p -> if length p == 1 then toList p else NE.init p
+  TreeNavigationFirstChild -> defaultPath $ (++ [0]) . toList
+
+  TreeNavigationPrevItem -> whenJustM (modifiedPath False) putSelect
+  TreeNavigationNextItem -> whenJustM (modifiedPath True) putSelect
+
   where
     putSelect = void . liftIO . langPutUiCommand . UiSelect
-    applyToLast :: (Word -> Word) -> NE.NonEmpty Word -> [Word]
-    applyToLast f xs = NE.init xs ++ [f (NE.last xs)]
     defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect
+
+    modifiedPath forward = runMaybeT $ do
+      selection <- MaybeT $ use treeSelectionL
+      items <- use treeItemsL
+
+      let restItems =
+            if forward
+               then drop (selection + 1) items
+               else reverse $ take selection items
+
+      MaybeT $ return $ asum $ map treeItemPath restItems

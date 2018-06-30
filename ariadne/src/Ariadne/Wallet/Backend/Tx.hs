@@ -12,7 +12,6 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
-import Data.Default (def)
 import Formatting (bprint, build, formatToString, int, (%))
 import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
@@ -50,7 +49,11 @@ instance Buildable SendTxException where
 instance Exception SendTxException where
     displayException = toString . prettyL
 
--- | Send a transaction from selected to wallet to the list of 'TxOut's.
+-- | Send a transaction from selected to wallet to the list of
+-- 'TxOut's.  If list of accounts is not empty, only those accounts
+-- may be used as inputs.  If this list is empty and an account from
+-- the input wallet it selected, this account will be used as input.
+-- Otherwise inputs will be selected from all accounts in the wallet.
 sendTx ::
        (HasConfigurations)
     => WalletFace
@@ -59,9 +62,11 @@ sendTx ::
     -> (Doc -> IO ())
     -> PassPhrase
     -> WalletReference
+    -> [LocalAccountReference]
+    -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef outs = do
+sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs isp outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
     runCardanoMode $ sendTxDo walletIdx =<< cardanoGetDiffusion
@@ -80,7 +85,7 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef ou
             signersMap = walletSigners pp wd
         let getSigner :: Address -> Maybe SafeSigner
             getSigner addr = signersMap ^. at addr
-        -- TODO: generate new change address
+        -- TODO [AD-234]: generate new change address
         ourAddresses <-
             maybeThrow
                 (SendTxNoAddresses walletIdx)
@@ -90,7 +95,7 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef ou
             prepareMTx
                 getSigner
                 mempty
-                def
+                isp
                 ourAddresses
                 (map TxOutAux outs)
                 ourAddress

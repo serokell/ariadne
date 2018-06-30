@@ -1,9 +1,12 @@
 module Ariadne.Wallet.Face
   ( module Ariadne.Cardano.Face
+  , InputSelectionPolicy (..)
+
   , WalletFace(..)
   , WalletEvent(..)
   , WalletReference(..)
   , AccountReference(..)
+  , LocalAccountReference(..)
   , WalletSelection(..)
   , WalletName(..)
   , Mnemonic(..)
@@ -13,6 +16,7 @@ module Ariadne.Wallet.Face
 import Universum
 
 import Ariadne.Cardano.Face
+import Pos.Client.Txp.Util (InputSelectionPolicy(..))
 import Serokell.Data.Memory.Units (Byte)
 
 data WalletSelection =
@@ -35,6 +39,13 @@ data AccountReference
   = AccountRefSelection
   | AccountRefByIndex !Word32 !WalletReference
   | AccountRefByName !Text !WalletReference
+
+-- | Reference to an account inside a wallet.
+data LocalAccountReference
+  = LocalAccountRefByIndex !Word
+  -- ^ Reference by index in UI.
+  | LocalAccountRefByName !Text
+  -- ^ Reference by account name.
 
 -- | Single string representing a mnemonic, presumably space-separated
 -- list of words.
@@ -62,7 +73,9 @@ data WalletFace =
     , walletRemove :: IO ()
     , walletRefreshUserSecret :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
-    , walletSend :: PassPhrase -> WalletReference -> NonEmpty TxOut -> IO TxId
+    , walletSend ::
+        PassPhrase -> WalletReference -> [LocalAccountReference] ->
+        InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, UserSecret)
     , walletBalance :: IO Coin
     }

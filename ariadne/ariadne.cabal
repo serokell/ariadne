@@ -23,6 +23,9 @@ library
     , ansi-wl-pprint
     , acid-state
     , async
+    , beam-core
+    , beam-migrate
+    , beam-sqlite
     , bytestring
     , cardano-sl
     , cardano-sl-block
@@ -76,9 +79,11 @@ library
     , stm
     , serokell-util
     , sqlite-simple
+    , sqlite-simple-errors
     , text
     , text-format
     , temporary
+    , time
     , time-units
     , universum
     , unliftio
@@ -87,16 +92,11 @@ library
     , transformers
     , loc
     , Earley
-    , time-units
-    , serokell-util
     , ii-extras
     , parsec
     , QuickCheck
-    , universum
     , unordered-containers
-    , vector
     , vinyl
-    , word-wrap
     , process
     , template-haskell
   exposed-modules:
@@ -131,6 +131,8 @@ library
 
       Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Bip32
+      Ariadne.Wallet.Cardano.Kernel.Bip44
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -141,15 +143,20 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.InDb
       Ariadne.Wallet.Cardano.Kernel.DB.Resolved
       Ariadne.Wallet.Cardano.Kernel.DB.Spec
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
       Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update
+      Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util
+      Ariadne.Wallet.Cardano.Kernel.DB.Sqlite
       Ariadne.Wallet.Cardano.Kernel.DB.TxMeta
+      Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types
       Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+      Ariadne.Wallet.Cardano.Kernel.Decrypt
       Ariadne.Wallet.Cardano.Kernel.Diffusion
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
-      Ariadne.Wallet.Cardano.Kernel.Decrypt
+      Ariadne.Wallet.Cardano.Kernel.Word31
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
@@ -165,6 +172,7 @@ library
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
+      MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
       NegativeLiterals
@@ -210,17 +218,20 @@ test-suite ariadne-test
     , cardano-sl
     , cardano-sl-core
     , ii-extras
+    , hspec
+    , knit
     , lens
     , optparse-applicative
-    , universum
+    , QuickCheck
+    , scientific
     , serokell-util
     , text
     , time-units
-    , QuickCheck
-    , hspec
+    , universum
   other-modules:
       Paths_ariadne
       Test.Ariadne.Cardano.Arbitrary
+      Test.Ariadne.Knit
   default-language: Haskell2010
   default-extensions:
         ApplicativeDo
@@ -237,6 +248,7 @@ test-suite ariadne-test
         GADTs
         GeneralizedNewtypeDeriving
         LambdaCase
+        MonadFailDesugaring
         MultiParamTypeClasses
         MultiWayIf
         NegativeLiterals

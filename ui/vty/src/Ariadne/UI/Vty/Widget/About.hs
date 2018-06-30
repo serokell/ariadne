@@ -27,7 +27,7 @@ initAboutWidget = AboutWidgetState ()
 drawAboutWidget :: AboutWidgetState -> B.Widget BrickName
 drawAboutWidget _aboutWidgetState =
   B.viewport widgetName B.Vertical $
-      B.cached widgetName $ B.hCenter B.Widget
+    B.hCenter $ B.cached widgetName $ B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render

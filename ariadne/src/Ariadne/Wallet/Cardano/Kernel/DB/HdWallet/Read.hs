@@ -25,6 +25,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (
     -- | Single wallets/accounts/addresses
   , readHdRoot
   , readHdAccount
+  , readHdAccountCurrentCheckpoint
   , readHdAddress
   ) where
 
@@ -141,6 +142,11 @@ readHdAccount accId = aux . view (at accId) . readAllHdAccounts
   where
     aux :: Maybe a -> Either UnknownHdAccount a
     aux = maybe (Left (UnknownHdAccount accId)) Right
+
+-- | Look up the specified account and return the current checkpoint
+readHdAccountCurrentCheckpoint :: HdAccountId -> HdQueryErr UnknownHdAccount AccCheckpoint
+readHdAccountCurrentCheckpoint accId db
+    = view hdAccountCurrentCheckpoint <$> readHdAccount accId db
 
 -- | Look up the specified address
 readHdAddress :: HdAddressId -> HdQueryErr UnknownHdAddress HdAddress

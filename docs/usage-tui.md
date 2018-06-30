@@ -44,6 +44,15 @@ All widgets that have a lot of text (e.g. About and Logs) can be scrolled with m
 On the `Wallet` tab you can see all your wallets with their accounts and addresses organized in a
 tree. To the right of the tree you can see details of the selected wallet, account or address.
 
+The tree can be navigated in several ways. First of all, you can select any entry by clicking it
+with mouse. You can also change the current selection with the keyboard. Up and Down keys will go to
+the previous and the next item respectively, including the `[ + Add wallet ]` button. Right key will
+go to the first child of the current item and Left key will go to the parent. Ctrl-Up and Ctrl-Down
+can be used to jump between wallets: Ctrl-Up will first go to the current wallet, when an account or
+address is selected, then to the previous wallet. Ctrl-Down will always go to the next wallet.
+Finally, `h`, `j`, `k`, `l` keys will work exactly as Left, Down, Up and Right arrow keys (without
+Ctrl).
+
 To create a new wallet, select `[ + Add wallet ]` line in the tree, so that a special widget appears
 to the right. There you can either create a completely new wallet by specifying its name and a
 passphrase, or restore an existing one. When a new wallet is created, Ariadne will print you its
@@ -73,7 +82,10 @@ and these functions in more detail.
 ### General syntax
 
 To begin with, all `Knit` functions accept keyword arguments, some of which may be optional.
-Optional arguments are marked with "`?`" suffix in the help. To specify a keyword argument, write
+Optional arguments are marked with "`?`" suffix in the help. If an
+argument can be specified many times (including zero), it's marked
+with "`*`" suffix. If it can be specified many times, but at least
+once, it's marked with "`+`" suffix. To specify a keyword argument, write
 its name followed by `:` and the value. Types are checked while executing the command, not when
 parsing it.  Functions may also have variable number of arguments.
 
@@ -176,7 +188,7 @@ annotated with its arguments and their types. Optional arguments will be marked 
 
 There is also a command to send a transaction from your wallet:
 
-    send wallet: String or Word? pass: String? out: TxOut out: TxOut...
+    send wallet: (String or Word)? account: (String or Word)* pass: String? policy: InputSelectionPolicy? out: TxOut+
 
 Since one transaction can have multiple outputs, you have to pass these outputs to the `send`
 command. An output is constructed with `tx-out` command, which takes a receiver's address and an
@@ -198,8 +210,27 @@ So, to construct an output, do this:
 Note that receiver's address does not take quotes.
 
 Finally, send a transaction by giving `send` command a list of outputs (`out` argument), wallet
-passphrase (`pass` argument) if any and, optionally, wallet's name or index (`wallet` argument). If
-you don't specify a wallet, the selected one will be used. Here's an example:
+passphrase (`pass` argument) if any and, optionally, wallet's name or
+index (`wallet` argument) as well as list of source accounts (as names
+or indices). If you don't specify a wallet, the selected one will be used.
+
+Transaction inputs are selected automatically from a set of accounts
+which depends on `account` arguments and current selection:
+* If at least one account is explicitly specified, only the specified
+  accounts can be used as inputs.
+* If no accounts are explicitly specified and an account from the
+  input wallet is selected, only its addresses will be used as inputs.
+* Otherwise, addresses will be picked from all accounts in the input
+  wallet.
+
+Input selection algorithm depends on the `policy` argument which can
+be one of the following:
+* `security`. In this case TODO
+* `high-throughput`. In this case confirmed inputs will be prefered.
+
+By default the `security` policy is used.
+
+Here's an example:
 
 ```
 send pass: "cat"

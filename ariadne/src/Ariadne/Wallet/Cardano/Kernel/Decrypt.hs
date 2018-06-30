@@ -3,7 +3,9 @@
 -- decrypting of HDPayload.
 
 module Ariadne.Wallet.Cardano.Kernel.Decrypt
-       ( THEntryExtra (..)
+       ( WAddressMeta (..)
+
+       , THEntryExtra (..)
        , isTxEntryInteresting
        , buildTHEntryExtra
 
@@ -15,7 +17,6 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
 
 import Universum
 
-import Data.List ((!!))
 import qualified Data.List.NonEmpty as NE
 import Pos.Client.Txp.History (TxHistoryEntry(..))
 import Pos.Core
@@ -28,10 +29,12 @@ import Pos.Crypto
   encToPublic, unpackHDAddressAttr)
 import Serokell.Util (enumerate)
 
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), decodeBip44DerivationPath)
+
 data WAddressMeta = WAddressMeta
-    { _wamAccountIndex :: Word32
-    , _wamAddressIndex :: Word32
-    , _wamAddress      :: Address
+    { _wamDerivationPath :: Bip44DerivationPath
+    , _wamAddress        :: Address
     } deriving (Eq, Ord, Show, Generic, Typeable)
 
 type OwnTxInOuts = [((TxIn, TxOutAux), WAddressMeta)]
@@ -93,6 +96,6 @@ selectOwnAddresses hdPass getAddr =
 decryptAddress :: HDPassphrase -> Address -> Maybe WAddressMeta
 decryptAddress hdPass addr = do
     hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
-    derPath <- unpackHDAddressAttr hdPass hdPayload
-    guard $ length derPath == 2
-    pure $ WAddressMeta (derPath !! 0) (derPath !! 1) addr
+    derPathList <- unpackHDAddressAttr hdPass hdPayload
+    derPath <- decodeBip44DerivationPath derPathList
+    pure $ WAddressMeta derPath addr

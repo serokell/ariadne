@@ -149,11 +149,10 @@ packages:
   - qtah-cpp
   - qtah
 
-## Lootbox is not on Hackage yet, also there is an issue which breaks CI, hence
-## we are using a workaround branch.
+## Lootbox is not on Hackage
 - location:
     git: https://github.com/serokell/lootbox.git
-    commit: 983b19bd438a47c91184b0b71213e76cc9983b03 # gromak/workaround-stack2nix branch
+    commit: f287dd6cfe29707b28cc0418e8aa099de3bfbe77 # master
   extra-dep: true
   subdirs:
   - code/crypto
@@ -205,6 +204,9 @@ extra-deps:
 - criterion-1.4.0.0
 # Gauge _and_ criterion? Ok, whatever.
 - gauge-0.2.1
+- beam-sqlite-0.3.2.1
+- beam-core-0.7.2.1
+- beam-migrate-0.3.2.0
 
 # Servant stuff not found on stackage
 - servant-multipart-0.11.1
@@ -239,6 +241,7 @@ extra-deps:
 - brick-0.37.1
 - vinyl-0.8.1.1
 - named-0.1.0.0
+- base-noprelude-4.10.1.0 # due to lootbox
 
 ## Ariadne Qt GUI specific
 - hoppy-runtime-0.5.0

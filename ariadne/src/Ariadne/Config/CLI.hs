@@ -228,7 +228,7 @@ getConfig commitHash = do
       configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
       return (resolvePaths unresolved configPath configDirs))
     (do
-      putText $ sformat ("File "%string%" not found. Default config will be used.") configPath
+      putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return defaultAriadneConfig)
 
   return $ mergeConfigs cli_config config

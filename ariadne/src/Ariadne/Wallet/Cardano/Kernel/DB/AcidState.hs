@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-} -- to enable... deriveSafeCopySimple 1 'base ''EncryptedSecretKey
 {-# LANGUAGE RankNTypes, TemplateHaskell #-}
 
 -- | Acid-state database for the wallet kernel
@@ -5,6 +6,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
     -- * Top-level database
     DB(..)
   , dbHdWallets
+  , defDB
     -- * Acid-state operations
     -- ** Snapshot
   , Snapshot(..)
@@ -14,8 +16,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
   , SwitchToFork(..)
     -- ** Updates on HD wallets
     -- *** CREATE
-  , CreateHdRoot(..)
-  , CreateHdAccount(..)
+  , CreateHdWallet(..)
   , CreateHdAddress(..)
     -- *** UPDATE
   , UpdateHdRootAssurance
@@ -24,6 +25,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
     -- *** DELETE
   , DeleteHdRoot(..)
   , DeleteHdAccount(..)
+    -- * errors
+  , NewPendingError
   ) where
 
 import Universum
@@ -31,10 +34,15 @@ import Universum
 import Control.Lens.TH (makeLenses)
 import Control.Monad.Trans.Except (runExcept)
 import Data.Acid (Query, Update, makeAcidic)
+import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
+import Pos.Txp (Utxo)
+
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
+  (PrefilteredBlock(..), PrefilteredUtxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -42,9 +50,9 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update as HD
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update as Spec
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util as Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 
@@ -70,6 +78,10 @@ data DB = DB {
 makeLenses ''DB
 deriveSafeCopySimple 1 'base ''DB
 
+-- | Default DB
+defDB :: DB
+defDB = DB initHdWallets
+
 {-------------------------------------------------------------------------------
   Wrap wallet spec
 -------------------------------------------------------------------------------}
@@ -85,7 +97,7 @@ data NewPendingError =
 deriveSafeCopySimple 1 'base ''NewPendingError
 
 newPending :: HdAccountId
-           -> InDb (Core.TxAux)
+           -> InDb Core.TxAux
            -> Update DB (Either NewPendingError ())
 newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
     zoomHdAccountId NewPendingUnknown accountId $
@@ -108,20 +120,42 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
           Left err -> throwError err
           Right newCheckpoints -> pure $ set hdAddressCheckpoints newCheckpoints addr
 
--- | Apply a block
+-- | Apply prefiltered block (indexed by HdAccountId) to the matching accounts.
 --
--- The block should be prefiltered to contain only inputs and outputs relevant
--- to /any/ of the wallets and accounts.
---
--- NOTE: Calls to 'applyBlock' must be sequentialized by the caller
+-- The prefiltered block should be indexed by AccountId, with each prefiltered block
+-- containing only inputs and outputs relevant to the account. Since HdAccountId embeds HdRootId,
+-- it unambiguously places an Account in the Wallet/Account hierarchy. The AccountIds here could
+-- therefor refer to an Account in /any/ Wallet (not only sibling accounts in a single wallet).
+
+-- NOTE:
+-- * Calls to 'applyBlock' must be sequentialized by the caller
 -- (although concurrent calls to 'applyBlock' cannot interfere with each
 -- other, 'applyBlock' must be called in the right order.)
-applyBlock :: (ResolvedBlock, BlockMeta) -> Update DB ()
-applyBlock block = runUpdateNoErrors $ do
-    zoomAll (dbHdWallets . hdWalletsAccounts) $
-      hdAccountCheckpoints %~ Spec.applyBlock block
-    zoomAll (dbHdWallets . hdWalletsAddresses) $
-      hdAddressCheckpoints %~ Spec.applyBlock block
+--
+-- * Since a block may reference wallet accounts that do not exist yet locally,
+-- we need to create such 'missing' accounts. (An Account might not exist locally
+-- if it was created on another node instance of this wallet).
+--
+-- * For every address encountered in the block outputs, create an HdAddress if it
+-- does not already exist.
+--
+-- TODO(@uroboros/ryan) Move BlockMeta inside PrefilteredBlock (as part of CBR-239: Support history tracking and queries)
+applyBlock :: (Map HdAccountId PrefilteredBlock, BlockMeta) -> Update DB ()
+applyBlock (blocksByAccount,meta) = runUpdateNoErrors $ zoom dbHdWallets $
+    createPrefiltered
+        initUtxoAndAddrs
+        (\prefBlock -> zoom hdAccountCheckpoints $
+                           modify $ Spec.applyBlock (prefBlock,meta))
+        (\prefBlock -> zoom hdAddressCheckpoints $
+                           modify $ Spec.applyBlock (prefBlock,meta))
+        blocksByAccount
+  where
+    -- Accounts are discovered during wallet creation (if the account was given
+    -- a balance in the genesis block) or otherwise, during ApplyBlock. For
+    -- accounts discovered during ApplyBlock, we can assume that there was no
+    -- genesis utxo, hence we use empty initial utxo for such new accounts.
+    initUtxoAndAddrs :: PrefilteredBlock -> PrefilteredUtxo
+    initUtxoAndAddrs pb = Map.fromList [(addr, Map.empty) | addr <- pfbAddrs pb]
 
 -- | Switch to a fork
 --
@@ -130,7 +164,7 @@ applyBlock block = runUpdateNoErrors $ do
 -- TODO: We use a plain list here rather than 'OldestFirst' since the latter
 -- does not have a 'SafeCopy' instance.
 switchToFork :: Int
-             -> [(ResolvedBlock, BlockMeta)]
+             -> [(PrefilteredBlock, BlockMeta)]
              -> Update DB ()
 switchToFork n blocks = runUpdateNoErrors $ do
     zoomAll (dbHdWallets . hdWalletsAccounts) $
@@ -139,32 +173,98 @@ switchToFork n blocks = runUpdateNoErrors $ do
       hdAddressCheckpoints %~ Spec.switchToFork n (OldestFirst blocks)
 
 {-------------------------------------------------------------------------------
+  Wallet creation
+-------------------------------------------------------------------------------}
+
+-- | Create an HdWallet with HdRoot, possibly with HdAccounts and HdAddresses.
+--
+--  Given prefiltered utxo's, by account, create an HdAccount for each account,
+--  along with HdAddresses for all utxo outputs.
+createHdWallet :: HdRoot
+               -> Map HdAccountId PrefilteredUtxo
+               -> Update DB (Either HD.CreateHdRootError ())
+createHdWallet newRoot utxoByAccount = runUpdate' . zoom dbHdWallets $ do
+      HD.createHdRoot newRoot
+      createPrefiltered
+        identity
+        doNothing -- we just want to create the accounts
+        doNothing
+        utxoByAccount
+  where
+    doNothing :: forall p a e. p -> Update' a e ()
+    doNothing _ = return ()
+
+{-------------------------------------------------------------------------------
+  Internal auxiliary: apply a function to a prefiltered block/utxo
+-------------------------------------------------------------------------------}
+
+-- | For each of the specified accounts, create them if they do not exist,
+-- and apply the specified function.
+createPrefiltered :: forall p e.
+                     (p -> PrefilteredUtxo)
+                      -- ^ Initial UTxO for each of the addresses in the
+                      -- newly created account, as well as the addresses
+                      -- themselves
+                  -> (p -> Update' HdAccount e ())
+                      -- ^ Function to apply to the account
+                  -> (p -> Update' HdAddress e ())
+                      -- ^ Function to apply to the address
+                  -> Map HdAccountId p
+                  -> Update' HdWallets e ()
+createPrefiltered initUtxoAndAddrs accApplyP addrApplyP accs =
+      forM_ (Map.toList accs) $ \(accId, p) -> do
+        let prefUtxo :: PrefilteredUtxo
+            prefUtxo = initUtxoAndAddrs p
+            accUtxo :: Utxo
+            accUtxo = Map.unions $ Map.elems prefUtxo
+
+        -- apply the update to the account
+        zoomOrCreateHdAccount
+            assumeHdRootExists
+            (newAccount accId accUtxo)
+            accId
+            (accApplyP p)
+
+        -- create addresses (if they don't exist)
+        forM_ (Map.toList prefUtxo) $ \((addressId, address), addrUtxo) -> do
+            let firstAddrCheckpoint = AddrCheckpoint {
+                  _addrCheckpointUtxo        = InDb addrUtxo
+                , _addrCheckpointUtxoBalance = InDb $ Spec.balance addrUtxo
+                }
+                newAddress :: HdAddress
+                newAddress = HD.initHdAddress addressId (InDb address) firstAddrCheckpoint
+
+            zoomOrCreateHdAddress
+                assumeHdAccountExists -- we created it above
+                newAddress
+                addressId
+                (addrApplyP p)
+
+        where
+            newAccount :: HdAccountId -> Utxo -> HdAccount
+            newAccount accId' utxo' = HD.initHdAccount accId' (firstAccCheckpoint utxo')
+
+            firstAccCheckpoint :: Utxo -> AccCheckpoint
+            firstAccCheckpoint utxo' = AccCheckpoint {
+                  _accCheckpointUtxo        = InDb utxo'
+                , _accCheckpointUtxoBalance = InDb $ Spec.balance utxo'
+                , _accCheckpointExpected    = InDb Map.empty
+                , _accCheckpointPending     = Pending . InDb $ Map.empty
+                -- TODO(@uroboros/ryan) proper BlockMeta initialisation (as part of CBR-239: Support history tracking and queries)
+                , _accCheckpointBlockMeta   = BlockMeta . InDb $ Map.empty
+                }
+
+{-------------------------------------------------------------------------------
   Wrap HD C(R)UD operations
 -------------------------------------------------------------------------------}
 
-createHdRoot :: HdRootId
-             -> WalletName
-             -> HasSpendingPassword
-             -> AssuranceLevel
-             -> InDb Core.Timestamp
-             -> Update DB (Either HD.CreateHdRootError ())
-createHdRoot rootId name hasPass assurance created = runUpdate' . zoom dbHdWallets $
-    HD.createHdRoot rootId name hasPass assurance created
+createHdRoot :: HdRoot -> Update DB (Either HD.CreateHdRootError ())
+createHdRoot hdRoot = runUpdate' . zoom dbHdWallets $
+    HD.createHdRoot hdRoot
 
-createHdAccount :: HdRootId
-                -> AccountName
-                -> AccCheckpoint
-                -> Update DB (Either HD.CreateHdAccountError HdAccountId)
-createHdAccount rootId name checkpoint = runUpdate' . zoom dbHdWallets $
-    HD.createHdAccount rootId name checkpoint
-
-createHdAddress :: HdAddressId
-                -> InDb Core.Address
-                -> HdAddressChain
-                -> AddrCheckpoint
-                -> Update DB (Either HD.CreateHdAddressError ())
-createHdAddress addrId address chain checkpoint = runUpdate' . zoom dbHdWallets $
-    HD.createHdAddress addrId address chain checkpoint
+createHdAddress :: HdAddress -> Update DB (Either HD.CreateHdAddressError ())
+createHdAddress hdAddress = runUpdate' . zoom dbHdWallets $
+    HD.createHdAddress hdAddress
 
 updateHdRootAssurance :: HdRootId
                       -> AssuranceLevel
@@ -208,8 +308,8 @@ makeAcidic ''DB [
     , 'switchToFork
       -- Updates on HD wallets
     , 'createHdRoot
-    , 'createHdAccount
     , 'createHdAddress
+    , 'createHdWallet
     , 'updateHdRootAssurance
     , 'updateHdRootName
     , 'updateHdAccountName

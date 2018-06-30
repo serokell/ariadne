@@ -22,7 +22,6 @@ module Ariadne.Wallet.Backend.KeyStorage
 
 import Universum
 
-import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, zoom, (%=), (.=), (<>=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
@@ -36,15 +35,20 @@ import qualified Data.Vector as V
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
+import Named ((!))
 import Numeric.Natural (Natural)
+import Serokell.Data.Memory.Units (Byte)
+
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
-import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair, makePubKeyHdwAddress)
+import Pos.Core.Common (IsBootstrapEraAddr(..), deriveLvl2KeyPair)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
 import Pos.Util.UserSecret
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdAccountIx (..), HdAddressIx (..), HdAddressChain (..))
-import Serokell.Data.Memory.Units (Byte)
 
+import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
@@ -498,48 +502,26 @@ findFirstUnique lastIdx paths = head
   where
     pathsSet = V.foldr S.insert S.empty paths
 
--- ^ This function derives a 3-level address using account index, change index
+-- | This function derives a 3-level address using account index, change index
 --   and address index. The input key should be the master key (not the key
 --   that was derived from purpose and coin type)
 deriveBip44KeyPair ::
        IsBootstrapEraAddr
     -> PassPhrase
     -> EncryptedSecretKey
-    -> HdAccountIx
-    -> HdAddressChain
-    -> HdAddressIx
+    -> Bip44DerivationPath
     -> Maybe (Address, EncryptedSecretKey)
-deriveBip44KeyPair era pp sk (HdAccountIx accountIdx) change (HdAddressIx addressIdx) =
-    derivePathKeyPair era pp sk
-        [ firstHardened + purpose
-        , firstHardened + coinType
-        , firstHardened + accountIdx
-        , firstNonHardened + case change of
-            HdChainInternal -> 1
-            HdChainExternal -> 0
-        , firstNonHardened + addressIdx
-        ]
+deriveBip44KeyPair era pp rootSK bip44DerPath =
+    toPair <$>
+    deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
   where
-    -- ADA coin index. This is the year when Ada Lovelace was born.
-    -- https://github.com/satoshilabs/slips/blob/master/slip-0044.md
-    coinType = 1815
-    -- BIP-44 derivation constant
-    purpose = 44
-
--- ^ This function derives a key (and an address) following an arbitrary derivation path.
-derivePathKeyPair ::
-       IsBootstrapEraAddr
-    -> PassPhrase
-    -> EncryptedSecretKey
-    -> [Word32]
-    -> Maybe (Address, EncryptedSecretKey)
-derivePathKeyPair era pp sk derPath = do
-    addrKey <- mAddrKey
-    let hdPP = deriveHDPassphrase $ encToPublic sk
-        hdPayload = packHDAddressAttr hdPP derPath
-    return (makePubKeyHdwAddress era hdPayload (encToPublic addrKey), addrKey)
-  where
-    mAddrKey = foldM
-        (\sk' (check, idx) -> deriveHDSecretKey (ShouldCheckPassphrase check) pp sk' idx)
-        sk
-        (zip (True:repeat False) derPath) -- check passphrase only once
+    derPath :: [Word32]
+    derPath = encodeBip44DerivationPath bip44DerPath
+    toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
+    toPair addrSK =
+        ( makePubKeyHdwAddressUsingPath
+              era
+              derPath
+              ! #root (encToPublic rootSK)
+              ! #address (encToPublic addrSK)
+        , addrSK)
