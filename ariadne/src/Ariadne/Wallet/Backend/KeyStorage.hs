@@ -402,9 +402,7 @@ select WalletFace{..} walletSelRef runCardanoMode mWalletRef wsPath = do
             (AccountDoesNotExist $ pretty accIdx)
             (wallet ^? wdAccounts . ix (fromIntegral accIdx))
 
-          case nonEmpty acPath of
-            Nothing -> return ()
-            Just _ -> throwM SelectIsTooDeep
+          unless (null acPath) $ throwM SelectIsTooDeep
 
       atomicWriteIORef walletSelRef $ Just $
         WalletSelection { wsPath, wsWalletIndex }

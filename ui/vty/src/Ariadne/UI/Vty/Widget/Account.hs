@@ -26,19 +26,19 @@ import Ariadne.UI.Vty.UI
 data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance Text
 makePrisms ''BalancePromise
 
-data WalletInfo
-  = WalletAccountInfo
+data AccountInfo
+  = AccountInfo
     { label :: !Text
     , derivationPath :: ![Word32]
     , addresses :: ![(Word32, Text)]
     , balance :: !BalancePromise
     }
 
-makeLensesWith postfixLFields ''WalletInfo
+makeLensesWith postfixLFields ''AccountInfo
 
 data AccountWidgetState =
   AccountWidgetState
-    { walletItemInfo :: !(Maybe WalletInfo)
+    { walletItemInfo :: !(Maybe AccountInfo)
     , walletInitialized :: !Bool
     }
 
@@ -75,7 +75,7 @@ drawAccountWidget _hasFocus widgetState@AccountWidgetState{..} =
         B.emptyResult
           & B.imageL .~ imgOrLoading
 
-drawAccountDetail :: V.Attr -> V.Attr -> WalletInfo -> AccountWidgetState -> V.Image
+drawAccountDetail :: V.Attr -> V.Attr -> AccountInfo -> AccountWidgetState -> V.Image
 drawAccountDetail attr _selAttr info AccountWidgetState{..} = V.vertCat $
   [ V.text' attr $ "Account name:     " <> info ^. labelL
   , V.text' attr $ "Total balance:    " <> case info ^. balanceL of
@@ -122,7 +122,7 @@ handleAccountWidgetEvent UiLangFace{..} ev = do
     AccountUpdateEvent itemInfo -> do
       walletInitializedL .= True
       whenJust itemInfo $ \UiWalletInfo{..} -> let label = fromMaybe "" wpiLabel in case wpiType of
-        Just (UiWalletInfoAccount dp) -> setInfo (WalletAccountInfo label dp wpiAddresses)
+        Just (UiWalletInfoAccount dp) -> setInfo (AccountInfo label dp wpiAddresses)
         _ -> walletItemInfoL .= Nothing
     AccountBalanceCommandResult commandId result -> do
       zoom (walletItemInfoL . _Just . balanceL) $ do
