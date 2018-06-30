@@ -174,8 +174,9 @@ walletSigners rootSK wallets pp = foldMap accountSigners
             toAddrTuple :: HdAddress -> (HdAddressChain, HdAddressIx, Address)
             toAddrTuple hdAddr =
                 let addrId = hdAddr ^. hdAddressId
+                    addrChain = addrId ^. hdAddressIdChain
                     addrIx = addrId ^. hdAddressIdIx
-                in ( undefined
+                in ( addrChain
                    , addrIx
                    , _fromDb (hdAddr ^. hdAddressAddress)
                    )
