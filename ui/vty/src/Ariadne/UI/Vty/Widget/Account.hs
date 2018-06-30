@@ -12,10 +12,9 @@ module Ariadne.UI.Vty.Widget.Account
 
 import Universum
 
-import Control.Lens (forOf_, makeLensesWith, makePrisms, zoom, (.=), _Just)
+import Control.Lens (each, forOf_, makeLensesWith, makePrisms, zoom, (.=), _Just)
 import IiExtras
 
-import qualified Data.Text as T
 import qualified Brick as B
 -- import qualified Brick.Focus as B
 import qualified Graphics.Vty as V
@@ -28,23 +27,14 @@ data BalancePromise = WaitingBalance UiCommandId | FailedBalance Text | Balance 
 makePrisms ''BalancePromise
 
 data WalletInfo
-  = WalletWalletInfo
-    { label :: !Text
-    , balance :: !BalancePromise
-    }
-  | WalletAccountInfo
+  = WalletAccountInfo
     { label :: !Text
     , derivationPath :: ![Word32]
-    , balance :: !BalancePromise
-    }
-  | WalletAddressInfo
-    { label :: !Text
-    , derivationPath :: ![Word32]
+    , addresses :: ![(Word32, Text)]
     , balance :: !BalancePromise
     }
 
 makeLensesWith postfixLFields ''WalletInfo
-makePrisms ''WalletInfo
 
 data AccountWidgetState =
   AccountWidgetState
@@ -62,7 +52,7 @@ initAccountWidget =
     }
 
 drawAccountWidget :: Bool -> AccountWidgetState -> B.Widget BrickName
-drawAccountWidget hasFocus AccountWidgetState{..} =
+drawAccountWidget _hasFocus widgetState@AccountWidgetState{..} =
   B.Widget
     { B.hSize = B.Fixed
     , B.vSize = B.Fixed
@@ -77,33 +67,25 @@ drawAccountWidget hasFocus AccountWidgetState{..} =
         img = case walletItemInfo of
           Nothing ->
             V.text' attr "Select a wallet, an account, or an address"
-          Just info -> V.vertCat $
-            [ case info of
-                WalletWalletInfo{} -> V.text' attr "Wallet"
-                WalletAccountInfo{} -> V.text' attr "Account"
-                WalletAddressInfo{} -> V.text' attr "Address"
-            , V.text' attr $ info ^. labelL
-            ] ++
-              case info of
-                WalletAddressInfo{} -> [V.text' (if hasFocus then selAttr else attr) copyButtonText]
-                _ -> []
-            ++ case info of
-                WalletWalletInfo{} -> []
-                x -> [ V.text' attr . ("Derivation path: "<>)
-                     . T.intercalate "-" $ map pretty $ derivationPath x
-                     ]
-            ++
-            [ V.text' attr $ "Total balance: " <> case info ^. balanceL of
-                WaitingBalance _ -> "Calculating..."
-                FailedBalance e -> pretty e
-                Balance bal -> pretty bal
-            ]
+          Just info -> drawAccountDetail attr selAttr info widgetState
         imgOrLoading
           | walletInitialized = img
           | otherwise = V.text attr "Loading..."
       return $
         B.emptyResult
           & B.imageL .~ imgOrLoading
+
+drawAccountDetail :: V.Attr -> V.Attr -> WalletInfo -> AccountWidgetState -> V.Image
+drawAccountDetail attr _selAttr info AccountWidgetState{..} = V.vertCat $
+  [ V.text' attr $ "Account name:     " <> info ^. labelL
+  , V.text' attr $ "Total balance:    " <> case info ^. balanceL of
+      WaitingBalance _ -> "Calculating..."
+      FailedBalance e -> pretty e
+      Balance bal -> pretty bal
+  , V.text' attr ""
+  , V.text' attr "Addresses:"
+  , V.text' attr ""
+  ] ++ (map (V.text' attr) $ info ^.. addressesL . each . _2)
 
 data AccountWidgetEvent
   = AccountUpdateEvent (Maybe UiWalletInfo)
@@ -140,9 +122,7 @@ handleAccountWidgetEvent UiLangFace{..} ev = do
     AccountUpdateEvent itemInfo -> do
       walletInitializedL .= True
       whenJust itemInfo $ \UiWalletInfo{..} -> let label = fromMaybe "" wpiLabel in case wpiType of
-        Just UiWalletInfoWallet -> setInfo (WalletWalletInfo label)
-        Just (UiWalletInfoAccount dp) -> setInfo (WalletAccountInfo label dp)
-        Just (UiWalletInfoAddress dp) -> setInfo (WalletAddressInfo label dp)
+        Just (UiWalletInfoAccount dp) -> setInfo (WalletAccountInfo label dp wpiAddresses)
         _ -> walletItemInfoL .= Nothing
     AccountBalanceCommandResult commandId result -> do
       zoom (walletItemInfoL . _Just . balanceL) $ do
@@ -151,13 +131,13 @@ handleAccountWidgetEvent UiLangFace{..} ev = do
           when (cmdIdEqObject commandId == cmdIdEqObject commandId') $
             case result of
               UiBalanceCommandSuccess balance ->
-                put $ Balance (show balance)
+                put $ Balance balance
               UiBalanceCommandFailure err -> do
                 put $ FailedBalance err
     AccountMouseDownEvent coords -> when (isCopyButtonClick coords) $
       void $ putExpr UiCopySelection
     AccountCopySelectionEvent ->
-      zoom (walletItemInfoL . _Just . _WalletAddressInfo) $
+      zoom (walletItemInfoL . _Just) $
         void $ putExpr UiCopySelection
   where
     setInfo info = do

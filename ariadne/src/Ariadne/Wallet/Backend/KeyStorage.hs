@@ -398,18 +398,13 @@ select WalletFace{..} walletSelRef runCardanoMode mWalletRef wsPath = do
         Just (accIdx :| acPath) -> do
 
           -- validate account
-          account <- maybeThrow
+          _account <- maybeThrow
             (AccountDoesNotExist $ pretty accIdx)
             (wallet ^? wdAccounts . ix (fromIntegral accIdx))
 
           case nonEmpty acPath of
             Nothing -> return ()
-            Just (addrIdx :| []) -> do
-              -- validate address
-              void $ maybeThrow
-                (AddressDoesNotExist $ pretty addrIdx)
-                (account ^? adAddresses . ix (fromIntegral addrIdx))
-            Just (_ :| _) -> throwM SelectIsTooDeep
+            Just _ -> throwM SelectIsTooDeep
 
       atomicWriteIORef walletSelRef $ Just $
         WalletSelection { wsPath, wsWalletIndex }
