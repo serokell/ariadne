@@ -16,26 +16,24 @@ data Row = Row Int T.Text deriving (Show)
 instance FromRow Row where
   fromRow = Row <$> field <*> field
 
-data CounterChange = Previous | Next
+data Direction = Previous | Next
   deriving Eq
 
 data CommandHistory =
     CommandHistory
     { historyFile :: FilePath
-    , counter :: IORef Int
+    , currentCommandId :: IORef Int
     , currentPrefix :: IORef Text
-    , lastCommand :: IORef Text
     }
 
 openCommandHistory :: FilePath -> IO CommandHistory
 openCommandHistory historyFile = do
     currentPrefix <- newIORef ""
-    lastCommand <- newIORef ""
-    currentCounter <- newIORef 0
+    currentCommandId <- newIORef 0
     withConnection historyFile $
       \conn -> execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
-    let ch = CommandHistory historyFile currentCounter currentPrefix lastCommand
-    resetCounter ch
+    let ch = CommandHistory historyFile currentCommandId currentPrefix
+    resetCurrentCommandId ch
     return ch
 
 toPrevCommand :: CommandHistory -> IO (Maybe Text)
@@ -46,42 +44,40 @@ toNextCommand :: CommandHistory -> IO (Maybe Text)
 toNextCommand ch =
     changeCommand ch Next
 
-direction :: CounterChange -> Int
-direction Previous = (-1)
-direction Next = 1
-
-changeCommand :: CommandHistory -> CounterChange -> IO (Maybe Text)
-changeCommand ch counterChange = do
+changeCommand :: CommandHistory -> Direction -> IO (Maybe Text)
+changeCommand ch direction = do
     prefix <- readIORef (currentPrefix ch)
     let prefix' = prefix <> "%"
-
-    count <- readIORef (counter ch)
-    writeIORef (counter ch) (count + direction counterChange)
+    currId <- readIORef (currentCommandId ch)
 
     queryResult <- withConnection (historyFile ch) $ \conn ->
-      case counterChange of
+      case direction of
         Previous ->
-          query conn "SELECT * FROM history WHERE command LIKE ? AND id < ? ORDER BY id DESC LIMIT 1" (prefix', count)
+          query conn "SELECT * FROM history WHERE command LIKE ? AND id < ? ORDER BY id DESC LIMIT 1" (prefix', currId)
         Next ->
-          query conn "SELECT * FROM history WHERE command LIKE ? AND id > ? ORDER BY id ASC LIMIT 1" (prefix', count)
+          query conn "SELECT * FROM history WHERE command LIKE ? AND id > ? ORDER BY id ASC LIMIT 1" (prefix', currId)
 
     case queryResult of
       [Row rowId cmd] -> do
-        writeIORef (counter ch) rowId
-        writeIORef (lastCommand ch) cmd
+        writeIORef (currentCommandId ch) rowId
         return $ Just cmd
       _ ->
-        case counterChange of
+        case direction of
           Previous -> do
-            lastCmd <- readIORef (lastCommand ch)
-            return $ Just lastCmd
+            result <- withConnection (historyFile ch) $ \conn ->
+              query conn "SELECT * FROM history WHERE id=?" [currId]
+            case result of
+              [Row _ command] -> 
+                return $ Just command
+              _ ->
+                return Nothing
           Next -> do
-            resetCounter ch
+            resetCurrentCommandId ch
             return $ Just prefix
-
+    
 setPrefix :: CommandHistory -> Text -> IO ()
 setPrefix ch (T.strip -> prefix) = do
-    resetCounter ch
+    resetCurrentCommandId ch
     writeIORef (currentPrefix ch) prefix
 
 addCommand :: CommandHistory -> Text -> IO ()
@@ -90,12 +86,12 @@ addCommand ch (T.strip -> command) = do
     unless (null command) $
       withConnection (historyFile ch) $
         \conn -> execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
-    resetCounter ch
+    resetCurrentCommandId ch
 
-resetCounter :: CommandHistory -> IO ()
-resetCounter ch =
+resetCurrentCommandId :: CommandHistory -> IO ()
+resetCurrentCommandId ch =
   withConnection (historyFile ch) $ \conn -> do
     queryResult <- query_ conn "SELECT COALESCE(MAX(id), 0) FROM history" :: IO [[Int]]
     case queryResult of
-      [[maxId]] -> writeIORef (counter ch) (maxId + 1)
+      [[maxId]] -> writeIORef (currentCommandId ch) (maxId + 1)
       _ -> return ()
