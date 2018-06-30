@@ -12,7 +12,6 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
-import Data.Default (def)
 import Formatting (bprint, build, formatToString, int, (%))
 import IiExtras ((:~>)(..))
 import Pos.Client.KeyStorage (getSecretDefault)
@@ -64,9 +63,10 @@ sendTx ::
     -> PassPhrase
     -> WalletReference
     -> [LocalAccountReference]
+    -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs outs = do
+sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs isp outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
     runCardanoMode $ sendTxDo walletIdx =<< cardanoGetDiffusion
@@ -95,7 +95,7 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _a
             prepareMTx
                 getSigner
                 mempty
-                def
+                isp
                 ourAddresses
                 (map TxOutAux outs)
                 ourAddress
