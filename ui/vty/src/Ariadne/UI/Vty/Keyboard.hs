@@ -49,6 +49,7 @@ data KeyboardEditEvent
   | KeyEditDelLeftAll
   | KeyEditDelRight
   | KeyEditDelRightWord
+  | KeyEditAutocomplete
 
   | KeyEditPrev
   | KeyEditNext
@@ -93,6 +94,7 @@ vtyToEditKey = \case
     EvKey KEnd         []       -> KeyEditEnd
     EvKey KUp          []       -> KeyEditUp
     EvKey KDown        []       -> KeyEditDown
+    EvKey (KChar '@')  [MCtrl]  -> KeyEditAutocomplete
 
     EvKey KBS          []       -> KeyEditDelLeft
     EvKey (KChar 'h')  [MCtrl]  -> KeyEditDelLeft

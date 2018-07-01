@@ -254,6 +254,7 @@ data ReplInputEvent
   | ReplCommandNavigationEvent CommandAction
   | ReplSendEvent
   | ReplSmartEnterEvent
+  | ReplAutocompleteEvent
   | ReplQuitEvent
   | ReplMouseDownEvent B.Location
 
@@ -290,6 +291,8 @@ keyToReplInputEvent ReplWidgetState{..} = \case
         Just $ ReplInputNavigationEvent NavDown
     | otherwise ->
         Just $ ReplCommandNavigationEvent NextCommand
+  KeyEditAutocomplete ->
+    Just $ ReplInputAutocomplete
   KeyEditDelLeft ->
     Just $ ReplInputModifyEvent DeleteBackwards
   KeyEditDelLeftWord ->
@@ -377,6 +380,12 @@ handleReplInputEvent langFace = fix $ \go -> \case
         case mPrevChar of
           Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
           _ -> go ReplSendEvent
+  ReplAutocompleteEvent -> do
+    t <- gets replWidgetText
+    completed = t -- TODO: transform this to complete knit commands
+    zoom replWidgetTextZipperL $ modify $ insertMany (fromMaybe "" completed) . clearZipper
+    replReparse langFace
+    return ReplInProgress
   ReplSendEvent -> do
     history <- gets replWidgetHistoryFace
     t <- gets replWidgetText
