@@ -197,7 +197,6 @@ data UiTreeSelection =
 data UiWalletInfoType
   = UiWalletInfoWallet
   | UiWalletInfoAccount [Word32]
-  | UiWalletInfoAddress [Word32]
 
 data UiWalletInfo
   = UiWalletInfo
@@ -205,4 +204,5 @@ data UiWalletInfo
     , wpiLabel :: !(Maybe Text)
     , wpiWalletIdx :: !Word
     , wpiPath :: !TreePath
+    , wpiAddresses :: ![(Word32, Text)]
     }

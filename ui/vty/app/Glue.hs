@@ -271,15 +271,7 @@ userSecretToTree = map toTree . view usWallets
                           , wtiPath = [fromIntegral _adPath]
                           , wtiShowPath = True
                           }
-                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
-                }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiTree
-        toAddressNode accIdx (addrIdx, address) =
-            pure $
-            UiTreeItem
-                { wtiLabel = Just (pretty address)
-                , wtiPath = map fromIntegral [accIdx, addrIdx]
-                , wtiShowPath = True
+                , subForest = []
                 }
 
 walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletInfo
@@ -287,17 +279,14 @@ walletSelectionToPane us WalletSelection{..} = UiWalletInfo{..}
   where
     wpiWalletIdx = wsWalletIndex
     wpiPath = wsPath
-    (wpiType, wpiLabel) = case us ^. usWallets ^? ix (fromIntegral wsWalletIndex) of
+    (wpiType, wpiLabel, wpiAddresses) = case us ^? (usWallets . ix (fromIntegral wsWalletIndex)) of
       Nothing -> error "Invalid wallet index"
       Just WalletData{..} -> case wsPath of
-        [] -> (Just UiWalletInfoWallet, Just _wdName)
-        accIdx:accPath -> case _wdAccounts ^? ix (fromIntegral accIdx) of
+        [] -> (Just UiWalletInfoWallet, Just _wdName, [])
+        accIdx:_ -> case _wdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
-          Just AccountData{..} -> case accPath of
-            [] -> (Just $ UiWalletInfoAccount [_adPath], Just _adName)
-            addrIdx:_ -> case _adAddresses ^? ix (fromIntegral addrIdx) of
-              Nothing -> error "Invalid address index"
-              Just (addrPath, address) -> (Just $ UiWalletInfoAddress [_adPath, addrPath], Just $ pretty address)
+          Just AccountData{..} ->
+            (Just $ UiWalletInfoAccount [_adPath], Just _adName, toList $ second pretty <$> _adAddresses)
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
@@ -317,10 +306,6 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
             Just ad ->
                 case rest of
                     [] -> UiSelectedAccount (_adName ad)
-                    [addrIdx] ->
-                        case ad ^? adAddresses . ix (fromIntegral addrIdx) of
-                            Nothing -> error "Non-existing address is selected"
-                            Just (_, addr) -> UiSelectedAddress (pretty addr)
                     _ -> error "Invalid selection: too long"
 
 ----------------------------------------------------------------------------
