@@ -90,13 +90,9 @@ drawAccountDetail attr _selAttr info AccountWidgetState{..} = V.vertCat $
 data AccountWidgetEvent
   = AccountUpdateEvent (Maybe UiWalletInfo)
   | AccountBalanceCommandResult UiCommandId UiBalanceCommandResult
-  | AccountMouseDownEvent B.Location
-  | AccountCopySelectionEvent
 
 keyToAccountEvent :: KeyboardEvent -> Maybe AccountWidgetEvent
-keyToAccountEvent = \case
-  KeyEnter -> Just AccountCopySelectionEvent
-  _ -> Nothing
+keyToAccountEvent _ = Nothing
 
 handleAccountFocus
   :: Bool
@@ -134,11 +130,6 @@ handleAccountWidgetEvent UiLangFace{..} ev = do
                 put $ Balance balance
               UiBalanceCommandFailure err -> do
                 put $ FailedBalance err
-    AccountMouseDownEvent coords -> when (isCopyButtonClick coords) $
-      void $ putExpr UiCopySelection
-    AccountCopySelectionEvent ->
-      zoom (walletItemInfoL . _Just) $
-        void $ putExpr UiCopySelection
   where
     setInfo info = do
       balancePromise <- refreshBalance
@@ -155,9 +146,3 @@ handleAccountWidgetEvent UiLangFace{..} ev = do
 
       Right commandId <- putExpr UiBalance
       return $ WaitingBalance commandId
-
-copyButtonText :: Text
-copyButtonText = "[ Copy ]"
-
-isCopyButtonClick :: B.Location -> Bool
-isCopyButtonClick (B.Location (col,row)) = row == 2 && col >= 0 && col <= length copyButtonText
