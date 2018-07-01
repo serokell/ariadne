@@ -50,6 +50,7 @@ library
       Ariadne.UI.Vty.Knit
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
+      Ariadne.UI.Vty.Widget
       Ariadne.UI.Vty.UI
       Ariadne.UI.Vty.Widget.About
       Ariadne.UI.Vty.Widget.Account
@@ -80,6 +81,7 @@ library
       MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
+      NamedFieldPuns
       NegativeLiterals
       OverloadedStrings
       OverloadedLabels
