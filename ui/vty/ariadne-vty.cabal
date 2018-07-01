@@ -55,6 +55,9 @@ library
       Ariadne.UI.Vty.Widget.About
       Ariadne.UI.Vty.Widget.Account
       Ariadne.UI.Vty.Widget.AddWallet
+      Ariadne.UI.Vty.Widget.Form.Button
+      Ariadne.UI.Vty.Widget.Form.Checkbox
+      Ariadne.UI.Vty.Widget.Form.Edit
       Ariadne.UI.Vty.Widget.Help
       Ariadne.UI.Vty.Widget.Logs
       Ariadne.UI.Vty.Widget.Menu
