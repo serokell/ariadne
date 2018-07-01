@@ -128,7 +128,7 @@ collectUtxo esk = do
         hdRootId :: HdRootId
         hdRootId = mkHdRootId esk
 
-    -- TODO: simply ignoring addresses which are not at the 2nd level
+    -- TODO: simply ignoring addresses which are not BIP-44 compliant
     -- is not perfect (though normal users shouldn't have addresses at
     -- different levels). We should probably at least show some
     -- message if we encounter such addresses. Let's do it after
