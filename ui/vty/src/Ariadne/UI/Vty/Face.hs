@@ -78,6 +78,7 @@ data UiWalletEvent =
 data UiCommandAction
   = UiCommandHelp
   | UiCommandLogs
+  | UiCommandQuit
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
 -- events in the 'Glue' module. They must be independent from the backends and

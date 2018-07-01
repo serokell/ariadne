@@ -26,6 +26,7 @@ defaultAttrMap = attrMap
   [ ("default", white `on` black)
   , ("border", white `on` black)
   , ("edit", black `on` white)
+  , ("error", currentAttr `withBackColor` red)
   , ("focused", brightWhite `on` black `withStyle` bold)
   , ("focus", red `on` black)
   , ("focus.key", red `on` black `withStyle` underline)

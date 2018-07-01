@@ -1,15 +1,7 @@
 -- | Wallet tree widget and its data model.
 
 module Ariadne.UI.Vty.Widget.Tree
-       ( TreeWidgetState
-       , TreeSelection(..)
-       , treeWidgetSelection
-       , initTreeWidget
-       , drawTreeWidget
-
-       , TreeWidgetEvent(..)
-       , keyToTreeEvent
-       , handleTreeWidgetEvent
+       ( initTreeWidget
        ) where
 
 import Universum
@@ -28,7 +20,7 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
-import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget
 
 ----------------------------------------------------------------------------
 -- Model
@@ -38,18 +30,12 @@ import Ariadne.UI.Vty.UI
 -- display (corresponds to a list of wallets).
 data TreeWidgetState =
   TreeWidgetState
-    { treeItems :: ![TreeItem]
+    { treeLangFace :: !UiLangFace
+    , treeItems :: ![TreeItem]
     , treeSelection :: !(Maybe Int)
     , treeInitialized :: !Bool
     , treeScrollBySelection :: !Bool
     }
-
-data TreeSelection
-  = TreeSelectionNone
-  | TreeSelectionAddWallet
-  | TreeSelectionWallet
-  | TreeSelectionAccount
-  deriving (Eq)
 
 data TreeItemType
   = TreeItemLoading
@@ -68,9 +54,6 @@ data TreeItem =
 
 makeLensesWith postfixLFields ''TreeWidgetState
 
-widgetName :: BrickName
-widgetName = BrickTree
-
 treeItemLoading, treeItemSeparator :: TreeItem
 treeItemLoading = TreeItem TreeItemLoading "" "Loading..." Nothing False
 treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
@@ -78,24 +61,21 @@ treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 treeItemAddWallet :: Bool -> TreeItem
 treeItemAddWallet = TreeItem TreeItemAddWallet "" "[ + Add wallet ]" (Just [])
 
-treeWidgetSelection :: TreeWidgetState -> TreeSelection
-treeWidgetSelection TreeWidgetState{..} = fromMaybe TreeSelectionNone $ do
-  idx <- treeSelection
-  item <- treeItems ^? ix idx
-  case treeItemType item of
-    TreeItemAddWallet -> Just TreeSelectionAddWallet
-    TreeItemPath
-      | Just [_] <- treeItemPath item -> Just TreeSelectionWallet
-      | otherwise -> Just TreeSelectionAccount
-    _ -> Nothing
-
-initTreeWidget :: TreeWidgetState
-initTreeWidget = TreeWidgetState
-  { treeItems = [treeItemLoading]
-  , treeSelection = Nothing
-  , treeInitialized = False
-  , treeScrollBySelection = False
-  }
+initTreeWidget :: UiLangFace -> Widget p
+initTreeWidget langFace =
+  initWidget $ do
+    setWidgetDraw drawTreeWidget
+    setWidgetScrollable
+    setWidgetHandleKey handleTreeWidgetKey
+    setWidgetHandleMouseDown handleTreeWidgetMouseDown
+    setWidgetHandleEvent handleTreeWidgetEvent
+    setWidgetState TreeWidgetState
+      { treeLangFace = langFace
+      , treeItems = [treeItemLoading]
+      , treeSelection = Nothing
+      , treeInitialized = False
+      , treeScrollBySelection = False
+      }
 
 walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> Bool -> [TreeItem]
 walletsToItems wallets selection initialized =
@@ -140,9 +120,11 @@ walletsToItems wallets selection initialized =
 -- View
 ----------------------------------------------------------------------------
 
-drawTreeWidget :: Bool -> TreeWidgetState -> B.Widget BrickName
-drawTreeWidget _hasFocus TreeWidgetState{..}  =
-  fixedViewport widgetName B.Vertical $
+drawTreeWidget :: TreeWidgetState -> WidgetDrawM TreeWidgetState p (B.Widget WidgetName)
+drawTreeWidget TreeWidgetState{..} = do
+  widgetName <- getWidgetName
+  return $
+    fixedViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
@@ -155,14 +137,15 @@ drawTreeWidget _hasFocus TreeWidgetState{..}  =
         attr = rdrCtx ^. B.attrL
         selAttr = attr <> B.attrMapLookup "selected" (rdrCtx ^. B.ctxAttrMapL)
 
-        img = V.vertCat $ fmap toImg treeItems
+        img = V.pad 1 1 1 1 $ V.vertCat $ fmap toImg treeItems
         toImg TreeItem{..} = V.horizJoin
           (V.text' attr treeItemPrefix)
           (V.text' (if treeItemSelected then selAttr else attr) treeItemLabel)
 
         visibilityRequests
           | treeScrollBySelection,
-            Just pos <- findIndex treeItemSelected treeItems = [B.VR (B.Location (0, pos)) (1, 1)]
+            Just pos <- findIndex treeItemSelected treeItems =
+              [B.VR (B.Location (0, pos + 1)) (1, 1)]  -- Account for 1-char padding
           | otherwise = []
       return $ B.emptyResult
              & B.imageL .~ img
@@ -172,69 +155,35 @@ drawTreeWidget _hasFocus TreeWidgetState{..}  =
 -- Events
 ----------------------------------------------------------------------------
 
-data TreeWidgetEvent
-  = TreeUpdateEvent [UiTree] (Maybe UiTreeSelection)
-  | TreeMouseDownEvent B.Location
-  | TreeScrollingEvent ScrollingAction
-  | TreeNavigationPrevWallet
-  | TreeNavigationNextWallet
-  | TreeNavigationParent
-  | TreeNavigationFirstChild
-  | TreeNavigationPrevItem
-  | TreeNavigationNextItem
-
-keyToTreeEvent
+handleTreeWidgetKey
   :: KeyboardEvent
-  -> Maybe TreeWidgetEvent
-keyToTreeEvent = \case
-  KeyCtrlUp -> Just TreeNavigationPrevWallet
-  KeyCtrlDown -> Just TreeNavigationNextWallet
-  KeyUp -> Just TreeNavigationPrevItem
-  KeyDown -> Just TreeNavigationNextItem
-  KeyLeft -> Just TreeNavigationParent
-  KeyRight -> Just TreeNavigationFirstChild
-  KeyChar 'h' -> Just TreeNavigationParent
-  KeyChar 'j' -> Just TreeNavigationNextItem
-  KeyChar 'k' -> Just TreeNavigationPrevItem
-  KeyChar 'l' -> Just TreeNavigationFirstChild
-  _ -> Nothing
-
-handleTreeWidgetEvent
-  :: UiLangFace
-  -> TreeWidgetEvent
-  -> StateT TreeWidgetState (B.EventM BrickName) ()
-handleTreeWidgetEvent UiLangFace{..} = \case
-  TreeUpdateEvent wallets wselection -> do
-    items <- uses treeInitializedL $ walletsToItems wallets wselection
-    unlessM (use treeInitializedL) $ do
-      treeInitializedL .= True
-      whenJust (items ^? ix 0 >>= treeItemPath) putSelect
-    treeItemsL .= items
-    treeSelectionL .= findIndex treeItemSelected items
-    treeScrollBySelectionL .= True
-  TreeMouseDownEvent (B.Location (_, row)) -> do
-    items <- use treeItemsL
-    whenJust (items ^? ix row >>= treeItemPath) putSelect
-  TreeScrollingEvent action -> do
-    lift $ handleScrollingEvent widgetName action
-    treeScrollBySelectionL .= False
-
-  -- Wallet index is always the head of path
-  TreeNavigationPrevWallet -> defaultPath $ \p@(x :| xs) ->
-    case xs of
-      [] -> if minBound == x then toList p else [pred x]
-      _ -> [x]
-  TreeNavigationNextWallet -> defaultPath $ \p@(x :| _) -> if maxBound == x then toList p else [succ x]
-
-  TreeNavigationParent -> defaultPath $ \p -> if length p == 1 then toList p else NE.init p
-  TreeNavigationFirstChild -> defaultPath $ (++ [0]) . toList
-
-  TreeNavigationPrevItem -> whenJustM (modifiedPath False) putSelect
-  TreeNavigationNextItem -> whenJustM (modifiedPath True) putSelect
-
+  -> WidgetEventM TreeWidgetState p WidgetEventResult
+handleTreeWidgetKey key = if
+    | KeyModUp <- key -> do
+        defaultPath $ \p@(x :| xs) ->
+          case xs of
+            [] -> if minBound == x then toList p else [pred x]
+            _ -> [x]
+        return WidgetEventHandled
+    | KeyModDown <- key -> do
+        defaultPath $ \p@(x :| _) -> if maxBound == x then toList p else [succ x]
+        return WidgetEventHandled
+    | key `elem` [KeyUp, KeyChar 'k'] -> do
+        whenJustM (modifiedPath False) performSelect
+        return WidgetEventHandled
+    | key `elem` [KeyDown, KeyChar 'j'] -> do
+        whenJustM (modifiedPath True) performSelect
+        return WidgetEventHandled
+    | key `elem` [KeyLeft, KeyChar 'h'] -> do
+        defaultPath $ \p -> if length p == 1 then toList p else NE.init p
+        return WidgetEventHandled
+    | key `elem` [KeyRight, KeyChar 'l'] -> do
+        defaultPath $ (++ [0]) . toList
+        return WidgetEventHandled
+    | otherwise ->
+        return WidgetEventNotHandled
   where
-    putSelect = void . liftIO . langPutUiCommand . UiSelect
-    defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= putSelect
+    defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= performSelect
 
     modifiedPath forward = runMaybeT $ do
       selection <- MaybeT $ use treeSelectionL
@@ -246,3 +195,37 @@ handleTreeWidgetEvent UiLangFace{..} = \case
                else reverse $ take selection items
 
       MaybeT $ return $ asum $ map treeItemPath restItems
+
+handleTreeWidgetMouseDown
+  :: B.Location
+  -> WidgetEventM TreeWidgetState p WidgetEventResult
+handleTreeWidgetMouseDown (B.Location (_, row)) = do
+  items <- use treeItemsL
+  whenJust (items ^? ix (row - 1) >>= treeItemPath) performSelect  -- Account for 1-char padding
+  return WidgetEventHandled
+
+handleTreeWidgetEvent
+  :: UiEvent
+  -> WidgetEventM TreeWidgetState p ()
+handleTreeWidgetEvent = \case
+  UiWalletEvent UiWalletUpdate{..} -> do
+    items <- uses treeInitializedL $ walletsToItems wuTrees wuSelection
+    unlessM (use treeInitializedL) $ do
+      treeInitializedL .= True
+      whenJust (items ^? ix 0 >>= treeItemPath) performSelect
+    treeItemsL .= items
+    treeSelectionL .= findIndex treeItemSelected items
+    treeScrollBySelectionL .= True
+  _ ->
+    return ()
+
+----------------------------------------------------------------------------
+-- Actions
+----------------------------------------------------------------------------
+
+performSelect
+  :: [Word]
+  -> WidgetEventM TreeWidgetState p ()
+performSelect path = do
+  UiLangFace{..} <- use treeLangFaceL
+  void . liftIO . langPutUiCommand $ UiSelect path

@@ -46,12 +46,12 @@ library
       Ariadne.UI.Vty.AnsiToVty
       Ariadne.UI.Vty.Clipboard
       Ariadne.UI.Vty.Face
+      Ariadne.UI.Vty.Focus
       Ariadne.UI.Vty.Keyboard
       Ariadne.UI.Vty.Knit
       Ariadne.UI.Vty.Scrolling
       Ariadne.UI.Vty.Theme
       Ariadne.UI.Vty.Widget
-      Ariadne.UI.Vty.UI
       Ariadne.UI.Vty.Widget.About
       Ariadne.UI.Vty.Widget.Account
       Ariadne.UI.Vty.Widget.AddWallet

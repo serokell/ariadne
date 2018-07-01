@@ -1,24 +1,19 @@
 module Ariadne.UI.Vty.Widget.Help
-       ( HelpWidgetState
-       , initHelpWidget
-       , drawHelpWidget
-
-       , HelpWidgetEvent(..)
-       , handleHelpWidgetEvent
+       ( initHelpWidget
        ) where
 
 import Universum
 
-import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.Face
-import Ariadne.UI.Vty.Scrolling
-import Ariadne.UI.Vty.UI
 import Control.Lens (makeLensesWith)
 import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
+
+import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Widget
 
 data HelpWidgetState =
   HelpWidgetState
@@ -27,18 +22,22 @@ data HelpWidgetState =
 
 makeLensesWith postfixLFields ''HelpWidgetState
 
-widgetName :: BrickName
-widgetName = BrickHelp
+initHelpWidget :: UiLangFace -> Widget p
+initHelpWidget UiLangFace{..} =
+  initWidget $ do
+    setWidgetDraw drawHelpWidget
+    setWidgetScrollable
+    setWidgetState HelpWidgetState
+      { helpWidgetData = langGetHelp
+      }
 
-initHelpWidget :: UiLangFace -> HelpWidgetState
-initHelpWidget UiLangFace{..} = HelpWidgetState
-  { helpWidgetData = langGetHelp
-  }
-
-drawHelpWidget :: HelpWidgetState -> B.Widget BrickName
-drawHelpWidget helpWidgetState =
-  B.viewport widgetName B.Vertical $
-      B.cached widgetName B.Widget
+drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p (B.Widget WidgetName)
+drawHelpWidget HelpWidgetState{..} = do
+  widgetName <- getWidgetName
+  return $
+    B.viewport widgetName B.Vertical $
+    B.cached widgetName $
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -51,21 +50,8 @@ drawHelpWidget helpWidgetState =
         width = rdrCtx ^. B.availWidthL
         img =
           V.vertCat $
-          fmap drawDoc (helpWidgetState ^. helpWidgetDataL)
+          fmap drawDoc helpWidgetData
         drawDoc = pprDoc attr width
       return $
         B.emptyResult
           & B.imageL .~ img
-
-data HelpCompleted = HelpCompleted | HelpInProgress
-
-data HelpWidgetEvent
-  = HelpScrollingEvent ScrollingAction
-
-handleHelpWidgetEvent
-  :: HelpWidgetEvent
-  -> StateT HelpWidgetState (B.EventM BrickName) ()
-handleHelpWidgetEvent ev = do
-  case ev of
-    HelpScrollingEvent action ->
-      lift $ handleScrollingEvent widgetName action

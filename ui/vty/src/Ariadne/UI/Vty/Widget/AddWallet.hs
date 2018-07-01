@@ -1,28 +1,20 @@
 module Ariadne.UI.Vty.Widget.AddWallet
-       ( AddWalletWidgetState
-       , initAddWalletWidget
-       , drawAddWalletWidget
-
-       , AddWalletWidgetEvent(..)
-       , handleAddWalletFocus
-       , handleAddWalletFocusIn
-       , handleAddWalletWidgetEvent
+       ( initAddWalletWidget
        ) where
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, uses, (<%=), (%=))
-import Data.Function (fix)
+import Control.Lens (assign, makeLensesWith, (%=))
 import IiExtras
 
 import qualified Brick as B
-import qualified Brick.Focus as B
-import qualified Brick.Forms as B
-import qualified Graphics.Vty as V
+import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
-import Ariadne.UI.Vty.Keyboard
-import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget
+import Ariadne.UI.Vty.Widget.Form.Button
+import Ariadne.UI.Vty.Widget.Form.Checkbox
+import Ariadne.UI.Vty.Widget.Form.Edit
 
 ----------------------------------------------------------------------------
 -- Model
@@ -30,22 +22,17 @@ import Ariadne.UI.Vty.UI
 
 data AddWalletWidgetState =
   AddWalletWidgetState
-    { addWalletNewName :: !Text
+    { addWalletLangFace :: !UiLangFace
+
+    , addWalletNewName :: !Text
     , addWalletNewPass :: !Text
     , addWalletNewResult :: !NewResult
+
     , addWalletRestoreName :: !Text
     , addWalletRestoreMnemonic :: !Text
     , addWalletRestorePass :: !Text
     , addWalletRestoreFull :: !Bool
     , addWalletRestoreResult :: !RestoreResult
-
-    , addWalletFocusRing :: !(B.FocusRing BrickName)
-    , addWalletFieldNewName :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
-    , addWalletFieldNewPass :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
-    , addWalletFieldRestoreName :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
-    , addWalletFieldRestoreMnemonic :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
-    , addWalletFieldRestorePass :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
-    , addWalletFieldRestoreFull :: B.FormFieldState AddWalletWidgetState UiEvent BrickName
     }
 
 data NewResult
@@ -62,179 +49,138 @@ data RestoreResult
 
 makeLensesWith postfixLFields ''AddWalletWidgetState
 
-initAddWalletWidget :: AddWalletWidgetState
-initAddWalletWidget =
-  fix $ \this -> AddWalletWidgetState
-    { addWalletNewName = ""
-    , addWalletNewPass = ""
-    , addWalletNewResult = NewResultNone
-    , addWalletRestoreName = ""
-    , addWalletRestoreMnemonic = ""
-    , addWalletRestorePass = ""
-    , addWalletRestoreFull = True
-    , addWalletRestoreResult = RestoreResultNone
+initAddWalletWidget :: UiLangFace -> Widget p
+initAddWalletWidget langFace =
+  initWidget $ do
+    setWidgetDrawWithFocus drawAddWalletWidget
+    setWidgetScrollable
+    setWidgetHandleEvent handleAddWalletWidgetEvent
+    setWidgetState AddWalletWidgetState
+      { addWalletLangFace = langFace
 
-    , addWalletFocusRing = B.focusRing
-        [ BrickNone
-        , BrickAddWalletName, BrickAddWalletPass
-        , BrickAddWalletCreateButton
-        , BrickAddWalletRestoreName, BrickAddWalletRestoreMnemonic
-        , BrickAddWalletRestorePass, BrickAddWalletRestoreFull
-        , BrickAddWalletRestoreButton
-        ]
-    , addWalletFieldNewName = B.editTextField addWalletNewNameL BrickAddWalletName (Just 1) this
-    , addWalletFieldNewPass = B.editPasswordField addWalletNewPassL BrickAddWalletPass this
-    , addWalletFieldRestoreName = B.editTextField addWalletRestoreNameL BrickAddWalletRestoreName (Just 1) this
-    , addWalletFieldRestoreMnemonic = B.editTextField addWalletRestoreMnemonicL BrickAddWalletRestoreMnemonic (Just 1) this
-    , addWalletFieldRestorePass = B.editPasswordField addWalletRestorePassL BrickAddWalletRestorePass this
-    , addWalletFieldRestoreFull = B.checkboxField addWalletRestoreFullL BrickAddWalletRestoreFull "Full restoration (find all used addresses)" this
-    }
+      , addWalletNewName = ""
+      , addWalletNewPass = ""
+      , addWalletNewResult = NewResultNone
+
+      , addWalletRestoreName = ""
+      , addWalletRestoreMnemonic = ""
+      , addWalletRestorePass = ""
+      , addWalletRestoreFull = True
+      , addWalletRestoreResult = RestoreResultNone
+      }
+
+    addWidgetChild WidgetNameAddWalletNewName $
+      initEditWidget $ widgetParentLens addWalletNewNameL
+    addWidgetChild WidgetNameAddWalletNewPass $
+      initPasswordWidget $ widgetParentLens addWalletNewPassL
+    addWidgetChild WidgetNameAddWalletNewButton $
+      initButtonWidget "Create"
+
+    addWidgetEventHandler WidgetNameAddWalletNewButton $ \case
+      WidgetEventButtonPressed -> performCreateWallet
+      _ -> return ()
+
+    addWidgetChild WidgetNameAddWalletRestoreName $
+      initEditWidget $ widgetParentLens addWalletRestoreNameL
+    addWidgetChild WidgetNameAddWalletRestoreMnemonic $
+      initEditWidget $ widgetParentLens addWalletRestoreMnemonicL
+    addWidgetChild WidgetNameAddWalletRestorePass $
+      initPasswordWidget $ widgetParentLens addWalletRestorePassL
+    addWidgetChild WidgetNameAddWalletRestoreFull $
+      initCheckboxWidget "Full restoration (find all used addresses)" $ widgetParentLens addWalletRestoreFullL
+    addWidgetChild WidgetNameAddWalletRestoreButton $
+      initButtonWidget "Restore"
+
+    addWidgetEventHandler WidgetNameAddWalletRestoreButton $ \case
+      WidgetEventButtonPressed -> performRestoreWallet
+      _ -> return ()
+
+    setWidgetFocusList
+      [ WidgetNameAddWalletNewName
+      , WidgetNameAddWalletNewPass
+      , WidgetNameAddWalletNewButton
+      , WidgetNameAddWalletRestoreName
+      , WidgetNameAddWalletRestoreMnemonic
+      , WidgetNameAddWalletRestorePass
+      , WidgetNameAddWalletRestoreFull
+      , WidgetNameAddWalletRestoreButton
+      ]
 
 ----------------------------------------------------------------------------
 -- View
 ----------------------------------------------------------------------------
 
-drawAddWalletWidget :: Bool -> AddWalletWidgetState -> B.Widget BrickName
-drawAddWalletWidget _hasFocus AddWalletWidgetState{..} =
-  B.vBox
-    [ visible BrickNone . pad $ B.txt "Create new wallet"
-    , visible BrickAddWalletName $ renderField "       Name: " $ addWalletFieldNewName
-    , visible BrickAddWalletPass $ renderField " Passphrase: " $ addWalletFieldNewPass
-    , button "[ Create ]" BrickAddWalletCreateButton
-    , visible BrickAddWalletCreateButton . pad . pad $ drawNewResult
+drawAddWalletWidget :: WidgetName -> AddWalletWidgetState -> WidgetDrawM AddWalletWidgetState p (B.Widget WidgetName)
+drawAddWalletWidget focus AddWalletWidgetState{..} = do
+  widget <- ask
+  widgetName <- getWidgetName
 
-    , pad $ B.txt "Restore wallet from a mnemonic"
-    , visible BrickAddWalletRestoreName     $ renderField "       Name: " $ addWalletFieldRestoreName
-    , visible BrickAddWalletRestoreMnemonic $ renderField "   Mnemonic: " $ addWalletFieldRestoreMnemonic
-    , visible BrickAddWalletRestorePass     $ renderField " Passphrase: " $ addWalletFieldRestorePass
-    , pad $ padLeft $ withFocus BrickAddWalletRestoreFull $ B.renderFormFieldState addWalletFocusRing addWalletFieldRestoreFull
-    , button "[ Restore ]" BrickAddWalletRestoreButton
-    , visible BrickAddWalletRestoreButton . pad $ drawRestoreResult
-    ]
-  where
-    pad = B.padBottom (B.Pad 1)
-    padLeft = B.padLeft (B.Pad 13)
-    visible name =
-      if B.focusGetCurrent addWalletFocusRing == Just name
-      then B.visible
-      else identity
-    renderField label field =
-      pad $
-        B.txt label B.<+>
-        B.renderFormFieldState addWalletFocusRing field
-    withFocus name =
-      if B.focusGetCurrent addWalletFocusRing == Just name
-      then B.visible . B.withAttr "selected"
-      else identity
-    button label name =
-      visible name . pad . padLeft . B.clickable name . withFocus name $ B.txt label
-    drawNewResult = padLeft $ case addWalletNewResult of
-      NewResultNone -> B.emptyWidget
-      NewResultWaiting _ -> B.txt "Creating..."
-      NewResultError err -> B.txt $ "Couldn't create a wallet: " <> err
-      NewResultSuccess mnemonic -> B.txt $ "Wallet created, here's your mnemonic:\n\n" <> unwords mnemonic
-    drawRestoreResult = padLeft $ case addWalletRestoreResult of
-      RestoreResultNone -> B.emptyWidget
-      RestoreResultWaiting _ -> B.txt "Restoring..."
-      RestoreResultError err -> B.txt $ "Couldn't restore a wallet: " <> err
-      RestoreResultSuccess -> B.txt "Wallet successfully restored"
+  let
+    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
+    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    label = B.padRight (B.Pad 1) . B.txt . T.takeEnd 13 . (T.append $ T.replicate 13 " ")
+    padBottom = B.padBottom (B.Pad 1)
+
+  return $
+    B.viewport widgetName B.Vertical $
+    B.padAll 1 $
+    B.vBox $
+    padBottom <$>
+      [ visible WidgetNameAddWalletNewName $ B.txt "Create new wallet"
+      , label       "Name:" B.<+> drawChild WidgetNameAddWalletNewName
+      , label "Passphrase:" B.<+> drawChild WidgetNameAddWalletNewPass
+      , label            "" B.<+> drawChild WidgetNameAddWalletNewButton
+      , case addWalletNewResult of
+          NewResultNone -> B.emptyWidget
+          NewResultWaiting _ -> B.txt "Creating..."
+          NewResultError err -> B.txt $ "Couldn't create a wallet: " <> err
+          NewResultSuccess mnemonic -> B.txt $ "Wallet created, here's your mnemonic:\n\n" <> unwords mnemonic
+
+      , B.txt "Restore wallet from a mnemonic"
+      , label       "Name:" B.<+> drawChild WidgetNameAddWalletRestoreName
+      , label   "Mnemonic:" B.<+> drawChild WidgetNameAddWalletRestoreMnemonic
+      , label "Passphrase:" B.<+> drawChild WidgetNameAddWalletRestorePass
+      , label            "" B.<+> drawChild WidgetNameAddWalletRestoreFull
+      , label            "" B.<+> drawChild WidgetNameAddWalletRestoreButton
+      , case addWalletRestoreResult of
+          RestoreResultNone -> B.emptyWidget
+          RestoreResultWaiting _ -> B.txt "Restoring..."
+          RestoreResultError err -> B.txt $ "Couldn't restore a wallet: " <> err
+          RestoreResultSuccess -> B.txt "Wallet successfully restored"
+      ]
 
 ----------------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------------
 
-data AddWalletWidgetEvent
-  = AddWalletMouseDownEvent BrickName B.Location
-  | AddWalletKeyEvent KeyboardEvent V.Event
-  | AddWalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
-  | AddWalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
-
-handleAddWalletFocus
-  :: Bool
-  -> StateT AddWalletWidgetState (B.EventM BrickName) Bool
-handleAddWalletFocus back = do
-  newFocus <- addWalletFocusRingL <%= if back then B.focusPrev else B.focusNext
-  return $ B.focusGetCurrent newFocus /= Just BrickNone
-
-handleAddWalletFocusIn
-  :: Bool
-  -> StateT AddWalletWidgetState (B.EventM BrickName) ()
-handleAddWalletFocusIn back = do
-  addWalletFocusRingL %= (if back then B.focusPrev else B.focusNext) . B.focusSetCurrent BrickNone
-
 handleAddWalletWidgetEvent
-  :: UiLangFace
-  -> AddWalletWidgetEvent
-  -> StateT AddWalletWidgetState (B.EventM BrickName) ()
-handleAddWalletWidgetEvent langFace = \case
-  AddWalletMouseDownEvent name coords -> do
-    addWalletFocusRingL %= B.focusSetCurrent name
-    case name of
-      BrickAddWalletCreateButton ->
-        performCreateWallet langFace
-      BrickAddWalletRestoreButton ->
-        performRestoreWallet langFace
-      BrickAddWalletRestoreFull -> do
-        field <- use addWalletFieldRestoreFullL
-        get >>= lift . handleFormFieldEvent BrickAddWalletRestoreFull (B.MouseDown name V.BLeft [] coords) addWalletFieldRestoreFullL field >>= put
-      _ ->
-        return ()
-  AddWalletKeyEvent key vtyEv -> do
-    name <- uses addWalletFocusRingL $ fromMaybe BrickNone . B.focusGetCurrent
-    case name of
-      BrickAddWalletCreateButton
-        | key `elem` [KeyEnter, KeyChar ' '] ->
-            performCreateWallet langFace
-        | otherwise ->
-            return ()
-      BrickAddWalletRestoreButton
-        | key `elem` [KeyEnter, KeyChar ' '] ->
-            performRestoreWallet langFace
-        | otherwise ->
-            return ()
-      BrickAddWalletName -> do
-        field <- use addWalletFieldNewNameL
-        get >>= lift . handleFormFieldEvent BrickAddWalletName (B.VtyEvent vtyEv) addWalletFieldNewNameL field >>= put
-      BrickAddWalletPass -> do
-        field <- use addWalletFieldNewPassL
-        get >>= lift . handleFormFieldEvent BrickAddWalletPass (B.VtyEvent vtyEv) addWalletFieldNewPassL field >>= put
-      BrickAddWalletRestoreName -> do
-        field <- use addWalletFieldRestoreNameL
-        get >>= lift . handleFormFieldEvent BrickAddWalletRestoreName (B.VtyEvent vtyEv) addWalletFieldRestoreNameL field >>= put
-      BrickAddWalletRestoreMnemonic -> do
-        field <- use addWalletFieldRestoreMnemonicL
-        get >>= lift . handleFormFieldEvent BrickAddWalletRestoreMnemonic (B.VtyEvent vtyEv) addWalletFieldRestoreMnemonicL field >>= put
-      BrickAddWalletRestorePass -> do
-        field <- use addWalletFieldRestorePassL
-        get >>= lift . handleFormFieldEvent BrickAddWalletRestorePass (B.VtyEvent vtyEv) addWalletFieldRestorePassL field >>= put
-      BrickAddWalletRestoreFull -> do
-        field <- use addWalletFieldRestoreFullL
-        get >>= lift . handleFormFieldEvent BrickAddWalletRestoreFull (B.VtyEvent vtyEv) addWalletFieldRestoreFullL field >>= put
-      _ ->
-        return ()
-  AddWalletNewWalletCommandResult commandId result -> do
+  :: UiEvent
+  -> WidgetEventM AddWalletWidgetState p ()
+handleAddWalletWidgetEvent = \case
+  UiCommandResult commandId (UiNewWalletCommandResult result) -> do
     addWalletNewResultL %= \case
       NewResultWaiting commandId' | commandId == commandId' ->
         case result of
           UiNewWalletCommandSuccess mnemonic -> NewResultSuccess mnemonic
           UiNewWalletCommandFailure err -> NewResultError err
       other -> other
-  AddWalletRestoreWalletCommandResult commandId result -> do
+  UiCommandResult commandId (UiRestoreWalletCommandResult result) -> do
     addWalletRestoreResultL %= \case
       RestoreResultWaiting commandId' | commandId == commandId' ->
         case result of
           UiRestoreWalletCommandSuccess -> RestoreResultSuccess
           UiRestoreWalletCommandFailure err -> RestoreResultError err
       other -> other
+  _ ->
+    return ()
 
 ----------------------------------------------------------------------------
 -- Actions
 ----------------------------------------------------------------------------
 
-performCreateWallet
-  :: UiLangFace
-  -> StateT AddWalletWidgetState (B.EventM BrickName) ()
-performCreateWallet UiLangFace{..} = do
+performCreateWallet :: WidgetEventM AddWalletWidgetState p ()
+performCreateWallet = do
+  UiLangFace{..} <- use addWalletLangFaceL
   name <- use addWalletNewNameL
   passphrase <- use addWalletNewPassL
   use addWalletNewResultL >>= \case
@@ -242,10 +188,9 @@ performCreateWallet UiLangFace{..} = do
     _ -> liftIO (langPutUiCommand $ UiNewWallet name passphrase) >>=
       assign addWalletNewResultL . either NewResultError NewResultWaiting
 
-performRestoreWallet
-  :: UiLangFace
-  -> StateT AddWalletWidgetState (B.EventM BrickName) ()
-performRestoreWallet UiLangFace{..} = do
+performRestoreWallet :: WidgetEventM AddWalletWidgetState p ()
+performRestoreWallet = do
+  UiLangFace{..} <- use addWalletLangFaceL
   name <- use addWalletRestoreNameL
   mnemonic <- use addWalletRestoreMnemonicL
   passphrase <- use addWalletRestorePassL

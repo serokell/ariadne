@@ -1,10 +1,5 @@
 module Ariadne.UI.Vty.Widget.Status
-       ( StatusWidgetState
-       , initStatusWidget
-       , drawStatusWidget
-
-       , StatusWidgetEvent(..)
-       , handleStatusWidgetEvent
+       ( initStatusWidget
        ) where
 
 import Universum
@@ -20,6 +15,7 @@ import qualified Brick.Widgets.Border as B
 import IiExtras
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Widget
 
 data StatusWidgetState =
   StatusWidgetState
@@ -27,21 +23,28 @@ data StatusWidgetState =
     , statusWidgetBlockchainLocal :: !Text
     , statusWidgetBlockchainNetwork :: !Text
     , statusWidgetNewVersion :: !(Maybe Version)
+    , statusWidgetAriadneURL :: !Text
     }
 
 makeLensesWith postfixLFields ''StatusWidgetState
 
-initStatusWidget :: StatusWidgetState
-initStatusWidget = StatusWidgetState
-    { statusWidgetSyncProgress = Nothing
-    , statusWidgetBlockchainLocal = "<unknown>"
-    , statusWidgetBlockchainNetwork = "<unknown>"
-    , statusWidgetNewVersion = Nothing
-    }
+initStatusWidget :: Text `Named` "ariadne_url" -> Widget p
+initStatusWidget (Named ariadneURL) =
+  initWidget $ do
+    setWidgetDraw drawStatusWidget
+    setWidgetHandleEvent handleStatusWidgetEvent
+    setWidgetState StatusWidgetState
+      { statusWidgetSyncProgress = Nothing
+      , statusWidgetBlockchainLocal = "<unknown>"
+      , statusWidgetBlockchainNetwork = "<unknown>"
+      , statusWidgetNewVersion = Nothing
+      , statusWidgetAriadneURL = ariadneURL
+      }
 
-drawStatusWidget :: Text `Named` "ariadne_url" -> StatusWidgetState -> B.Widget name
-drawStatusWidget (Named ariadneURL) StatusWidgetState{..} =
-  B.padTop (B.Pad 1) $
+drawStatusWidget :: StatusWidgetState -> WidgetDrawM StatusWidgetState p (B.Widget WidgetName)
+drawStatusWidget StatusWidgetState{..} =
+  return $
+    B.padTop (B.Pad 1) $
     B.updateAttrMap (B.mapAttrName "status" B.borderAttr) $
     B.withAttr "status" $
     maybe identity (\ver -> (B.<=> updateNotification ver)) statusWidgetNewVersion $
@@ -66,7 +69,7 @@ drawStatusWidget (Named ariadneURL) StatusWidgetState{..} =
     updateNotification :: Version -> B.Widget name
     updateNotification ver = B.padLeftRight 1 . B.txt $
       "Version " <> (fromString $ showVersion ver) <>
-      " is available! Download it at " <> ariadneURL
+      " is available! Download it at " <> statusWidgetAriadneURL
 
     drawItem :: (Text, Text) -> B.Widget name
     drawItem (title, content) = B.padLeftRight 1 $ B.hBox
@@ -74,16 +77,15 @@ drawStatusWidget (Named ariadneURL) StatusWidgetState{..} =
       , B.withAttr "status.content" $ B.txt content
       ]
 
-data StatusWidgetEvent
-  = StatusUpdateEvent UiCardanoStatusUpdate
-  | StatusNewVersionEvent Version
-
 handleStatusWidgetEvent
-  :: StatusWidgetEvent
-  -> StateT StatusWidgetState (B.EventM n) ()
+  :: UiEvent
+  -> WidgetEventM StatusWidgetState p ()
 handleStatusWidgetEvent = \case
-  StatusUpdateEvent UiCardanoStatusUpdate{..} -> do
+  UiCardanoEvent (UiCardanoStatusUpdateEvent UiCardanoStatusUpdate{..}) -> do
     statusWidgetSyncProgressL .= syncProgress
     statusWidgetBlockchainLocalL .= blockchainLocal
     statusWidgetBlockchainNetworkL .= blockchainNetwork
-  StatusNewVersionEvent ver -> statusWidgetNewVersionL .= Just ver
+  UiNewVersionEvent ver -> do
+    statusWidgetNewVersionL .= Just ver
+  _ ->
+    return ()
