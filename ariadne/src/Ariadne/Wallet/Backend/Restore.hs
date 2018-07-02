@@ -18,10 +18,8 @@ import qualified Data.Map.Strict as Map
 import Loot.Crypto.Bip39 (mnemonicToSeed)
 import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)
-import Pos.Crypto.HD (deriveHDPassphrase)
-import Pos.Crypto.HDDiscovery (discoverHDAddress)
-import Pos.Crypto.Signing
-  (EncryptedSecretKey, encToPublic, safeDeterministicKeyGen)
+import Pos.Crypto (EncryptedSecretKey)
+import qualified Pos.Crypto as Crypto
 import Pos.Txp.Toil.Types (Utxo)
 import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
 import Pos.Util.UserSecret (usKeys0)
@@ -30,12 +28,11 @@ import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.AddressDiscovery
   (AddressWithPathToUtxoMap, discoverHDAddressWithUtxo)
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
-import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath)
+import Ariadne.Wallet.Backend.Util (mkHasPass)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), bip44PathToAddressId, decodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Face
 import IiExtras
@@ -72,13 +69,17 @@ restoreWallet acidDb face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rTy
     esk <- if
       | isAriadneMnemonic ->
           let seed = mnemonicToSeed (unwords $ init mnemonicWords) ""
-          in pure . snd $ safeDeterministicKeyGen seed pp
+          in pure . snd $ Crypto.safeDeterministicKeyGen seed pp
       | length mnemonicWords == 12 ->
           case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
               Left e        -> throwM $ WrongMnemonic e
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
-    restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType
+    hasPass <- mkHasPass runCardanoMode (pp == Crypto.emptyPassphrase)
+    restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance
+  where
+    -- TODO(AD-251): allow selecting assurance.
+    assurance = AssuranceLevelNormal
 
 restoreFromKeyFile ::
        HasConfiguration
@@ -96,8 +97,23 @@ restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
       Right us -> pure us
     let templateName i (WalletName n) = WalletName $ n <> " " <> pretty i
     traverse_
-        (\(i,esk) -> restoreFromSecretKey acidDb face runCardanoMode (templateName i <$> mbWalletName) esk rType)
+        (\(i,esk) -> do
+            hasPass <-
+                mkHasPass runCardanoMode
+                    <$> isJust $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
+            restoreFromSecretKey
+                acidDb
+                face
+                runCardanoMode
+                (templateName i <$> mbWalletName)
+                esk
+                rType
+                hasPass
+                assurance)
         (zip [(0 :: Int)..] $ us ^. usKeys0)
+  where
+    -- TODO(AD-251): allow selecting assurance.
+    assurance = AssuranceLevelNormal
 
 restoreFromSecretKey ::
        HasConfiguration
@@ -107,26 +123,28 @@ restoreFromSecretKey ::
     -> Maybe WalletName
     -> EncryptedSecretKey
     -> WalletRestoreType
+    -> HasSpendingPassword
+    -> AssuranceLevel
     -> IO ()
-restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType = do
+restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance = do
     utxoByAccount <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull  -> runCardanoMode $ collectUtxo esk
-    addWallet acidDb face runCardanoMode esk mbWalletName utxoByAccount
+    addWallet acidDb face runCardanoMode esk mbWalletName utxoByAccount hasPass assurance
 
 collectUtxo ::
        HasConfiguration
     => EncryptedSecretKey
     -> CardanoMode (Map HdAccountId PrefilteredUtxo)
 collectUtxo esk = do
-    m <- discoverHDAddressWithUtxo $ deriveHDPassphrase $ encToPublic esk
+    m <- discoverHDAddressWithUtxo $ Crypto.deriveHDPassphrase $ Crypto.encToPublic esk
     pure $ groupAddresses $ filterAddresses m
   where
     toHdAddressId :: Bip44DerivationPath -> HdAddressId
-    toHdAddressId = bip44PathToAddressId hdRootId
+    toHdAddressId = bip44PathToAddressId rootId
       where
-        hdRootId :: HdRootId
-        hdRootId = mkHdRootId esk
+        rootId :: HdRootId
+        rootId = mkHdRootId esk
 
     -- TODO: simply ignoring addresses which are not BIP-44 compliant
     -- is not perfect (though normal users shouldn't have addresses at
@@ -151,9 +169,9 @@ collectUtxo esk = do
                     (HdAddressId, Address) ->
                     Utxo ->
                     Map HdAccountId PrefilteredUtxo
-            step utxoByAccount addrWithId@(hdAddrId, addr) utxo =
+            step utxoByAccount addrWithId@(addressId, _) utxo =
                 utxoByAccount &
-                    at (hdAddrId ^. hdAddressIdParent) .
+                    at (addressId ^. hdAddressIdParent) .
                     non mempty .
                     at addrWithId ?~ utxo
         in Map.foldlWithKey' step mempty

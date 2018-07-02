@@ -126,6 +126,7 @@ library
       Ariadne.Wallet.Backend.Mode
       Ariadne.Wallet.Backend.Restore
       Ariadne.Wallet.Backend.Tx
+      Ariadne.Wallet.Backend.Util
       Ariadne.Wallet.Face
       Ariadne.Wallet.UiAdapter
       Ariadne.Knit.Backend
