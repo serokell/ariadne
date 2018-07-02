@@ -42,21 +42,17 @@ data WalletReference
   -- Note: Add/remove wallets cause changes in indexation
   | WalletRefByUIindex Word
   | WalletRefByHdRootId HdRootId
-  | WalletRefByName WalletName
 
 data AccountReference
   = AccountRefSelection
   | AccountRefByHdAccountId HdAccountId
   -- same as for WalletSelection:
   | AccountRefByUIindex !Word32 !WalletReference
-  | AccountRefByName !Text !WalletReference
 
 -- | Reference to an account inside a wallet.
 data LocalAccountReference
   = LocalAccountRefByIndex !Word
   -- ^ Reference by index in UI.
-  | LocalAccountRefByName !Text
-  -- ^ Reference by account name.
 
 -- | Single string representing a mnemonic, presumably space-separated
 -- list of words.

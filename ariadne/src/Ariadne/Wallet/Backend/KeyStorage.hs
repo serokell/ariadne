@@ -115,20 +115,6 @@ instance Exception AddressGenerationFailed where
             AGFailedIncorrectPassPhrase ->
                 "Address generation failed due to incorrect passphrase"
 
-data DuplicateAccountName = DuplicateAccountName AccountName
-  deriving (Eq, Show)
-
-instance Exception DuplicateAccountName where
-  displayException (DuplicateAccountName (AccountName t)) =
-    "The account name " ++ show t ++ " already exists."
-
-data DuplicateWalletName = DuplicateWalletName WalletName
-  deriving (Eq, Show)
-
-instance Exception DuplicateWalletName where
-  displayException (DuplicateWalletName (WalletName t)) =
-    "The wallet name " ++ show t ++ " already exists."
-
 data DuplicatedWalletKey = DuplicatedWalletKey
   deriving (Eq, Show)
 
@@ -176,10 +162,6 @@ resolveWalletRef walletSelRef walRef db = case walRef of
     case mWalletSelection of
       Nothing -> throwM NoWalletSelection
       Just WalletSelection{..} -> return $ getHdRootId wsPath
-  WalletRefByName walletName -> do
-    case getHdRootIdByName walletName of
-      Just hdR -> return hdR
-      Nothing -> throwM $ WalletDoesNotExist walletName
   WalletRefByUIindex i -> do
     -- Note: Add/remove wallets cause changes in indexation
     case walletList ^? ix (fromIntegral i) of
@@ -197,14 +179,6 @@ resolveWalletRef walletSelRef walRef db = case walRef of
     getHdRootId (RootPath rId) = rId
     getHdRootId (AccountPath acId) = acId ^. hdAccountIdParent
     getHdRootId (AddressPath adId) = adId ^. hdAddressIdParent . hdAccountIdParent
-
-    -- TODO: Use IxSet filter. Need to add hdRootName to index.
-    getHdRootIdByName :: WalletName -> Maybe HdRootId
-    getHdRootIdByName wn = case filter (\w -> (w ^. hdRootName) == wn) walletList of
-      [hdWallet] -> Just (hdWallet ^. hdRootId)
-      [] -> Nothing
-      -- Duplication is checked in `renameSelection` and `addWallet` routines.
-      _:_:_ -> error "Bug: _hdRootName duplication"
 
     walletList :: [HdRoot]
     walletList = toList (readAllHdRoots hdWallets)
@@ -235,13 +209,6 @@ resolveAccountRef walletSelRef accountRef walletDb = do
             checkParentRoot accId_
             return accId_
     AccountRefByHdAccountId accId_ -> do
-      checkParentRoot accId_
-      return accId_
-    AccountRefByName accName walRef -> do
-      accounts <- getAccList walRef
-      -- TODO: add AccountName to IxSet index and use `getEQ`
-      acc <- oneOnly accName $ filter (\acc -> acc ^. hdAccountName . unAccountName == accName) accounts
-      let accId_ = acc ^. hdAccountId
       checkParentRoot accId_
       return accId_
     AccountRefByUIindex accIdx walRef -> do
@@ -381,9 +348,7 @@ newAccount acidDb WalletFace{..} walletSelRef walletRef mbAccountName = do
   accountName <- case (_unAccountName <$> mbAccountName) of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
-    Just accountName_ -> do
-      when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName (AccountName accountName_)
-      return accountName_
+    Just accountName_ -> return accountName_
 
   let hdAccId = HdAccountId rootId (HdAccountIx $ accountIdx rootId wallets)
   throwLeftIO $ update acidDb (CreateHdAccount hdAccId mempty (Just (AccountName accountName)))
@@ -471,12 +436,7 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName utxoByAccount =
   walletName <- case mbWalletName of
     Nothing ->
       return (WalletName $ mkUntitled "Untitled wallet " namesVec)
-    Just walletName_ -> do
-      -- TODO:
-      -- * move duplicate check to `updateHdRootName`
-      when ((_unWalletName walletName_) `V.elem` namesVec) $
-        throwM $ DuplicateWalletName walletName_
-      return walletName_
+    Just walletName_ -> return walletName_
 
   -- getPOSIXTime return seconds with 10^-12 precision
   timestamp <- (InDb . round . (* 10 ^ (6 :: Integer)) <$> getPOSIXTime)
@@ -621,20 +581,10 @@ renameSelection acidDb WalletFace{..} walletSelRef name = do
   case mWalletSel of
     Nothing -> pure ()
     Just WalletSelection{..} -> case wsPath of
-      RootPath hdrId -> do
-        let namesList = map _unWalletName (toWalletNamesList (walletDb ^. dbHdWallets))
-        when (name `elem` namesList)
-          (throwM $ DuplicateWalletName (WalletName name))
+      RootPath hdrId ->
         throwLeftIO $ update acidDb (UpdateHdRootName hdrId (WalletName name))
 
-      AccountPath accId -> do
-        accounts <- case
-          readAccountsByRootId (accId ^. hdAccountIdParent) (walletDb ^. dbHdWallets) of
-            Right accs -> return (map unwrapOrdByPrimKey (IxSet.toList $ unwrapIxSet accs))
-            Left err -> throwM err
-        let namesList = map (_unAccountName . _hdAccountName) accounts
-        when (name `elem` namesList)
-          (throwM $ DuplicateAccountName (AccountName name))
+      AccountPath accId ->
         throwLeftIO $ update acidDb (UpdateHdAccountName accId (AccountName name))
 
       AddressPath _ -> throwM NotARenamableItem

@@ -298,15 +298,11 @@ removeCommandName = "remove"
 ----------------------------------------------------------------------------
 
 tyWalletRef :: Elem components Core => TyProjection components WalletReference
-tyWalletRef =
-    either (WalletRefByName . WalletName) WalletRefByUIindex <$>
-    tyString `tyEither` tyWord
+tyWalletRef = WalletRefByUIindex <$> tyWord
 
 tyLocalAccountRef ::
        Elem components Core => TyProjection components LocalAccountReference
-tyLocalAccountRef =
-    either LocalAccountRefByName LocalAccountRefByIndex <$>
-    tyString `tyEither` tyWord
+tyLocalAccountRef = LocalAccountRefByIndex <$> tyWord
 
 tyInputSelectionPolicy ::
        Elem components Wallet => TyProjection components InputSelectionPolicy
@@ -338,15 +334,12 @@ getAccountRefArgOpt ::
        Elem components Core => ArgumentConsumer components AccountReference
 getAccountRefArgOpt =
     convert <$> getWalletRefArgOpt <*>
-    getArgOpt (tyString `tyEither` tyWord32) "account"
+    getArgOpt tyWord32 "account"
   where
-    convert :: WalletReference -> Maybe (Either Text Word32) -> AccountReference
+    convert :: WalletReference -> Maybe Word32 -> AccountReference
     convert walletRef = \case
         Nothing -> AccountRefSelection
-        Just e -> (either
-            (flip AccountRefByName walletRef)
-            (flip AccountRefByUIindex walletRef)
-                  ) e
+        Just e -> AccountRefByUIindex e walletRef
 
 mkPassPhrase :: Maybe Text -> PassPhrase
 mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)
