@@ -114,20 +114,6 @@ instance Exception AddressGenerationFailed where
             AGFailedIncorrectPassPhrase ->
                 "Address generation failed due to incorrect passphrase"
 
-data DuplicateAccountName = DuplicateAccountName AccountName
-  deriving (Eq, Show)
-
-instance Exception DuplicateAccountName where
-  displayException (DuplicateAccountName (AccountName t)) =
-    "The account name " ++ show t ++ " already exists."
-
-data DuplicateWalletName = DuplicateWalletName WalletName
-  deriving (Eq, Show)
-
-instance Exception DuplicateWalletName where
-  displayException (DuplicateWalletName (WalletName t)) =
-    "The wallet name " ++ show t ++ " already exists."
-
 data DuplicatedWalletKey = DuplicatedWalletKey
   deriving (Eq, Show)
 
@@ -156,7 +142,7 @@ runCatchInState m = StateT $ \s ->
     Left e -> (Left e, s)
     Right (a, s') -> (Right a, s')
 
--- | Get the wallet HdRootId by name, ID, UI index or using current selection.
+-- | Get the wallet HdRootId by ID, UI index or using current selection.
 resolveWalletRef
   :: IORef (Maybe WalletSelection)
   -> WalletReference
@@ -168,10 +154,6 @@ resolveWalletRef walletSelRef walRef db = case walRef of
     case mWalletSelection of
       Nothing -> throwM NoWalletSelection
       Just selection -> return $ getHdRootId selection
-  WalletRefByName walletName -> do
-    case getHdRootIdByName walletName of
-      Just hdR -> return hdR
-      Nothing -> throwM $ WalletDoesNotExist walletName
   WalletRefByUIindex i -> do
     -- Note: Add/remove wallets cause changes in indexation
     case walletList ^? ix (fromIntegral i) of
@@ -188,14 +170,6 @@ resolveWalletRef walletSelRef walRef db = case walRef of
     getHdRootId :: WalletSelection -> HdRootId
     getHdRootId (WSRoot rId) = rId
     getHdRootId (WSAccount acId) = acId ^. hdAccountIdParent
-
-    -- TODO: Use IxSet filter. Need to add hdRootName to index.
-    getHdRootIdByName :: WalletName -> Maybe HdRootId
-    getHdRootIdByName wn = case filter (\w -> (w ^. hdRootName) == wn) walletList of
-      [hdWallet] -> Just (hdWallet ^. hdRootId)
-      [] -> Nothing
-      -- Duplication is checked in `renameSelection` and `addWallet` routines.
-      _:_:_ -> error "Bug: _hdRootName duplication"
 
     walletList :: [HdRoot]
     walletList = toList (readAllHdRoots hdWallets)
@@ -216,13 +190,6 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
             return accId
     AccountRefByHdAccountId accId -> do
       checkAccId accId
-      checkParentRoot accId
-      return accId
-    AccountRefByName accName walRef -> do
-      accounts <- getAccList walRef
-      -- TODO: add AccountName to IxSet index and use `getEQ`
-      acc <- oneOnly accName $ filter (\acc -> acc ^. hdAccountName . unAccountName == accName) accounts
-      let accId = acc ^. hdAccountId
       checkParentRoot accId
       return accId
     AccountRefByUIindex accIdx walRef -> do
@@ -341,7 +308,6 @@ mkUntitled untitled namesVec =
       then untitled <> "0"
       else untitled <> (show $ (Universum.maximum numbers) + 1)
 
--- TODO: Move name check to Create.hs
 newAccount
   :: AcidState DB
   -> WalletFace
@@ -362,9 +328,7 @@ newAccount acidDb WalletFace{..} walletSelRef mbCheckPoint walletRef mbAccountNa
   accountName <- case (unAccountName <$> mbAccountName) of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
-    Just accountName_ -> do
-      when (accountName_ `elem` namesVec) $ throwM $ DuplicateAccountName (AccountName accountName_)
-      return accountName_
+    Just accountName_ -> return accountName_
 
   let
     account = HdAccount
@@ -435,7 +399,6 @@ newWallet acidDb walletConfig face runCardanoMode pp mbWalletName mbEntropySize 
   mnemonic ++ ["ariadne-v0"] <$ addWallet acidDb face runCardanoMode esk mbWalletName mempty
 
 -- | Construct a wallet from given data and add it to the storage.
--- TODO: Move name check to Create.hs
 addWallet ::
        AcidState DB
     -> WalletFace
@@ -457,16 +420,14 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName accounts = do
 
   walletDb <- query acidDb Snapshot
   -- need to query ixSet to find if the name already in db
-  let namesVec = V.fromList (map unWalletName $ toWalletNamesList (walletDb ^. dbHdWallets))
+  let walletNamesList :: [WalletName]
+      walletNamesList = (^. hdRootName) <$>
+        toList (walletDb ^. dbHdWallets . hdWalletsRoots)
+  let namesVec = V.fromList (map unWalletName $ walletNamesList)
   walletName <- case mbWalletName of
     Nothing ->
       return (WalletName $ mkUntitled "Untitled wallet " namesVec)
-    Just walletName_ -> do
-      -- TODO:
-      -- * move duplicate check to `updateHdRootName`
-      when ((_unWalletName walletName_) `V.elem` namesVec) $
-        throwM $ DuplicateWalletName walletName_
-      return walletName_
+    Just walletName_ -> return walletName_
 
   -- getPOSIXTime return seconds with 10^-12 precision
   timestamp <- (InDb . round . (* 10 ^ (6 :: Integer)) <$> getPOSIXTime)
@@ -584,20 +545,10 @@ renameSelection acidDb WalletFace{..} walletSelRef name = do
   case mWalletSel of
     Nothing -> pure ()
     Just selection -> case selection of
-      WSRoot hdrId -> do
-        let namesList = map _unWalletName (toWalletNamesList (walletDb ^. dbHdWallets))
-        when (name `elem` namesList)
-          (throwM $ DuplicateWalletName (WalletName name))
+      WSRoot hdrId ->
         throwLeftIO $ update acidDb (UpdateHdRootName hdrId (WalletName name))
 
-      WSAccount accId -> do
-        accounts <- case
-          readAccountsByRootId (accId ^. hdAccountIdParent) (walletDb ^. dbHdWallets) of
-            Right accs -> return (map unwrapOrdByPrimKey (IxSet.toList $ unwrapIxSet accs))
-            Left err -> throwM err
-        let namesList = map (_unAccountName . _hdAccountName) accounts
-        when (name `elem` namesList)
-          (throwM $ DuplicateAccountName (AccountName name))
+      WSAccount accId ->
         throwLeftIO $ update acidDb (UpdateHdAccountName accId (AccountName name))
 
   walletRefreshState
@@ -638,7 +589,3 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
               ! #root (encToPublic rootSK)
               ! #address (encToPublic addrSK)
         , addrSK)
-
-toWalletNamesList :: HdWallets -> [WalletName]
-toWalletNamesList hdw =
-  (^. hdRootName) <$> toList (hdw ^. hdWalletsRoots)
