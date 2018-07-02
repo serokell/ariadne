@@ -11,12 +11,13 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
-import Control.Lens (at)
+import Control.Lens (at, ix)
 import Data.Acid (AcidState, query)
 import Data.Default (def)
 import Data.Map (findWithDefault)
-import Formatting (bprint, build, formatToString, (%))
-import IiExtras ((:~>)(..))
+import Formatting (bprint, build, formatToString, int, (%))
+import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
+
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
@@ -27,7 +28,6 @@ import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
 import Pos.Util.UserSecret (usWallets)
-import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage
@@ -40,6 +40,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
+import IiExtras ((:~>)(..))
 
 data SendTxException
     = SendTxNoAddresses !HdRootId
@@ -71,9 +72,10 @@ sendTx ::
     -> PassPhrase
     -> WalletReference
     -> [LocalAccountReference]
+    -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs outs = do
+sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs isp outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletDb <- query acidDb Snapshot
     let wallets = walletDb ^. dbHdWallets
@@ -115,7 +117,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
             prepareMTx
                 getSigner
                 mempty
-                def
+                isp
                 ourAddresses
                 (map TxOutAux outs)
                 ourAddress

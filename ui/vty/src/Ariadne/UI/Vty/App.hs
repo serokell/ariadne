@@ -394,15 +394,6 @@ handleAppEvent langFace ev =
           zoom appStateTreeL $ handleTreeWidgetEvent langFace $
             TreeMouseDownEvent coords
           return AppInProgress
-        BrickPane -> do
-          appStateFocusL .= AppFocusPane
-          uses appStateTreeL treeWidgetSelection >>= \case
-            TreeSelectionAccount ->
-              zoom appStateAccountL $ handleAccountWidgetEvent langFace $
-                AccountMouseDownEvent coords
-            _ ->
-              return ()
-          return AppInProgress
         BrickReplOutput -> do
           appStateFocusL .= AppFocusReplOutput
           return AppInProgress

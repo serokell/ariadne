@@ -10,7 +10,7 @@ module Ariadne.Wallet.Backend.KeyStorage
        , newWallet
        , addWallet
        , select
-       , getSelectedAddresses
+       , getBalance
        , renameSelection
        , removeSelection
        , deriveBip44KeyPair
@@ -554,13 +554,33 @@ select acidDb WalletFace{..} walletSelRef mWalletRef wsPath = do
       (error "Bug: UnknownHdAccount")
       (readAddressesByAccountId accountId wallets)
 
--- Do we need this function?
-getSelectedAddresses
+getBalance
   :: AcidState DB
-  -> WalletFace
   -> IORef (Maybe WalletSelection)
-  -> IO [Address]
-getSelectedAddresses = undefined
+  -> IO Coin
+getBalance acidDb walletSelRef = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> return $ mkCoin 0
+    Just WalletSelection{..} ->
+      case wsPath of
+        RootPath rootId -> do
+          walletDb <- query acidDb Snapshot
+          -- Using the unsafe function is OK here, since the case where
+          -- the invariant that the balance exceeds @maxCoin@ is broken
+          -- is clearly a programmer mistake.
+          pure $ unsafeIntegerToCoin $
+            hdRootBalance rootId (walletDb ^. dbHdWallets)
+        AccountPath accountId -> do
+          walletDb <- query acidDb Snapshot
+          account <- either throwM pure $
+            readHdAccount accountId (walletDb ^. dbHdWallets)
+          pure $ hdAccountBalance account
+        AddressPath addressId -> do
+          walletDb <- query acidDb Snapshot
+          address <- either throwM pure $
+            readHdAddress addressId (walletDb ^. dbHdWallets)
+          pure $ hdAddressBalance address
 
 removeSelection
   :: AcidState DB

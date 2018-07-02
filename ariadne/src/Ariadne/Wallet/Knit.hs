@@ -4,30 +4,50 @@ import Universum
 
 import qualified Data.ByteArray as ByteArray
 
-import IiExtras
-import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
-import Pos.Crypto.Signing (emptyPassphrase)
+import Control.Lens (makePrisms)
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
+import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
+import Pos.Crypto (PassPhrase)
+import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
+import Pos.Crypto.Signing (emptyPassphrase)
+
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
+import Ariadne.Cardano.Orphans ()
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
-import Pos.Crypto (PassPhrase)
+import IiExtras
 
 import Knit
 
 -- Component type for Knit
 data Wallet
 
-data instance ComponentValue _ Wallet
+data instance
+     ComponentValue _
+       Wallet = ValueInputSelectionPolicy !InputSelectionPolicy
+
+makePrisms 'ValueInputSelectionPolicy
 
 deriving instance Eq (ComponentValue components Wallet)
 deriving instance Ord (ComponentValue components Wallet)
 deriving instance Show (ComponentValue components Wallet)
 
+-- Name of input selection policy as used by Knit. We intentionally
+-- don't use `Show` or `Buidable` or whatever else, so that it won't
+-- accidentally change.
+inputSelectionPolicyName :: IsString s => InputSelectionPolicy -> s
+inputSelectionPolicyName =
+    \case
+        OptimizeForSecurity -> "security"
+        OptimizeForHighThroughput -> "high-throughput"
+
 instance ComponentInflate components Wallet where
-  componentInflate = \case{}
+    componentInflate = \case
+        ValueInputSelectionPolicy policy ->
+            let commandName = inputSelectionPolicyName policy
+            in ExprProcCall $ ProcCall commandName []
 
 data instance ComponentLit Wallet
 
@@ -173,10 +193,12 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             accRefs <- getArgMany tyLocalAccountRef "account"
             passPhrase <- getPassPhraseArg
             outs <- getArgSome tyTxOut "out"
-            return (walletRef, accRefs, passPhrase, outs)
-        , cpRepr = \(walletRef, accRefs, passPhrase, outs) -> CommandAction $
+            isp <- fromMaybe defaultInputSelectionPolicy <$>
+                getArgOpt tyInputSelectionPolicy "policy"
+            return (walletRef, accRefs, passPhrase, isp, outs)
+        , cpRepr = \(walletRef, accRefs, passPhrase, isp, outs) -> CommandAction $
           \WalletFace{..} -> do
-            txId <- walletSend passPhrase walletRef accRefs outs
+            txId <- walletSend passPhrase walletRef accRefs isp outs
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp =
             "Send a transaction from the specified wallet. When no wallet \
@@ -186,7 +208,10 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             \current selection. If an account in the input wallet is \
             \selected, only this account will be used as input. \
             \Otherwise, all accounts from the input wallet can be used \
-            \as inputs."
+            \as inputs. You can also specify a policy for input selection. \
+            \By default the \"" <>
+            inputSelectionPolicyName defaultInputSelectionPolicy <>
+            "\" policy will be used."
         }
     , CommandProc
         { cpName = balanceCommandName
@@ -214,7 +239,26 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             return $ toValue ValueUnit
         , cpHelp = "Remove currently selected item"
         }
-    ]
+    ] ++ map mkInputSelectionPolicyProc [minBound .. maxBound]
+    where
+      mkInputSelectionPolicyProc :: InputSelectionPolicy -> CommandProc components Wallet
+      mkInputSelectionPolicyProc policy =
+        let name :: IsString s => s
+            name = inputSelectionPolicyName policy
+        in CommandProc
+          { cpName = name
+          , cpArgumentPrepare = id
+          , cpArgumentConsumer = pure ()
+          , cpRepr = \() -> CommandAction $ \_ ->
+              pure (toValue (ValueInputSelectionPolicy policy))
+          , cpHelp =
+              "The \"" <> name <> "\" input selection policy for \
+              \transaction creation"
+          }
+
+----------------------------------------------------------------------------
+-- Command names
+----------------------------------------------------------------------------
 
 refreshStateCommandName :: CommandId
 refreshStateCommandName = "refresh-user-secret"
@@ -249,6 +293,32 @@ renameCommandName = "rename"
 removeCommandName :: CommandId
 removeCommandName = "remove"
 
+----------------------------------------------------------------------------
+-- Type projections
+----------------------------------------------------------------------------
+
+tyWalletRef :: Elem components Core => TyProjection components WalletReference
+tyWalletRef =
+    either (WalletRefByName . WalletName) WalletRefByUIindex <$>
+    tyString `tyEither` tyWord
+
+tyLocalAccountRef ::
+       Elem components Core => TyProjection components LocalAccountReference
+tyLocalAccountRef =
+    either LocalAccountRefByName LocalAccountRefByIndex <$>
+    tyString `tyEither` tyWord
+
+tyInputSelectionPolicy ::
+       Elem components Wallet => TyProjection components InputSelectionPolicy
+tyInputSelectionPolicy =
+    TyProjection
+        "InputSelectionPolicy"
+        (preview _ValueInputSelectionPolicy <=< fromValue)
+
+----------------------------------------------------------------------------
+-- Other helpers
+----------------------------------------------------------------------------
+
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's
 -- always "wallet", we can move it outside if it appears to be
 -- necessary.
@@ -277,17 +347,6 @@ getAccountRefArgOpt =
             (flip AccountRefByName walletRef)
             (flip AccountRefByUIindex walletRef)
                   ) e
-
-tyWalletRef :: Elem components Core => TyProjection components WalletReference
-tyWalletRef =
-    either (WalletRefByName . WalletName) WalletRefByUIindex <$>
-    tyString `tyEither` tyWord
-
-tyLocalAccountRef ::
-       Elem components Core => TyProjection components LocalAccountReference
-tyLocalAccountRef =
-    either LocalAccountRefByName LocalAccountRefByIndex <$>
-    tyString `tyEither` tyWord
 
 mkPassPhrase :: Maybe Text -> PassPhrase
 mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)

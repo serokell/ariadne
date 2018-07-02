@@ -310,6 +310,14 @@ instance Exception UnknownHdAccount where
   displayException (UnknownHdAccount accId) =
     "The account " ++ show accId ++ " does not exist."
 
+instance Exception UnknownHdAddress where
+  displayException (UnknownHdAddressRoot rootId) =
+    "The wallet " ++ show rootId ++ " does not exist."
+  displayException (UnknownHdAddressAccount accId) =
+    "The account " ++ show accId ++ " does not exist."
+  displayException (UnknownHdAddress addrId) =
+    "The address " ++ show addrId ++ " does not exist."
+
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
   where

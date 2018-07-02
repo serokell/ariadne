@@ -188,7 +188,7 @@ annotated with its arguments and their types. Optional arguments will be marked 
 
 There is also a command to send a transaction from your wallet:
 
-    send wallet: String or Word? account: (String or Word)* pass: String? out: TxOut+
+    send wallet: (String or Word)? account: (String or Word)* pass: String? policy: InputSelectionPolicy? out: TxOut+
 
 Since one transaction can have multiple outputs, you have to pass these outputs to the `send`
 command. An output is constructed with `tx-out` command, which takes a receiver's address and an
@@ -222,6 +222,13 @@ which depends on `account` arguments and current selection:
   input wallet is selected, only its addresses will be used as inputs.
 * Otherwise, addresses will be picked from all accounts in the input
   wallet.
+
+Input selection algorithm depends on the `policy` argument which can
+be one of the following:
+* `security`. In this case TODO
+* `high-throughput`. In this case confirmed inputs will be prefered.
+
+By default the `security` policy is used.
 
 Here's an example:
 

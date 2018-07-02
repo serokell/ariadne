@@ -14,7 +14,6 @@ import Pos.Client.KeyStorage (getSecretDefault)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
-import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
@@ -56,10 +55,7 @@ createWalletBackend walletConfig = do
               sendTx acidDb this cf walletSelRef putCommandOutput
           , walletGetSelection =
               (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
-          , walletBalance = do
-            -- TODO: get balance from acidDb
-              addrs <- getSelectedAddresses acidDb this walletSelRef
-              runCardanoMode $ getBalance addrs
+          , walletBalance = getBalance acidDb walletSelRef
           }
       initWalletAction =
         refreshState acidDb walletSelRef sendWalletEvent

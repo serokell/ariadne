@@ -284,23 +284,25 @@ uiWalletDatasToTree = map toTree
                 , wtiShowPath = True
                 }
 
--- TODO: chnge to use chain type level
+-- TODO: change to use chain type level
 walletSelectionToPane :: [UiWalletData] -> UiWalletSelection -> UiWalletInfo
 walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletInfo{..}
   where
     wpiWalletIdx = uwsWalletIdx
     wpiPath = uwsPath
-    (wpiType, wpiLabel) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
+    (wpiType, wpiLabel, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
       Nothing -> error "Invalid wallet index"
       Just UiWalletData{..} -> case uwsPath of
-        [] -> (Just UiWalletInfoWallet, Just _uwdName)
-        accIdx:accPath -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
+        [] -> (Just UiWalletInfoWallet, Just _uwdName, [])
+        accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
-          Just UiAccountData{..} -> case accPath of
-            [] -> (Just $ UiWalletInfoAccount [_uadPath], Just _uadName)
-            addrIdx:_ -> case _uadAddresses ^? ix (fromIntegral addrIdx) of
-              Nothing -> error "Invalid address index"
-              Just (addrPath, address) -> (Just $ UiWalletInfoAddress [_uadPath, addrPath], Just $ pretty address)
+          Just UiAccountData{..} ->
+            ( Just $ UiWalletInfoAccount [_uadPath]
+            , Just _uadName
+            -- should be a list of addresses corresponding to this account,
+            -- but it can only be retrieved from the DB
+            , [undefined]
+            )
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.

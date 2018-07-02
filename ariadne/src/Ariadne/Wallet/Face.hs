@@ -1,5 +1,8 @@
 module Ariadne.Wallet.Face
-  ( WalletFace(..)
+  ( module Ariadne.Cardano.Face
+  , InputSelectionPolicy (..)
+
+  , WalletFace(..)
   , WalletEvent(..)
   , WalletReference(..)
   , AccountReference(..)
@@ -13,10 +16,13 @@ module Ariadne.Wallet.Face
 
 import Universum
 
+import Serokell.Data.Memory.Units (Byte)
+
+import Pos.Client.Txp.Util (InputSelectionPolicy(..))
+
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Serokell.Data.Memory.Units (Byte)
 
 -- TODO: remove redundant wsPath
 data WalletSelection =
@@ -79,7 +85,8 @@ data WalletFace =
     , walletRefreshState :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
-        PassPhrase -> WalletReference -> [LocalAccountReference] -> NonEmpty TxOut -> IO TxId
+        PassPhrase -> WalletReference -> [LocalAccountReference] ->
+        InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, UserSecret)
     , walletBalance :: IO Coin
     }

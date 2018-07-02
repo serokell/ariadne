@@ -32,7 +32,7 @@ main = do
   let cardanoConfig = acCardano ariadneConfig
       walletConfig = acWallet ariadneConfig
 
-  history <- openCommandHistory "ariadne_history"
+  history <- openCommandHistory "ariadne_history.db"
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace

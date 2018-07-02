@@ -32,4 +32,5 @@ secret.key.lock
 secret-mainnet.key
 secret-mainnet.key.lock
 ariadne_history
+ariadne_history.db
 db-mainnet

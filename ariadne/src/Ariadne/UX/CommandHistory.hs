@@ -9,61 +9,89 @@ module Ariadne.UX.CommandHistory
 
 import Universum
 
-import Control.Lens (ix)
-import System.Directory (doesFileExist, renameFile)
-
+import Database.SQLite.Simple
 import qualified Data.Text as T
+
+data Row = Row Int T.Text deriving (Show)
+instance FromRow Row where
+  fromRow = Row <$> field <*> field
+
+data Direction = Previous | Next
+  deriving Eq
 
 data CommandHistory =
     CommandHistory
     { historyFile :: FilePath
-    , counter :: IORef Int
+    , currentCommandId :: IORef Int
     , currentPrefix :: IORef Text
     }
 
 openCommandHistory :: FilePath -> IO CommandHistory
 openCommandHistory historyFile = do
-    -- starts at -1 because we're "one away" from the last command entered
-    counter <- newIORef (-1)
     currentPrefix <- newIORef ""
-
-    unlessM (doesFileExist historyFile) $ writeFile historyFile ""
-
-    return CommandHistory{..}
+    currentCommandId <- newIORef 0
+    withConnection historyFile $
+      \conn -> execute_ conn "CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, command TEXT)"
+    let ch = CommandHistory historyFile currentCommandId currentPrefix
+    resetCurrentCommandId ch
+    return ch
 
 toPrevCommand :: CommandHistory -> IO (Maybe Text)
 toPrevCommand ch =
-    changeCommand ch 1
+    changeCommand ch Previous
 
 toNextCommand :: CommandHistory -> IO (Maybe Text)
 toNextCommand ch =
-    changeCommand ch (-1)
+    changeCommand ch Next
 
-changeCommand :: CommandHistory -> Int -> IO (Maybe Text)
-changeCommand ch counterChange = do
-    newCounter <- (+counterChange) <$> readIORef (counter ch)
+changeCommand :: CommandHistory -> Direction -> IO (Maybe Text)
+changeCommand ch direction = do
     prefix <- readIORef (currentPrefix ch)
+    let prefix' = prefix <> "%"
+    currId <- readIORef (currentCommandId ch)
 
-    history <- lines <$> readFile (historyFile ch)
-    let result = filter (prefix `T.isPrefixOf`) history ^? ix newCounter
+    queryResult <- withConnection (historyFile ch) $ \conn ->
+      case direction of
+        Previous ->
+          query conn "SELECT * FROM history WHERE command LIKE ? AND id < ? ORDER BY id DESC LIMIT 1" (prefix', currId)
+        Next ->
+          query conn "SELECT * FROM history WHERE command LIKE ? AND id > ? ORDER BY id ASC LIMIT 1" (prefix', currId)
 
-    when (isJust result) $ writeIORef (counter ch) newCounter
-
-    return result
-
+    case queryResult of
+      [Row rowId cmd] -> do
+        writeIORef (currentCommandId ch) rowId
+        return $ Just cmd
+      _ ->
+        case direction of
+          Previous -> do
+            result <- withConnection (historyFile ch) $ \conn ->
+              query conn "SELECT * FROM history WHERE id=?" [currId]
+            case result of
+              [Row _ command] -> 
+                return $ Just command
+              _ ->
+                return Nothing
+          Next -> do
+            resetCurrentCommandId ch
+            return $ Just prefix
+    
 setPrefix :: CommandHistory -> Text -> IO ()
 setPrefix ch (T.strip -> prefix) = do
-    writeIORef (counter ch) (-1)
+    resetCurrentCommandId ch
     writeIORef (currentPrefix ch) prefix
 
 addCommand :: CommandHistory -> Text -> IO ()
 addCommand ch (T.strip -> command) = do
-    writeIORef (counter ch) (-1)
     writeIORef (currentPrefix ch) ""
+    unless (null command) $
+      withConnection (historyFile ch) $
+        \conn -> execute conn "INSERT INTO history (command) VALUES (?)" (Only command)
+    resetCurrentCommandId ch
 
-    -- write command to first line of history file
-    unless (null command) $ do
-      file <- readFile $ historyFile ch
-      let temp = historyFile ch ++ ".tmp"
-      writeFile temp $ command <> "\n" <> toText file
-      renameFile temp $ historyFile ch
+resetCurrentCommandId :: CommandHistory -> IO ()
+resetCurrentCommandId ch =
+  withConnection (historyFile ch) $ \conn -> do
+    queryResult <- query_ conn "SELECT COALESCE(MAX(id), 0) FROM history" :: IO [[Int]]
+    case queryResult of
+      [[maxId]] -> writeIORef (currentCommandId ch) (maxId + 1)
+      _ -> return ()

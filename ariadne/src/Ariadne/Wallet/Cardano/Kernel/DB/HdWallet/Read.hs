@@ -14,6 +14,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (
     -- | * Derived balance
   , hdRootBalance
   , hdAccountBalance
+  , hdAddressBalance
     -- | Accumulate all accounts/addresses
   , readAllHdRoots
   , readAllHdAccounts
