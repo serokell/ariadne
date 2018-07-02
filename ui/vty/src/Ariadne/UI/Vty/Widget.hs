@@ -52,7 +52,7 @@ module Ariadne.UI.Vty.Widget
 
 import Universum
 
-import Control.Lens (ReifiedLens', ReifiedLens(..), assign, lens, makeLensesWith, (%=), (.=))
+import Control.Lens (ReifiedLens', ReifiedLens(..), assign, makeLensesWith, to, (%=), (.=))
 import IiExtras (postfixLFields)
 
 import qualified Brick as B
@@ -112,12 +112,12 @@ data WidgetEventResult
 
 data WidgetInfo s p = WidgetInfo
   { widgetName :: !WidgetName
-  , widgetState :: s
+  , widgetState :: s  -- Lazy, because can be undefined for stateless widgets
   , widgetChildren :: !(Map WidgetNamePart (Widget (WidgetInfo s p)))
   , widgetFocusList :: ![WidgetNamePart]
   , widgetEventHandlers :: !(Map WidgetNamePart (WidgetEvent -> WidgetEventM s p ()))
   , widgetEventQueue :: ![(WidgetNamePart, WidgetEvent)]
-  , widgetEventSend :: WidgetEvent -> WidgetEventM s p ()
+  , widgetEventSend :: !(WidgetEvent -> WidgetEventM s p ())
   , widgetDraw :: !(s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocused :: !(Bool -> s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocus :: !(WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName))
@@ -264,13 +264,10 @@ liftBrick :: B.EventM WidgetName a -> WidgetEventM s p a
 liftBrick = lift . lift . lift
 
 widgetParentGetter :: (p -> a) -> (WidgetInfo p q -> a)
-widgetParentGetter f = \WidgetInfo{ widgetState } -> f widgetState
+widgetParentGetter f = view $ widgetStateL . to f
 
 widgetParentLens :: Lens' p a -> Lens' (WidgetInfo p q) a
-widgetParentLens l = lens getter setter
-  where
-    getter WidgetInfo{ widgetState } = widgetState ^. l
-    setter widget@WidgetInfo{ widgetState } v = widget{ widgetState = widgetState & l .~ v }
+widgetParentLens l = widgetStateL . l
 
 viewWidgetLens :: ReifiedLens' p a -> WidgetDrawM s p a
 viewWidgetLens = lift . view . runLens

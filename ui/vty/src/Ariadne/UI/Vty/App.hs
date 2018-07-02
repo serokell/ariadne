@@ -214,30 +214,6 @@ drawAppWidget focus AppWidgetState{..} = do
     AppScreenHelp -> drawHelpScreen
     AppScreenAbout -> drawAboutScreen
     AppScreenLogs -> drawLogsScreen
-  {-let
-    navMode = menuWidgetNavMode appStateMenu
-    defAttr :: B.AttrName
-    defAttr = "default"
-    focusAttr :: AppFocus -> B.AttrName
-    focusAttr focus
-      | not navMode, appStateFocus == focus
-          = "focused"
-      | otherwise
-          = defAttr
-    focusIndicator :: AppFocus -> B.Widget name
-    focusIndicator focus
-      | not navMode, appStateFocus == focus
-          = B.withAttr "focus" $ B.txt "•"
-      | navMode
-          = B.withAttr "focus.key" $ B.txt $
-            case focus of
-              AppFocusTree -> "T"
-              AppFocusPane -> "P"
-              AppFocusReplOutput -> "O"
-              AppFocusReplInput  -> "R"
-              _                  -> " "
-      | otherwise
-          = B.txt " "-}
 
 handleAppEvent
   :: B.BrickEvent WidgetName UiEvent
