@@ -6,10 +6,12 @@ import Control.Concurrent.Async
 import IiExtras
 import Named ((!))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+import Data.Text (unpack)
 
 import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
+import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
@@ -36,8 +38,9 @@ main = do
   let cardanoConfig = acCardano ariadneConfig
       walletConfig = acWallet ariadneConfig
       updateConfig = acUpdate ariadneConfig
+      historyConfig = acHistory ariadneConfig
 
-  history <- openCommandHistory "ariadne_history.db"
+  history <- openCommandHistory $ unpack (hcPath historyConfig)
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace ! #ariadne_url ariadneURL

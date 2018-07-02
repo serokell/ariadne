@@ -39,6 +39,7 @@ import qualified Text.Read as R (readEither)
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.History (HistoryConfig(..), historyFieldModifier)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 
@@ -131,9 +132,11 @@ mergeConfigs :: CLI_AriadneConfig -> AriadneConfig -> AriadneConfig
 mergeConfigs overrideAc defaultAc = mergedAriadneConfig
   where
     -- TODO: AD-175 Overridable update configuration
-    mergedAriadneConfig = AriadneConfig mergedCardanoConfig mergedWalletConfig (defaultAc ^. acUpdateL)
+    mergedAriadneConfig = AriadneConfig mergedCardanoConfig mergedWalletConfig (defaultAc ^. acUpdateL) mergedHistoryConfig
 
     mergedWalletConfig = WalletConfig $ merge (overrideAc ^. cli_acWalletL . cli_wcEntropySizeL) (defaultAc ^. acWalletL . wcEntropySizeL)
+
+    mergedHistoryConfig = defaultAc ^. acHistoryL
 
     overrideCna = overrideAc ^. cli_acCardanoL . cli_getCardanoConfigL
     defaultCna = defaultAc ^. acCardanoL . getCardanoConfigL
