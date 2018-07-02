@@ -308,8 +308,8 @@ slogVerifyBlocks curSlot leaders lastSlots blocks = do
             when (block ^. genBlockLeaders /= leaders) $
             throwError "Genesis block leaders don't match with LRC-computed"
         _ -> pass
-    verResToMonadError formatAllErrors $
-        verifyBlocks curSlot dataMustBeKnown adoptedBVD leaders blocks
+    --verResToMonadError formatAllErrors $
+    --    verifyBlocks curSlot dataMustBeKnown adoptedBVD leaders blocks
 
     -- Here we need to compute 'SlogUndo'. When we add apply a block,
     -- we can remove one of the last slots stored in
