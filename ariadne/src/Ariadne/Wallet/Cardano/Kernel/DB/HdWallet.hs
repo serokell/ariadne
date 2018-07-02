@@ -10,6 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * HD wallet types proper
   , HdWallets(..)
   , HdRootId(..)
+  , mkHdRootId
   , HdAccountId(..)
   , HdAddressChain(..)
   , HdAddressId(..)
@@ -141,6 +142,9 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
 data HdRootId = HdRootId
     { unHdRootId :: InDb (Core.AddressHash Core.PublicKey)
     } deriving (Eq, Show, Ord)
+
+mkHdRootId :: Core.EncryptedSecretKey -> HdRootId
+mkHdRootId = HdRootId . InDb . Core.addressHash . Core.encToPublic
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
