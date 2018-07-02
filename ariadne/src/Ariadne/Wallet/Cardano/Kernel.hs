@@ -159,7 +159,7 @@ createWalletHdRnd pw@PassiveWallet{..} name spendingPassword assuranceLevel (pk,
     created <- InDb <$> getCurrentTimestamp
     let newRoot = HD.initHdRoot rootId name spendingPassword assuranceLevel created
 
-    res <- update' _wallets $ CreateHdWallet newRoot utxoByAccount
+    res <- update' _wallets $ CreateHdWallet newRoot utxoByAccount Map.empty
     either (return . Left) insertESK res
     where
         utxoByAccount = prefilterUtxo rootId esk utxo

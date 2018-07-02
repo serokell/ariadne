@@ -159,11 +159,12 @@ initHdRoot rootId name hasPass assurance created = HdRoot {
 -- TODO: If any key derivation is happening when creating accounts, should we
 -- store a public key or an address or something?
 initHdAccount :: HdAccountId
+              -> Maybe AccountName
               -> AccCheckpoint
               -> HdAccount
-initHdAccount accountId checkpoint = HdAccount {
+initHdAccount accountId mbAccountName checkpoint = HdAccount {
       _hdAccountId          = accountId
-    , _hdAccountName        = defName
+    , _hdAccountName        = maybe defName identity mbAccountName
     , _hdAccountCheckpoints = checkpoint :| []
     }
   where
