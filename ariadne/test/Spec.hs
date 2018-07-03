@@ -7,6 +7,7 @@ import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
+import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Lens (makeLensesWith)
@@ -143,6 +144,7 @@ expectedAriadneConfig = AriadneConfig
       { ucVersionCheckUrl = "https://ariadnewallet.io"
       , ucCheckDelay = 3600
       }
+  , acHistory = HistoryConfig {hcPath = "ariadne_history.db"}
   }
 
 ariadneConfigSample :: AriadneConfig

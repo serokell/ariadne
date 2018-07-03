@@ -6,6 +6,7 @@ import Universum
 
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (parseField)
+import Ariadne.Config.History
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
 import qualified Data.HashMap.Strict.InsOrd as Map
@@ -16,7 +17,7 @@ import Dhall.TypeCheck (X)
 
 -- default Ariadne config with Cardano mainnet config
 defaultAriadneConfig :: AriadneConfig
-defaultAriadneConfig = AriadneConfig defaultCardanoConfig defaultWalletConfig defaultUpdateConfig
+defaultAriadneConfig = AriadneConfig defaultCardanoConfig defaultWalletConfig defaultUpdateConfig defaultHistoryConfig
 
 parseFieldAriadne ::
        Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
@@ -28,6 +29,7 @@ ariadneFieldModifier = f
     f "acCardano" = "cardano"
     f "acWallet" = "wallet"
     f "acUpdate" = "update"
+    f "acHistory" = "history"
     f x = x
 
 -- dhall representation of AriadneConfig is a record
@@ -38,6 +40,7 @@ data AriadneConfig = AriadneConfig
   { acCardano :: CardanoConfig
   , acWallet :: WalletConfig
   , acUpdate :: UpdateConfig
+  , acHistory :: HistoryConfig
   } deriving (Eq, Show)
 
 instance D.Interpret AriadneConfig where
@@ -47,6 +50,7 @@ instance D.Interpret AriadneConfig where
         acCardano <- parseFieldAriadne fields "acCardano" (D.auto @CardanoConfig)
         acWallet <- parseFieldAriadne fields "acWallet" (D.auto @WalletConfig)
         acUpdate <- parseFieldAriadne fields "acUpdate" (D.auto @UpdateConfig)
+        acHistory <- parseFieldAriadne fields "acHistory" (D.auto @HistoryConfig)
         return AriadneConfig {..}
       extractOut _ = Nothing
 
@@ -55,4 +59,6 @@ instance D.Interpret AriadneConfig where
             (Map.fromList
                 [ (ariadneFieldModifier "acCardano", D.expected (D.auto @CardanoConfig))
                 , (ariadneFieldModifier "acWallet", D.expected (D.auto @WalletConfig))
-                , (ariadneFieldModifier "acUpdate", D.expected (D.auto @UpdateConfig))])
+                , (ariadneFieldModifier "acUpdate", D.expected (D.auto @UpdateConfig))
+                , (ariadneFieldModifier "acHistory", D.expected (D.auto @HistoryConfig))
+                ])
