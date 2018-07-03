@@ -31,15 +31,14 @@ import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import Data.Time.Clock.POSIX (getPOSIXTime)
-import qualified Data.Vector as V (elem, foldr, fromList, mapMaybe)
+import qualified Data.Vector as V (foldr, fromList, mapMaybe)
 import Formatting (bprint, int, (%))
 import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
-import Pos.Core (AddressHash)
+import Pos.Core (AddressHash, getCurrentTimestamp)
 import Pos.Core.Common (IsBootstrapEraAddr(..), addressHash)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
@@ -48,6 +47,7 @@ import Serokell.Data.Memory.Units (Byte)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Wallet.Backend.Util (mkHasPass)
 import Ariadne.Wallet.Cardano.Kernel.Bip32
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
@@ -384,7 +384,12 @@ newWallet acidDb walletConfig face runCardanoMode pp mbWalletName mbEntropySize 
   -- advanced feature and do not provide it for now.
   let seed = mnemonicToSeed (unwords mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
-  mnemonic ++ ["ariadne-v0"] <$ addWallet acidDb face runCardanoMode esk mbWalletName mempty
+  hasPass <- mkHasPass runCardanoMode (pp == emptyPassphrase)
+  mnemonic ++ ["ariadne-v0"] <$
+    addWallet acidDb face runCardanoMode esk mbWalletName mempty hasPass assurance
+  where
+    -- TODO(AD-251): allow selecting assurance.
+    assurance = AssuranceLevelNormal
 
 -- | Construct a wallet from given data and add it to the storage.
 addWallet ::
@@ -394,8 +399,10 @@ addWallet ::
     -> EncryptedSecretKey
     -> Maybe WalletName
     -> Map HdAccountId PrefilteredUtxo
+    -> HasSpendingPassword
+    -> AssuranceLevel
     -> IO ()
-addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName utxoByAccount = do
+addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName utxoByAccount hasPass assurance = do
   let addWalletPure :: StateT UserSecret Catch ()
       addWalletPure = do
         eskList <- Map.elems <$> (use usWallets)
@@ -417,13 +424,8 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName utxoByAccount =
       return (WalletName $ mkUntitled "Untitled wallet " namesVec)
     Just walletName_ -> return walletName_
 
-  -- getPOSIXTime return seconds with 10^-12 precision
-  timestamp <- (InDb . round . (* 10 ^ (6 :: Integer)) <$> getPOSIXTime)
+  timestamp <- InDb <$> runCardanoMode getCurrentTimestamp
   let rootId = HdRootId $ InDb $ addressHash $ encToPublic esk
-
-  -- FIXME: This should be passed to `addWallet` I guess.
-  let hasPass = NoSpendingPassword
-  let assurance = AssuranceLevelNormal
 
   let hdRoot = HdRoot
           { _hdRootId = rootId
