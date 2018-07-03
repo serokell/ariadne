@@ -39,7 +39,6 @@ import qualified Text.Read as R (readEither)
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.History (HistoryConfig(..), historyFieldModifier)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 

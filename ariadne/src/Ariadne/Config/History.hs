@@ -5,7 +5,7 @@ module Ariadne.Config.History
 
 import Universum
 
-import Ariadne.Config.DhallUtil (interpretInt, parseField)
+import Ariadne.Config.DhallUtil (parseField)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
