@@ -144,7 +144,7 @@ expectedAriadneConfig = AriadneConfig
       { ucVersionCheckUrl = "https://ariadnewallet.io"
       , ucCheckDelay = 3600
       }
-  , acHistory = HistoryConfig {path = "ariadne_history.db"}
+  , acHistory = HistoryConfig {hcPath = "ariadne_history.db"}
   }
 
 ariadneConfigSample :: AriadneConfig
