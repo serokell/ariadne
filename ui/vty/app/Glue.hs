@@ -105,16 +105,17 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiBalance ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.balanceCommandName [])
-      UiSend address amount passphrase -> do
-        argAddress <- decodeTextAddress address
-        argCoin <- readEither amount
+      UiSend outputs passphrase -> do
+        argOutputs <- forM outputs $ \(address, amount) -> do
+          argAddress <- decodeTextAddress address
+          argCoin <- readEither amount
+          Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
+            [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
-            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
-                [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
-                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
-                ]
-            ] ++
+            argOutputs ++
             (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
       UiKill commandId ->
@@ -147,7 +148,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
             _ -> Left "Unrecognized return value"
-      UiSend _ _ _ ->
+      UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
