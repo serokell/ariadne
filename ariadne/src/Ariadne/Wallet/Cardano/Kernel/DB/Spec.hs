@@ -105,6 +105,19 @@ type AccCheckpoints = NonEmpty AccCheckpoint
 
 -- | Per-address state
 data AddrCheckpoint = AddrCheckpoint {
+      -- Address checkpoints contain only utxo and utxo balance.
+      -- The "pending" set is meaningless for them. There are
+      -- multiple reasons for that:
+      -- 1. The spec stipulates having a single "pending" set per
+      --    wallet, and does not specify anything about its structure.
+      --    IOHK have opted to split it into smaller per-account
+      --    sets (which implies that the wallet is going to support
+      --    selecting transaction inputs only within a single account).
+      --    Those smaller sets already cover what is required by the
+      --    spec; further subdivision is unnecessary.
+      -- 2. There is no meaningful notion of a "pending" set for
+      --    an address since many transactions are going to have
+      --    inputs from more than one address.
       _addrCheckpointUtxo        :: !(InDb Core.Utxo)
     , _addrCheckpointUtxoBalance :: !(InDb Core.Coin)
     }

@@ -149,6 +149,6 @@ instance UpdatableWalletState AccCheckpoints where
     rollback = error "AccCheckpoints: rollback"
 
 instance UpdatableWalletState AddrCheckpoints where
-    newPending _tx = error "AddrCheckpoints: newPending"
+    newPending _tx = pass
     applyBlock (_prefBlock, _bMeta) _checkpoints = error "AddrCheckpoints: applyBlock"
     rollback = error "AddrCheckpoints: rollback"
