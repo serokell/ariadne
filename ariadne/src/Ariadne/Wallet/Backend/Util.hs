@@ -15,8 +15,6 @@ mkHasPass
     :: (CardanoMode ~> IO)
     -> Bool
     -> IO HasSpendingPassword
-mkHasPass runCardanoMode noSpendingPassword =
-  if noSpendingPassword then
-    pure NoSpendingPassword
-  else
-    HasSpendingPassword . InDb <$> runCardanoMode Core.getCurrentTimestamp
+mkHasPass runCardanoMode noSpendingPassword
+    | noSpendingPassword = pure NoSpendingPassword
+    | otherwise = HasSpendingPassword . InDb <$> runCardanoMode Core.getCurrentTimestamp
