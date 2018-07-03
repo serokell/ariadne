@@ -443,8 +443,8 @@ addWallet acidDb WalletFace {..} runCardanoMode esk mbWalletName utxoByAccount =
   let rootId = HdRootId $ InDb $ addressHash $ encToPublic esk
 
   -- FIXME: This should be passed to `addWallet` I guess.
-  let hasPass = undefined
-  let assurance = undefined
+  let hasPass = NoSpendingPassword
+  let assurance = AssuranceLevelNormal
 
   let hdRoot = HdRoot
           { _hdRootId = rootId

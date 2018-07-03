@@ -103,7 +103,14 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = (, ,) <$> getAccountRefArgOpt <*> getChainTypeArg <*> getPassPhraseArg
+        , cpArgumentConsumer = do
+            accountRef <- getAccountRefArgOpt
+            chain <- getArgOpt tyBool "external" <&>
+              \case Nothing -> HdChainExternal
+                    Just True -> HdChainExternal
+                    Just False -> HdChainInternal
+            passphrase <- getPassPhraseArg
+            pure (accountRef, chain, passphrase)
         , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
             walletNewAddress accountRef chain passphrase
             return $ toValue ValueUnit
