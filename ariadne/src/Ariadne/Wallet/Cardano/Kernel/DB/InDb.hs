@@ -12,8 +12,8 @@ import Data.SafeCopy
 
 import qualified Pos.Core as Core
 import qualified Pos.Crypto as Core
+import Pos.SafeCopy ()
 import qualified Pos.Txp as Core
-import Pos.SafeCopy()
 
 {-------------------------------------------------------------------------------
   Wrap core types so that we can make independent serialization decisions
@@ -21,7 +21,7 @@ import Pos.SafeCopy()
 
 -- | Wrapped type (with potentially different 'SafeCopy' instance)
 newtype InDb a = InDb { _fromDb :: a }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 instance Functor InDb where
   fmap f = InDb . f . _fromDb

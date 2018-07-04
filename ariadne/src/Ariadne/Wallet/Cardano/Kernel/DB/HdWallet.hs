@@ -85,23 +85,29 @@ import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
   Supporting types
 -------------------------------------------------------------------------------}
 
--- | Wallet name
-newtype WalletName = WalletName Text
+-- | Name of a wallet.
+newtype WalletName = WalletName
+    { unWalletName :: Text
+    } deriving (Show, Eq, Ord, IsString, ToString)
 
 -- | Account name
-newtype AccountName = AccountName Text
+newtype AccountName = AccountName
+    { unAccountName :: Text
+    } deriving (Show, Eq, Ord, IsString, ToString)
 
 -- | Account index
-newtype HdAccountIx = HdAccountIx Word31
-  deriving (Eq, Ord, Show)
+newtype HdAccountIx = HdAccountIx
+    { unHdAccountIx :: Word31
+    } deriving (Eq, Show, Ord)
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
   deriving (Eq, Ord, Show)
 
 -- | Address index
-newtype HdAddressIx = HdAddressIx Word31
-  deriving (Eq, Ord, Show)
+newtype HdAddressIx = HdAddressIx
+    { unHdAddressIx :: Word31
+    } deriving (Eq, Show, Ord)
 
 -- | Wallet assurance level
 --
@@ -132,15 +138,16 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
 -------------------------------------------------------------------------------}
 
 -- | HD wallet root ID
-data HdRootId = HdRootId (InDb (Core.AddressHash Core.PublicKey))
-  deriving (Eq, Ord)
+data HdRootId = HdRootId
+    { unHdRootId :: InDb (Core.AddressHash Core.PublicKey)
+    } deriving (Eq, Show, Ord)
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
       _hdAccountIdParent :: HdRootId
     , _hdAccountIdIx     :: HdAccountIx
     }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | HD wallet address ID
 data HdAddressId = HdAddressId {
@@ -148,7 +155,7 @@ data HdAddressId = HdAddressId {
     , _hdAddressIdChain  :: HdAddressChain
     , _hdAddressIdIx     :: HdAddressIx
     }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | Root of a HD wallet
 --
@@ -252,6 +259,7 @@ hdAccountCurrentCheckpoint = hdAccountCheckpoints . currentAccCheckpoint
 data UnknownHdRoot =
     -- | Unknown root ID
     UnknownHdRoot HdRootId
+    deriving (Eq, Show)
 
 -- | Unknown account
 data UnknownHdAccount =
@@ -260,6 +268,7 @@ data UnknownHdAccount =
 
     -- | Unknown account (implies the root is known)
   | UnknownHdAccount HdAccountId
+  deriving (Eq, Show)
 
 -- | Unknown address
 data UnknownHdAddress =
@@ -271,6 +280,25 @@ data UnknownHdAddress =
 
     -- | Unknown address (implies the account is known)
   | UnknownHdAddress HdAddressId
+  deriving (Eq, Show)
+
+instance Exception UnknownHdRoot where
+  displayException (UnknownHdRoot rootId) =
+    toString $ "The wallet " <> pretty rootId <> " does not exist."
+
+instance Exception UnknownHdAccount where
+  displayException (UnknownHdAccountRoot rootId) =
+    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+  displayException (UnknownHdAccount accId) =
+    toString $ "The account '" <> pretty accId <> "' does not exist."
+
+instance Exception UnknownHdAddress where
+  displayException (UnknownHdAddressRoot rootId) =
+    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+  displayException (UnknownHdAddressAccount accId) =
+    toString $ "The account '" <> pretty accId <> "' does not exist."
+  displayException (UnknownHdAddress addrId) =
+    toString $ "The address '" <> pretty addrId <> "' does not exist."
 
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
