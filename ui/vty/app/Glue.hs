@@ -28,15 +28,18 @@ import Data.Double.Conversion.Text (toFixed)
 import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
+import qualified Data.Vector as V
 import Data.Version (Version)
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+import Ariadne.Cardano.Face
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
-import Ariadne.Wallet.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.Wallet.Face
+import Ariadne.Wallet.UiAdapter
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -237,56 +240,63 @@ putCardanoEventToUI UiFace{..} ev =
 -- event couldn't be mapped to a UI event.
 walletEventToUI :: WalletEvent -> Maybe UiEvent
 walletEventToUI = \case
-  WalletUserSecretSetEvent us sel ->
+  WalletStateSetEvent db sel ->
     Just $ UiWalletEvent $
       UiWalletUpdate
-        (userSecretToTree us)
-        (walletSelectionToUI <$> sel)
-        (walletSelectionToPane us <$> sel)
+        (uiWalletDatasToTree (toUiWalletDatas db))
+        (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
+        ((walletSelectionToPane (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
 
-walletSelectionToUI :: WalletSelection -> UiTreeSelection
-walletSelectionToUI WalletSelection{..} =
-  UiTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiTreeSelection
+uiWalletSelectionToTreeSelection UiWalletSelection{..} =
+  UiTreeSelection { wtsWalletIdx = uwsWalletIdx, wtsPath = uwsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
-userSecretToTree :: UserSecret -> [UiTree]
-userSecretToTree = map toTree . view usWallets
+uiWalletDatasToTree :: [UiWalletData] -> [UiTree]
+uiWalletDatasToTree = map toTree
   where
-    toTree :: WalletData -> UiTree
-    toTree WalletData {..} =
+    toTree :: UiWalletData -> UiTree
+    toTree UiWalletData {..} =
         Node
-            { rootLabel = UiTreeItem (Just _wdName) [] False
-            , subForest = toList $ map toAccountNode _wdAccounts
+            { rootLabel = UiTreeItem (Just _uwdName) [] False
+            , subForest = toList $ map toAccountNode _uwdAccounts
             }
       where
-        toAccountNode :: AccountData -> UiTree
-        toAccountNode AccountData {..} =
+        toAccountNode :: UiAccountData -> UiTree
+        toAccountNode UiAccountData {..} =
             Node
                 { rootLabel =
                       UiTreeItem
-                          { wtiLabel = Just _adName
-                          , wtiPath = [fromIntegral _adPath]
+                          { wtiLabel = Just _uadName
+                          , wtiPath = [fromIntegral _uadPath]
                           , wtiShowPath = True
                           }
                 , subForest = []
                 }
 
-walletSelectionToPane :: UserSecret -> WalletSelection -> UiWalletInfo
-walletSelectionToPane us WalletSelection{..} = UiWalletInfo{..}
+-- TODO: change to use chain type level
+walletSelectionToPane :: [UiWalletData] -> UiWalletSelection -> UiWalletInfo
+walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletInfo{..}
   where
-    wpiWalletIdx = wsWalletIndex
-    wpiPath = wsPath
-    (wpiType, wpiLabel, wpiAddresses) = case us ^? (usWallets . ix (fromIntegral wsWalletIndex)) of
+    wpiWalletIdx = uwsWalletIdx
+    wpiPath = uwsPath
+    (wpiType, wpiLabel, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
       Nothing -> error "Invalid wallet index"
-      Just WalletData{..} -> case wsPath of
-        [] -> (Just UiWalletInfoWallet, Just _wdName, [])
-        accIdx:_ -> case _wdAccounts ^? ix (fromIntegral accIdx) of
+      Just UiWalletData{..} -> case uwsPath of
+        [] -> (Just UiWalletInfoWallet, Just _uwdName, [])
+        accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
-          Just AccountData{..} ->
-            (Just $ UiWalletInfoAccount [_adPath], Just _adName, toList $ second pretty <$> _adAddresses)
+          Just UiAccountData{..} ->
+            ( Just $ UiWalletInfoAccount [_uadPath]
+            , Just _uadName
+            , map
+              (second pretty)
+              (V.toList _uadAddresses)
+            )
+
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
@@ -294,19 +304,21 @@ uiGetSelectedItem :: WalletFace -> IO UiSelectedItem
 uiGetSelectedItem WalletFace {walletGetSelection} =
     walletGetSelection <&> \case
         (Nothing, _) -> UiNoSelection
-        (Just WalletSelection {..}, us) ->
-            getItem (us ^? usWallets . ix (fromIntegral wsWalletIndex)) wsPath
+        (Just sel, walletDb) ->
+          let uiWallets = toUiWalletDatas walletDb
+              uiSel = toUiWalletSelection walletDb sel
+              walletIdx = uwsWalletIdx uiSel
+              walletPath = uwsPath uiSel
+          in
+            getItem (uiWallets ^? ix (fromIntegral walletIdx)) walletPath
   where
-    getItem :: Maybe WalletData -> [Word] -> UiSelectedItem
+    getItem :: Maybe UiWalletData -> [Word] -> UiSelectedItem
     getItem Nothing _ = error "Non-existing wallet is selected"
-    getItem (Just wd) [] = UiSelectedWallet (_wdName wd)
-    getItem (Just wd) (accIdx:rest) =
-        case wd ^? wdAccounts . ix (fromIntegral accIdx) of
-            Nothing -> error "Non-existing account is selected"
-            Just ad ->
-                case rest of
-                    [] -> UiSelectedAccount (_adName ad)
-                    _ -> error "Invalid selection: too long"
+    getItem (Just uwd) [] = UiSelectedWallet (_uwdName uwd)
+    getItem (Just uwd) (accIdx:_) =
+      case uwd ^? uwdAccounts . ix (fromIntegral accIdx) of
+        Nothing -> error "Non-existing account is selected"
+        Just uad -> UiSelectedAccount (_uadName uad)
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend

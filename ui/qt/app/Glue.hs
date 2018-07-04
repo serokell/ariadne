@@ -30,11 +30,12 @@ import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Face
+import Ariadne.Wallet.UiAdapter
 
-import qualified Knit
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
+import qualified Knit
 
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Qt frontend
@@ -226,48 +227,41 @@ putCardanoEventToUI UiFace{..} ev =
 -- event couldn't be mapped to a UI event.
 walletEventToUI :: WalletEvent -> Maybe UiEvent
 walletEventToUI = \case
-  WalletUserSecretSetEvent us sel ->
+  WalletStateSetEvent db sel ->
     Just $ UiWalletEvent $
       UiWalletUpdate
-        (userSecretToTree us)
-        (walletSelectionToUI <$> sel)
+        (uiWalletDatasToTree (toUiWalletDatas db))
+        (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
 
-walletSelectionToUI :: WalletSelection -> UiWalletTreeSelection
-walletSelectionToUI WalletSelection{..} =
-  UiWalletTreeSelection { wtsWalletIdx = wsWalletIndex, wtsPath = wsPath }
+
+uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
+uiWalletSelectionToTreeSelection UiWalletSelection{..} =
+  UiWalletTreeSelection { wtsWalletIdx = uwsWalletIdx, wtsPath = uwsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
   whenJust (walletEventToUI ev) putUiEvent
 
-userSecretToTree :: UserSecret -> [UiWalletTree]
-userSecretToTree = map toTree . view usWallets
+uiWalletDatasToTree :: [UiWalletData] -> [UiWalletTree]
+uiWalletDatasToTree = map toTree
   where
-    toTree :: WalletData -> UiWalletTree
-    toTree WalletData {..} =
+    toTree :: UiWalletData -> UiWalletTree
+    toTree UiWalletData {..} =
         Node
-            { rootLabel = UiWalletTreeItem (Just _wdName) [] False
-            , subForest = toList $ map toAccountNode _wdAccounts
+            { rootLabel = UiWalletTreeItem (Just _uwdName) [] False
+            , subForest = toList $ map toAccountNode _uwdAccounts
             }
       where
-        toAccountNode :: AccountData -> UiWalletTree
-        toAccountNode AccountData {..} =
+        toAccountNode :: UiAccountData -> UiWalletTree
+        toAccountNode UiAccountData {..} =
             Node
                 { rootLabel =
                       UiWalletTreeItem
-                          { wtiLabel = Just _adName
-                          , wtiPath = [fromIntegral _adPath]
+                          { wtiLabel = Just _uadName
+                          , wtiPath = [fromIntegral _uadPath]
                           , wtiShowPath = True
                           }
-                , subForest = toList $ map (toAddressNode _adPath) _adAddresses
-                }
-        toAddressNode :: Word32 -> (Word32, Address) -> UiWalletTree
-        toAddressNode accIdx (addrIdx, address) =
-            pure $
-            UiWalletTreeItem
-                { wtiLabel = Just (pretty address)
-                , wtiPath = map fromIntegral [accIdx, addrIdx]
-                , wtiShowPath = True
+                , subForest = []
                 }
 
 ----------------------------------------------------------------------------
@@ -281,3 +275,4 @@ historyToUI ch = UiHistoryFace
   , historyNextCommand = toNextCommand ch
   , historyPrevCommand = toPrevCommand ch
   }
+
