@@ -26,18 +26,18 @@ historyFieldModifier = f
     f x = x
 
 data HistoryConfig = HistoryConfig
-  { hcPath :: Text
+  { hcPath :: FilePath
   } deriving (Eq, Show)
 
 instance D.Interpret HistoryConfig where
   autoWith _ = D.Type extractOut expectedOut
     where
       extractOut (RecordLit fields) = do
-        hcPath <- parseFieldHistory fields "hcPath" D.strictText
+        hcPath <- parseFieldHistory fields "hcPath" D.string
         return HistoryConfig {..}
       extractOut _ = Nothing
 
       expectedOut =
         Record
             (Map.fromList
-                [(historyFieldModifier "hcPath", D.expected D.strictText)])
+                [(historyFieldModifier "hcPath", D.expected D.string)])

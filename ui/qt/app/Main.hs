@@ -5,7 +5,6 @@ import Universum
 import Control.Concurrent.Async
 import IiExtras
 import Text.PrettyPrint.ANSI.Leijen (Doc)
-import Data.Text (unpack)
 
 import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
@@ -35,7 +34,7 @@ main = do
       walletConfig = acWallet ariadneConfig
       historyConfig = acHistory ariadneConfig
 
-  history <- openCommandHistory $ unpack (hcPath historyConfig)
+  history <- openCommandHistory $ hcPath historyConfig
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace
