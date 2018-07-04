@@ -80,7 +80,7 @@ data WalletFace =
     , walletSend ::
         PassPhrase -> WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
-    , walletGetSelection :: IO (Maybe WalletSelection, UserSecret)
+    , walletGetSelection :: IO (Maybe WalletSelection, DB)
     , walletBalance :: IO Coin
     }
 

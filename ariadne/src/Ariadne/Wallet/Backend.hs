@@ -5,12 +5,10 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
-import Data.Acid (openLocalStateFrom)
+import Data.Acid (openLocalStateFrom, query)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
-
-import Pos.Client.KeyStorage (getSecretDefault)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
@@ -18,7 +16,7 @@ import Ariadne.Wallet.Backend.Balance
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (defDB)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
 import Ariadne.Wallet.Face
 
 
@@ -55,7 +53,7 @@ createWalletBackend walletConfig = do
           , walletSend =
               sendTx acidDb this cf walletSelRef putCommandOutput
           , walletGetSelection =
-              (,) <$> readIORef walletSelRef <*> runCardanoMode getSecretDefault
+              (,) <$> readIORef walletSelRef <*> query acidDb Snapshot
           , walletBalance = do
             -- TODO: get balance from acidDb
               addrs <- getSelectedAddresses acidDb this walletSelRef
