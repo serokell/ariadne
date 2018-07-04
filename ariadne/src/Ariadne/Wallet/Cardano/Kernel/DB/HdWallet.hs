@@ -64,12 +64,12 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
 
 import Universum
 
+import qualified Data.IxSet.Typed as IxSet hiding (toAscList)
+import qualified Data.Text.Buildable
+
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
-import qualified Data.IxSet.Typed as IxSet
 import Data.SafeCopy (base, deriveSafeCopySimple)
-
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
@@ -226,6 +226,10 @@ makeLenses ''HdAddressId
 makeLenses ''HdRoot
 makeLenses ''HdAccount
 makeLenses ''HdAddress
+makeLenses ''WalletName
+makeLenses ''AccountName
+makeLenses ''HdAccountIx
+makeLenses ''HdAddressIx
 
 deriveSafeCopySimple 1 'base ''HdRootId
 deriveSafeCopySimple 1 'base ''HdAccountId
@@ -247,6 +251,9 @@ hdAddressAccountId = hdAddressId . hdAddressIdParent
 
 hdAddressRootId :: Lens' HdAddress HdRootId
 hdAddressRootId = hdAddressAccountId . hdAccountIdParent
+
+hdAddressChain :: Lens' HdAddress HdAddressChain
+hdAddressChain = hdAddressId . hdAddressIdChain
 
 hdAccountCurrentCheckpoint :: Lens' HdAccount AccCheckpoint
 hdAccountCurrentCheckpoint = hdAccountCheckpoints . currentAccCheckpoint
@@ -428,8 +435,8 @@ zoomOrCreateHdRoot :: HdRoot
                    -> HdRootId
                    -> Update' HdRoot    e a
                    -> Update' HdWallets e a
-zoomOrCreateHdRoot newRoot rootId upd =
-    zoomCreate newRoot (hdWalletsRoots . at rootId) $ upd
+zoomOrCreateHdRoot newRoot rootId  =
+    zoomCreate newRoot (hdWalletsRoots . at rootId)
 
 -- | Variation on 'zoomHdAccountId' that creates the 'HdAccount' if it doesn't exist
 --

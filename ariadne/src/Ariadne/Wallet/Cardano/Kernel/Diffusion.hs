@@ -6,7 +6,7 @@ module Ariadne.Wallet.Cardano.Kernel.Diffusion (
 
 import Universum
 
-import Pos.Core
+import Pos.Core (TxAux)
 import Pos.Infra.Diffusion.Types
 
 -- | Wallet diffusion layer

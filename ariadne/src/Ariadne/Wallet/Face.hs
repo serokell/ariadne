@@ -15,29 +15,33 @@ module Ariadne.Wallet.Face
 
 import Universum
 
-import Ariadne.Cardano.Face
-import Pos.Client.Txp.Util (InputSelectionPolicy(..))
 import Serokell.Data.Memory.Units (Byte)
 
-data WalletSelection =
-  WalletSelection
-    { wsWalletIndex :: Word
-    , wsPath :: [Word]
-    }
+import Pos.Client.Txp.Util (InputSelectionPolicy(..))
 
--- | Name of a wallet.
-newtype WalletName = WalletName
-    { unWalletName :: Text
-    } deriving (Show, Eq, IsString, ToString)
+import Ariadne.Cardano.Face
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB)
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+
+-- | Each *Id has a parent field, so it represents a path itself.
+data WalletSelection
+    = WSRoot !HdRootId
+    | WSAccount !HdAccountId
 
 data WalletReference
   = WalletRefSelection
-  | WalletRefByIndex Word
+  | WalletRefByHdRootId HdRootId
+  -- UI indexation should be separated from backend, so it is better to have it in only
+  -- in one place in 'select'. But `WalletRefByIndex` will be here for some time.
+  -- Note: Add/remove wallets cause changes in indexation
+  | WalletRefByUIindex Word
   | WalletRefByName WalletName
 
 data AccountReference
   = AccountRefSelection
-  | AccountRefByIndex !Word32 !WalletReference
+  | AccountRefByHdAccountId HdAccountId
+  -- same as for WalletSelection:
+  | AccountRefByUIindex !Word !WalletReference
   | AccountRefByName !Text !WalletReference
 
 -- | Reference to an account inside a wallet.
@@ -62,8 +66,8 @@ data WalletRestoreType
 
 data WalletFace =
   WalletFace
-    { walletNewAddress :: AccountReference -> PassPhrase -> IO ()
-    , walletNewAccount :: WalletReference -> Maybe Text -> IO ()
+    { walletNewAddress :: AccountReference -> HdAddressChain -> PassPhrase -> IO ()
+    , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
     , walletNewWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
         PassPhrase -> Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
@@ -71,7 +75,7 @@ data WalletFace =
         Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
     , walletRename :: Text -> IO ()
     , walletRemove :: IO ()
-    , walletRefreshUserSecret :: IO ()
+    , walletRefreshState :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
         PassPhrase -> WalletReference -> [LocalAccountReference] ->
@@ -85,4 +89,4 @@ data WalletFace =
 -- UI and capture /what the backend can generate/, not what the frontend can
 -- handle.
 data WalletEvent =
-  WalletUserSecretSetEvent UserSecret (Maybe WalletSelection)
+  WalletStateSetEvent DB (Maybe WalletSelection)

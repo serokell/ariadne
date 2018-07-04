@@ -5,16 +5,19 @@ import Universum
 import qualified Data.ByteArray as ByteArray
 
 import Control.Lens (makePrisms)
-import IiExtras
-import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
-import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
-import Pos.Crypto.Signing (emptyPassphrase)
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
+import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
+import Pos.Crypto (PassPhrase)
+import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
+import Pos.Crypto.Signing (emptyPassphrase)
+
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Cardano.Orphans ()
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
+import IiExtras
 
 import Knit
 
@@ -89,20 +92,27 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
   componentCommandProcs =
     [
       CommandProc
-        { cpName = refreshUserSecretCommandName
+        { cpName = refreshStateCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            walletRefreshUserSecret
+            walletRefreshState
             return $ toValue ValueUnit
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
-        , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAddress accountRef passphrase
+        , cpArgumentConsumer = do
+            accountRef <- getAccountRefArgOpt
+            chain <- getArgOpt tyBool "external" <&>
+              \case Nothing -> HdChainExternal
+                    Just True -> HdChainExternal
+                    Just False -> HdChainInternal
+            passphrase <- getPassPhraseArg
+            pure (accountRef, chain, passphrase)
+        , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
+            walletNewAddress accountRef chain passphrase
             return $ toValue ValueUnit
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
@@ -115,7 +125,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAccount walletRef name
+            walletNewAccount walletRef (AccountName <$> name)
             return $ toValue ValueUnit
         , cpHelp = "Create and add a new account to the specified wallet. When \
                    \no wallet is specified, uses the selected wallet."
@@ -257,8 +267,8 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
 -- Command names
 ----------------------------------------------------------------------------
 
-refreshUserSecretCommandName :: CommandId
-refreshUserSecretCommandName = "refresh-user-secret"
+refreshStateCommandName :: CommandId
+refreshStateCommandName = "refresh-wallet-state"
 
 newAddressCommandName :: CommandId
 newAddressCommandName = "new-address"
@@ -335,14 +345,14 @@ getAccountRefArgOpt ::
        Elem components Core => ArgumentConsumer components AccountReference
 getAccountRefArgOpt =
     convert <$> getWalletRefArgOpt <*>
-    getArgOpt (tyString `tyEither` tyWord32) "account"
+    getArgOpt (tyString `tyEither` tyWord) "account"
   where
-    convert :: WalletReference -> Maybe (Either Text Word32) -> AccountReference
+    convert :: WalletReference -> Maybe (Either Text Word) -> AccountReference
     convert walletRef = \case
         Nothing -> AccountRefSelection
         Just e -> (either
             (flip AccountRefByName walletRef)
-            (flip AccountRefByIndex walletRef)
+            (flip AccountRefByUIindex walletRef)
                   ) e
 
 mkPassPhrase :: Maybe Text -> PassPhrase
