@@ -89,18 +89,7 @@ initWalletWidget langFace =
       WidgetEventButtonPressed -> performSendTransaction
       _ -> return ()
 
---     updateFocusList
-    setWidgetFocusList
-      [ WidgetNameWalletSendAddress 0
-      , WidgetNameWalletSendAmount 0
-      , WidgetNameWalletSendRemove 0
-      , WidgetNameWalletSendAddress 1
-      , WidgetNameWalletSendAmount 1
-      , WidgetNameWalletSendRemove 1
-      , WidgetNameWalletSendAdd
-      , WidgetNameWalletSendPass
-      , WidgetNameWalletSendButton
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -208,10 +197,28 @@ handleWalletWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
+updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+updateFocusList = do
+    outputs <- uses walletSendOutputsL Map.keys
+    lift $ setWidgetFocusList $
+      concat (outputFocuses <$> outputs) ++
+      [ WidgetNameWalletSendAdd
+      , WidgetNameWalletSendPass
+      , WidgetNameWalletSendButton
+      ]
+  where
+    outputFocuses idx =
+      [ WidgetNameWalletSendAddress idx
+      , WidgetNameWalletSendAmount idx
+      , WidgetNameWalletSendRemove idx
+      ]
+
+
 addOutput :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
 addOutput = do
   idx <- walletSendNextOutputL <<+= 1
   walletSendOutputsL %= Map.insert idx (WalletSendOutput "" "")
+  updateFocusList
 
   lift $ do
     addWidgetChild (WidgetNameWalletSendAddress idx) $
@@ -226,7 +233,10 @@ addOutput = do
 
 removeOutput :: Int -> WidgetEventM WalletWidgetState p ()
 removeOutput idx = do
-  walletSendOutputsL %= Map.delete idx
+  remaining <- uses walletSendOutputsL Map.size
+  when (remaining > 1) $ do
+    walletSendOutputsL %= Map.delete idx
+    updateFocusList
 
 performSendTransaction :: WidgetEventM WalletWidgetState p ()
 performSendTransaction = do

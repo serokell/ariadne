@@ -127,19 +127,19 @@ getAppFocus AppState{..} =
     else fromMaybe [] $ B.focusGetCurrent appFocusRing
 
 resetAppFocus :: WidgetEventM AppWidgetState AppState ()
-resetAppFocus = do
-  get >>= lift . setWidgetFocusList . appFocusList
-  lift $ do
-    widget <- get
-    lift $ do
-      mcurrent <- uses appFocusRingL B.focusGetCurrent
-      appFocusRingL .= getFocusRing (Widget widget)
-      whenJust mcurrent setAppFocus
+resetAppFocus = get >>= lift . setWidgetFocusList . appFocusList
 
 setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
 setAppFocus focus = do
   focus' <- uses appWidgetL $ findClosestFocus focus
   appFocusRingL %= B.focusSetCurrent focus'
+
+updateAppFocusRing :: StateT AppState (B.EventM WidgetName) ()
+updateAppFocusRing = do
+  widget <- use appWidgetL
+  mcurrent <- uses appFocusRingL B.focusGetCurrent
+  appFocusRingL .= getFocusRing widget
+  whenJust mcurrent setAppFocus
 
 -- The Ariadne UI view and controller a single record.
 app :: B.App AppState UiEvent WidgetName
@@ -160,7 +160,7 @@ app = B.App{..} where
     -> B.EventM WidgetName (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <-
-      runStateT (handleAppEvent ev) appState
+      runStateT (handleAppEvent ev <* updateAppFocusRing) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
