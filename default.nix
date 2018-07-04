@@ -4,7 +4,7 @@ let
     overlays = [ overlay ];
   };
   doHlint = pkg: nixpkgs.haskell.lib.overrideCabal pkg (super: {
-    preInstall = "${hlint}/bin/hlint .\n" + (super.preInstall or "");
+    preInstall = "${nixpkgs.hlint}/bin/hlint .\n" + (super.preInstall or "");
   });
 in
 
