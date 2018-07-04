@@ -23,6 +23,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , omap
   , otraverse
   , emptyIxSet
+    -- * Conversion
+  , toAscList
   ) where
 
 import Universum
@@ -197,3 +199,19 @@ emptyIxSet :: forall a.
               Indexable a
            => IxSet a
 emptyIxSet = WrapIxSet IxSet.empty
+
+{-------------------------------------------------------------------------------
+  Conversion
+-------------------------------------------------------------------------------}
+
+-- | Converts an 'IxSet' to its list of elements.
+--
+-- List will be sorted in ascending order by the primary key.
+--
+-- The list may contain duplicate entries if a single value produces
+-- multiple keys.
+toAscList ::
+       forall a. Ord (PrimKey a)
+    => IxSet a
+    -> [a]
+toAscList = coerce . IxSet.toAscList (Proxy @(PrimKey a)) . unwrapIxSet
