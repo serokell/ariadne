@@ -3,6 +3,9 @@ let
   nixpkgs = import (builtins.fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz") {
     overlays = [ overlay ];
   };
+  doHlint = pkg: nixpkgs.haskell.lib.overrideCabal pkg (super: {
+    preInstall = "${hlint}/bin/hlint .\n" + (super.preInstall or "");
+  });
 in
 
 with nixpkgs;
@@ -10,21 +13,20 @@ with nixpkgs;
 let
   closure = (stackClosure haskell.compiler.ghc822 ./.).override {
     overrides = final: previous: with haskell.lib; {
-      ariadne = haskell.lib.doCheck (overrideCabal previous.ariadne (super: {
+      ariadne = haskell.lib.doCheck doHlint (overrideCabal previous.ariadne (super: {
         buildTools = [ git ];
-        preInstall = "${hlint}/bin/hlint .";
       }));
+      
+      ariadne-vty = doHlint previous.ariadne-vty;
 
-      ariadne-qt = disableLibraryProfiling (overrideCabal previous.ariadne-qt (super: {
+      ariadne-qt = disableLibraryProfiling doHlint (overrideCabal previous.ariadne-qt (super: {
         # https://github.com/NixOS/nixpkgs/issues/25585
         # RPATH of binary contains a forbidden reference to /tmp/nix-build...
         preFixup = ''rm -rf "$(pwd)"'';
-        preInstall = "${hlint}/bin/hlint .";
       }));
 
-      knit = haskell.lib.doCheck (overrideCabal previous.knit (super: with final; {
+      knit = haskell.lib.doCheck doHlint (overrideCabal previous.knit (super: with final; {
         buildDepends = (super.buildDepends or []) ++ [ hspec universum ];
-        preInstall = "${hlint}/bin/hlint .";
       }));
 
       qtah-cpp = overrideCabal previous.qtah-cpp (super: {
