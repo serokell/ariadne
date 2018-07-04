@@ -10,7 +10,7 @@ module Ariadne.Wallet.Backend.KeyStorage
        , newWallet
        , addWallet
        , select
-       , getSelectedAddresses
+       , getBalance
        , renameSelection
        , removeSelection
        , deriveBip44KeyPair
@@ -38,7 +38,7 @@ import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)
 import Pos.Client.KeyStorage (getSecretDefault, modifySecretDefault)
-import Pos.Core (AddressHash, getCurrentTimestamp)
+import Pos.Core (AddressHash, getCurrentTimestamp, mkCoin, unsafeIntegerToCoin)
 import Pos.Core.Common (IsBootstrapEraAddr(..), addressHash)
 import Pos.Crypto
 import Pos.Util (eitherToThrow, maybeThrow)
@@ -478,6 +478,29 @@ select acidDb WalletFace{..} walletSelRef mWalletRef uiPath = do
     getAccounts wallets rootId = fromRight
       (error "Bug: UnknownHdRoot")
       (readAccountsByRootId rootId wallets)
+
+getBalance
+  :: AcidState DB
+  -> IORef (Maybe WalletSelection)
+  -> IO Coin
+getBalance acidDb walletSelRef = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> return $ mkCoin 0
+    Just selection ->
+      case selection of
+        WSRoot rootId -> do
+          walletDb <- query acidDb Snapshot
+          -- Using the unsafe function is OK here, since the case where
+          -- the invariant that the balance exceeds @maxCoin@ is broken
+          -- is clearly a programmer mistake.
+          pure $ unsafeIntegerToCoin $
+            hdRootBalance rootId (walletDb ^. dbHdWallets)
+        WSAccount accountId -> do
+          walletDb <- query acidDb Snapshot
+          account <- either throwM pure $
+            readHdAccount accountId (walletDb ^. dbHdWallets)
+          pure $ hdAccountBalance account
 
 removeSelection
   :: AcidState DB
