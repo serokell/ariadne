@@ -27,6 +27,7 @@ import Serokell.Util (enumerate)
 -- 'WalletData' like data type, used only in UI glue
 data UiWalletData = UiWalletData
   { _uwdName     :: !Text
+  , _uwdId       :: !HdRootId
   , _uwdAccounts :: !(Vector UiAccountData)
   } deriving (Show, Generic)
 
@@ -71,6 +72,7 @@ toUiWalletDatas db = toUiWalletData <$> walletList
     toUiWalletData :: HdRoot -> UiWalletData
     toUiWalletData HdRoot {..} = UiWalletData
       { _uwdName = unWalletName _hdRootName
+      , _uwdId = _hdRootId
       , _uwdAccounts =
         let
           indexedAccounts :: Vector (Word32, HdAccount)
