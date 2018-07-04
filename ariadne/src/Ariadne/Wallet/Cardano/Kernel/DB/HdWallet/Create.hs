@@ -40,6 +40,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 data CreateHdRootError =
     -- | We already have a wallet with the specified ID
     CreateHdRootExists HdRootId
+    deriving (Eq, Show)
 
 -- | Errors thrown by 'createHdAccount'
 data CreateHdAccountError =
@@ -48,6 +49,7 @@ data CreateHdAccountError =
 
     -- | Account already exists
   | CreateHdAccountExists HdAccountId
+    deriving (Eq, Show)
 
 -- | Errors thrown by 'createHdAddress'
 data CreateHdAddressError =
@@ -56,6 +58,25 @@ data CreateHdAddressError =
 
     -- | Address already used
   | CreateHdAddressExists HdAddressId
+  deriving (Eq, Show)
+
+instance Exception CreateHdRootError where
+  displayException (CreateHdRootExists rootId) =
+    "The wallet " ++ show rootId ++ " already exists."
+
+instance Exception CreateHdAccountError where
+  displayException (CreateHdAccountUnknownRoot (UnknownHdRoot rootId)) =
+    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+  displayException (CreateHdAccountExists accountId) =
+    toString $ "The account '" <> pretty accountId <> "' already exists."
+
+instance Exception CreateHdAddressError where
+  displayException (CreateHdAddressUnknown (UnknownHdAccountRoot rootId)) =
+    toString $ "The wallet " <> pretty rootId <> " does not exist."
+  displayException (CreateHdAddressUnknown (UnknownHdAccount accId)) =
+    toString $ "The account " <> pretty accId <> " does not exist."
+  displayException (CreateHdAddressExists addrId) =
+    toString $ "The address " <> pretty addrId <> " is already used."
 
 deriveSafeCopySimple 1 'base ''CreateHdRootError
 deriveSafeCopySimple 1 'base ''CreateHdAccountError
