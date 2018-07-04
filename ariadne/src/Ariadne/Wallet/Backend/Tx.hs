@@ -11,38 +11,45 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
-import Control.Lens (at, ix)
-import Formatting (bprint, build, formatToString, int, (%))
-import IiExtras ((:~>)(..))
+import Control.Lens (at)
+import Data.Acid (AcidState, query)
+import Data.Map (findWithDefault)
+import Formatting (bprint, build, formatToString, (%))
+import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
+
 import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
-import Pos.Crypto.HD (ShouldCheckPassphrase(..), deriveHDSecretKey)
+import Pos.Crypto.HD (ShouldCheckPassphrase(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
 import Pos.Util.UserSecret (usWallets)
-import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+import Ariadne.Wallet.Cardano.Kernel.DB.InDb
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
+import IiExtras ((:~>)(..))
 
 data SendTxException
-    = SendTxNoWallet !Word
-    | SendTxNoAddresses !Word
+    = SendTxNoAddresses !HdRootId
     | SendTxIncorrectPassPhrase
     deriving (Show)
 
 instance Buildable SendTxException where
     build = \case
-        SendTxNoWallet walletIdx ->
-            bprint ("Wallet #"%int%" does not exist") walletIdx
         SendTxNoAddresses walletIdx ->
-            bprint ("Wallet #"%int%" does not have any addresses") walletIdx
+            bprint ("Wallet #"%build%" does not have any addresses") walletIdx
         SendTxIncorrectPassPhrase ->
             "Incorrect passphrase"
 
@@ -56,7 +63,8 @@ instance Exception SendTxException where
 -- Otherwise inputs will be selected from all accounts in the wallet.
 sendTx ::
        (HasConfigurations)
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
     -> (Doc -> IO ())
@@ -66,29 +74,42 @@ sendTx ::
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs isp outs = do
+sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _accRefs isp outs = do
     let Nat runCardanoMode = cardanoRunCardanoMode
-    walletIdx <- resolveWalletRef walletSelRef runCardanoMode walletRef
-    runCardanoMode $ sendTxDo walletIdx =<< cardanoGetDiffusion
+    walletDb <- query acidDb Snapshot
+    let wallets = walletDb ^. dbHdWallets
+    walletRootId <- resolveWalletRef walletSelRef walletRef walletDb
+    runCardanoMode $ sendTxDo wallets walletRootId =<< cardanoGetDiffusion
   where
-    sendTxDo :: Word -> Diffusion CardanoMode -> CardanoMode TxId
-    sendTxDo walletIdx diffusion = do
-        wallets <- view usWallets <$> getSecretDefault
-        wd <-
-            maybeThrow
-                (SendTxNoWallet walletIdx)
-                (wallets ^? ix (fromIntegral walletIdx))
+    sendTxDo :: HdWallets -> HdRootId -> Diffusion CardanoMode -> CardanoMode TxId
+    sendTxDo wallets walletRootId diffusion = do
+        let
+            walletAccounts :: IxSet HdAccount
+            walletAccounts = fromRight
+                -- Resolved walletRootId always exists.
+                (error "SendTx: Unknown walletRootId")
+                (readAccountsByRootId walletRootId wallets)
+
+        us <- getSecretDefault
+        let pubAddrHash = _fromDb (unHdRootId walletRootId)
+            -- Wallets creation and deletion organized in a such way that
+            -- an absence of a key is not possible.
+            esk = findWithDefault
+                (error "Bug: _usWallets has no such key.")
+                pubAddrHash
+                (us ^. usWallets)
+
         maybeThrow SendTxIncorrectPassPhrase $
-            checkPassMatches pp (_wdRootKey wd)
+            checkPassMatches pp esk
         let signersMap :: HashMap Address SafeSigner
             -- safe due to passphrase check above
-            signersMap = walletSigners pp wd
+            signersMap = walletSigners esk wallets pp walletAccounts
         let getSigner :: Address -> Maybe SafeSigner
             getSigner addr = signersMap ^. at addr
         -- TODO [AD-234]: generate new change address
         ourAddresses <-
             maybeThrow
-                (SendTxNoAddresses walletIdx)
+                (SendTxNoAddresses walletRootId)
                 (nonEmpty $ HM.keys signersMap)
         let ourAddress = NE.head ourAddresses
         (txAux, _) <-
@@ -103,8 +124,10 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _a
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
         txId <$ submitTxRaw diffusion txAux
+
     formatToDoc :: forall a. Buildable a => a -> Doc
     formatToDoc = string . formatToString build
+
     formatSubmitTxMsg :: Tx -> Doc
     formatSubmitTxMsg UnsafeTx {..} = mconcat
         [ "Submitting Tx with inputs: "
@@ -117,26 +140,62 @@ sendTx WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef _a
         ]
 
 -- Assumes the passphrase is correct!
-walletSigners :: PassPhrase -> WalletData -> HashMap Address SafeSigner
-walletSigners pp WalletData {..} = foldMap accountSigners _wdAccounts
+walletSigners :: EncryptedSecretKey -> HdWallets -> PassPhrase -> IxSet HdAccount -> HashMap Address SafeSigner
+walletSigners rootSK wallets pp = foldMap accountSigners
   where
-    deriveSecretKey :: EncryptedSecretKey -> Word32 -> EncryptedSecretKey
-    deriveSecretKey encSK idx =
-        case deriveHDSecretKey (ShouldCheckPassphrase False) pp encSK idx of
-            Nothing ->
-                error
-                    "walletSigners: passphrase is invalid and why was it checked at all??!!?"
+    -- See the contract of this function
+    shouldNotCheck = ShouldCheckPassphrase False
+    invalidPassphrase :: a
+    invalidPassphrase = error
+        "walletSigners: passphrase is invalid and why was it checked at all??!!?"
+
+    deriveAccountKey :: HdAccountIx -> EncryptedSecretKey
+    deriveAccountKey accIdx =
+        let derPath = encodeBip44DerivationPathToAccount accIdx
+        in case deriveHDSecretKeyByPath shouldNotCheck pp rootSK derPath of
+            Nothing -> invalidPassphrase
             Just key -> key
-    accountSigners :: AccountData -> HashMap Address SafeSigner
-    accountSigners AccountData {..} =
-        let accountKey :: EncryptedSecretKey
-            accountKey = deriveSecretKey _wdRootKey _adPath
+
+    deriveAddressKey :: EncryptedSecretKey -> HdAddressChain -> HdAddressIx -> EncryptedSecretKey
+    deriveAddressKey accKey addrChain addrIx =
+        let derPath = encodeBip44DerivationPathFromAccount addrChain addrIx
+        in case deriveHDSecretKeyByPath shouldNotCheck pp accKey derPath of
+            Nothing -> invalidPassphrase
+            Just key -> key
+
+    accountSigners :: HdAccount -> HashMap Address SafeSigner
+    accountSigners hdAcc =
+        let
+            accId = hdAcc ^. hdAccountId
+            accIx = accId ^. hdAccountIdIx
+
+            accountKey :: EncryptedSecretKey
+            accountKey = deriveAccountKey accIx
+
+            toAddrTuple :: HdAddress -> (HdAddressChain, HdAddressIx, Address)
+            toAddrTuple hdAddr =
+                let addrId = hdAddr ^. hdAddressId
+                    addrChain = addrId ^. hdAddressIdChain
+                    addrIx = addrId ^. hdAddressIdIx
+                in ( addrChain
+                   , addrIx
+                   , _fromDb (hdAddr ^. hdAddressAddress)
+                   )
+
+            accountAddresses :: [(HdAddressChain, HdAddressIx, Address)]
+            accountAddresses = map toAddrTuple $ toList addressesSet
+
+            addressesSet :: IxSet HdAddress
+            addressesSet = fromRight
+                (error "Bug: Unknown accountId")
+                (readAddressesByAccountId accId wallets)
+
             step ::
                    HashMap Address SafeSigner
-                -> (Word32, Address)
+                -> (HdAddressChain, HdAddressIx, Address)
                 -> HashMap Address SafeSigner
-            step m (addrIdx, addr) =
+            step m (addrChain, addrIx, addr) =
                 m &
                 at addr .~
-                Just (SafeSigner (deriveSecretKey accountKey addrIdx) pp)
-         in foldl' step mempty _adAddresses
+                Just (SafeSigner (deriveAddressKey accountKey addrChain addrIx) pp)
+         in foldl' step mempty accountAddresses
