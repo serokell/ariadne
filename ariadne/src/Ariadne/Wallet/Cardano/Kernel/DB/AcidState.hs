@@ -17,7 +17,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
     -- ** Updates on HD wallets
     -- *** CREATE
   , CreateHdWallet(..)
-  , CreateHdRoot(..)
   , CreateHdAddress(..)
   , CreateHdAccount(..)
     -- *** UPDATE
@@ -353,10 +352,10 @@ makeAcidic ''DB [
     , 'applyBlock
     , 'switchToFork
       -- Updates on HD wallets
+    , 'createHdWallet
+    , 'createHdAccount
     , 'createHdRoot
     , 'createHdAddress
-    , 'createHdAccount
-    , 'createHdWallet
     , 'updateHdRootAssurance
     , 'updateHdRootName
     , 'updateHdAccountName
