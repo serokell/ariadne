@@ -66,11 +66,10 @@ changeCommand ch direction = do
           Previous -> do
             result <- withConnection (historyFile ch) $ \conn ->
               query conn "SELECT * FROM history WHERE id=?" [currId]
-            case result of
-              [Row _ command] -> 
-                return $ Just command
-              _ ->
-                return Nothing
+            return $ Just $
+              case result of
+                [Row _ command] -> command
+                _ -> prefix
           Next -> do
             resetCurrentCommandId ch
             return $ Just prefix
