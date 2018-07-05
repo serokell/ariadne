@@ -150,5 +150,16 @@ instance UpdatableWalletState AccCheckpoints where
 
 instance UpdatableWalletState AddrCheckpoints where
     newPending _tx = pass
-    applyBlock (_prefBlock, _bMeta) _checkpoints = error "AddrCheckpoints: applyBlock"
+
+    applyBlock (prefBlock, _bMeta) checkpoints
+        = AddrCheckpoint {
+              _addrCheckpointUtxo = InDb utxo''
+            , _addrCheckpointUtxoBalance = InDb balance''
+            } NE.<| checkpoints
+        where
+            utxo'        = checkpoints ^. currentAddrUtxo
+            utxoBalance' = checkpoints ^. currentAddrUtxoBalance
+
+            (utxo'', balance'') = updateUtxo prefBlock (utxo', utxoBalance')
+
     rollback = error "AddrCheckpoints: rollback"
