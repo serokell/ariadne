@@ -95,7 +95,7 @@ data UiEvent
 data UiCommand
   = UiSelect [Word]
   | UiBalance
-  | UiSend [(Text, Text)] Text -- ^ [(Address, amount)], passphrase
+  | UiSend [Word32] [(Text, Text)] Text -- ^ [Account] [(Address, amount)], passphrase
   | UiNewWallet Text Text  -- ^ Name, passphrase
   | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiKill Natural
@@ -205,5 +205,6 @@ data UiWalletInfo
     , wpiLabel :: !(Maybe Text)
     , wpiWalletIdx :: !Word
     , wpiPath :: !TreePath
+    , wpiAccounts :: ![(Word32, Text)]
     , wpiAddresses :: ![(Word32, Text)]
     }

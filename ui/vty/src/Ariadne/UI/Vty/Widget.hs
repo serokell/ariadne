@@ -100,6 +100,7 @@ data WidgetNamePart
   | WidgetNameAddWalletRestoreButton
 
   | WidgetNameWallet
+  | WidgetNameWalletAccountList
   | WidgetNameWalletSendAdd
   | WidgetNameWalletSendAddress Int
   | WidgetNameWalletSendAmount Int
@@ -120,6 +121,7 @@ data WidgetEvent
   = WidgetEventMenuSelected
   | WidgetEventButtonPressed
   | WidgetEventEditChanged
+  | WidgetEventListSelected Int
 
 -- | Result of handling a UI event
 --
