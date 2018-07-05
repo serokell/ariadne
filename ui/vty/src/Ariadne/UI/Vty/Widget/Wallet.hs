@@ -184,12 +184,18 @@ handleWalletWidgetEvent = \case
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiSendCommandResult result) -> do
-    walletSendResultL %= \case
+    use walletSendResultL >>= \case
       SendResultWaiting commandId' | commandId == commandId' ->
         case result of
-          UiSendCommandSuccess tr -> SendResultSuccess tr
-          UiSendCommandFailure err -> SendResultError err
-      other -> other
+          UiSendCommandSuccess tr -> do
+            walletSendResultL .= SendResultSuccess tr
+            walletSendPassL .= ""
+            walletSendOutputsL .= Map.empty
+            addOutput
+          UiSendCommandFailure err -> do
+            walletSendResultL .= SendResultError err
+      _ ->
+        return ()
   _ ->
     return ()
 
