@@ -99,7 +99,7 @@ newtype AccountName = AccountName
 -- | Account index
 newtype HdAccountIx = HdAccountIx
     { unHdAccountIx :: Word31
-    } deriving (Eq, Show, Ord)
+    } deriving (Eq, Show, Ord, Bounded)
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
@@ -108,7 +108,7 @@ data HdAddressChain = HdChainExternal | HdChainInternal
 -- | Address index
 newtype HdAddressIx = HdAddressIx
     { unHdAddressIx :: Word31
-    } deriving (Eq, Show, Ord)
+    } deriving (Eq, Show, Ord, Bounded)
 
 -- | Wallet assurance level
 --
