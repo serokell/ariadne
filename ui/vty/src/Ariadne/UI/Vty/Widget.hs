@@ -113,6 +113,14 @@ data WidgetNamePart
   | WidgetNameWalletSendButton
 
   | WidgetNameAccount
+  | WidgetNameAccountName
+  | WidgetNameAccountRenameButton
+  | WidgetNameAccountSendAdd
+  | WidgetNameAccountSendAddress Int
+  | WidgetNameAccountSendAmount Int
+  | WidgetNameAccountSendRemove Int
+  | WidgetNameAccountSendPass
+  | WidgetNameAccountSendButton
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree
