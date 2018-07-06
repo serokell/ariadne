@@ -10,6 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * HD wallet types proper
   , HdWallets(..)
   , HdRootId(..)
+  , mkHdRootId
   , HdAccountId(..)
   , HdAddressChain(..)
   , HdAddressId(..)
@@ -64,12 +65,12 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
 
 import Universum
 
+import qualified Data.IxSet.Typed as IxSet hiding (toAscList)
+import qualified Data.Text.Buildable
+
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
-import qualified Data.IxSet.Typed as IxSet
 import Data.SafeCopy (base, deriveSafeCopySimple)
-
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
@@ -98,7 +99,7 @@ newtype AccountName = AccountName
 -- | Account index
 newtype HdAccountIx = HdAccountIx
     { unHdAccountIx :: Word31
-    } deriving (Eq, Show, Ord)
+    } deriving (Eq, Show, Ord, Bounded)
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
@@ -107,7 +108,7 @@ data HdAddressChain = HdChainExternal | HdChainInternal
 -- | Address index
 newtype HdAddressIx = HdAddressIx
     { unHdAddressIx :: Word31
-    } deriving (Eq, Show, Ord)
+    } deriving (Eq, Show, Ord, Bounded)
 
 -- | Wallet assurance level
 --
@@ -141,6 +142,9 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
 data HdRootId = HdRootId
     { unHdRootId :: InDb (Core.AddressHash Core.PublicKey)
     } deriving (Eq, Show, Ord)
+
+mkHdRootId :: Core.EncryptedSecretKey -> HdRootId
+mkHdRootId = HdRootId . InDb . Core.addressHash . Core.encToPublic
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
@@ -226,6 +230,10 @@ makeLenses ''HdAddressId
 makeLenses ''HdRoot
 makeLenses ''HdAccount
 makeLenses ''HdAddress
+makeLenses ''WalletName
+makeLenses ''AccountName
+makeLenses ''HdAccountIx
+makeLenses ''HdAddressIx
 
 deriveSafeCopySimple 1 'base ''HdRootId
 deriveSafeCopySimple 1 'base ''HdAccountId
@@ -247,6 +255,9 @@ hdAddressAccountId = hdAddressId . hdAddressIdParent
 
 hdAddressRootId :: Lens' HdAddress HdRootId
 hdAddressRootId = hdAddressAccountId . hdAccountIdParent
+
+hdAddressChain :: Lens' HdAddress HdAddressChain
+hdAddressChain = hdAddressId . hdAddressIdChain
 
 hdAccountCurrentCheckpoint :: Lens' HdAccount AccCheckpoint
 hdAccountCurrentCheckpoint = hdAccountCheckpoints . currentAccCheckpoint
@@ -428,8 +439,8 @@ zoomOrCreateHdRoot :: HdRoot
                    -> HdRootId
                    -> Update' HdRoot    e a
                    -> Update' HdWallets e a
-zoomOrCreateHdRoot newRoot rootId upd =
-    zoomCreate newRoot (hdWalletsRoots . at rootId) $ upd
+zoomOrCreateHdRoot newRoot rootId  =
+    zoomCreate newRoot (hdWalletsRoots . at rootId)
 
 -- | Variation on 'zoomHdAccountId' that creates the 'HdAccount' if it doesn't exist
 --

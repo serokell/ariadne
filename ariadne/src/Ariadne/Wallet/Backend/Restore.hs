@@ -8,29 +8,36 @@ module Ariadne.Wallet.Backend.Restore
 import Universum hiding (init)
 
 import Control.Exception (Exception(displayException))
-import Control.Lens (at, non)
+import Control.Lens (at, non, (?~))
+import Data.Acid (AcidState)
 import qualified Data.ByteString as BS
 import Data.List (init)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Vector as V
 
-import IiExtras
 import Loot.Crypto.Bip39 (mnemonicToSeed)
 import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)
-import Pos.Crypto.HD (deriveHDPassphrase)
-import Pos.Crypto.HDDiscovery (discoverHDAddress)
-import Pos.Crypto.Signing
-  (EncryptedSecretKey, encToPublic, safeDeterministicKeyGen)
+import Pos.Crypto (EncryptedSecretKey)
+import qualified Pos.Crypto as Crypto
+import Pos.Txp.Toil.Types (Utxo)
 import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
 import Pos.Util.UserSecret (usKeys0)
 
+import Ariadne.Cardano.Face
+import Ariadne.Wallet.Backend.AddressDiscovery
+  (AddressWithPathToUtxoMap, discoverHDAddressWithUtxo)
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
+import Ariadne.Wallet.Backend.Util (mkHasPass)
+import Ariadne.Wallet.Cardano.Kernel.Bip44
+  (Bip44DerivationPath(..), bip44PathToAddressId, decodeBip44DerivationPath)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Face
+import IiExtras
 
-
-data WrongMnemonic = WrongMnemonic Text
+newtype WrongMnemonic = WrongMnemonic Text
  deriving (Eq, Show)
 
 instance Exception WrongMnemonic where
@@ -46,14 +53,15 @@ instance Exception SecretsDecodingError where
 
 restoreWallet ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> PassPhrase
     -> Maybe WalletName
     -> Mnemonic
     -> WalletRestoreType
     -> IO ()
-restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
+restoreWallet acidDb face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
           lastWord <- NE.last <$> nonEmpty mnemonicWords
@@ -61,82 +69,109 @@ restoreWallet face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
     esk <- if
       | isAriadneMnemonic ->
           let seed = mnemonicToSeed (unwords $ init mnemonicWords) ""
-          in pure . snd $ safeDeterministicKeyGen seed pp
+          in pure . snd $ Crypto.safeDeterministicKeyGen seed pp
       | length mnemonicWords == 12 ->
           case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
-              Left e -> throwM $ WrongMnemonic e
+              Left e        -> throwM $ WrongMnemonic e
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
-    restoreFromSecretKey face runCardanoMode mbWalletName esk rType
+    hasPass <- mkHasPass runCardanoMode (pp == Crypto.emptyPassphrase)
+    restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance
+  where
+    -- TODO(AD-251): allow selecting assurance.
+    assurance = AssuranceLevelNormal
 
 restoreFromKeyFile ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> FilePath
     -> WalletRestoreType
     -> IO ()
-restoreFromKeyFile face runCardanoMode mbWalletName path rType = do
+restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
     keyFile <- BS.readFile path
     us <- case decodeFull' keyFile of
-      Left e -> throwM $ SecretsDecodingError path e
+      Left e   -> throwM $ SecretsDecodingError path e
       Right us -> pure us
     let templateName i (WalletName n) = WalletName $ n <> " " <> pretty i
     traverse_
-        (\(i,esk) -> restoreFromSecretKey face runCardanoMode (templateName i <$> mbWalletName) esk rType)
+        (\(i,esk) -> do
+            hasPass <-
+                mkHasPass runCardanoMode
+                    <$> isJust $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
+            restoreFromSecretKey
+                acidDb
+                face
+                runCardanoMode
+                (templateName i <$> mbWalletName)
+                esk
+                rType
+                hasPass
+                assurance)
         (zip [(0 :: Int)..] $ us ^. usKeys0)
+  where
+    -- TODO(AD-251): allow selecting assurance.
+    assurance = AssuranceLevelNormal
 
 restoreFromSecretKey ::
        HasConfiguration
-    => WalletFace
+    => AcidState DB
+    -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> EncryptedSecretKey
     -> WalletRestoreType
+    -> HasSpendingPassword
+    -> AssuranceLevel
     -> IO ()
-restoreFromSecretKey face runCardanoMode mbWalletName esk rType = do
-    accounts <- case rType of
+restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance = do
+    utxoByAccount <- case rType of
         WalletRestoreQuick -> pure mempty
-        WalletRestoreFull -> runCardanoMode $ findAccounts esk
-    addWallet face runCardanoMode esk mbWalletName accounts
+        WalletRestoreFull  -> runCardanoMode $ collectUtxo esk
+    addWallet acidDb face runCardanoMode esk mbWalletName utxoByAccount hasPass assurance
 
-findAccounts ::
+collectUtxo ::
        HasConfiguration
     => EncryptedSecretKey
-    -> CardanoMode (Vector AccountData)
-findAccounts esk = convertRes <$> discoverHDAddress (deriveHDPassphrase (encToPublic esk))
+    -> CardanoMode (Map HdAccountId PrefilteredUtxo)
+collectUtxo esk = do
+    m <- discoverHDAddressWithUtxo $ Crypto.deriveHDPassphrase $ Crypto.encToPublic esk
+    pure $ groupAddresses $ filterAddresses m
   where
-    convertRes :: [(Address, [Word32])] -> Vector AccountData
-    convertRes = convertGroups . groupAddresses . filterAddresses
+    toHdAddressId :: Bip44DerivationPath -> HdAddressId
+    toHdAddressId = bip44PathToAddressId rootId
+      where
+        rootId :: HdRootId
+        rootId = mkHdRootId esk
 
-    -- TODO: simply ignoring addresses which are not at the 2nd level
+    -- TODO: simply ignoring addresses which are not BIP-44 compliant
     -- is not perfect (though normal users shouldn't have addresses at
     -- different levels). We should probably at least show some
     -- message if we encounter such addresses. Let's do it after
     -- switching to modern wallet data layer.
-    filterAddresses :: [(Address, [Word32])] -> [(Address, (Word32, Word32))]
-    filterAddresses =
-        let twoIndices [α, β] = Just (α, β)
-            twoIndices _ = Nothing
-        in mapMaybe (\(addr, indices) -> (addr,) <$> twoIndices indices)
 
-    groupAddresses ::
-        [(Address, (Word32, Word32))] -> Map Word32 [(Word32, Address)]
+    filterAddresses :: AddressWithPathToUtxoMap -> PrefilteredUtxo
+    filterAddresses = Map.fromList . mapMaybe f . Map.toList
+      where
+        f ((derPath, addr), utxo) =
+            case decodeBip44DerivationPath derPath of
+                Nothing           -> Nothing
+                Just bip44DerPath -> Just ((toHdAddressId bip44DerPath, addr), utxo)
+
+    groupAddresses :: PrefilteredUtxo -> Map HdAccountId PrefilteredUtxo
     groupAddresses =
-        let step :: Map Word32 [(Word32, Address)] ->
-                    (Address, (Word32, Word32)) ->
-                    Map Word32 [(Word32, Address)]
-            step res (addr, (accIdx, addrIdx)) =
-                res & at accIdx . non mempty %~ ((addrIdx, addr):)
-        in foldl' step mempty
-
-    convertGroups :: Map Word32 [(Word32, Address)] -> Vector AccountData
-    convertGroups =
-        let toAccountData (accIdx, addrs) = AccountData
-              { _adName = "Restored account " <> pretty accIdx
-              , _adLastIndex = 0
-              , _adPath = accIdx
-              , _adAddresses = V.fromList addrs
-              }
-        in V.fromList . map toAccountData . Map.toList
+        -- See https://hackage.haskell.org/package/lens-3.10.1/docs/Control-Lens-Iso.html#v:non
+        -- or a comment in Ariadne.Wallet.Backend.AddressDiscovery.discoverHDAddressesWithUtxo
+        -- for an explanation of how this works.
+        let step :: Map HdAccountId PrefilteredUtxo ->
+                    (HdAddressId, Address) ->
+                    Utxo ->
+                    Map HdAccountId PrefilteredUtxo
+            step utxoByAccount addrWithId@(addressId, _) utxo =
+                utxoByAccount &
+                    at (addressId ^. hdAddressIdParent) .
+                    non mempty .
+                    at addrWithId ?~ utxo
+        in Map.foldlWithKey' step mempty

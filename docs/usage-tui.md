@@ -118,6 +118,9 @@ specify only the second argument:
 - Cardano addresses without quotes (`sxtitePxjp5dcfm1u8gWgDBGMCEZMhGa6kUPu8VHhqpCtBDPExrJTTCCUHKkyEJSgjb41JT5Tfh1QXb7uUpgjyBKMw`)
 - Task ids (`<1>`, see below)
 - File paths, either relative or absolute, without quotes (`./file.txt`, `/etc/file.txt`)
+- Hashes start with `#`
+  (`#af879787af97b77c8866c655ddd666a77765565bbf98989898989898`). For
+  example, wallet identifiers (denoted as `WalletId` below) are hashes.
 
 Let's first cover `Knit` commands that are not related to cryptocurrency. There are not many:
 
@@ -164,17 +167,17 @@ annotated with its arguments and their types. Optional arguments will be marked 
     length of the mnemonic. Default value is 16 bytes, leading to mnemonics of 13 words. Ariadne
     mnemonics follow [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) with
     an addition of one extra word as mentioned above.
-- `new-account wallet: String or Word name: String?`: create a new account in the specified or
-    the currently selected wallet. You can specify wallet either by its name or by its (zero-based)
+- `new-account wallet: WalletId or Word name: String?`: create a new account in the specified or
+    the currently selected wallet. You can specify wallet either by its ID or by its (zero-based)
     index in the wallet tree.
-- `new-address wallet: String or Word account: String or Word pass: String?`: create a new address,
+- `new-address wallet: WalletId or Word account: Word pass: String?`: create a new address,
     supplying a passphrase for wallet, if any. This command will use either the currently selected
     account or the one specified by `wallet` and `account` arguments. Once again, you can either use
-    names or indices of wallets and accounts.
-- `balance`: get balance of the currently selected wallet, account or address.
-- `select wallet: String or Word a: Word? a: Word?`: select an item. Specify a wallet by its name or
+    ID or index of wallet. Account is refered by its index in the wallet tree.
+- `balance`: get balance of the currently selected wallet or account.
+- `select wallet: WalletId or Word a: Word? a: Word?`: select an item. Specify a wallet by its ID or
     index and then, optionally, specify indices of an acccount in that wallet and address in that
-    account. Like this: `select "my wallet" 1 0` to select the first address in the second account.
+    account. Like this: `select 3 1 0` to select the first address in the second account.
 - `rename name: String`: give a new name to the currently selected wallet or account.
 - `remove`: remove currently selected wallet, account or address.
 - `restore pass: String? name: String? mnemonic: String full: Bool`: restore a wallet from mnemonic.

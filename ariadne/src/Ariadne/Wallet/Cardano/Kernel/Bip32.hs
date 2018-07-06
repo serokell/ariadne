@@ -1,7 +1,8 @@
 -- | Helpers to work with BIP-32 implementation in Cardano.
 
 module Ariadne.Wallet.Cardano.Kernel.Bip32
-       ( deriveHDSecretKeyByPath
+       ( DerivationPath
+       , deriveHDSecretKeyByPath
        , makePubKeyHdwAddressUsingPath
        ) where
 
@@ -15,13 +16,16 @@ import Pos.Crypto.HD
   packHDAddressAttr)
 import Pos.Crypto.Signing (EncryptedSecretKey, PassPhrase, PublicKey)
 
+-- TODO(AD-248): make it a newtype
+type DerivationPath = [Word32]
+
 -- | Like 'deriveHDSecretKey' from Cardano, but can derive not only
 -- direct descendant.
 deriveHDSecretKeyByPath
     :: ShouldCheckPassphrase
     -> PassPhrase
     -> EncryptedSecretKey
-    -> [Word32]
+    -> DerivationPath
     -> Maybe EncryptedSecretKey
 deriveHDSecretKeyByPath shouldCheck pp sk derPath =
     foldM
@@ -34,7 +38,7 @@ deriveHDSecretKeyByPath shouldCheck pp sk derPath =
 -- internally using derivation path and root public key.
 makePubKeyHdwAddressUsingPath ::
        IsBootstrapEraAddr
-    -> [Word32]
+    -> DerivationPath
     -> PublicKey `Named` "root" -> PublicKey `Named` "address" -> Address
 makePubKeyHdwAddressUsingPath era derPath (Named rootPK) (Named addrPK) =
     makePubKeyHdwAddress era hdPayload addrPK

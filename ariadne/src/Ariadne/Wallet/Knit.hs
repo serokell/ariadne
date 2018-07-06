@@ -1,35 +1,42 @@
 module Ariadne.Wallet.Knit where
 
-import Universum
+import Universum hiding (preview)
 
 import qualified Data.ByteArray as ByteArray
 
-import Control.Lens (makePrisms)
-import IiExtras
-import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
-import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
-import Pos.Crypto.Signing (emptyPassphrase)
+import Control.Lens hiding (parts, (<&>))
+import Formatting (sformat, (%))
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
+import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
+import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
+import Pos.Core (AddressHash)
+import Pos.Crypto (PassPhrase, PublicKey, decodeAbstractHash)
+import Pos.Crypto.Hashing (hashHexF, hashRaw, unsafeCheatingHashCoerce)
+import Pos.Crypto.Signing (emptyPassphrase)
+import Pos.Util.Util (toParsecError)
+import qualified Text.Megaparsec.Char as P
+
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Cardano.Orphans ()
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
+import IiExtras
 
 import Knit
 
 -- Component type for Knit
 data Wallet
 
-data instance
-     ComponentValue _
-       Wallet = ValueInputSelectionPolicy !InputSelectionPolicy
+type PAddressHash = AddressHash PublicKey
+
+data instance ComponentValue _ Wallet
+  = ValueInputSelectionPolicy !InputSelectionPolicy
+  | ValueAddressHash PAddressHash
+  deriving (Eq, Ord, Show)
 
 makePrisms 'ValueInputSelectionPolicy
-
-deriving instance Eq (ComponentValue components Wallet)
-deriving instance Ord (ComponentValue components Wallet)
-deriving instance Show (ComponentValue components Wallet)
 
 -- Name of input selection policy as used by Knit. We intentionally
 -- don't use `Show` or `Buidable` or whatever else, so that it won't
@@ -40,42 +47,53 @@ inputSelectionPolicyName =
         OptimizeForSecurity -> "security"
         OptimizeForHighThroughput -> "high-throughput"
 
-instance ComponentInflate components Wallet where
-    componentInflate = \case
-        ValueInputSelectionPolicy policy ->
-            let commandName = inputSelectionPolicyName policy
-            in ExprProcCall $ ProcCall commandName []
+instance
+  ( Elem components Wallet
+  ) => ComponentInflate components Wallet where
+  componentInflate = \case
+    ValueAddressHash ah -> ExprLit $ toLit (LitAddressHash ah)
+    ValueInputSelectionPolicy policy ->
+      let commandName = inputSelectionPolicyName policy
+      in ExprProcCall $ ProcCall commandName []
 
-data instance ComponentLit Wallet
+data instance ComponentLit Wallet =
+  LitAddressHash PAddressHash deriving (Eq, Ord, Show)
 
-deriving instance Eq (ComponentLit Wallet)
-deriving instance Ord (ComponentLit Wallet)
-deriving instance Show (ComponentLit Wallet)
+data instance ComponentToken Wallet =
+  TokenAddressHash PAddressHash deriving (Eq, Ord, Show)
 
-data instance ComponentToken Wallet
+makePrisms 'TokenAddressHash
 
-deriving instance Eq (ComponentToken Wallet)
-deriving instance Ord (ComponentToken Wallet)
-deriving instance Show (ComponentToken Wallet)
-
-instance ComponentTokenizer components Wallet where
-  componentTokenizer = []
+instance Elem components Wallet => ComponentTokenizer components Wallet where
+  componentTokenizer =
+    [ toToken . TokenAddressHash <$> pAddrHash ]
+    where
+      pAddrHash :: Tokenizer PAddressHash
+      pAddrHash = do
+        void $ P.string "#"
+        str <- pSomeAlphaNum
+        toParsecError $ decodeAbstractHash str
 
 instance ComponentDetokenizer Wallet where
-  componentTokenRender = \case{}
+  componentTokenRender = \case
+    TokenAddressHash h -> sformat ("#"%hashHexF) h
 
-instance ComponentLitGrammar components Wallet where
-  componentLitGrammar = rule empty
+instance Elem components Wallet => ComponentLitGrammar components Wallet where
+  componentLitGrammar = rule $ asum
+    [ toLit . LitAddressHash <$> tok (_Token . uprismElem . _TokenAddressHash) ]
 
 instance ComponentPrinter Wallet where
-  componentPpLit = \case{}
-  componentPpToken = \case{}
+  componentPpLit = \case
+    LitAddressHash x -> text (componentTokenRender (TokenAddressHash x))
+  componentPpToken = \case
+    TokenAddressHash _ -> "AddressHash"
 
 data instance ComponentCommandRepr components Wallet
   = CommandAction (WalletFace -> IO (Value components))
 
 instance ComponentLitToValue components Wallet where
-  componentLitToValue = \case{}
+  componentLitToValue = \case
+    LitAddressHash x -> ValueAddressHash x
 
 data instance ComponentExecContext _ _ Wallet =
   WalletExecCtx WalletFace
@@ -89,20 +107,27 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
   componentCommandProcs =
     [
       CommandProc
-        { cpName = refreshUserSecretCommandName
+        { cpName = refreshStateCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            walletRefreshUserSecret
+            walletRefreshState
             return $ toValue ValueUnit
         , cpHelp = "Internal function to update the UI."
         }
     , CommandProc
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = (,) <$> getAccountRefArgOpt <*> getPassPhraseArg
-        , cpRepr = \(accountRef, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAddress accountRef passphrase
+        , cpArgumentConsumer = do
+            accountRef <- getAccountRefArgOpt
+            chain <- getArgOpt tyBool "external" <&>
+              \case Nothing -> HdChainExternal
+                    Just True -> HdChainExternal
+                    Just False -> HdChainInternal
+            passphrase <- getPassPhraseArg
+            pure (accountRef, chain, passphrase)
+        , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
+            walletNewAddress accountRef chain passphrase
             return $ toValue ValueUnit
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
@@ -115,7 +140,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAccount walletRef name
+            walletNewAccount walletRef (AccountName <$> name)
             return $ toValue ValueUnit
         , cpHelp = "Create and add a new account to the specified wallet. When \
                    \no wallet is specified, uses the selected wallet."
@@ -257,8 +282,8 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
 -- Command names
 ----------------------------------------------------------------------------
 
-refreshUserSecretCommandName :: CommandId
-refreshUserSecretCommandName = "refresh-user-secret"
+refreshStateCommandName :: CommandId
+refreshStateCommandName = "refresh-wallet-state"
 
 newAddressCommandName :: CommandId
 newAddressCommandName = "new-address"
@@ -294,16 +319,19 @@ removeCommandName = "remove"
 -- Type projections
 ----------------------------------------------------------------------------
 
-tyWalletRef :: Elem components Core => TyProjection components WalletReference
+tyWalletRef
+  :: (Elem components Core, Elem components Wallet)
+  => TyProjection components WalletReference
 tyWalletRef =
-    either (WalletRefByName . WalletName) WalletRefByIndex <$>
-    tyString `tyEither` tyWord
+    either WalletRefByUIindex (WalletRefByHdRootId . HdRootId . InDb) <$>
+    tyWord `tyEither` tyAddressHash
+
+tyAddressHash :: Elem components Wallet => TyProjection components PAddressHash
+tyAddressHash = TyProjection "AddressHash" (preview _ValueAddressHash <=< fromValue)
 
 tyLocalAccountRef ::
        Elem components Core => TyProjection components LocalAccountReference
-tyLocalAccountRef =
-    either LocalAccountRefByName LocalAccountRefByIndex <$>
-    tyString `tyEither` tyWord
+tyLocalAccountRef = LocalAccountRefByIndex <$> tyWord
 
 tyInputSelectionPolicy ::
        Elem components Wallet => TyProjection components InputSelectionPolicy
@@ -320,30 +348,27 @@ tyInputSelectionPolicy =
 -- always "wallet", we can move it outside if it appears to be
 -- necessary.
 getWalletRefArgOpt ::
-       Elem components Core => ArgumentConsumer components WalletReference
+       (Elem components Core, Elem components Wallet) => ArgumentConsumer components WalletReference
 getWalletRefArgOpt =
     fromMaybe WalletRefSelection <$> getArgOpt tyWalletRef "wallet"
 
 getWalletRefArg ::
-       Elem components Core => ArgumentConsumer components WalletReference
+       (Elem components Core, Elem components Wallet) => ArgumentConsumer components WalletReference
 getWalletRefArg = getArg tyWalletRef "wallet"
 
 -- Maybe "account" shouldn't be hardcoded here, but currently it's
 -- always "account", we can move it outside if it appears to be
 -- necessary.
 getAccountRefArgOpt ::
-       Elem components Core => ArgumentConsumer components AccountReference
+       (Elem components Core, Elem components Wallet) => ArgumentConsumer components AccountReference
 getAccountRefArgOpt =
     convert <$> getWalletRefArgOpt <*>
-    getArgOpt (tyString `tyEither` tyWord32) "account"
+    getArgOpt tyWord "account"
   where
-    convert :: WalletReference -> Maybe (Either Text Word32) -> AccountReference
+    convert :: WalletReference -> Maybe Word -> AccountReference
     convert walletRef = \case
         Nothing -> AccountRefSelection
-        Just e -> (either
-            (flip AccountRefByName walletRef)
-            (flip AccountRefByIndex walletRef)
-                  ) e
+        Just e -> AccountRefByUIindex e walletRef
 
 mkPassPhrase :: Maybe Text -> PassPhrase
 mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)
