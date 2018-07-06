@@ -99,28 +99,25 @@ data WidgetNamePart
   | WidgetNameAddWalletRestoreFull
   | WidgetNameAddWalletRestoreButton
 
+  | WidgetNameSendAdd
+  | WidgetNameSendAddress Int
+  | WidgetNameSendAmount Int
+  | WidgetNameSendRemove Int
+  | WidgetNameSendPass
+  | WidgetNameSendButton
+
   | WidgetNameWallet
   | WidgetNameWalletName
   | WidgetNameWalletRenameButton
   | WidgetNameWalletAccountList
   | WidgetNameWalletNewAccountName
   | WidgetNameWalletNewAccountButton
-  | WidgetNameWalletSendAdd
-  | WidgetNameWalletSendAddress Int
-  | WidgetNameWalletSendAmount Int
-  | WidgetNameWalletSendRemove Int
-  | WidgetNameWalletSendPass
-  | WidgetNameWalletSendButton
+  | WidgetNameWalletSend
 
   | WidgetNameAccount
   | WidgetNameAccountName
   | WidgetNameAccountRenameButton
-  | WidgetNameAccountSendAdd
-  | WidgetNameAccountSendAddress Int
-  | WidgetNameAccountSendAmount Int
-  | WidgetNameAccountSendRemove Int
-  | WidgetNameAccountSendPass
-  | WidgetNameAccountSendButton
+  | WidgetNameAccountSend
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree

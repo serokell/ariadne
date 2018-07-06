@@ -4,13 +4,10 @@ module Ariadne.UI.Vty.Widget.Wallet
 
 import Universum
 
-import Control.Lens (assign, at, ix, lens, makeLensesWith, uses, (%=), (.=), (<<+=))
-import Data.Map (Map)
-import Data.Maybe (fromJust)
+import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import IiExtras
 
 import qualified Brick as B
-import qualified Data.Map as Map
 import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
@@ -18,6 +15,7 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.UI.Vty.Widget.Form.List
+import Ariadne.UI.Vty.Widget.Form.Send
 
 ----------------------------------------------------------------------------
 -- Model
@@ -28,12 +26,6 @@ data WalletAccount =
     { walletAccountIdx :: !Word32
     , walletAccountName :: !Text
     , walletAccountSelected :: Bool
-    }
-
-data WalletSendOutput = 
-  WalletSendOutput
-    { walletSendAddress :: !Text
-    , walletSendAmount :: !Text
     }
 
 data WalletWidgetState =
@@ -47,11 +39,6 @@ data WalletWidgetState =
     , walletAccounts :: ![WalletAccount]
     , walletNewAccountName :: !Text
     , walletNewAccountResult :: !NewAccountResult
-
-    , walletSendOutputs :: !(Map Int WalletSendOutput)
-    , walletSendNextOutput :: !Int
-    , walletSendPass :: !Text
-    , walletSendResult :: !SendResult
     }
 
 data RenameResult
@@ -72,14 +59,7 @@ data NewAccountResult
   | NewAccountResultError !Text
   | NewAccountResultSuccess
 
-data SendResult
-  = SendResultNone
-  | SendResultWaiting !UiCommandId
-  | SendResultError !Text
-  | SendResultSuccess !Text  -- ^ Transaction ID
-
 makeLensesWith postfixLFields ''WalletAccount
-makeLensesWith postfixLFields ''WalletSendOutput
 makeLensesWith postfixLFields ''WalletWidgetState
 
 initWalletWidget :: UiLangFace -> Widget p
@@ -98,11 +78,6 @@ initWalletWidget langFace =
       , walletAccounts = []
       , walletNewAccountName = ""
       , walletNewAccountResult = NewAccountResultNone
-
-      , walletSendOutputs = Map.empty
-      , walletSendNextOutput = 0
-      , walletSendPass = ""
-      , walletSendResult = SendResultNone
       }
 
     addWidgetChild WidgetNameWalletName $
@@ -127,22 +102,19 @@ initWalletWidget langFace =
       WidgetEventButtonPressed -> performNewAccount
       _ -> return ()
 
-    withWidgetState addOutput
-    addWidgetChild WidgetNameWalletSendAdd $
-      initButtonWidget "+"
-    addWidgetChild WidgetNameWalletSendPass $
-      initPasswordWidget $ widgetParentLens walletSendPassL
-    addWidgetChild WidgetNameWalletSendButton $
-      initButtonWidget "Send"
+    addWidgetChild WidgetNameWalletSend $
+      initSendWidget langFace $
+        Just $ widgetParentGetter
+        (\WalletWidgetState{..} -> map walletAccountIdx $ filter walletAccountSelected $ walletAccounts)
 
-    addWidgetEventHandler WidgetNameWalletSendAdd $ \case
-      WidgetEventButtonPressed -> addOutput
-      _ -> return ()
-    addWidgetEventHandler WidgetNameWalletSendButton $ \case
-      WidgetEventButtonPressed -> performSendTransaction
-      _ -> return ()
-
-    withWidgetState updateFocusList
+    setWidgetFocusList
+      [ WidgetNameWalletName
+      , WidgetNameWalletRenameButton
+      , WidgetNameWalletAccountList
+      , WidgetNameWalletNewAccountName
+      , WidgetNameWalletNewAccountButton
+      , WidgetNameWalletSend
+      ]
 
 ----------------------------------------------------------------------------
 -- View
@@ -163,30 +135,12 @@ drawWalletWidget focus WalletWidgetState{..} = do
     padBottom = B.padBottom (B.Pad 1)
     padLeft = B.padLeft (B.Pad 1)
     fillLeft w = T.takeEnd w . (T.append $ T.replicate w " ")
-    fillRight w = T.take w . (flip T.append $ T.replicate w " ")
 
-    labelWidth = 14
-    amountWidth = 15
+    labelWidth = 16
 
     visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
     drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
-
-    drawOutputsHeader = B.hBox
-      [ label ""
-      , B.padRight B.Max $ B.txt "Address"
-      , padLeft $ B.txt $ fillRight amountWidth $ "Amount, ADA"
-      , padLeft $ B.txt "     "
-      ]
-    drawOutput idx = B.hBox
-      [ label ""
-      , drawChild $ WidgetNameWalletSendAddress idx
-      , padLeft $ B.hLimit amountWidth $ drawChild $ WidgetNameWalletSendAmount idx
-      , padLeft $ drawChild $ WidgetNameWalletSendRemove idx
-      ]
-    drawOutputsFooter = B.hBox
-      [ B.padLeft B.Max $ drawChild WidgetNameWalletSendAdd
-      ]
 
   return $
     B.viewport widgetName B.Vertical $
@@ -211,7 +165,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
         [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
         ]
       ) ++
-      [ label "New account:"
+      [ padBottom $ label "New account:"
           B.<+> drawChild WidgetNameWalletNewAccountName
           B.<+> padLeft (drawChild WidgetNameWalletNewAccountButton)
       , case walletNewAccountResult of
@@ -220,18 +174,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
           NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
           NewAccountResultSuccess -> B.emptyWidget
 
-      , B.txt "Send transaction"
-      , B.vBox $
-          [drawOutputsHeader] ++
-          (drawOutput <$> Map.keys walletSendOutputs) ++
-          [drawOutputsFooter]
-      , label "Passphrase:" B.<+> drawChild WidgetNameWalletSendPass
-      , label "" B.<+> drawChild WidgetNameWalletSendButton
-      , case walletSendResult of
-          SendResultNone -> B.emptyWidget
-          SendResultWaiting _ -> B.txt "Sending..."
-          SendResultError err -> B.txt $ "Couldn't send a transaction: " <> err
-          SendResultSuccess tr -> B.txt $ "Transaction sent: " <> tr
+      , drawChild WidgetNameWalletSend
       ]
 
 ----------------------------------------------------------------------------
@@ -281,47 +224,12 @@ handleWalletWidgetEvent = \case
             walletNewAccountResultL .= NewAccountResultError err
       _ ->
         return ()
-  UiCommandResult commandId (UiSendCommandResult result) -> do
-    use walletSendResultL >>= \case
-      SendResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiSendCommandSuccess tr -> do
-            walletSendResultL .= SendResultSuccess tr
-            walletSendPassL .= ""
-            walletSendOutputsL .= Map.empty
-            addOutput
-          UiSendCommandFailure err -> do
-            walletSendResultL .= SendResultError err
-      _ ->
-        return ()
   _ ->
     return ()
 
 ----------------------------------------------------------------------------
 -- Actions
 ----------------------------------------------------------------------------
-
-updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
-updateFocusList = do
-    outputs <- uses walletSendOutputsL Map.keys
-    lift $ setWidgetFocusList $
-      [ WidgetNameWalletName
-      , WidgetNameWalletRenameButton
-      , WidgetNameWalletAccountList
-      , WidgetNameWalletNewAccountName
-      , WidgetNameWalletNewAccountButton
-      ] ++
-      concat (outputFocuses <$> outputs) ++
-      [ WidgetNameWalletSendAdd
-      , WidgetNameWalletSendPass
-      , WidgetNameWalletSendButton
-      ]
-  where
-    outputFocuses idx =
-      [ WidgetNameWalletSendAddress idx
-      , WidgetNameWalletSendAmount idx
-      , WidgetNameWalletSendRemove idx
-      ]
 
 performRename :: WidgetEventM WalletWidgetState p ()
 performRename = do
@@ -344,44 +252,3 @@ performNewAccount = do
     NewAccountResultWaiting _ -> return ()
     _ -> liftIO (langPutUiCommand $ UiNewAccount name) >>=
       assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting
-
-addOutput :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
-addOutput = do
-  idx <- walletSendNextOutputL <<+= 1
-  walletSendOutputsL %= Map.insert idx (WalletSendOutput "" "")
-  updateFocusList
-
-  lift $ do
-    addWidgetChild (WidgetNameWalletSendAddress idx) $
-      initEditWidget $ widgetParentLens $ walletSendOutputsL . at idx . unsafeFromJust . walletSendAddressL
-    addWidgetChild (WidgetNameWalletSendAmount idx) $
-      initEditWidget $ widgetParentLens $ walletSendOutputsL . at idx . unsafeFromJust . walletSendAmountL
-    addWidgetChild (WidgetNameWalletSendRemove idx) $
-      initButtonWidget "-"
-    addWidgetEventHandler (WidgetNameWalletSendRemove idx) $ \case
-      WidgetEventButtonPressed -> removeOutput idx
-      _ -> return ()
-
-removeOutput :: Int -> WidgetEventM WalletWidgetState p ()
-removeOutput idx = do
-  remaining <- uses walletSendOutputsL Map.size
-  when (remaining > 1) $ do
-    walletSendOutputsL %= Map.delete idx
-    updateFocusList
-
-performSendTransaction :: WidgetEventM WalletWidgetState p ()
-performSendTransaction = do
-  UiLangFace{..} <- use walletLangFaceL
-  accounts <- map walletAccountIdx <$> filter walletAccountSelected <$> use walletAccountsL
-  outputs <- fmap (\WalletSendOutput{..} -> (walletSendAddress, walletSendAmount)) <$> uses walletSendOutputsL Map.elems
-  passphrase <- use walletSendPassL
-  use walletSendResultL >>= \case
-    SendResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiSend accounts outputs passphrase) >>=
-      assign walletSendResultL . either SendResultError SendResultWaiting
-
-unsafeFromJust :: Lens' (Maybe a) a
-unsafeFromJust = lens fromJust setJust
-  where
-    setJust (Just _) b = Just b
-    setJust Nothing  _ = error "setJust: Nothing"
