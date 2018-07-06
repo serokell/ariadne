@@ -68,7 +68,7 @@ type WalletKey = (WalletId, HDPassphrase)
 
 toPrefilteredUtxo :: UtxoWithAddrId -> PrefilteredUtxo
 toPrefilteredUtxo utxoWithAddrs =
-    mapValues Map.fromList $ groupBy key value utxoWithAddrs
+    Map.map Map.fromList $ groupBy key value utxoWithAddrs
   where
     key :: (TxIn, (TxOutAux, HdAddressId)) -> AddrWithId
     key (_, (txOutAux, addrId)) = (addrId, txOutAddress . toaOut $ txOutAux)
@@ -83,10 +83,6 @@ toPrefilteredUtxo utxoWithAddrs =
         -> Map k2 [v2]
     groupBy getKey getValue =
       Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
-
-    -- TODO: Is there a more efficient way to do this?
-    mapValues :: Ord k => (v1 -> v2) -> Map k v1 -> Map k v2
-    mapValues f = Map.fromList . map (\(k, v) -> (k, f v)) . Map.toList
 
 -- | Prefilter the transactions of a resolved block for the given wallet.
 --
