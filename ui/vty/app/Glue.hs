@@ -147,6 +147,11 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
             (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
+      UiRename name -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.renameCommandName $
+            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+          )
 
     resultToUI result = \case
       UiBalance{} ->
@@ -169,6 +174,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result
       UiRestoreWallet{} ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
+          fromResult result
+      UiRename{} ->
+        Just . UiRenameCommandResult . either UiRenameCommandFailure (const UiRenameCommandSuccess) $
           fromResult result
       _ -> Nothing
 

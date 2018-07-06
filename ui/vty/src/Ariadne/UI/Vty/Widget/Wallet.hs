@@ -41,6 +41,7 @@ data WalletWidgetState =
     { walletLangFace :: !UiLangFace
 
     , walletName :: !Text
+    , walletRenameResult :: !RenameResult
     , walletBalance :: !BalanceResult
 
     , walletAccounts :: ![WalletAccount]
@@ -52,6 +53,12 @@ data WalletWidgetState =
     , walletSendPass :: !Text
     , walletSendResult :: !SendResult
     }
+
+data RenameResult
+  = RenameResultNone
+  | RenameResultWaiting !UiCommandId
+  | RenameResultError !Text
+  | RenameResultSuccess
 
 data BalanceResult
   = BalanceResultNone
@@ -85,6 +92,7 @@ initWalletWidget langFace =
       { walletLangFace = langFace
 
       , walletName = ""
+      , walletRenameResult = RenameResultNone
       , walletBalance = BalanceResultNone
 
       , walletAccounts = []
@@ -96,6 +104,14 @@ initWalletWidget langFace =
       , walletSendPass = ""
       , walletSendResult = SendResultNone
       }
+
+    addWidgetChild WidgetNameWalletName $
+      initEditWidget $ widgetParentLens walletNameL
+    addWidgetChild WidgetNameWalletRenameButton $
+      initButtonWidget "Rename"
+    addWidgetEventHandler WidgetNameWalletRenameButton $ \case
+      WidgetEventButtonPressed -> performRename
+      _ -> return ()
 
     addWidgetChild WidgetNameWalletAccountList $
       initListWidget (widgetParentGetter walletAccounts) drawAccountRow
@@ -177,7 +193,14 @@ drawWalletWidget focus WalletWidgetState{..} = do
     B.padAll 1 $
     B.vBox $
     padBottom <$>
-      [ label "Wallet name:" B.<+> B.txt walletName
+      [ label "Wallet name:"
+          B.<+> drawChild WidgetNameWalletName
+          B.<+> padLeft (drawChild WidgetNameWalletRenameButton)
+      , case walletRenameResult of
+          RenameResultNone -> B.emptyWidget
+          RenameResultWaiting _ -> B.txt "Renaming..."
+          RenameResultError err -> B.txt $ "Couldn't rename a wallet: " <> err
+          RenameResultSuccess -> B.emptyWidget
       , label "Balance:" B.<+> case walletBalance of
           BalanceResultNone -> B.emptyWidget
           BalanceResultWaiting _ -> B.txt "calculating..."
@@ -233,6 +256,13 @@ handleWalletWidgetEvent = \case
         liftIO (langPutUiCommand UiBalance) >>=
           assign walletBalanceL . either BalanceResultError BalanceResultWaiting
       _ -> return ()
+  UiCommandResult commandId (UiRenameCommandResult result) -> do
+    walletRenameResultL %= \case
+      RenameResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiRenameCommandSuccess -> RenameResultSuccess
+          UiRenameCommandFailure err -> RenameResultError err
+      other -> other
   UiCommandResult commandId (UiBalanceCommandResult result) -> do
     walletBalanceL %= \case
       BalanceResultWaiting commandId' | commandId == commandId' ->
@@ -275,7 +305,9 @@ updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo Walle
 updateFocusList = do
     outputs <- uses walletSendOutputsL Map.keys
     lift $ setWidgetFocusList $
-      [ WidgetNameWalletAccountList
+      [ WidgetNameWalletName
+      , WidgetNameWalletRenameButton
+      , WidgetNameWalletAccountList
       , WidgetNameWalletNewAccountName
       , WidgetNameWalletNewAccountButton
       ] ++
@@ -290,6 +322,15 @@ updateFocusList = do
       , WidgetNameWalletSendAmount idx
       , WidgetNameWalletSendRemove idx
       ]
+
+performRename :: WidgetEventM WalletWidgetState p ()
+performRename = do
+  UiLangFace{..} <- use walletLangFaceL
+  name <- use walletNameL
+  use walletRenameResultL >>= \case
+    RenameResultWaiting _ -> return ()
+    _ -> liftIO (langPutUiCommand $ UiRename name) >>=
+      assign walletRenameResultL . either RenameResultError RenameResultWaiting
 
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
 toggleAccount idx = do
