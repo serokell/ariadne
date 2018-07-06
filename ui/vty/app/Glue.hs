@@ -133,6 +133,11 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
             (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
+      UiNewAccount name -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newAccountCommandName $
+            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+          )
       UiRestoreWallet name mnemonic passphrase full -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
@@ -159,6 +164,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
             _ -> Left "Unrecognized return value"
+      UiNewAccount{} ->
+        Just . UiNewAccountCommandResult . either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
+          fromResult result
       UiRestoreWallet{} ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
           fromResult result

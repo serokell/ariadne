@@ -101,6 +101,8 @@ data WidgetNamePart
 
   | WidgetNameWallet
   | WidgetNameWalletAccountList
+  | WidgetNameWalletNewAccountName
+  | WidgetNameWalletNewAccountButton
   | WidgetNameWalletSendAdd
   | WidgetNameWalletSendAddress Int
   | WidgetNameWalletSendAmount Int

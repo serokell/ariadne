@@ -44,6 +44,8 @@ data WalletWidgetState =
     , walletBalance :: !BalanceResult
 
     , walletAccounts :: ![WalletAccount]
+    , walletNewAccountName :: !Text
+    , walletNewAccountResult :: !NewAccountResult
 
     , walletSendOutputs :: !(Map Int WalletSendOutput)
     , walletSendNextOutput :: !Int
@@ -56,6 +58,12 @@ data BalanceResult
   | BalanceResultWaiting !UiCommandId
   | BalanceResultError !Text
   | BalanceResultSuccess !Text  -- ^ Balance
+
+data NewAccountResult
+  = NewAccountResultNone
+  | NewAccountResultWaiting !UiCommandId
+  | NewAccountResultError !Text
+  | NewAccountResultSuccess
 
 data SendResult
   = SendResultNone
@@ -80,6 +88,8 @@ initWalletWidget langFace =
       , walletBalance = BalanceResultNone
 
       , walletAccounts = []
+      , walletNewAccountName = ""
+      , walletNewAccountResult = NewAccountResultNone
 
       , walletSendOutputs = Map.empty
       , walletSendNextOutput = 0
@@ -91,6 +101,14 @@ initWalletWidget langFace =
       initListWidget (widgetParentGetter walletAccounts) drawAccountRow
     addWidgetEventHandler WidgetNameWalletAccountList $ \case
       WidgetEventListSelected idx -> toggleAccount idx
+      _ -> return ()
+
+    addWidgetChild WidgetNameWalletNewAccountName $
+      initEditWidget $ widgetParentLens walletNewAccountNameL
+    addWidgetChild WidgetNameWalletNewAccountButton $
+      initButtonWidget "Create"
+    addWidgetEventHandler WidgetNameWalletNewAccountButton $ \case
+      WidgetEventButtonPressed -> performNewAccount
       _ -> return ()
 
     withWidgetState addOutput
@@ -165,7 +183,19 @@ drawWalletWidget focus WalletWidgetState{..} = do
           BalanceResultWaiting _ -> B.txt "calculating..."
           BalanceResultError err -> B.txt err
           BalanceResultSuccess balance -> B.txt balance
-      , label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
+      ] ++
+      (if null walletAccounts then [] else
+        [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
+        ]
+      ) ++
+      [ label "New account:"
+          B.<+> drawChild WidgetNameWalletNewAccountName
+          B.<+> padLeft (drawChild WidgetNameWalletNewAccountButton)
+      , case walletNewAccountResult of
+          NewAccountResultNone -> B.emptyWidget
+          NewAccountResultWaiting _ -> B.txt "Creating..."
+          NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
+          NewAccountResultSuccess -> B.emptyWidget
 
       , B.txt "Send transaction"
       , B.vBox $
@@ -210,6 +240,17 @@ handleWalletWidgetEvent = \case
           UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
+  UiCommandResult commandId (UiNewAccountCommandResult result) -> do
+    use walletNewAccountResultL >>= \case
+      NewAccountResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiNewAccountCommandSuccess -> do
+            walletNewAccountResultL .= NewAccountResultSuccess
+            walletNewAccountNameL .= ""
+          UiNewAccountCommandFailure err -> do
+            walletNewAccountResultL .= NewAccountResultError err
+      _ ->
+        return ()
   UiCommandResult commandId (UiSendCommandResult result) -> do
     use walletSendResultL >>= \case
       SendResultWaiting commandId' | commandId == commandId' ->
@@ -235,6 +276,8 @@ updateFocusList = do
     outputs <- uses walletSendOutputsL Map.keys
     lift $ setWidgetFocusList $
       [ WidgetNameWalletAccountList
+      , WidgetNameWalletNewAccountName
+      , WidgetNameWalletNewAccountButton
       ] ++
       concat (outputFocuses <$> outputs) ++
       [ WidgetNameWalletSendAdd
@@ -251,6 +294,15 @@ updateFocusList = do
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
 toggleAccount idx = do
   walletAccountsL . ix idx . walletAccountSelectedL %= not
+
+performNewAccount :: WidgetEventM WalletWidgetState p ()
+performNewAccount = do
+  UiLangFace{..} <- use walletLangFaceL
+  name <- use walletNewAccountNameL
+  use walletNewAccountResultL >>= \case
+    NewAccountResultWaiting _ -> return ()
+    _ -> liftIO (langPutUiCommand $ UiNewAccount name) >>=
+      assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting
 
 addOutput :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
 addOutput = do
