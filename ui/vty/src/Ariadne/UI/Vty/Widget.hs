@@ -67,6 +67,13 @@ import Ariadne.UI.Vty.Scrolling
 -- Types and instances
 ----------------------------------------------------------------------------
 
+-- | Component of a unique widget name
+--
+-- Each widget has its child widgets indexed by this name component.
+-- Widget's unique name is constructed as a list of these components,
+-- corresponding to its location in widget tree.
+--
+-- Should be made into a union of widget-local name types.
 data WidgetNamePart
   = WidgetNameSelf  -- Special name for adding widget itself to focus list
 
@@ -99,28 +106,51 @@ data WidgetNamePart
   | WidgetNameAccount
   deriving (Eq, Ord, Show)
 
+-- | Unique widget name, describing its location in widget tree
+type WidgetName = [WidgetNamePart]
+
+-- | Events child widget can send back to parent widget
+--
+-- Should also be a union type of widget-local event types
 data WidgetEvent
   = WidgetEventMenuSelected
   | WidgetEventButtonPressed
   | WidgetEventEditChanged
 
-type WidgetName = [WidgetNamePart]
-
+-- | Result of handling a UI event
+--
+-- Each UI event is sent to the deepest focused widget possible.
+-- If its handler returns @WidgetEventNotHandled@, the event "bubbles" up
+-- through the widget hierarchy and is fed to parent widget's event handler.
 data WidgetEventResult
   = WidgetEventHandled
   | WidgetEventNotHandled
 
+-- | Base widget type
+--
+-- Contains local widget state @s@, child widgets, drawing routines and event handlers.
+-- It is parametrized by parent's @WidgetInfo@ type to allow access to its state
+-- through lenses, and also its event queue for child→parent communication via @WidgetEvent@s.
 data WidgetInfo s p = WidgetInfo
   { widgetName :: !WidgetName
-  , widgetState :: s  -- Lazy, because can be undefined for stateless widgets
+  , widgetState :: s
+  -- ^ Lazy, because can be undefined for stateless widgets
   , widgetChildren :: !(Map WidgetNamePart (Widget (WidgetInfo s p)))
   , widgetFocusList :: ![WidgetNamePart]
   , widgetEventHandlers :: !(Map WidgetNamePart (WidgetEvent -> WidgetEventM s p ()))
+  -- ^ Should be refactored into a dependent-map, for something like this:
+  -- @Map (e, WidgetNamePart) -> (e -> m ())@
   , widgetEventQueue :: ![(WidgetNamePart, WidgetEvent)]
+  -- ^ List of events received from child widgets, is traversed after child event handlers complete
   , widgetEventSend :: !(WidgetEvent -> WidgetEventM s p ())
+  -- ^ Send event to parent widget's queue
   , widgetDraw :: !(s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocused :: !(Bool -> s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocus :: !(WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName))
+  -- ^ These three routines are just three variants of one routine.
+  -- They differ only in a way current focus is handled.
+  -- A widget should normally implement only one of them,
+  -- as default implementations of others dispatch call automatically.
   , widgetHandleEditKey :: !(KeyboardEditEvent -> WidgetEventM s p WidgetEventResult)
   , widgetHandleKey :: !(KeyboardEvent -> WidgetEventM s p WidgetEventResult)
   , widgetHandlePaste :: !(Text -> WidgetEventM s p WidgetEventResult)
@@ -132,15 +162,35 @@ data WidgetInfo s p = WidgetInfo
 instance B.Named (WidgetInfo s p) WidgetName where
   getName = widgetName
 
+-- | Opaque widget
+--
+-- Parametrized by parent @WidgetInfo@ with existential widget state.
+-- This allows parent to store all children in one map for easy UI event propagation.
 data Widget p = forall s. Widget (WidgetInfo s p)
 
 instance B.Named (Widget p) WidgetName where
   getName (Widget WidgetInfo{..}) = widgetName
 
+-- | Widget initalization monad
+--
+-- Allows defining only needed parts of @WidgetInfo@.
+-- Should probably give access to parent widget too, but it will require changing @initWidget@ flow.
 type WidgetInitM s p = State (WidgetInfo s p) ()
 
+-- | Widget rendering monad
+--
+-- Reader monad is used, because Brick doesn't allow changing app state during rendering.
+-- Local widget state @s@ is passed as a parameter to drawing routine
+-- to allow more convenient utilizing of @RecordWildcards@.
 type WidgetDrawM s p a = ReaderT (WidgetInfo s p) (Reader p) a
 
+-- | Widget event handler monad
+--
+-- Allows access to:
+-- * @s@: widget-local state, lenses just work
+-- * @WidgetInfo s p@: widget itself
+-- * @p@: parent widget via lenses and @widgetEvent@
+-- * @B.EventM@: Brick event handling environment
 type WidgetEventM s p a = StateT s (StateT (WidgetInfo s p) (StateT p (B.EventM WidgetName))) a
 
 makeLensesWith postfixLFields ''WidgetInfo
@@ -149,6 +199,8 @@ makeLensesWith postfixLFields ''WidgetInfo
 -- Widget initialization
 ----------------------------------------------------------------------------
 
+-- | Creates an empty widget with default implementations of all routines
+-- and runs supplied constructor on it, returning opaque initialized widget
 initWidget :: WidgetInitM s p -> Widget p
 initWidget action =
   Widget $ execState action WidgetInfo
@@ -178,6 +230,10 @@ initWidget action =
 setWidgetState :: s -> WidgetInitM s p
 setWidgetState = assign widgetStateL
 
+-- | Adds an opaque child to current widget
+--
+-- As child is created before parent (which will probably be changed at some point),
+-- the child has to be renamed to include path to parent.
 addWidgetChild :: WidgetNamePart -> Widget (WidgetInfo s p) -> WidgetInitM s p
 addWidgetChild namePart (Widget child) = do
     let child' = child{ widgetEventSend = \event -> lift . lift $ widgetEventQueueL %= ((namePart, event):) }
@@ -206,6 +262,7 @@ setWidgetDrawWithFocused = assign widgetDrawWithFocusedL
 setWidgetDrawWithFocus :: MonadState (WidgetInfo s p) m => (WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName)) -> m ()
 setWidgetDrawWithFocus = assign widgetDrawWithFocusL
 
+-- | Sets a default scroll handler, which fits for most widgets
 setWidgetScrollable :: MonadState (WidgetInfo s p) m => m ()
 setWidgetScrollable = assign widgetHandleScrollL $ \action -> do
   name <- lift $ use widgetNameL
@@ -237,6 +294,11 @@ setWidgetHandleEvent = assign widgetHandleEventL
 getWidgetName :: WidgetDrawM s p WidgetName
 getWidgetName = view widgetNameL
 
+-- | Collects focus list from all widget hierarchy to create a global focus ring
+--
+-- Normally widgets either don't have focus list and are only focused themselves,
+-- or include only children in their focus list, but a special value @WidgetNameSelf@
+-- can be used to allow focusing the widget itself along with its children
 getFocusRing :: Widget p -> B.FocusRing WidgetName
 getFocusRing = B.focusRing . collectFocuses
   where
@@ -249,6 +311,10 @@ getFocusRing = B.focusRing . collectFocuses
         childFocuses WidgetNameSelf = Just [widgetName]
         childFocuses namePart = collectFocuses <$> Map.lookup namePart widgetChildren
 
+-- | Used to properly set focus, when it is being reset by mouse click or screen change
+--
+-- Goes up along the given path to find closest parent with focus list,
+-- then goes down from there to find the first focusable child.
 findClosestFocus :: WidgetName -> Widget p -> WidgetName
 findClosestFocus [] (Widget WidgetInfo{..})
     | n:_ <- catMaybes $ findInChild <$> widgetFocusList = n
@@ -263,6 +329,8 @@ findClosestFocus (np:nps) widget@(Widget WidgetInfo{..})
 liftBrick :: B.EventM WidgetName a -> WidgetEventM s p a
 liftBrick = lift . lift . lift
 
+-- | As a widget is parametrized by parent widget, not parent state,
+-- we have to convert getters and lenses
 widgetParentGetter :: (p -> a) -> (WidgetInfo p q -> a)
 widgetParentGetter f = view $ widgetStateL . to f
 
@@ -278,6 +346,7 @@ useWidgetLens = lift . lift . use . runLens
 assignWidgetLens :: ReifiedLens' p a -> a -> WidgetEventM s p ()
 assignWidgetLens (Lens l) = lift . lift . assign l
 
+-- | Send event from child widget to parent
 widgetEvent :: WidgetEvent -> WidgetEventM s p ()
 widgetEvent event = do
   WidgetInfo{..} <- lift get
@@ -345,6 +414,7 @@ handleWidgetEvent event = do
 -- Event handling helpers
 ----------------------------------------------------------------------------
 
+-- | Broadcasts an event to all widgets in the widget tree
 handleAll
   :: WidgetInfo s p
   -> WidgetEventM s p ()
@@ -354,6 +424,8 @@ handleAll widget@WidgetInfo{..} widgetHandler childHandler = do
   (widgetChildren', widget') <- lift . lift $ runStateT (mapM (execStateT childHandler) widgetChildren) widget
   withWidget widget'{ widgetChildren = widgetChildren' } widgetHandler
 
+-- | Finds a widget by name in the widget tree, calls its event handler
+-- If event is not successfully handled, calls its parent's event handler, and so on.
 handleByName
   :: WidgetInfo s p
   -> WidgetName
@@ -372,6 +444,7 @@ handleByName widget@WidgetInfo{..} name widgetHandler childHandler =
             WidgetEventNotHandled -> widgetHandler
             WidgetEventHandled -> return res
 
+-- | Executes a particular widget's event handler, then executes parent's handlers for child→parent events, if any
 withWidget
   :: WidgetInfo s p
   -> WidgetEventM s p a
