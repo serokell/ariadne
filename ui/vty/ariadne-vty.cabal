@@ -44,7 +44,6 @@ library
       Ariadne.UI.Vty
       Ariadne.UI.Vty.App
       Ariadne.UI.Vty.AnsiToVty
-      Ariadne.UI.Vty.Clipboard
       Ariadne.UI.Vty.Face
       Ariadne.UI.Vty.Focus
       Ariadne.UI.Vty.Keyboard

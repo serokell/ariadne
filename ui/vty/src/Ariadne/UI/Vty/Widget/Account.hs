@@ -4,8 +4,9 @@ module Ariadne.UI.Vty.Widget.Account
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, (%=), (.=))
+import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import IiExtras
+import System.Hclip (setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -14,6 +15,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.UI.Vty.Widget.Form.List
 import Ariadne.UI.Vty.Widget.Form.Send
 
 ----------------------------------------------------------------------------
@@ -29,6 +31,7 @@ data AccountWidgetState =
     , accountDerivationPath :: ![Word32]
     , accountBalance :: !BalanceResult
 
+    , accountAddressResult :: !AddressResult
     , accountAddresses :: ![(Word32, Text)]
     }
 
@@ -43,6 +46,13 @@ data BalanceResult
   | BalanceResultWaiting !UiCommandId
   | BalanceResultError !Text
   | BalanceResultSuccess !Text  -- ^ Balance
+
+data AddressResult
+  = AddressResultNone
+  | AddressResultWaiting !UiCommandId
+  | AddressResultError !Text
+  | AddressNewResultSuccess
+  | AddressCopyResultSuccess !Text  -- ^ Address
 
 makeLensesWith postfixLFields ''AccountWidgetState
 
@@ -60,6 +70,7 @@ initAccountWidget langFace =
       , accountDerivationPath = []
       , accountBalance = BalanceResultNone
 
+      , accountAddressResult = AddressResultNone
       , accountAddresses = []
       }
 
@@ -74,15 +85,34 @@ initAccountWidget langFace =
     addWidgetChild WidgetNameAccountSend $
       initSendWidget langFace Nothing
 
+    addWidgetChild WidgetNameAccountAddressGenerateButton $
+      initButtonWidget "Generate"
+    addWidgetEventHandler WidgetNameAccountAddressGenerateButton $ \case
+      WidgetEventButtonPressed -> performNewAddress
+      _ -> return ()
+
+    addWidgetChild WidgetNameAccountAddressList $
+      initListWidget (widgetParentGetter accountAddresses) drawAddressRow
+    addWidgetEventHandler WidgetNameAccountAddressList $ \case
+      WidgetEventListSelected idx -> performCopyAddress idx
+      _ -> return ()
+
     setWidgetFocusList
       [ WidgetNameAccountName
       , WidgetNameAccountRenameButton
       , WidgetNameAccountSend
+      , WidgetNameAccountAddressGenerateButton
+      , WidgetNameAccountAddressList
       ]
 
 ----------------------------------------------------------------------------
 -- View
 ----------------------------------------------------------------------------
+
+drawAddressRow :: Bool -> (Word32, Text) -> B.Widget WidgetName
+drawAddressRow focused (_, address) =
+  (if focused then B.withAttr "selected" else id) $
+  B.txt address
 
 drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p (B.Widget WidgetName)
 drawAccountWidget focus AccountWidgetState{..} = do
@@ -122,7 +152,16 @@ drawAccountWidget focus AccountWidgetState{..} = do
       , drawChild WidgetNameAccountSend
 
       , B.txt "Addresses"
-      , B.vBox $ B.txt . snd <$> accountAddresses
+      , B.hBox
+        [ drawChild WidgetNameAccountAddressGenerateButton
+        , padLeft $ case accountAddressResult of
+            AddressResultNone -> B.emptyWidget
+            AddressResultWaiting _ -> B.txt "Generating..."
+            AddressResultError err -> B.txt err
+            AddressNewResultSuccess -> B.txt "Generated"
+            AddressCopyResultSuccess address -> B.txt $ "Copied to clipboard: " <> address
+        ]
+      , drawChild WidgetNameAccountAddressList
       ]
 
 ----------------------------------------------------------------------------
@@ -162,6 +201,13 @@ handleAccountWidgetEvent = \case
           UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
+  UiCommandResult commandId (UiNewAddressCommandResult result) -> do
+    accountAddressResultL %= \case
+      AddressResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiNewAddressCommandSuccess -> AddressNewResultSuccess
+          UiNewAddressCommandFailure err -> AddressResultError err
+      other -> other
   _ ->
     return ()
 
@@ -177,3 +223,17 @@ performRename = do
     RenameResultWaiting _ -> return ()
     _ -> liftIO (langPutUiCommand $ UiRename name) >>=
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
+
+performNewAddress :: WidgetEventM AccountWidgetState p ()
+performNewAddress = do
+  UiLangFace{..} <- use accountLangFaceL
+  use accountAddressResultL >>= \case
+    AddressResultWaiting _ -> return ()
+    _ -> liftIO (langPutUiCommand $ UiNewAddress) >>=
+      assign accountAddressResultL . either AddressResultError AddressResultWaiting
+
+performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()
+performCopyAddress idx = do
+  whenJustM ((^? ix idx) <$> use accountAddressesL) $ \(_, address) -> do
+    liftIO . setClipboard . toString $ address
+    accountAddressResultL .= AddressCopyResultSuccess address

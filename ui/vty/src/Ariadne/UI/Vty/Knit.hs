@@ -5,7 +5,6 @@ import Universum hiding (preview)
 import IiExtras
 import Text.Earley
 
-import Ariadne.UI.Vty.Clipboard (copySelected)
 import Ariadne.UI.Vty.Face
 import Knit
 
@@ -58,9 +57,6 @@ instance MonadIO m => ComponentCommandExec m components UI where
   componentCommandExec (UiExecCtx uiFace uiGetSelected) (CommandAction act) =
     liftIO $ act uiFace uiGetSelected
 
-copySelectionCommandName :: CommandId
-copySelectionCommandName = "copy-selection"
-
 instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs components UI where
   componentCommandProcs =
     [
@@ -81,14 +77,5 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
             putUiEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit
         , cpHelp = "Show logs screen"
-        }
-    , CommandProc
-        { cpName = copySelectionCommandName
-        , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \_ uiGetSelected -> do
-            uiGetSelected >>= copySelected
-            return $ toValue ValueUnit
-        , cpHelp = "Copy currently selected item to clipboard"
         }
     ]
