@@ -38,7 +38,7 @@ data ReplParseResult
   = ReplParseFailure { rpfParseErrDoc :: PP.Doc, rpfParseErrSpans :: [Loc.Span] }
   | ReplParseSuccess { rpfExprDoc :: PP.Doc, rpfPutCommand :: IO UiCommandId }
 
-data ReplWidgetState =
+data ReplWidgetState p =
   ReplWidgetState
     { replWidgetUiFace :: !UiFace
     , replWidgetLangFace :: !UiLangFace
@@ -46,12 +46,13 @@ data ReplWidgetState =
     , replWidgetCommand :: !Text
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
+    , replWidgetFullsizeGetter :: !(p -> Bool)
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-initReplWidget :: UiFace -> UiLangFace -> UiHistoryFace -> Widget p
-initReplWidget uiFace langFace historyFace =
+initReplWidget :: UiFace -> UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
+initReplWidget uiFace langFace historyFace fullsizeGetter =
   initWidget $ do
     setWidgetDrawWithFocus drawReplWidget
     setWidgetScrollable
@@ -64,6 +65,7 @@ initReplWidget uiFace langFace historyFace =
       , replWidgetCommand = ""
       , replWidgetParseResult = mkReplParseResult langFace ""
       , replWidgetOut = [OutputInfo ariadneBanner]
+      , replWidgetFullsizeGetter = fullsizeGetter
       }
 
     addWidgetChild WidgetNameReplInput $
@@ -77,27 +79,46 @@ initReplWidget uiFace langFace historyFace =
 
     setWidgetFocusList [WidgetNameReplInput]
 
-drawReplWidget :: WidgetName -> ReplWidgetState -> WidgetDrawM ReplWidgetState p (B.Widget WidgetName)
+drawReplWidget :: WidgetName -> ReplWidgetState p -> WidgetDrawM (ReplWidgetState p) p (B.Widget WidgetName)
 drawReplWidget focus ReplWidgetState{..} = do
     widget <- ask
     widgetName <- getWidgetName
-    return $ B.vBox
-      [ B.padLeftRight 1 $
-        B.viewport widgetName B.Vertical $
-        B.cached widgetName $
-        B.Widget
-          { B.hSize = B.Fixed
-          , B.vSize = B.Fixed
-          , B.render = render
-          }
-      , B.hBorder
-      , withFocusIndicator focus widgetName 'R' 0 $
+    fullsize <- replWidgetFullsizeGetter <$> lift ask
+
+    let
+      input =
+        withFocusIndicator focus widgetName 'R' 0 $
         B.padLeftRight 1 $
         appendPrompt $
         drawWidgetChild focus widget WidgetNameReplInput
-      ]
+
+    if fullsize
+      then return $ B.vBox
+        [ B.padLeftRight 1 $
+          B.viewport widgetName B.Vertical $
+          B.cached widgetName $
+          B.Widget
+            { B.hSize = B.Fixed
+            , B.vSize = B.Fixed
+            , B.render = renderFullsize
+            }
+        , B.hBorder
+        , input
+        ]
+      else return $ B.vBox $ case replWidgetOut of
+        (x@OutputCommand{}):_ ->
+          [ B.padLeftRight 1 $
+            B.Widget
+              { B.hSize = B.Fixed
+              , B.vSize = B.Fixed
+              , B.render = renderSingle x
+              }
+          , B.hBorder
+          , input
+          ]
+        _ -> [input]
   where
-    render = do
+    renderFullsize = do
       rdrCtx <- B.getContext
       let
         defAttr = rdrCtx ^. B.attrL
@@ -105,30 +126,41 @@ drawReplWidget focus ReplWidgetState{..} = do
         img =
           V.vertCat $
           intersperse (V.backgroundFill 1 1) $
-          drawOutputElement <$> reverse replWidgetOut
-        drawOutputElement (OutputInfo mkImg) =
-          mkImg ! #def_attr defAttr ! #width width
-        drawOutputElement (OutputCommand commandId commandSrc commandMsgs mCommandOut) =
-          let
-            cmdInfo = maybe "" (<> " ") (cmdTaskIdRendered commandId)
-            prompt = V.text' defAttr "> "
-          in
-            V.vertCat
-              [ V.horizCat
-                [ prompt
-                , commandSrc
-                    ! #def_attr defAttr
-                    ! #width (width - V.imageWidth prompt)
-                ]
-              , V.vertCat $ reverse commandMsgs <&> \mkImg ->
-                  mkImg ! #def_attr defAttr ! #width width
-              , case mCommandOut of
-                  Nothing -> V.text' defAttr $ cmdInfo <> "Waiting for result..."
-                  Just mkImg -> mkImg ! #def_attr defAttr ! #width width
-              ]
+          drawOutputElement defAttr width <$> reverse replWidgetOut
       return $
         B.emptyResult
           & B.imageL .~ img
+
+    renderSingle el = do
+      rdrCtx <- B.getContext
+      let
+        defAttr = rdrCtx ^. B.attrL
+        width = rdrCtx ^. B.availWidthL
+        img = drawOutputElement defAttr width el
+      return $
+        B.emptyResult
+          & B.imageL .~ img
+
+    drawOutputElement defAttr width (OutputInfo mkImg) =
+      mkImg ! #def_attr defAttr ! #width width
+    drawOutputElement defAttr width (OutputCommand commandId commandSrc commandMsgs mCommandOut) =
+      let
+        cmdInfo = maybe "" (<> " ") (cmdTaskIdRendered commandId)
+        prompt = V.text' defAttr "> "
+      in
+        V.vertCat
+          [ V.horizCat
+            [ prompt
+            , commandSrc
+                ! #def_attr defAttr
+                ! #width (width - V.imageWidth prompt)
+            ]
+          , V.vertCat $ reverse commandMsgs <&> \mkImg ->
+              mkImg ! #def_attr defAttr ! #width width
+          , case mCommandOut of
+              Nothing -> V.text' defAttr $ cmdInfo <> "Waiting for result..."
+              Just mkImg -> mkImg ! #def_attr defAttr ! #width width
+          ]
 
     inputPrompt = "knit> "
     inputPromptCont = "\n  ... "
@@ -144,7 +176,7 @@ drawReplWidget focus ReplWidgetState{..} = do
 
 handleReplWidgetKey
   :: KeyboardEvent
-  -> WidgetEventM ReplWidgetState p WidgetEventResult
+  -> WidgetEventM (ReplWidgetState p) p WidgetEventResult
 handleReplWidgetKey = \case
     KeyQuit -> do
       ReplWidgetState{..} <- get
@@ -194,7 +226,7 @@ handleReplWidgetKey = \case
 
 handleReplWidgetEvent
   :: UiEvent
-  -> WidgetEventM ReplWidgetState p ()
+  -> WidgetEventM (ReplWidgetState p) p ()
 handleReplWidgetEvent = \case
   UiCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
@@ -206,12 +238,12 @@ handleReplWidgetEvent = \case
   _ ->
     return ()
 
-reparse :: WidgetEventM ReplWidgetState p ()
+reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do
   ReplWidgetState{..} <- get
   replWidgetParseResultL .= mkReplParseResult replWidgetLangFace replWidgetCommand
 
-historyUpdate :: WidgetEventM ReplWidgetState p ()
+historyUpdate :: WidgetEventM (ReplWidgetState p) p ()
 historyUpdate = do
   ReplWidgetState{..} <- get
   liftIO $ historySetPrefix replWidgetHistoryFace replWidgetCommand
@@ -261,7 +293,7 @@ updateCommandResult
           in message:oldMessages
 updateCommandResult _ _ outCmd = outCmd
 
-spanAttrs :: ReplWidgetState -> (Int, Int) -> B.AttrName
+spanAttrs :: ReplWidgetState p -> (Int, Int) -> B.AttrName
 spanAttrs ReplWidgetState{..} (row, column) = case replWidgetParseResult of
     ReplParseFailure{..} | any inSpan rpfParseErrSpans -> "error"
     _ -> "default"
