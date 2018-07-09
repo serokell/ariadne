@@ -142,8 +142,4 @@ handleMenuWidgetKey key = do
     KeyEnter -> done
     KeyLeft -> rotate B.focusPrev
     KeyRight -> rotate B.focusNext
-    KeyChar c
-      | Just sel <- menuWidgetElemSelector <$> find ((== toLower c) . menuWidgetElemKey) menuWidgetElems -> do
-          assignWidgetLens menuWidgetSelectionLens sel
-          done
     _ -> return WidgetEventNotHandled

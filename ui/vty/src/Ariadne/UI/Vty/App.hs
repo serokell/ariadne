@@ -6,6 +6,7 @@ module Ariadne.UI.Vty.App
 import Universum
 
 import Control.Lens (makeLensesWith, uses, (.=), (%=))
+import Data.Char (toLower)
 import IiExtras
 import Named (Named(..))
 
@@ -85,6 +86,7 @@ initApp ariadneURL uiFace langFace historyFace =
       addWidgetChild WidgetNameWallet $ initWalletWidget langFace
       addWidgetChild WidgetNameAccount $ initAccountWidget langFace
       addWidgetChild WidgetNameRepl $ initReplWidget uiFace langFace historyFace
+        (widgetParentGetter $ (== AppScreenWallet) . appScreen)
       addWidgetChild WidgetNameHelp $ initHelpWidget langFace
       addWidgetChild WidgetNameAbout initAboutWidget
       addWidgetChild WidgetNameLogs initLogsWidget
@@ -110,9 +112,9 @@ initApp ariadneURL uiFace langFace historyFace =
 appFocusList :: AppWidgetState -> [WidgetNamePart]
 appFocusList AppWidgetState{..} = case appScreen of
     AppScreenWallet -> [WidgetNameTree] ++ mainWidgetName ++ [WidgetNameRepl]
-    AppScreenHelp -> [WidgetNameHelp]
-    AppScreenAbout -> [WidgetNameAbout]
-    AppScreenLogs -> [WidgetNameLogs]
+    AppScreenHelp -> [WidgetNameHelp, WidgetNameRepl]
+    AppScreenAbout -> [WidgetNameAbout, WidgetNameRepl]
+    AppScreenLogs -> [WidgetNameLogs, WidgetNameRepl]
   where
     mainWidgetName = case appSelection of
       AppSelectionNone -> []
@@ -185,29 +187,36 @@ drawAppWidget focus AppWidgetState{..} = do
   widget <- ask
   let
     drawChild = drawWidgetChild focus widget
+    drawChildWithFocus name char pad =
+      withFocusIndicator focus [name] char pad $ drawChild name
+    drawContentChild name char =
+      withFocusIndicator focus [name] char 0 $ B.padLeft (B.Pad 1) $ B.withAttr "default" $ drawChild name
+
     drawScreen widgets =
       B.withAttr "default" $ B.vBox $
-        [drawChild WidgetNameMenu]
-        ++ widgets
-        ++ [drawChild WidgetNameStatus]
+        [ drawChild WidgetNameMenu
+        ] ++
+        widgets ++
+        [ B.joinBorders B.hBorder
+        , drawChild WidgetNameRepl
+        , drawChild WidgetNameStatus
+        ]
     drawWalletScreen = drawScreen
         [ B.hBox
-            [ withFocusIndicator focus [WidgetNameTree] 'T' 1 $ drawChild WidgetNameTree
+            [ drawChildWithFocus WidgetNameTree 'T' 1
             , B.joinBorders B.vBorder
             , mainWidget
             ]
-        , B.joinBorders B.hBorder
-        , drawChild WidgetNameRepl
         ]
       where
         mainWidget = case appSelection of
-          AppSelectionAddWallet -> withFocusIndicator focus [WidgetNameAddWallet] 'P' 1 $ drawChild WidgetNameAddWallet
-          AppSelectionWallet -> withFocusIndicator focus [WidgetNameWallet] 'P' 1 $ drawChild WidgetNameWallet
-          AppSelectionAccount -> withFocusIndicator focus [WidgetNameAccount] 'P' 1 $ drawChild WidgetNameAccount
+          AppSelectionAddWallet -> drawChildWithFocus WidgetNameAddWallet 'P' 1
+          AppSelectionWallet -> drawChildWithFocus WidgetNameWallet 'P' 1
+          AppSelectionAccount -> drawChildWithFocus WidgetNameAccount 'P' 1
           _ -> B.emptyWidget
-    drawHelpScreen = drawScreen [drawChild WidgetNameHelp]
-    drawAboutScreen = drawScreen [drawChild WidgetNameAbout]
-    drawLogsScreen = drawScreen [drawChild WidgetNameLogs]
+    drawHelpScreen = drawScreen [drawContentChild WidgetNameHelp 'H']
+    drawAboutScreen = drawScreen [drawContentChild WidgetNameAbout 'A']
+    drawLogsScreen = drawScreen [drawContentChild WidgetNameLogs 'L']
 
   return $ case appScreen of
     AppScreenWallet -> drawWalletScreen
@@ -283,27 +292,39 @@ handleAppWidgetKey key = do
     navMode <- useWidgetLens $ Lens appNavModeL
     selection <- use appSelectionL
     case key of
-      KeyChar c
+      KeyChar (toLower -> c)
         | navMode -> do
-            whenJust (charToFocus selection c) $ \(screen, focus) -> do
+            whenJust (charToScreen c) $ \screen -> do
               appScreenL .= screen
               resetAppFocus
-              lift . lift $ setAppFocus focus
+            whenJust (charToFocus selection c) $ \focus -> do
+              lift . lift . setAppFocus $ [focus]
             assignWidgetLens (Lens appNavModeL) False
             return WidgetEventHandled
       _ ->
         return WidgetEventNotHandled
   where
+    charToScreen = \case
+      'w' -> Just AppScreenWallet
+      't' -> Just AppScreenWallet
+      'p' -> Just AppScreenWallet
+      'h' -> Just AppScreenHelp
+      'a' -> Just AppScreenAbout
+      'l' -> Just AppScreenLogs
+      _ -> Nothing
     charToFocus selection = \case
-      't' -> Just (AppScreenWallet, [WidgetNameTree])
-      'p' -> Just (AppScreenWallet, mainFocus selection)
-      'r' -> Just (AppScreenWallet, [WidgetNameRepl])
-      _   -> Nothing
+      't' -> Just WidgetNameTree
+      'p' -> Just $ mainFocus selection
+      'h' -> Just WidgetNameHelp
+      'a' -> Just WidgetNameAbout
+      'l' -> Just WidgetNameLogs
+      'r' -> Just WidgetNameRepl
+      _ -> Nothing
     mainFocus = \case
-      AppSelectionNone -> [WidgetNameTree]
-      AppSelectionAddWallet -> [WidgetNameAddWallet]
-      AppSelectionWallet -> [WidgetNameWallet]
-      AppSelectionAccount -> [WidgetNameAccount]
+      AppSelectionNone -> WidgetNameTree
+      AppSelectionAddWallet -> WidgetNameAddWallet
+      AppSelectionWallet -> WidgetNameWallet
+      AppSelectionAccount -> WidgetNameAccount
 
 handleAppWidgetEvent
   :: UiEvent
