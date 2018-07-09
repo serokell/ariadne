@@ -31,8 +31,8 @@ import Mockable (Production (..))
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: CardanoConfig -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
-createCardanoBackend cardanoConfig = do
+createCardanoBackend :: CardanoConfig -> BListenerHandle -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend cardanoConfig bHandle = do
   let commonArgs = getCardanoConfig cardanoConfig
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
@@ -45,7 +45,7 @@ createCardanoBackend cardanoConfig = do
           , cardanoCompileInfo = Dict
           , cardanoGetDiffusion = getDiffusion diffusionVar
           }
-          , runCardanoNode cardanoContextVar diffusionVar commonArgs)
+          , runCardanoNode bHandle cardanoContextVar diffusionVar commonArgs)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -54,12 +54,13 @@ runCardanoMode cardanoContextVar (CardanoMode act) = do
 
 runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
-    => MVar CardanoContext
+    => BListenerHandle
+    -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
     -> CLI.CommonNodeArgs
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
+runCardanoNode bHandle cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
   let loggingParams = CLI.loggingParams "ariadne" commonArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
@@ -83,8 +84,12 @@ runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
               , extractionWorker
               , statusPollingWorker sendCardanoEvent
               ]
-      let convertMode f = unwrapCardanoMode . f . hoistDiffusion CardanoMode
-      let runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
+      let
+        realModeToCardanoMode m = CardanoMode $ ask >>= lift . runReaderT m . ccRealModeContext
+        cardanoModeToRealMode (CardanoMode m) = ask >>= lift . runReaderT m . CardanoContext bHandle
+        convertMode f diff =
+            cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode diff)
+        runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
             $ \nr@NodeResources{..} ->
                 Production . runRealMode nr . convertMode $ runNode nr workers
       runProduction runMode

@@ -14,6 +14,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , accountTotalBalance
   , applyBlock
   , applyBlocks
+  , applyBlunds
   , bracketPassiveWallet
   , createWalletHdRnd
   , init
@@ -30,7 +31,9 @@ import Universum hiding (State, init)
 
 import Control.Concurrent.MVar (modifyMVar_, withMVar)
 import Control.Lens.TH
+import Data.Function (fix)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromJust, mapMaybe)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 
 import Formatting (build, sformat)
@@ -59,9 +62,12 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read as Spec
 
 
+import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (AddressHash, Coin, Timestamp(..), TxAux(..))
 
-import Pos.Core.Chrono (OldestFirst)
+import Ariadne.Wallet.Cardano.Kernel.Types
+  (RawResolvedBlock(..), fromRawResolvedBlock)
+import Pos.Core.Chrono (NE, OldestFirst(..))
 import Pos.Crypto (EncryptedSecretKey, PublicKey)
 import Pos.Txp (Utxo)
 
@@ -76,9 +82,10 @@ import Pos.Txp (Utxo)
 --
 data PassiveWallet = PassiveWallet {
       -- | Send log message
-      _walletLogMessage :: Severity -> Text -> IO () -- ^ Logger
-    , _walletESKs       :: MVar WalletESKs           -- ^ ESKs indexed by WalletId
-    , _wallets          :: AcidState DB              -- ^ Database handle
+      _walletLogMessage :: Severity -> Text -> IO ()     -- ^ Logger
+    , _walletESKs       :: MVar WalletESKs               -- ^ ESKs indexed by WalletId
+    , _wallets          :: AcidState DB                  -- ^ Database handle
+    , _applyBlunds      :: OldestFirst NE Blund -> IO () -- ^ Blunds apply handle
     }
 
 makeLenses ''PassiveWallet
@@ -126,7 +133,7 @@ initPassiveWallet :: (Severity -> Text -> IO ())
                   -> IO PassiveWallet
 initPassiveWallet logMessage db = do
     esks <- Universum.newMVar Map.empty
-    return $ PassiveWallet logMessage esks db
+    return $ fix (\pw -> PassiveWallet logMessage esks db (createApplyHandler pw))
 
 -- | Initialize the Passive wallet (specified by the ESK) with the given Utxo
 --
@@ -134,6 +141,21 @@ initPassiveWallet logMessage db = do
 -- called when the node is initialized (when run in the node proper).
 init :: PassiveWallet -> IO ()
 init PassiveWallet{..} = _walletLogMessage Info "Passive Wallet kernel initialized"
+
+createApplyHandler :: PassiveWallet -> (OldestFirst NE Blund -> IO ())
+createApplyHandler pw = applyBlocks pw . mapMaybe' blundToResolvedBlock
+  where
+    mapMaybe' :: (a -> Maybe b) -> OldestFirst NE a -> OldestFirst [] b
+    mapMaybe' f = OldestFirst . mapMaybe f . toList . getOldestFirst
+    rightToJust   = either (const Nothing) Just
+    -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified
+    -- by the invariants established in the 'Blund'.
+    blundToResolvedBlock :: Blund -> Maybe ResolvedBlock
+    blundToResolvedBlock (b,u)
+        = rightToJust b <&> \mainBlock ->
+            fromRawResolvedBlock
+            $ UnsafeRawResolvedBlock mainBlock (map (map fromJust) $ undoTx u)
+
 
 {-------------------------------------------------------------------------------
   Wallet Creation

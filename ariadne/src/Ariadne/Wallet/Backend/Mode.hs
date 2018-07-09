@@ -26,25 +26,21 @@ import Pos.Crypto (PublicKey, deterministicKeyGen)
 import Pos.Launcher.Configuration (HasConfigurations)
 import Pos.Txp.DB.Utxo (getFilteredUtxo)
 
-import Ariadne.Cardano.Face (CardanoMode(..), CardanoModeMonad)
+import Ariadne.Cardano.Face (CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.Bip32 (makePubKeyHdwAddressUsingPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAddressChain(HdChainExternal))
 
-instance HasConfiguration => MonadBalances CardanoModeMonad where
+instance HasConfiguration => MonadBalances CardanoMode where
     getOwnUtxos = getFilteredUtxo
     getBalance = getBalanceFromUtxo
 
-deriving instance HasConfiguration => MonadBalances CardanoMode
-
-instance HasConfigurations => MonadTxHistory CardanoModeMonad where
+instance HasConfigurations => MonadTxHistory CardanoMode where
     getBlockHistory = getBlockHistoryDefault
     getLocalHistory = getLocalHistoryDefault
     saveTx = saveTxDefault
-
-deriving instance HasConfigurations => MonadTxHistory CardanoMode
 
 instance MonadAddresses CardanoMode where
     type AddrData CardanoMode = IO Address

@@ -38,11 +38,11 @@ main = do
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
+  (bHandle, mkWallet) <- createWalletBackend walletConfig
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
-  mkWallet <- createWalletBackend walletConfig
 
   let
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
