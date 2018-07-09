@@ -4,10 +4,13 @@ module Ariadne.UI.Vty.Widget.Wallet
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, (%=), (.=))
+import Control.Lens (assign, at, lens, makeLensesWith, uses, (%=), (.=), (<<+=))
+import Data.Map (Map)
+import Data.Maybe (fromJust)
 import IiExtras
 
 import qualified Brick as B
+import qualified Data.Map as Map
 import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
@@ -19,6 +22,12 @@ import Ariadne.UI.Vty.Widget.Form.Edit
 -- Model
 ----------------------------------------------------------------------------
 
+data WalletSendOutput = 
+  WalletSendOutput
+    { walletSendAddress :: !Text
+    , walletSendAmount :: !Text
+    }
+
 data WalletWidgetState =
   WalletWidgetState
     { walletLangFace :: !UiLangFace
@@ -26,8 +35,8 @@ data WalletWidgetState =
     , walletName :: !Text
     , walletBalance :: !BalanceResult
 
-    , walletSendAddress :: !Text
-    , walletSendAmount :: !Text
+    , walletSendOutputs :: !(Map Int WalletSendOutput)
+    , walletSendNextOutput :: !Int
     , walletSendPass :: !Text
     , walletSendResult :: !SendResult
     }
@@ -44,6 +53,7 @@ data SendResult
   | SendResultError !Text
   | SendResultSuccess !Text  -- ^ Transaction ID
 
+makeLensesWith postfixLFields ''WalletSendOutput
 makeLensesWith postfixLFields ''WalletWidgetState
 
 initWalletWidget :: UiLangFace -> Widget p
@@ -58,31 +68,28 @@ initWalletWidget langFace =
       , walletName = ""
       , walletBalance = BalanceResultNone
 
-      , walletSendAddress = ""
-      , walletSendAmount = ""
+      , walletSendOutputs = Map.empty
+      , walletSendNextOutput = 0
       , walletSendPass = ""
       , walletSendResult = SendResultNone
       }
 
-    addWidgetChild WidgetNameWalletSendAddress $
-      initEditWidget $ widgetParentLens walletSendAddressL
-    addWidgetChild WidgetNameWalletSendAmount $
-      initEditWidget $ widgetParentLens walletSendAmountL
+    withWidgetState addOutput
+    addWidgetChild WidgetNameWalletSendAdd $
+      initButtonWidget "+"
     addWidgetChild WidgetNameWalletSendPass $
       initPasswordWidget $ widgetParentLens walletSendPassL
     addWidgetChild WidgetNameWalletSendButton $
       initButtonWidget "Send"
 
+    addWidgetEventHandler WidgetNameWalletSendAdd $ \case
+      WidgetEventButtonPressed -> addOutput
+      _ -> return ()
     addWidgetEventHandler WidgetNameWalletSendButton $ \case
       WidgetEventButtonPressed -> performSendTransaction
       _ -> return ()
 
-    setWidgetFocusList
-      [ WidgetNameWalletSendAddress
-      , WidgetNameWalletSendAmount
-      , WidgetNameWalletSendPass
-      , WidgetNameWalletSendButton
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -94,10 +101,33 @@ drawWalletWidget focus WalletWidgetState{..} = do
   widgetName <- getWidgetName
 
   let
+    padBottom = B.padBottom (B.Pad 1)
+    padLeft = B.padLeft (B.Pad 1)
+    fillLeft w = T.takeEnd w . (T.append $ T.replicate w " ")
+    fillRight w = T.take w . (flip T.append $ T.replicate w " ")
+
+    labelWidth = 14
+    amountWidth = 15
+
     visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
     drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
-    label = B.padRight (B.Pad 1) . B.txt . T.takeEnd 14 . (T.append $ T.replicate 14 " ")
-    padBottom = B.padBottom (B.Pad 1)
+    label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
+
+    drawOutputsHeader = B.hBox
+      [ label ""
+      , B.padRight B.Max $ B.txt "Address"
+      , padLeft $ B.txt $ fillRight amountWidth $ "Amount, ADA"
+      , padLeft $ B.txt "     "
+      ]
+    drawOutput idx = B.hBox
+      [ label ""
+      , drawChild $ WidgetNameWalletSendAddress idx
+      , padLeft $ B.hLimit amountWidth $ drawChild $ WidgetNameWalletSendAmount idx
+      , padLeft $ drawChild $ WidgetNameWalletSendRemove idx
+      ]
+    drawOutputsFooter = B.hBox
+      [ B.padLeft B.Max $ drawChild WidgetNameWalletSendAdd
+      ]
 
   return $
     B.viewport widgetName B.Vertical $
@@ -111,9 +141,11 @@ drawWalletWidget focus WalletWidgetState{..} = do
           BalanceResultError err -> B.txt err
           BalanceResultSuccess balance -> B.txt balance
 
-      , visible WidgetNameWalletSendAddress $ B.txt "Send transaction"
-      , label     "Address:" B.<+> drawChild WidgetNameWalletSendAddress
-      , label "Amount, ADA:" B.<+> drawChild WidgetNameWalletSendAmount
+      , B.txt "Send transaction"
+      , B.vBox $
+          [drawOutputsHeader] ++
+          (drawOutput <$> Map.keys walletSendOutputs) ++
+          [drawOutputsFooter]
       , label  "Passphrase:" B.<+> drawChild WidgetNameWalletSendPass
       , label             "" B.<+> drawChild WidgetNameWalletSendButton
       , case walletSendResult of
@@ -152,12 +184,18 @@ handleWalletWidgetEvent = \case
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiSendCommandResult result) -> do
-    walletSendResultL %= \case
+    use walletSendResultL >>= \case
       SendResultWaiting commandId' | commandId == commandId' ->
         case result of
-          UiSendCommandSuccess tr -> SendResultSuccess tr
-          UiSendCommandFailure err -> SendResultError err
-      other -> other
+          UiSendCommandSuccess tr -> do
+            walletSendResultL .= SendResultSuccess tr
+            walletSendPassL .= ""
+            walletSendOutputsL .= Map.empty
+            addOutput
+          UiSendCommandFailure err -> do
+            walletSendResultL .= SendResultError err
+      _ ->
+        return ()
   _ ->
     return ()
 
@@ -165,13 +203,59 @@ handleWalletWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
+updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+updateFocusList = do
+    outputs <- uses walletSendOutputsL Map.keys
+    lift $ setWidgetFocusList $
+      concat (outputFocuses <$> outputs) ++
+      [ WidgetNameWalletSendAdd
+      , WidgetNameWalletSendPass
+      , WidgetNameWalletSendButton
+      ]
+  where
+    outputFocuses idx =
+      [ WidgetNameWalletSendAddress idx
+      , WidgetNameWalletSendAmount idx
+      , WidgetNameWalletSendRemove idx
+      ]
+
+
+addOutput :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+addOutput = do
+  idx <- walletSendNextOutputL <<+= 1
+  walletSendOutputsL %= Map.insert idx (WalletSendOutput "" "")
+  updateFocusList
+
+  lift $ do
+    addWidgetChild (WidgetNameWalletSendAddress idx) $
+      initEditWidget $ widgetParentLens $ walletSendOutputsL . at idx . unsafeFromJust . walletSendAddressL
+    addWidgetChild (WidgetNameWalletSendAmount idx) $
+      initEditWidget $ widgetParentLens $ walletSendOutputsL . at idx . unsafeFromJust . walletSendAmountL
+    addWidgetChild (WidgetNameWalletSendRemove idx) $
+      initButtonWidget "-"
+    addWidgetEventHandler (WidgetNameWalletSendRemove idx) $ \case
+      WidgetEventButtonPressed -> removeOutput idx
+      _ -> return ()
+
+removeOutput :: Int -> WidgetEventM WalletWidgetState p ()
+removeOutput idx = do
+  remaining <- uses walletSendOutputsL Map.size
+  when (remaining > 1) $ do
+    walletSendOutputsL %= Map.delete idx
+    updateFocusList
+
 performSendTransaction :: WidgetEventM WalletWidgetState p ()
 performSendTransaction = do
   UiLangFace{..} <- use walletLangFaceL
-  address <- use walletSendAddressL
-  amount <- use walletSendAmountL
+  outputs <- fmap (\WalletSendOutput{..} -> (walletSendAddress, walletSendAmount)) <$> uses walletSendOutputsL Map.elems
   passphrase <- use walletSendPassL
   use walletSendResultL >>= \case
     SendResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiSend address amount passphrase) >>=
+    _ -> liftIO (langPutUiCommand $ UiSend outputs passphrase) >>=
       assign walletSendResultL . either SendResultError SendResultWaiting
+
+unsafeFromJust :: Lens' (Maybe a) a
+unsafeFromJust = lens fromJust setJust
+  where
+    setJust (Just _) b = Just b
+    setJust Nothing  _ = error "setJust: Nothing"

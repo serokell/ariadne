@@ -95,7 +95,7 @@ data UiEvent
 data UiCommand
   = UiSelect [Word]
   | UiBalance
-  | UiSend Text Text Text -- ^ Address, amount, passphrase
+  | UiSend [(Text, Text)] Text -- ^ [(Address, amount)], passphrase
   | UiNewWallet Text Text  -- ^ Name, passphrase
   | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiKill Natural

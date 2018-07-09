@@ -3,6 +3,7 @@ module Ariadne.UI.Vty.Widget
        , WidgetName
        , WidgetEvent(..)
        , WidgetEventResult(..)
+       , WidgetInfo
        , Widget(..)
        , WidgetInitM
        , WidgetDrawM
@@ -34,6 +35,7 @@ module Ariadne.UI.Vty.Widget
        , useWidgetLens
        , assignWidgetLens
        , widgetEvent
+       , withWidgetState
 
        , drawWidget
        , drawWidgetChild
@@ -98,8 +100,10 @@ data WidgetNamePart
   | WidgetNameAddWalletRestoreButton
 
   | WidgetNameWallet
-  | WidgetNameWalletSendAddress
-  | WidgetNameWalletSendAmount
+  | WidgetNameWalletSendAdd
+  | WidgetNameWalletSendAddress Int
+  | WidgetNameWalletSendAmount Int
+  | WidgetNameWalletSendRemove Int
   | WidgetNameWalletSendPass
   | WidgetNameWalletSendButton
 
@@ -234,16 +238,17 @@ setWidgetState = assign widgetStateL
 --
 -- As child is created before parent (which will probably be changed at some point),
 -- the child has to be renamed to include path to parent.
-addWidgetChild :: WidgetNamePart -> Widget (WidgetInfo s p) -> WidgetInitM s p
+addWidgetChild :: MonadState (WidgetInfo s p) m => WidgetNamePart -> Widget (WidgetInfo s p) -> m ()
 addWidgetChild namePart (Widget child) = do
+    parentName <- use widgetNameL
     let child' = child{ widgetEventSend = \event -> lift . lift $ widgetEventQueueL %= ((namePart, event):) }
-    widgetChildrenL %= Map.insert namePart (rename $ Widget child')
+    widgetChildrenL %= Map.insert namePart (rename parentName $ Widget child')
   where
-    rename :: Widget p -> Widget p
-    rename (Widget widget@WidgetInfo{..}) =
+    rename :: WidgetName -> Widget p -> Widget p
+    rename parentName (Widget widget@WidgetInfo{..}) =
       Widget widget
-        { widgetName = namePart : widgetName
-        , widgetChildren = Map.map rename widgetChildren
+        { widgetName = parentName ++ (namePart : widgetName)
+        , widgetChildren = Map.map (rename parentName) widgetChildren
         }
 
 setWidgetFocusList :: MonadState (WidgetInfo s p) m => [WidgetNamePart] -> m ()
@@ -323,7 +328,8 @@ findClosestFocus [] (Widget WidgetInfo{..})
     findInChild WidgetNameSelf = Just widgetName
     findInChild namePart = findClosestFocus [] <$> Map.lookup namePart widgetChildren
 findClosestFocus (np:nps) widget@(Widget WidgetInfo{..})
-  | Just child <- Map.lookup np widgetChildren = findClosestFocus nps child
+  | np `elem` widgetFocusList
+  , Just child <- Map.lookup np widgetChildren = findClosestFocus nps child
   | otherwise = findClosestFocus [] widget
 
 liftBrick :: B.EventM WidgetName a -> WidgetEventM s p a
@@ -351,6 +357,12 @@ widgetEvent :: WidgetEvent -> WidgetEventM s p ()
 widgetEvent event = do
   WidgetInfo{..} <- lift get
   widgetEventSend event
+
+withWidgetState :: Monad m => StateT s (StateT (WidgetInfo s p) m) a -> StateT (WidgetInfo s p) m a
+withWidgetState action = do
+  (res, st) <- runStateT action =<< use widgetStateL
+  widgetStateL .= st
+  return res
 
 ----------------------------------------------------------------------------
 -- Widget rendering
@@ -456,7 +468,7 @@ withWidget widget@WidgetInfo{..} action = do
       widgetStateL .= widgetState'
       forM_ widgetEventQueue $ \(namePart, event) -> do
         whenJust (Map.lookup namePart widgetEventHandlers) $ \handler -> do
-          use widgetStateL >>= execStateT (handler event) >>= assign widgetStateL
+          withWidgetState $ handler event
       widgetEventQueueL .= []
       return res
   (res, widget') <- lift $ runStateT subaction widget
