@@ -41,17 +41,16 @@ All widgets that have a lot of text (e.g. About and Logs) can be scrolled with m
 
 ## Wallet tab &mdash; the heart of Ariadne
 
-On the `Wallet` tab you can see all your wallets with their accounts and addresses organized in a
-tree. To the right of the tree you can see details of the selected wallet, account or address.
+On the `Wallet` tab you can see all your wallets with their accounts organized in a tree. To the
+right of the tree you can see details of the selected wallet or account.
 
 The tree can be navigated in several ways. First of all, you can select any entry by clicking it
 with mouse. You can also change the current selection with the keyboard. Up and Down keys will go to
 the previous and the next item respectively, including the `[ + Add wallet ]` button. Right key will
 go to the first child of the current item and Left key will go to the parent. Ctrl-Up and Ctrl-Down
-can be used to jump between wallets: Ctrl-Up will first go to the current wallet, when an account or
-address is selected, then to the previous wallet. Ctrl-Down will always go to the next wallet.
-Finally, `h`, `j`, `k`, `l` keys will work exactly as Left, Down, Up and Right arrow keys (without
-Ctrl).
+can be used to jump between wallets: Ctrl-Up will first go to the current wallet, when an account is
+selected, then to the previous wallet. Ctrl-Down will always go to the next wallet.  Finally, `h`,
+`j`, `k`, `l` keys will work exactly as Left, Down, Up and Right arrow keys (without Ctrl).
 
 To create a new wallet, select `[ + Add wallet ]` line in the tree, so that a special widget appears
 to the right. There you can either create a completely new wallet by specifying its name and a
@@ -63,10 +62,16 @@ word of the mnemonic is always fixed (currently it is `ariadne-v0`).  This means
 to use your Ariadne wallet in Daedalus. However, you can import your Daedalus wallet into Ariadne
 using the 12 words mnemonic.
 
-When you select a wallet, you can see its balance and send some transactions with a special form.
-When an address is selected, you can copy it to the clipboard using `[ Copy ]` button in order to
-share it with someone who wants to send you money. This works out of the box on macOS, on Linux you
-have to have either `xclip` or `xsel` installed.
+When you select a wallet or an account, you can see its balance and send some transactions with a
+special form.  You must fill at least one receiver's address. To add or remove address lines use
+`[ - ]` / `[ + ]` buttons on the right. If the wallet has a passphrase, you need to specify that as
+well. When sending a transaction from a wallet, you can also choose which accounts to use as inputs
+using a list just above the form. Use Enter, Space or mouse click to select accounts.
+
+When an account is selected, you will see the list of its addresses below the send form. If you
+focus an address, you can copy it to the clipboard by pressing Enter, Space or clicking with the
+mouse. On macOS this will work out of the box, on Linux you have to have either `xsel` or `xclip`
+installed. To make a new address, press the `[ Generate ]` button.
 
 On the bottom half of the screen you see the REPL widget which consists of command history and an
 input line. The REPL lets you do all sorts of things with your wallet using `Knit` command language.
@@ -152,10 +157,8 @@ You can also make some commands depend on others by using `wait` command with a 
 ### User interface and Knit integration
 
 Some of the `Knit` functions may access the internal state of Ariadne UI &mdash; namely, currently
-selected wallet, account or address. This allows you to omit the wallet name when creating a new
-account using `new-account` command &mdash; it will use the currently selected one. There is also a
-`copy-selection` command, which will copy the name of selected item (wallet, account or address) to
-the system clipboard.
+selected wallet or account. This allows you to omit the wallet name when creating a new account
+using `new-account` command &mdash; it will use the currently selected one.
 
 ### Cardano-related commands
 
@@ -175,11 +178,11 @@ annotated with its arguments and their types. Optional arguments will be marked 
     account or the one specified by `wallet` and `account` arguments. Once again, you can either use
     ID or index of wallet. Account is refered by its index in the wallet tree.
 - `balance`: get balance of the currently selected wallet or account.
-- `select wallet: WalletId or Word a: Word? a: Word?`: select an item. Specify a wallet by its ID or
-    index and then, optionally, specify indices of an acccount in that wallet and address in that
-    account. Like this: `select 3 1 0` to select the first address in the second account.
+- `select wallet: WalletId or Word a: Word?`: select an item. Specify a wallet by its ID or
+    index and then, optionally, specify index of an acccount in that wallet.
+    Like this: `select 3 1` to select the second account in the fourth wallet.
 - `rename name: String`: give a new name to the currently selected wallet or account.
-- `remove`: remove currently selected wallet, account or address.
+- `remove`: remove currently selected wallet or account.
 - `restore pass: String? name: String? mnemonic: String full: Bool`: restore a wallet from mnemonic.
     A passphrase is used to encrypt the restored wallet in Ariadne, it does not have to be the same
     as the passphrase the old wallet was encrypted with. `full` argument specifies whether Ariadne
