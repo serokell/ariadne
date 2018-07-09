@@ -105,7 +105,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiBalance ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.balanceCommandName [])
-      UiSend outputs passphrase -> do
+      UiSend accounts outputs passphrase -> do
         argOutputs <- forM outputs $ \(address, amount) -> do
           argAddress <- decodeTextAddress address
           argCoin <- readEither amount
@@ -115,6 +115,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts ++
             argOutputs ++
             (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
           )
@@ -143,22 +144,22 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           )
 
     resultToUI result = \case
-      UiBalance ->
+      UiBalance{} ->
         Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
             _ -> Left "Unrecognized return value"
-      UiSend _ _ ->
+      UiSend{} ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
-      UiNewWallet _ _ ->
+      UiNewWallet{} ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
             _ -> Left "Unrecognized return value"
-      UiRestoreWallet _ _ _ _ ->
+      UiRestoreWallet{} ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
           fromResult result
       _ -> Nothing
@@ -284,15 +285,16 @@ walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletInfo{..}
   where
     wpiWalletIdx = uwsWalletIdx
     wpiPath = uwsPath
-    (wpiType, wpiLabel, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
+    (wpiType, wpiLabel, wpiAccounts, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
       Nothing -> error "Invalid wallet index"
       Just UiWalletData{..} -> case uwsPath of
-        [] -> (Just UiWalletInfoWallet, Just _uwdName, [])
+        [] -> (Just UiWalletInfoWallet, Just _uwdName, toList $ (\UiAccountData{..} -> (_uadPath, _uadName)) <$> _uwdAccounts, [])
         accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just UiAccountData{..} ->
             ( Just $ UiWalletInfoAccount [_uadPath]
             , Just _uadName
+            , []
             , map
               (second pretty)
               (V.toList _uadAddresses)
