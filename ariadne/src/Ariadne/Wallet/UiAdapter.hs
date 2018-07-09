@@ -2,9 +2,21 @@ module Ariadne.Wallet.UiAdapter
   ( UiWalletData(..)
   , UiAccountData(..)
   , UiWalletSelection(..)
+  , UiAddressData(..)
   -- * Lens
+  , uwdName
+  , uwdId
   , uwdAccounts
+  , uwdBalance
+
+  , uadName
+  , uadAccountIdx
   , uadAddresses
+  , uadBalance
+
+  , uiadAddress
+  , uiadAddressIdx
+  , uiadBalance
   --
   , toUiWalletDatas
   , toUiWalletSelection
@@ -21,26 +33,39 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 
-import Control.Lens (makeLenses)
+import Pos.Core (unsafeIntegerToCoin)
 import Serokell.Util (enumerate)
+
+import Control.Lens (makeLenses)
 
 -- 'WalletData' like data type, used only in UI glue
 data UiWalletData = UiWalletData
   { _uwdName     :: !Text
   , _uwdId       :: !HdRootId
   , _uwdAccounts :: !(Vector UiAccountData)
+  , _uwdBalance  :: !Coin
   } deriving (Show, Generic)
 
 data UiAccountData = UiAccountData
-  { _uadName      :: !Text
-  , _uadPath      :: !Word32
-  -- Because of ChainType layer Now it should be ((HdAddressChain, Word32), Address) I guess, but
-  -- AFAIU we don't want a new layer, so addresses of both types wiil be in one list -- External first.
-  , _uadAddresses :: !(Vector (Word32, Address))
+  { _uadName :: !Text
+  -- It is the UI indexation path, with sequential indexation without gaps.
+  -- Removing an account (except the last) will change all accounts indexes.
+  , _uadAccountIdx :: !Word32
+  -- AFAIU we don't want a new ChainType layer, so addresses of both types wiil be in one list -- External first.
+  , _uadAddresses :: !(Vector UiAddressData)
+  , _uadBalance  :: !Coin
   } deriving (Eq, Show, Generic)
+
+data UiAddressData = UiAddressData
+  { _uiadAddress :: !Address
+  -- It is the UI indexation path, with sequential indexation without gaps.
+  , _uiadAddressIdx :: !Word32
+  , _uiadBalance :: !Coin
+  } deriving (Eq, Show)
 
 makeLenses 'UiWalletData
 makeLenses 'UiAccountData
+makeLenses 'UiAddressData
 
 toUiWalletDatas :: DB -> [UiWalletData]
 toUiWalletDatas db = toUiWalletData <$> walletList
@@ -70,7 +95,7 @@ toUiWalletDatas db = toUiWalletData <$> walletList
     ---
 
     toUiWalletData :: HdRoot -> UiWalletData
-    toUiWalletData HdRoot {..} = UiWalletData
+    toUiWalletData HdRoot{..} = UiWalletData
       { _uwdName = unWalletName _hdRootName
       , _uwdId = _hdRootId
       , _uwdAccounts =
@@ -78,19 +103,25 @@ toUiWalletDatas db = toUiWalletData <$> walletList
           indexedAccounts :: Vector (Word32, HdAccount)
           indexedAccounts = V.fromList $ enumerate  $ accList _hdRootId
         in toUiAccountData <$> indexedAccounts
+      , _uwdBalance =
+          unsafeIntegerToCoin $ hdRootBalance _hdRootId wallets
       }
 
     toUiAccountData :: (Word32, HdAccount) -> UiAccountData
-    toUiAccountData (accIdx, HdAccount {..}) = UiAccountData
+    toUiAccountData (accIdx, acc@HdAccount{..}) = UiAccountData
       { _uadName = unAccountName _hdAccountName
-      -- path indexation should be the same as in selection
-      , _uadPath =  accIdx
-
-      , _uadAddresses = map toUiAddresses (V.fromList $ enumerate  $ addrList _hdAccountId)
+      , _uadAccountIdx =  accIdx
+      , _uadAddresses = map toUiAddresses (V.fromList $ enumerate $ addrList _hdAccountId)
+      , _uadBalance = hdAccountBalance acc
       }
 
-    toUiAddresses :: (Word32, HdAddress) -> (Word32, Address)
-    toUiAddresses (addrIx, HdAddress {..}) = (addrIx, _fromDb _hdAddressAddress)
+    toUiAddresses :: (Word32, HdAddress) -> UiAddressData
+    toUiAddresses (addrIx, addr@HdAddress{..}) = addressData
+      where
+        addressData = UiAddressData
+          { _uiadAddress = _fromDb _hdAddressAddress
+          , _uiadAddressIdx = addrIx
+          , _uiadBalance = hdAddressBalance addr}
 
 data UiWalletSelection = UiWalletSelection
   { uwsWalletIdx :: Word
