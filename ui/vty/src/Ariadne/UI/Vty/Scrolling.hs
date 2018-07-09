@@ -28,8 +28,8 @@ keyToScrollingAction :: KeyboardEvent -> Maybe ScrollingAction
 keyToScrollingAction = \case
   KeyUp       -> Just ScrollingLineUp
   KeyDown     -> Just ScrollingLineDown
-  KeyCtrlUp   -> Just ScrollingLineUp
-  KeyCtrlDown -> Just ScrollingLineDown
+  KeyModUp    -> Just ScrollingLineUp
+  KeyModDown  -> Just ScrollingLineDown
   KeyPageUp   -> Just ScrollingPgUp
   KeyPageDown -> Just ScrollingPgDown
   KeyHome     -> Just ScrollingHome

@@ -22,8 +22,8 @@ data KeyboardEvent
   | KeyRight
   | KeyUp
   | KeyDown
-  | KeyCtrlUp
-  | KeyCtrlDown
+  | KeyModUp
+  | KeyModDown
   | KeyPageUp
   | KeyPageDown
   | KeyHome
@@ -52,7 +52,8 @@ data KeyboardEditEvent
 
   | KeyEditPrev
   | KeyEditNext
-  | KeyEditSend
+  | KeyEditEnter
+  | KeyEditTab
   | KeyEditCancel
 
   | KeyEditChar Char
@@ -69,10 +70,10 @@ vtyToKey = \case
 
     EvKey KLeft        _        -> KeyLeft
     EvKey KRight       _        -> KeyRight
-    EvKey KUp          [MCtrl]  -> KeyCtrlUp
-    EvKey KDown        [MCtrl]  -> KeyCtrlDown
-    EvKey KUp          _        -> KeyUp
-    EvKey KDown        _        -> KeyDown
+    EvKey KUp          []       -> KeyUp
+    EvKey KDown        []       -> KeyDown
+    EvKey KUp          _        -> KeyModUp
+    EvKey KDown        _        -> KeyModDown
     EvKey KPageUp      _        -> KeyPageUp
     EvKey KPageDown    _        -> KeyPageDown
     EvKey KHome        _        -> KeyHome
@@ -104,7 +105,8 @@ vtyToEditKey = \case
 
     EvKey (KChar 'p')  [MCtrl]  -> KeyEditPrev
     EvKey (KChar 'n')  [MCtrl]  -> KeyEditNext
-    EvKey KEnter       []       -> KeyEditSend
+    EvKey KEnter       []       -> KeyEditEnter
+    EvKey (KChar '\t') []       -> KeyEditTab
     EvKey (KChar 'c')  [MCtrl]  -> KeyEditCancel
 
     EvKey (KChar c)    []       -> KeyEditChar c

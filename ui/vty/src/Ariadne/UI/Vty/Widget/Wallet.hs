@@ -1,27 +1,19 @@
 module Ariadne.UI.Vty.Widget.Wallet
-       ( WalletWidgetState
-       , initWalletWidget
-       , drawWalletWidget
-
-       , WalletWidgetEvent(..)
-       , handleWalletFocus
-       , handleWalletFocusIn
-       , handleWalletWidgetEvent
+       ( initWalletWidget
        ) where
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, uses, (<%=), (%=), (.=))
+import Control.Lens (assign, makeLensesWith, (%=), (.=))
 import IiExtras
 
 import qualified Brick as B
-import qualified Brick.Focus as B
-import qualified Brick.Forms as B
-import qualified Graphics.Vty as V
+import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
-import Ariadne.UI.Vty.Keyboard
-import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget
+import Ariadne.UI.Vty.Widget.Form.Button
+import Ariadne.UI.Vty.Widget.Form.Edit
 
 ----------------------------------------------------------------------------
 -- Model
@@ -29,17 +21,15 @@ import Ariadne.UI.Vty.UI
 
 data WalletWidgetState =
   WalletWidgetState
-    { walletName :: !Text
+    { walletLangFace :: !UiLangFace
+
+    , walletName :: !Text
     , walletBalance :: !BalanceResult
+
     , walletSendAddress :: !Text
     , walletSendAmount :: !Text
     , walletSendPass :: !Text
     , walletSendResult :: !SendResult
-
-    , walletFocusRing :: !(B.FocusRing BrickName)
-    , walletFieldSendAddress :: B.FormFieldState WalletWidgetState UiEvent BrickName
-    , walletFieldSendAmount :: B.FormFieldState WalletWidgetState UiEvent BrickName
-    , walletFieldSendPass :: B.FormFieldState WalletWidgetState UiEvent BrickName
     }
 
 data BalanceResult
@@ -56,104 +46,95 @@ data SendResult
 
 makeLensesWith postfixLFields ''WalletWidgetState
 
-initWalletWidget :: WalletWidgetState
-initWalletWidget =
-  fix $ \this -> WalletWidgetState
-    { walletName = ""
-    , walletBalance = BalanceResultNone
-    , walletSendAddress = ""
-    , walletSendAmount = ""
-    , walletSendPass = ""
-    , walletSendResult = SendResultNone
+initWalletWidget :: UiLangFace -> Widget p
+initWalletWidget langFace =
+  initWidget $ do
+    setWidgetDrawWithFocus drawWalletWidget
+    setWidgetScrollable
+    setWidgetHandleEvent handleWalletWidgetEvent
+    setWidgetState WalletWidgetState
+      { walletLangFace = langFace
 
-    , walletFocusRing = B.focusRing
-        [ BrickNone
-        , BrickWalletSendAddress, BrickWalletSendAmount
-        , BrickWalletSendPass, BrickWalletSendButton
-        ]
-    , walletFieldSendAddress = B.editTextField walletSendAddressL BrickWalletSendAddress (Just 1) this
-    , walletFieldSendAmount = B.editTextField walletSendAmountL BrickWalletSendAmount (Just 1) this
-    , walletFieldSendPass = B.editPasswordField walletSendPassL BrickWalletSendPass this
-    }
+      , walletName = ""
+      , walletBalance = BalanceResultNone
+
+      , walletSendAddress = ""
+      , walletSendAmount = ""
+      , walletSendPass = ""
+      , walletSendResult = SendResultNone
+      }
+
+    addWidgetChild WidgetNameWalletSendAddress $
+      initEditWidget $ widgetParentLens walletSendAddressL
+    addWidgetChild WidgetNameWalletSendAmount $
+      initEditWidget $ widgetParentLens walletSendAmountL
+    addWidgetChild WidgetNameWalletSendPass $
+      initPasswordWidget $ widgetParentLens walletSendPassL
+    addWidgetChild WidgetNameWalletSendButton $
+      initButtonWidget "Send"
+
+    addWidgetEventHandler WidgetNameWalletSendButton $ \case
+      WidgetEventButtonPressed -> performSendTransaction
+      _ -> return ()
+
+    setWidgetFocusList
+      [ WidgetNameWalletSendAddress
+      , WidgetNameWalletSendAmount
+      , WidgetNameWalletSendPass
+      , WidgetNameWalletSendButton
+      ]
 
 ----------------------------------------------------------------------------
 -- View
 ----------------------------------------------------------------------------
 
-drawWalletWidget :: Bool -> WalletWidgetState -> B.Widget BrickName
-drawWalletWidget _hasFocus WalletWidgetState{..} =
-  B.vBox
-    [ visible BrickNone . pad . B.txt $ " Wallet name: " <> walletName
-    , pad . pad . B.txt $ "     Balance: " <> drawBalance
+drawWalletWidget :: WidgetName -> WalletWidgetState -> WidgetDrawM WalletWidgetState p (B.Widget WidgetName)
+drawWalletWidget focus WalletWidgetState{..} = do
+  widget <- ask
+  widgetName <- getWidgetName
 
-    , pad $ B.txt "Send transaction"
-    , visible BrickWalletSendAddress $ renderField "     Address: " $ walletFieldSendAddress
-    , visible BrickWalletSendAmount  $ renderField " Amount, ADA: " $ walletFieldSendAmount
-    , visible BrickWalletSendPass    $ renderField "  Passphrase: " $ walletFieldSendPass
-    , button "[ Send ]" BrickWalletSendButton
-    , visible BrickWalletSendButton . pad $ drawSendResult
-    ]
-  where
-    pad = B.padBottom (B.Pad 1)
-    padLeft = B.padLeft (B.Pad 14)
-    renderField label field =
-      pad $
-        B.txt label B.<+>
-        B.renderFormFieldState walletFocusRing field
-    visible name =
-      if B.focusGetCurrent walletFocusRing == Just name
-      then B.visible
-      else identity
-    withFocus name =
-      if B.focusGetCurrent walletFocusRing == Just name
-      then B.visible . B.withAttr "selected"
-      else identity
-    button label name =
-      visible name . pad . padLeft . B.clickable name . withFocus name $ B.txt label
-    drawBalance = case walletBalance of
-      BalanceResultNone -> ""
-      BalanceResultWaiting _ -> "calculating..."
-      BalanceResultError err -> err
-      BalanceResultSuccess balance -> balance
-    drawSendResult = padLeft $ case walletSendResult of
-      SendResultNone -> B.emptyWidget
-      SendResultWaiting _ -> B.txt "Sending..."
-      SendResultError err -> B.txt $ "Couldn't send a transaction: " <> err
-      SendResultSuccess tr -> B.txt $ "Transaction sent: " <> tr
+  let
+    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
+    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    label = B.padRight (B.Pad 1) . B.txt . T.takeEnd 14 . (T.append $ T.replicate 14 " ")
+    padBottom = B.padBottom (B.Pad 1)
+
+  return $
+    B.viewport widgetName B.Vertical $
+    B.padAll 1 $
+    B.vBox $
+    padBottom <$>
+      [ label "Wallet name:" B.<+> B.txt walletName
+      , padBottom $ label "Balance:" B.<+> case walletBalance of
+          BalanceResultNone -> B.emptyWidget
+          BalanceResultWaiting _ -> B.txt "calculating..."
+          BalanceResultError err -> B.txt err
+          BalanceResultSuccess balance -> B.txt balance
+
+      , visible WidgetNameWalletSendAddress $ B.txt "Send transaction"
+      , label     "Address:" B.<+> drawChild WidgetNameWalletSendAddress
+      , label "Amount, ADA:" B.<+> drawChild WidgetNameWalletSendAmount
+      , label  "Passphrase:" B.<+> drawChild WidgetNameWalletSendPass
+      , label             "" B.<+> drawChild WidgetNameWalletSendButton
+      , case walletSendResult of
+          SendResultNone -> B.emptyWidget
+          SendResultWaiting _ -> B.txt "Sending..."
+          SendResultError err -> B.txt $ "Couldn't send a transaction: " <> err
+          SendResultSuccess tr -> B.txt $ "Transaction sent: " <> tr
+      ]
 
 ----------------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------------
 
-data WalletWidgetEvent
-  = WalletUpdateEvent (Maybe UiWalletInfo)
-  | WalletMouseDownEvent BrickName B.Location
-  | WalletKeyEvent KeyboardEvent V.Event
-  | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
-  | WalletSendCommandResult UiCommandId UiSendCommandResult
-
-handleWalletFocus
-  :: Bool
-  -> StateT WalletWidgetState (B.EventM BrickName) Bool
-handleWalletFocus back = do
-  newFocus <- walletFocusRingL <%= if back then B.focusPrev else B.focusNext
-  return $ B.focusGetCurrent newFocus /= Just BrickNone
-
-handleWalletFocusIn
-  :: Bool
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-handleWalletFocusIn back = do
-  walletFocusRingL %= (if back then B.focusPrev else B.focusNext) . B.focusSetCurrent BrickNone
-
 handleWalletWidgetEvent
-  :: UiLangFace
-  -> WalletWidgetEvent
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-handleWalletWidgetEvent langFace@UiLangFace{..} = \case
-  WalletUpdateEvent itemInfo -> do
-    whenJust itemInfo $ \UiWalletInfo{..} -> case wpiType of
+  :: UiEvent
+  -> WidgetEventM WalletWidgetState p ()
+handleWalletWidgetEvent = \case
+  UiWalletEvent UiWalletUpdate{..} -> do
+    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
       Just UiWalletInfoWallet -> do
-        walletFocusRingL %= B.focusSetCurrent BrickNone
+        UiLangFace{..} <- use walletLangFaceL
         walletNameL .= fromMaybe "" wpiLabel
         use walletBalanceL >>= \case
           BalanceResultWaiting commandId
@@ -163,55 +144,30 @@ handleWalletWidgetEvent langFace@UiLangFace{..} = \case
         liftIO (langPutUiCommand UiBalance) >>=
           assign walletBalanceL . either BalanceResultError BalanceResultWaiting
       _ -> return ()
-  WalletMouseDownEvent name _coords -> do
-    walletFocusRingL %= B.focusSetCurrent name
-    case name of
-      BrickWalletSendButton ->
-        performSendTransaction langFace
-      _ ->
-        return ()
-  WalletKeyEvent key vtyEv -> do
-    name <- uses walletFocusRingL $ fromMaybe BrickNone . B.focusGetCurrent
-    case name of
-      BrickWalletSendButton
-        | key `elem` [KeyEnter, KeyChar ' '] ->
-            performSendTransaction langFace
-        | otherwise ->
-            return ()
-      BrickWalletSendAddress -> do
-        field <- use walletFieldSendAddressL
-        get >>= lift . handleFormFieldEvent BrickWalletSendAddress (B.VtyEvent vtyEv) walletFieldSendAddressL field >>= put
-      BrickWalletSendAmount -> do
-        field <- use walletFieldSendAmountL
-        get >>= lift . handleFormFieldEvent BrickWalletSendAmount (B.VtyEvent vtyEv) walletFieldSendAmountL field >>= put
-      BrickWalletSendPass -> do
-        field <- use walletFieldSendPassL
-        get >>= lift . handleFormFieldEvent BrickWalletSendPass (B.VtyEvent vtyEv) walletFieldSendPassL field >>= put
-      _ ->
-        return ()
-  WalletBalanceCommandResult commandId result -> do
+  UiCommandResult commandId (UiBalanceCommandResult result) -> do
     walletBalanceL %= \case
       BalanceResultWaiting commandId' | commandId == commandId' ->
         case result of
           UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
-  WalletSendCommandResult commandId result -> do
+  UiCommandResult commandId (UiSendCommandResult result) -> do
     walletSendResultL %= \case
       SendResultWaiting commandId' | commandId == commandId' ->
         case result of
           UiSendCommandSuccess tr -> SendResultSuccess tr
           UiSendCommandFailure err -> SendResultError err
       other -> other
+  _ ->
+    return ()
 
 ----------------------------------------------------------------------------
 -- Actions
 ----------------------------------------------------------------------------
 
-performSendTransaction
-  :: UiLangFace
-  -> StateT WalletWidgetState (B.EventM BrickName) ()
-performSendTransaction UiLangFace{..} = do
+performSendTransaction :: WidgetEventM WalletWidgetState p ()
+performSendTransaction = do
+  UiLangFace{..} <- use walletLangFaceL
   address <- use walletSendAddressL
   amount <- use walletSendAmountL
   passphrase <- use walletSendPassL

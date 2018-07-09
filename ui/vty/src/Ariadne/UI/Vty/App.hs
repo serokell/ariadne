@@ -1,26 +1,26 @@
 module Ariadne.UI.Vty.App
-  ( AppState
-  , initialAppState
+  ( initApp
   , app
   ) where
 
 import Universum
 
-import Control.Lens (makeLensesWith, uses, zoom, (.=))
-import Data.List ((!!))
+import Control.Lens (makeLensesWith, uses, (.=), (%=))
 import IiExtras
 import Named (Named(..))
 
 import qualified Brick as B
+import qualified Brick.Focus as B
 import qualified Brick.Widgets.Border as B
 import qualified Data.List.NonEmpty as NE
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Focus
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Theme
-import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
@@ -32,520 +32,295 @@ import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
 import Ariadne.UI.Vty.Widget.Wallet
 
--- | Selected menu item and, consequently, visible screen
-data AppSelector
-  = AppSelectorWallet
-  | AppSelectorHelp
-  | AppSelectorAbout
-  | AppSelectorLogs
+data AppScreen
+  = AppScreenWallet
+  | AppScreenHelp
+  | AppScreenAbout
+  | AppScreenLogs
   deriving (Eq)
 
--- | Currently focused widget
-data AppFocus
-  = AppFocusTree
-  | AppFocusPane
-  | AppFocusReplOutput
-  | AppFocusReplInput
-  | AppFocusHelp
-  | AppFocusAbout
-  | AppFocusLogs
-  deriving (Eq)
-
-data AppState =
-  AppState
-    { appStateFocus :: !AppFocus
-    , appStateRepl :: ReplWidgetState
-    , appStateMenu :: MenuWidgetState AppSelector
-    , appStateStatus :: StatusWidgetState
-    , appStateHelp :: HelpWidgetState
-    , appStateAbout :: AboutWidgetState
-    , appStateLogs :: LogsWidgetState
-    , appStateTree :: TreeWidgetState
-    , appStateAddWallet :: AddWalletWidgetState
-    , appStateWallet :: WalletWidgetState
-    , appStateAccount :: AccountWidgetState
-    }
-
-makeLensesWith postfixLFields ''AppState
-
-initialAppState :: UiLangFace -> UiHistoryFace -> AppState
-initialAppState langFace historyFace =
-  AppState
-    { appStateFocus = AppFocusReplInput
-    , appStateRepl = initReplWidget langFace historyFace
-    , appStateMenu = initMenuWidget menuItems 0
-    , appStateStatus = initStatusWidget
-    , appStateHelp = initHelpWidget langFace
-    , appStateAbout = initAboutWidget
-    , appStateLogs = initLogsWidget
-    , appStateTree = initTreeWidget
-    , appStateAddWallet = initAddWalletWidget
-    , appStateWallet = initWalletWidget
-    , appStateAccount = initAccountWidget
-    }
-  where
-    menuItems :: NE.NonEmpty (MenuWidgetElem AppSelector)
-    menuItems = NE.fromList
-      [ MenuWidgetElem AppSelectorWallet "Wallet" 'w'
-      , MenuWidgetElem AppSelectorHelp "Help" 'h'
-      , MenuWidgetElem AppSelectorAbout "About" 'a'
-      , MenuWidgetElem AppSelectorLogs "Logs" 'l'
-      ]
+data AppSelection
+  = AppSelectionNone
+  | AppSelectionWallet
+  | AppSelectionAccount
+  | AppSelectionAddWallet
 
 data AppCompleted = AppCompleted | AppInProgress
 
+data AppWidgetState =
+  AppWidgetState
+    { appScreen :: !AppScreen
+    , appSelection :: !AppSelection
+    }
+
+data AppState =
+  AppState
+    { appWidget :: Widget AppState
+    , appFocusRing :: B.FocusRing WidgetName
+    , appNavMode :: Bool
+    }
+
+makeLensesWith postfixLFields ''AppWidgetState
+makeLensesWith postfixLFields ''AppState
+
+initApp :: Text `Named` "ariadne_url" -> UiFace -> UiLangFace -> UiHistoryFace -> AppState
+initApp ariadneURL uiFace langFace historyFace =
+  AppState
+    { appWidget = appWidget
+    , appFocusRing = getFocusRing appWidget
+    , appNavMode = False
+    }
+  where
+    appWidget = initWidget $ do
+      setWidgetState appWidgetState
+      setWidgetFocusList $ appFocusList appWidgetState
+      setWidgetDrawWithFocus drawAppWidget
+      setWidgetHandleKey handleAppWidgetKey
+      setWidgetHandleEvent handleAppWidgetEvent
+
+      addWidgetChild WidgetNameMenu $ initMenuWidget menuItems (widgetParentLens appScreenL)
+      addWidgetChild WidgetNameStatus $ initStatusWidget ariadneURL
+      addWidgetChild WidgetNameTree $ initTreeWidget langFace
+      addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace
+      addWidgetChild WidgetNameWallet $ initWalletWidget langFace
+      addWidgetChild WidgetNameAccount $ initAccountWidget langFace
+      addWidgetChild WidgetNameRepl $ initReplWidget uiFace langFace historyFace
+      addWidgetChild WidgetNameHelp $ initHelpWidget langFace
+      addWidgetChild WidgetNameAbout initAboutWidget
+      addWidgetChild WidgetNameLogs initLogsWidget
+
+      addWidgetEventHandler WidgetNameMenu $ \case
+        WidgetEventMenuSelected -> do
+          resetAppFocus
+          assignWidgetLens (Lens appNavModeL) False
+        _ -> return ()
+
+    appWidgetState = AppWidgetState
+      { appScreen = AppScreenWallet
+      , appSelection = AppSelectionNone
+      }
+
+    menuItems = NE.fromList
+      [ MenuWidgetElem AppScreenWallet "Wallet" 'w'
+      , MenuWidgetElem AppScreenHelp "Help" 'h'
+      , MenuWidgetElem AppScreenAbout "About" 'a'
+      , MenuWidgetElem AppScreenLogs "Logs" 'l'
+      ]
+
+appFocusList :: AppWidgetState -> [WidgetNamePart]
+appFocusList AppWidgetState{..} = case appScreen of
+    AppScreenWallet -> [WidgetNameTree] ++ mainWidgetName ++ [WidgetNameRepl]
+    AppScreenHelp -> [WidgetNameHelp]
+    AppScreenAbout -> [WidgetNameAbout]
+    AppScreenLogs -> [WidgetNameLogs]
+  where
+    mainWidgetName = case appSelection of
+      AppSelectionNone -> []
+      AppSelectionAddWallet -> [WidgetNameAddWallet]
+      AppSelectionWallet -> [WidgetNameWallet]
+      AppSelectionAccount -> [WidgetNameAccount]
+
+getAppFocus :: AppState -> WidgetName
+getAppFocus AppState{..} =
+  if appNavMode
+    then [WidgetNameMenu]
+    else fromMaybe [] $ B.focusGetCurrent appFocusRing
+
+resetAppFocus :: WidgetEventM AppWidgetState AppState ()
+resetAppFocus = do
+  get >>= lift . setWidgetFocusList . appFocusList
+  lift $ do
+    widget <- get
+    lift $ do
+      mcurrent <- uses appFocusRingL B.focusGetCurrent
+      appFocusRingL .= getFocusRing (Widget widget)
+      whenJust mcurrent setAppFocus
+
+setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
+setAppFocus focus = do
+  focus' <- uses appWidgetL $ findClosestFocus focus
+  appFocusRingL %= B.focusSetCurrent focus'
+
 -- The Ariadne UI view and controller a single record.
-app :: Text `Named` "ariadne_url" -> UiLangFace -> B.App AppState UiEvent BrickName
-app ariadneURL langFace = B.App{..} where
+app :: B.App AppState UiEvent WidgetName
+app = B.App{..} where
 
-  appDraw :: AppState -> [B.Widget BrickName]
-  appDraw = drawAppWidget ariadneURL
+  appDraw :: AppState -> [B.Widget WidgetName]
+  appDraw = drawApp
 
-  -- We do not use this feature of Brick.
   appChooseCursor
     :: AppState
-    -> [B.CursorLocation BrickName]
-    -> Maybe (B.CursorLocation BrickName)
-  appChooseCursor = B.showFirstCursor
+    -> [B.CursorLocation WidgetName]
+    -> Maybe (B.CursorLocation WidgetName)
+  appChooseCursor = B.focusRingCursor appFocusRing
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent BrickName UiEvent
-    -> B.EventM BrickName (B.Next AppState)
+    -> B.BrickEvent WidgetName UiEvent
+    -> B.EventM WidgetName (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <-
-      runStateT (handleAppEvent langFace ev) appState
+      runStateT (handleAppEvent ev) appState
     case completed of
       AppCompleted -> B.halt appState'
       AppInProgress -> B.continue appState'
 
   -- We do not use this feature of Brick.
-  appStartEvent :: AppState -> B.EventM BrickName AppState
+  appStartEvent :: AppState -> B.EventM WidgetName AppState
   appStartEvent = return
 
   appAttrMap :: AppState -> B.AttrMap
   appAttrMap = const defaultAttrMap
 
-drawAppWidget :: Text `Named` "ariadne_url" -> AppState -> [B.Widget BrickName]
-drawAppWidget ariadneURL AppState{..} =
-  let
-    navMode = menuWidgetNavMode appStateMenu
-    defAttr :: B.AttrName
-    defAttr = "default"
-    focusAttr :: AppFocus -> B.AttrName
-    focusAttr focus
-      | not navMode, appStateFocus == focus
-          = "focused"
-      | otherwise
-          = defAttr
-    focusIndicator :: AppFocus -> B.Widget name
-    focusIndicator focus
-      | not navMode, appStateFocus == focus
-          = B.withAttr "focus" $ B.txt "•"
-      | navMode
-          = B.withAttr "focus.key" $ B.txt $
-            case focus of
-              AppFocusTree -> "T"
-              AppFocusPane -> "P"
-              AppFocusReplOutput -> "O"
-              AppFocusReplInput  -> "R"
-              _                  -> " "
-      | otherwise
-          = B.txt " "
-    withFocus :: AppFocus -> B.Widget name -> B.Widget name
-    withFocus focus widget =
-      B.hBox
-        [ focusIndicator focus
-        , B.withAttr (focusAttr focus) $ widget
-        ]
-
+drawApp :: AppState -> [B.Widget WidgetName]
+drawApp appState@AppState{..} =
+    [ drawWidget (getAppFocus appState) appState appWidget
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
-    drawBG = B.withAttr defAttr $ B.fill ' '
-    drawMenu = drawMenuWidget appStateMenu
-    drawStatus = drawStatusWidget ariadneURL appStateStatus
-    drawReplInput =
-      withFocus AppFocusReplInput $
-      drawReplInputWidget
-        (appStateFocus == AppFocusReplInput)
-        appStateRepl
-    drawReplOutput =
-      withFocus AppFocusReplOutput $
-      drawReplOutputWidget
-        (appStateFocus == AppFocusReplOutput)
-        appStateRepl
-    drawRepl =
-      B.vBox
-        [ drawReplOutput
-        , B.hBorder
-        , drawReplInput
-        ]
-    drawTree =
-      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusTree $
-      drawTreeWidget
-        (appStateFocus == AppFocusTree)
-        appStateTree
-    drawPane =
-      B.padTop (B.Pad 1) $ B.padRight (B.Pad 1) $
-      withFocus AppFocusPane $ B.viewport BrickPane B.Vertical $
-      case treeWidgetSelection appStateTree of
-        TreeSelectionNone ->
-          B.txt "Loading..."
-        TreeSelectionAddWallet ->
-          drawAddWalletWidget
-            (appStateFocus == AppFocusPane)
-            appStateAddWallet
-        TreeSelectionWallet ->
-          drawWalletWidget
-            (appStateFocus == AppFocusPane)
-            appStateWallet
-        TreeSelectionAccount ->
-          drawAccountWidget
-            (appStateFocus == AppFocusPane)
-            appStateAccount
-    drawDefaultView =
-      B.withAttr defAttr $ B.vBox
-        [ drawMenu
-        , B.hBox
-            [ drawTree
+    , B.withAttr "default" $ B.fill ' '
+    ]
+
+drawAppWidget :: WidgetName -> AppWidgetState -> WidgetDrawM AppWidgetState p (B.Widget WidgetName)
+drawAppWidget focus AppWidgetState{..} = do
+  widget <- ask
+  let
+    drawChild = drawWidgetChild focus widget
+    drawScreen widgets =
+      B.withAttr "default" $ B.vBox $
+        [drawChild WidgetNameMenu]
+        ++ widgets
+        ++ [drawChild WidgetNameStatus]
+    drawWalletScreen = drawScreen
+        [ B.hBox
+            [ withFocusIndicator focus [WidgetNameTree] 'T' 1 $ drawChild WidgetNameTree
             , B.joinBorders B.vBorder
-            , drawPane
+            , mainWidget
             ]
         , B.joinBorders B.hBorder
-        , drawRepl
-        , drawStatus
+        , drawChild WidgetNameRepl
         ]
-    drawHelp =
-      drawHelpWidget appStateHelp
-    drawHelpView =
-      B.withAttr defAttr $ B.vBox
-        [ drawMenu
-        , drawHelp
-        , drawStatus
-        ]
-    drawAbout =
-      drawAboutWidget appStateAbout
-    drawAboutView =
-      B.withAttr defAttr $ B.vBox
-        [ drawMenu
-        , drawAbout
-        , drawStatus
-        ]
-    drawLogs =
-      drawLogsWidget appStateLogs
-    drawLogsView =
-      B.withAttr defAttr $ B.vBox
-        [ drawMenu
-        , drawLogs
-        , drawStatus
-        ]
-  in
-    case menuWidgetSel appStateMenu of
-      AppSelectorHelp -> [drawHelpView, drawBG]
-      AppSelectorAbout -> [drawAboutView, drawBG]
-      AppSelectorLogs -> [drawLogsView, drawBG]
-      _ -> [drawDefaultView, drawBG]
+      where
+        mainWidget = case appSelection of
+          AppSelectionAddWallet -> withFocusIndicator focus [WidgetNameAddWallet] 'P' 1 $ drawChild WidgetNameAddWallet
+          AppSelectionWallet -> withFocusIndicator focus [WidgetNameWallet] 'P' 1 $ drawChild WidgetNameWallet
+          AppSelectionAccount -> withFocusIndicator focus [WidgetNameAccount] 'P' 1 $ drawChild WidgetNameAccount
+          _ -> B.emptyWidget
+    drawHelpScreen = drawScreen [drawChild WidgetNameHelp]
+    drawAboutScreen = drawScreen [drawChild WidgetNameAbout]
+    drawLogsScreen = drawScreen [drawChild WidgetNameLogs]
+
+  return $ case appScreen of
+    AppScreenWallet -> drawWalletScreen
+    AppScreenHelp -> drawHelpScreen
+    AppScreenAbout -> drawAboutScreen
+    AppScreenLogs -> drawLogsScreen
 
 handleAppEvent
-  :: UiLangFace
-  -> B.BrickEvent BrickName UiEvent
-  -> StateT AppState (B.EventM BrickName) AppCompleted
-handleAppEvent langFace ev =
-  case ev of
-    B.VtyEvent (V.EvPaste bs) -> do
-      whenRight (decodeUtf8' bs) $ \pasted ->
-        void $ zoom appStateReplL $
-          handleReplInputEvent langFace $
-            ReplInputModifyEvent (InsertMany pasted)
-      return AppInProgress
-    B.VtyEvent vtyEv -> do
-      focus <- use appStateFocusL
-      menuState <- use appStateMenuL
-      replState <- use appStateReplL
-      treeSel <- uses appStateTreeL treeWidgetSelection
+  :: B.BrickEvent WidgetName UiEvent
+  -> StateT AppState (B.EventM WidgetName) AppCompleted
+handleAppEvent brickEvent = do
+  case brickEvent of
+    B.VtyEvent vtyEv@V.EvKey{} -> do
       let
-        sel = menuWidgetSel menuState
-        navMode = menuWidgetNavMode menuState
         key = vtyToKey vtyEv
         editKey = vtyToEditKey vtyEv
-      if
-        -- Navigation mode related events
-        | navMode,
-          KeyChar c <- key,
-          Just (newSel, newFocus) <- charToFocus c -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== newSel)
-            appStateFocusL .= newFocus
-            return AppInProgress
-        | navMode ->
-            case keyToMenuWidgetEvent menuState key of
-              Just event -> do
-                zoom appStateMenuL $ handleMenuWidgetEvent event
-                newSel <- uses appStateMenuL menuWidgetSel
-                appStateFocusL .= restoreFocus newSel focus
-                return AppInProgress
-              Nothing -> do
-                zoom appStateMenuL $ handleMenuWidgetEvent MenuExitEvent
-                -- Handle event once again in non-nav mode
-                handleAppEvent langFace ev
-        | KeyNavigation <- key -> do
-            zoom appStateMenuL $ handleMenuWidgetEvent MenuEnterEvent
-            return AppInProgress
-
-        -- Switch focus between widgets
-        | key `elem` [KeyFocusNext, KeyFocusPrev],
-          AppFocusPane <- focus,
-          TreeSelectionAddWallet <- treeSel -> do
-            unlessM (zoom appStateAddWalletL $ handleAddWalletFocus $ key == KeyFocusPrev) $
-              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
-            return AppInProgress
-        | key `elem` [KeyFocusNext, KeyFocusPrev],
-          AppFocusPane <- focus,
-          TreeSelectionWallet <- treeSel -> do
-            unlessM (zoom appStateWalletL $ handleWalletFocus $ key == KeyFocusPrev) $
-              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
-            return AppInProgress
-        | key `elem` [KeyFocusNext, KeyFocusPrev],
-          AppFocusPane <- focus,
-          TreeSelectionAccount <- treeSel -> do
-            unlessM (zoom appStateAccountL $ handleAccountFocus $ key == KeyFocusPrev) $
-              appStateFocusL .= rotateFocus sel focus (key == KeyFocusPrev)
-            return AppInProgress
-        | key `elem` [KeyFocusNext, KeyFocusPrev] -> do
-            let focus' = rotateFocus sel focus (key == KeyFocusPrev)
-            appStateFocusL .= focus'
-            when (focus' == AppFocusPane && treeSel == TreeSelectionAddWallet) $
-              zoom appStateAddWalletL $ handleAddWalletFocusIn $ key == KeyFocusPrev
-            when (focus' == AppFocusPane && treeSel == TreeSelectionWallet) $
-              zoom appStateWalletL $ handleWalletFocusIn $ key == KeyFocusPrev
-            when (focus' == AppFocusPane && treeSel == TreeSelectionAccount) $
-              zoom appStateAccountL $ handleAccountFocusIn $ key == KeyFocusPrev
-            return AppInProgress
-
-
-        -- REPL editor events
-        | Just replEv <- keyToReplInputEvent replState editKey,
-          AppFocusReplInput <- focus -> do
-            completed <- zoom appStateReplL $
-              handleReplInputEvent langFace replEv
-            return $ case completed of
-              ReplCompleted -> AppCompleted
-              ReplInProgress -> AppInProgress
-
-        -- This one is here, so that REPL can intercept it and cancel current command
-        | KeyQuit <- key ->
-            return AppCompleted
-
-        -- Scrolling events
-        | Just scrollAction <- keyToScrollingAction key,
-          focus `elem` [AppFocusReplInput, AppFocusReplOutput]-> do
-            zoom appStateReplL $ handleReplOutputEvent $ ReplOutputScrollingEvent scrollAction
-            return AppInProgress
-        | Just scrollAction <- keyToScrollingAction key,
-          AppFocusHelp <- focus -> do
-            zoom appStateHelpL $ handleHelpWidgetEvent $ HelpScrollingEvent scrollAction
-            return AppInProgress
-        | Just scrollAction <- keyToScrollingAction key,
-          AppFocusAbout <- focus -> do
-            zoom appStateAboutL $ handleAboutWidgetEvent $ AboutScrollingEvent scrollAction
-            return AppInProgress
-        | Just scrollAction <- keyToScrollingAction key,
-          AppFocusLogs <- focus -> do
-            zoom appStateLogsL $ handleLogsWidgetEvent $ LogsScrollingEvent scrollAction
-            return AppInProgress
-
-        -- Widget-specific events
-        | AppFocusTree <- focus,
-          Just treeEv <- keyToTreeEvent key -> do
-            zoom appStateTreeL $ handleTreeWidgetEvent langFace treeEv
-            return AppInProgress
-
-        | AppFocusPane <- focus,
-          TreeSelectionWallet <- treeSel -> do
-            zoom appStateWalletL $ handleWalletWidgetEvent langFace $
-              WalletKeyEvent key vtyEv
-            return AppInProgress
-
-        | AppFocusPane <- focus,
-          TreeSelectionAccount <- treeSel,
-          Just accountEv <- keyToAccountEvent key -> do
-            zoom appStateAccountL $ handleAccountWidgetEvent langFace accountEv
-            return AppInProgress
-
-        | AppFocusPane <- focus,
-          TreeSelectionAddWallet <- treeSel -> do
-            zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
-              AddWalletKeyEvent key vtyEv
-            return AppInProgress
-
-        | otherwise ->
-            return AppInProgress
-    B.MouseDown name V.BLeft [] coords ->
-      case name of
-        BrickMenu -> do
-          zoom appStateMenuL $ handleMenuWidgetEvent $
-            MenuMouseDownEvent coords
-          newSel <- uses appStateMenuL menuWidgetSel
-          focus <- use appStateFocusL
-          appStateFocusL .= restoreFocus newSel focus
-          return AppInProgress
-        BrickTree -> do
-          appStateFocusL .= AppFocusTree
-          zoom appStateTreeL $ handleTreeWidgetEvent langFace $
-            TreeMouseDownEvent coords
-          return AppInProgress
-        BrickReplOutput -> do
-          appStateFocusL .= AppFocusReplOutput
-          return AppInProgress
-        BrickReplInput -> do
-          appStateFocusL .= AppFocusReplInput
-          void $ zoom appStateReplL $ handleReplInputEvent langFace $
-            ReplMouseDownEvent coords
-          return AppInProgress
-        _
-          | name `elem`
-            [ BrickAddWalletName, BrickAddWalletPass, BrickAddWalletCreateButton
-            , BrickAddWalletRestoreName, BrickAddWalletRestoreMnemonic
-            , BrickAddWalletRestorePass, BrickAddWalletRestoreFull
-            , BrickAddWalletRestoreButton
-            ] -> do
-              appStateFocusL .= AppFocusPane
-              zoom appStateAddWalletL $ handleAddWalletWidgetEvent langFace $
-                AddWalletMouseDownEvent name coords
-              return AppInProgress
-          | name `elem`
-            [ BrickWalletSendAddress, BrickWalletSendAmount
-            , BrickWalletSendPass, BrickWalletSendButton
-            ] -> do
-              appStateFocusL .= AppFocusPane
-              zoom appStateWalletL $ handleWalletWidgetEvent langFace $
-                WalletMouseDownEvent name coords
-              return AppInProgress
-          | otherwise ->
-              return AppInProgress
-    B.MouseDown name button [] _
-      | Just scrollAction <- buttonToScrollAction button -> do
-          case name of
-            BrickTree ->
-              zoom appStateTreeL $ handleTreeWidgetEvent langFace $
-                TreeScrollingEvent scrollAction
-            BrickPane ->
-              lift $ handleScrollingEvent BrickPane scrollAction
-            BrickReplOutput ->
-              zoom appStateReplL $ handleReplOutputEvent $
-                ReplOutputScrollingEvent scrollAction
-            BrickHelp ->
-              zoom appStateHelpL $ handleHelpWidgetEvent $
-                HelpScrollingEvent scrollAction
-            BrickAbout ->
-              zoom appStateAboutL $ handleAboutWidgetEvent $
-                AboutScrollingEvent scrollAction
-            BrickLogs ->
-              zoom appStateLogsL $ handleLogsWidgetEvent $
-                LogsScrollingEvent scrollAction
-            _ ->
-              return ()
-          return AppInProgress
-    B.AppEvent (UiWalletEvent walletEvent) -> do
-      case walletEvent of
-        UiWalletUpdate{..} -> do
-          zoom appStateTreeL $
-            handleTreeWidgetEvent langFace $
-              TreeUpdateEvent wuTrees wuSelection
-          zoom appStateWalletL $
-            handleWalletWidgetEvent langFace $
-              WalletUpdateEvent wuPaneInfoUpdate
-          zoom appStateAccountL $
-            handleAccountWidgetEvent langFace $
-              AccountUpdateEvent wuPaneInfoUpdate
+      focus <- gets getAppFocus
+      runHandler (handleWidgetEditKey editKey focus) >>= \case
+        WidgetEventHandled -> return AppInProgress
+        WidgetEventNotHandled ->
+          runHandler (handleWidgetKey key focus) >>= \case
+            WidgetEventHandled -> return AppInProgress
+            WidgetEventNotHandled
+              | KeyQuit <- key ->
+                  return AppCompleted
+              | KeyNavigation <- key -> do
+                  appNavModeL %= not
+                  return AppInProgress
+              | KeyFocusPrev <- key -> do
+                  appFocusRingL %= B.focusPrev
+                  appNavModeL .= False
+                  return AppInProgress
+              | KeyFocusNext <- key -> do
+                  appFocusRingL %= B.focusNext
+                  appNavModeL .= False
+                  return AppInProgress
+              | Just scrollAction <- keyToScrollingAction key -> do
+                  void $ runHandler $ handleWidgetScroll scrollAction focus
+                  return AppInProgress
+              | otherwise ->
+                  return AppInProgress
+    B.VtyEvent (V.EvPaste raw) -> do
+      whenRight (decodeUtf8' raw) $ \pasted -> do
+        focus <- gets getAppFocus
+        void $ runHandler $ handleWidgetPaste pasted focus
       return AppInProgress
-    B.AppEvent (UiCommandEvent commandId commandEvent) -> do
-        completed <- zoom appStateReplL $
-          handleReplInputEvent langFace $
-            ReplCommandEvent commandId commandEvent
-        return $ case completed of
-          ReplCompleted -> AppCompleted
-          ReplInProgress -> AppInProgress
-    B.AppEvent (UiCommandResult commandId commandResult) -> do
-      case commandResult of
-        UiBalanceCommandResult result -> do
-          zoom appStateWalletL $
-            handleWalletWidgetEvent langFace $
-              WalletBalanceCommandResult commandId result
-          zoom appStateAccountL $
-            handleAccountWidgetEvent langFace $
-              AccountBalanceCommandResult commandId result
-        UiSendCommandResult result ->
-          zoom appStateWalletL $
-            handleWalletWidgetEvent langFace $
-              WalletSendCommandResult commandId result
-        UiNewWalletCommandResult result ->
-          zoom appStateAddWalletL $
-            handleAddWalletWidgetEvent langFace $
-              AddWalletNewWalletCommandResult commandId result
-        UiRestoreWalletCommandResult result ->
-          zoom appStateAddWalletL $
-            handleAddWalletWidgetEvent langFace $
-              AddWalletRestoreWalletCommandResult commandId result
+    B.MouseDown name button [] coords -> do
+      case button of
+        V.BScrollUp -> void $ runHandler $ handleWidgetScroll ScrollingLineUp name
+        V.BScrollDown -> void $ runHandler $ handleWidgetScroll ScrollingLineDown name
+        _ -> do
+          setAppFocus name
+          void $ runHandler $ handleWidgetMouseDown coords name
       return AppInProgress
-    B.AppEvent (UiCardanoEvent cardanoEvent) -> do
-      case cardanoEvent of
-        UiCardanoLogEvent message ->
-          zoom appStateLogsL $
-            handleLogsWidgetEvent $
-              LogsMessage message
-        UiCardanoStatusUpdateEvent statusUpdate ->
-          zoom appStateStatusL $
-            handleStatusWidgetEvent $
-              StatusUpdateEvent statusUpdate
+    B.AppEvent (UiCommandAction UiCommandQuit) -> do
+      return AppCompleted
+    B.AppEvent event -> do
+      runHandler $ handleWidgetEvent event
       return AppInProgress
-    B.AppEvent (UiNewVersionEvent ver) -> do
-      zoom appStateStatusL $
-        handleStatusWidgetEvent $
-          StatusNewVersionEvent ver
-      return AppInProgress
-    B.AppEvent (UiCommandAction commandAction) -> do
-      case commandAction of
-        UiCommandHelp -> do
-          focus <- use appStateFocusL
-          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorHelp)
-          appStateFocusL .= restoreFocus AppSelectorHelp focus
-          return AppInProgress
-        UiCommandLogs -> do
-          focus <- use appStateFocusL
-          zoom appStateMenuL $ handleMenuWidgetEvent $ MenuSelectEvent (== AppSelectorLogs)
-          appStateFocusL .= restoreFocus AppSelectorLogs focus
-          return AppInProgress
     _ ->
       return AppInProgress
-
-buttonToScrollAction :: V.Button -> Maybe ScrollingAction
-buttonToScrollAction = \case
-  V.BScrollUp -> Just ScrollingLineUp
-  V.BScrollDown -> Just ScrollingLineDown
-  _ -> Nothing
-
-charToFocus :: Char -> Maybe (AppSelector, AppFocus)
-charToFocus = \case
-  't' -> Just (AppSelectorWallet, AppFocusTree)
-  'p' -> Just (AppSelectorWallet, AppFocusPane)
-  'o' -> Just (AppSelectorWallet, AppFocusReplOutput)
-  'r' -> Just (AppSelectorWallet, AppFocusReplInput)
-  _   -> Nothing
-
-focusesBySel :: AppSelector -> NE.NonEmpty AppFocus
-focusesBySel sel = NE.fromList $ case sel of
-  AppSelectorWallet -> [AppFocusReplInput, AppFocusTree, AppFocusPane, AppFocusReplOutput]
-  AppSelectorHelp -> [AppFocusHelp]
-  AppSelectorAbout -> [AppFocusAbout]
-  AppSelectorLogs -> [AppFocusLogs]
-
-rotateFocus :: AppSelector -> AppFocus -> Bool -> AppFocus
-rotateFocus selector focus back = NE.dropWhile (/= focus) focuses !! 1
   where
-    focuses = NE.cycle $ (if back then NE.reverse . focusesBySel else focusesBySel) selector
+    runHandler handler = do
+      widget <- use appWidgetL
+      (res, widget') <- runStateT handler widget
+      appWidgetL .= widget'
+      return res
 
-restoreFocus :: AppSelector -> AppFocus -> AppFocus
-restoreFocus selector focus =
-  if focus `elem` focuses then focus else NE.head focuses
-  where focuses = focusesBySel selector
+handleAppWidgetKey
+  :: KeyboardEvent
+  -> WidgetEventM AppWidgetState AppState WidgetEventResult
+handleAppWidgetKey key = do
+    navMode <- useWidgetLens $ Lens appNavModeL
+    selection <- use appSelectionL
+    case key of
+      KeyChar c
+        | navMode -> do
+            whenJust (charToFocus selection c) $ \(screen, focus) -> do
+              appScreenL .= screen
+              resetAppFocus
+              lift . lift $ setAppFocus focus
+            assignWidgetLens (Lens appNavModeL) False
+            return WidgetEventHandled
+      _ ->
+        return WidgetEventNotHandled
+  where
+    charToFocus selection = \case
+      't' -> Just (AppScreenWallet, [WidgetNameTree])
+      'p' -> Just (AppScreenWallet, mainFocus selection)
+      'r' -> Just (AppScreenWallet, [WidgetNameRepl])
+      _   -> Nothing
+    mainFocus = \case
+      AppSelectionNone -> [WidgetNameTree]
+      AppSelectionAddWallet -> [WidgetNameAddWallet]
+      AppSelectionWallet -> [WidgetNameWallet]
+      AppSelectionAccount -> [WidgetNameAccount]
+
+handleAppWidgetEvent
+  :: UiEvent
+  -> WidgetEventM AppWidgetState AppState ()
+handleAppWidgetEvent = \case
+  UiWalletEvent UiWalletUpdate{..} -> do
+    appSelectionL .= AppSelectionAddWallet
+    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
+      Just UiWalletInfoWallet -> appSelectionL .= AppSelectionWallet
+      Just UiWalletInfoAccount{} -> appSelectionL .= AppSelectionAccount
+      _ -> return ()
+    resetAppFocus
+  UiCommandAction UiCommandHelp -> do
+    appScreenL .= AppScreenHelp
+    resetAppFocus
+  UiCommandAction UiCommandLogs -> do
+    appScreenL .= AppScreenLogs
+    resetAppFocus
+  _ ->
+    return ()

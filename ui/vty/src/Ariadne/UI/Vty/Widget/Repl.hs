@@ -1,47 +1,28 @@
 module Ariadne.UI.Vty.Widget.Repl
-       ( ReplWidgetState
-       , initReplWidget
-       , drawReplInputWidget
-       , drawReplOutputWidget
-
-       , ReplCompleted(..)
-       , InputModification(..)
-       , ReplInputEvent(..)
-       , ReplOutputEvent(..)
-       , keyToReplInputEvent
-       , handleReplInputEvent
-       , handleReplOutputEvent
+       ( initReplWidget
        ) where
 
-import Prelude (until)
 import Universum
 
-import Control.Lens (makeLensesWith, traversed, uses, zoom, (.=))
-import Data.Char as Char
-import Data.Function (fix, on)
-import qualified Data.List as List
-import Data.Maybe (fromMaybe)
-import qualified Data.Text as Text
-import Data.Text.Zipper
-  (TextZipper, breakLine, clearZipper, currentChar, currentLine,
-  cursorPosition, deleteChar, deletePrevChar, getText, gotoBOL, gotoEOL,
-  insertChar, insertMany, killToBOL, lineLengths, moveDown, moveLeft,
-  moveRight, moveUp, previousChar, textZipper, moveCursor)
+import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
 import IiExtras
 import Named
 
+import qualified Brick as B
+import qualified Brick.Widgets.Border as B
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
-
-import qualified Brick as B
+import qualified Data.Text as T
 import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Focus
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
-import Ariadne.UI.Vty.UI
+import Ariadne.UI.Vty.Widget
+import Ariadne.UI.Vty.Widget.Form.Edit
 
 type AdaptiveImage =
   Named V.Attr "def_attr" -> Named Int "width" -> V.Image
@@ -59,66 +40,63 @@ data ReplParseResult
 
 data ReplWidgetState =
   ReplWidgetState
-    { replWidgetParseResult :: ReplParseResult
-    , replWidgetTextZipper :: !(TextZipper Text)
-    , replWidgetOut :: ![OutputElement]
+    { replWidgetUiFace :: !UiFace
+    , replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
+    , replWidgetCommand :: !Text
+    , replWidgetParseResult :: ReplParseResult
+    , replWidgetOut :: ![OutputElement]
     }
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-widgetInputName, widgetOutputName :: BrickName
-widgetInputName = BrickReplInput
-widgetOutputName = BrickReplOutput
-
-replWidgetPrompt :: String
-replWidgetPrompt = "knit> "
-
-replWidgetPromptCont :: String
-replWidgetPromptCont = "  ... "
-
-replWidgetText :: ReplWidgetState -> Text
-replWidgetText = Text.unlines . getText . replWidgetTextZipper
-
-mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
-mkReplParseResult UiLangFace{..} t =
-  case langParse t of
-    Left err ->
-      ReplParseFailure
-        { rpfParseErrDoc = langPpParseError err
-        , rpfParseErrSpans = langParseErrSpans err
-        }
-    Right expr ->
-      ReplParseSuccess
-        { rpfExprDoc = langPpExpr expr
-        , rpfPutCommand = langPutCommand expr
-        }
-
-replReparse :: Monad m => UiLangFace -> StateT ReplWidgetState m ()
-replReparse langFace = do
-  t <- gets replWidgetText
-  replWidgetParseResultL .= mkReplParseResult langFace t
-
-initReplWidget :: UiLangFace -> UiHistoryFace -> ReplWidgetState
-initReplWidget langFace historyFace =
-  fix $ \this -> ReplWidgetState
-    { replWidgetParseResult = mkReplParseResult langFace (replWidgetText this)
-    , replWidgetTextZipper = textZipper [] Nothing
-    , replWidgetOut = [OutputInfo ariadneBanner]
-    , replWidgetHistoryFace = historyFace
-    }
-
-drawReplOutputWidget :: Bool -> ReplWidgetState -> B.Widget BrickName
-drawReplOutputWidget _hasFocus replWidgetState =
-  B.viewport widgetOutputName B.Vertical $
-    B.cached widgetOutputName $
-    B.Widget
-      { B.hSize = B.Fixed
-      , B.vSize = B.Fixed
-      , B.render = render
+initReplWidget :: UiFace -> UiLangFace -> UiHistoryFace -> Widget p
+initReplWidget uiFace langFace historyFace =
+  initWidget $ do
+    setWidgetDrawWithFocus drawReplWidget
+    setWidgetScrollable
+    setWidgetHandleKey handleReplWidgetKey
+    setWidgetHandleEvent handleReplWidgetEvent
+    setWidgetState ReplWidgetState
+      { replWidgetUiFace = uiFace
+      , replWidgetLangFace = langFace
+      , replWidgetHistoryFace = historyFace
+      , replWidgetCommand = ""
+      , replWidgetParseResult = mkReplParseResult langFace ""
+      , replWidgetOut = [OutputInfo ariadneBanner]
       }
+
+    addWidgetChild WidgetNameReplInput $
+      initBaseEditWidget (widgetParentLens replWidgetCommandL) "default" id (Just $ widgetParentGetter spanAttrs) EnterWithBackslash
+
+    addWidgetEventHandler WidgetNameReplInput $ \case
+      WidgetEventEditChanged -> do
+        reparse
+        historyUpdate
+      _ -> return ()
+
+    setWidgetFocusList [WidgetNameReplInput]
+
+drawReplWidget :: WidgetName -> ReplWidgetState -> WidgetDrawM ReplWidgetState p (B.Widget WidgetName)
+drawReplWidget focus ReplWidgetState{..} = do
+    widget <- ask
+    widgetName <- getWidgetName
+    return $ B.vBox
+      [ B.padLeftRight 1 $
+        B.viewport widgetName B.Vertical $
+        B.cached widgetName $
+        B.Widget
+          { B.hSize = B.Fixed
+          , B.vSize = B.Fixed
+          , B.render = render
+          }
+      , B.hBorder
+      , withFocusIndicator focus widgetName 'R' 0 $
+        B.padLeftRight 1 $
+        appendPrompt $
+        drawWidgetChild focus widget WidgetNameReplInput
+      ]
   where
-    outElems = reverse (replWidgetOut replWidgetState)
     render = do
       rdrCtx <- B.getContext
       let
@@ -126,8 +104,8 @@ drawReplOutputWidget _hasFocus replWidgetState =
         width = rdrCtx ^. B.availWidthL
         img =
           V.vertCat $
-          List.intersperse (V.backgroundFill 1 1) $
-          fmap drawOutputElement outElems
+          intersperse (V.backgroundFill 1 1) $
+          drawOutputElement <$> reverse replWidgetOut
         drawOutputElement (OutputInfo mkImg) =
           mkImg ! #def_attr defAttr ! #width width
         drawOutputElement (OutputCommand commandId commandSrc commandMsgs mCommandOut) =
@@ -152,293 +130,105 @@ drawReplOutputWidget _hasFocus replWidgetState =
         B.emptyResult
           & B.imageL .~ img
 
-drawReplInputWidget :: Bool -> ReplWidgetState -> B.Widget BrickName
-drawReplInputWidget hasFocus replWidgetState =
-  fixedViewport widgetInputName B.Horizontal B.Widget
-    { B.hSize = B.Fixed
-    , B.vSize = B.Fixed
-    , B.render = render
-    }
-  where
-    render = do
-      rdrCtx <- B.getContext
-      let
-        defAttr = rdrCtx ^. B.attrL
-        replInputWidth = max 1 $ (rdrCtx ^. B.availWidthL) - length replWidgetPrompt
-
-        attrFn :: (Int, Int) -> V.Attr -> V.Attr
-        attrFn loc =
-          case replWidgetParseResult replWidgetState of
-            ReplParseFailure{..} | inSpans rpfParseErrSpans loc ->
-              (`V.withBackColor` V.red)
-            _ -> identity
-
-        wrapLines :: Text -> [Text]
-        wrapLines line = List.unfoldr f line
-          where
-            f line' =
-              if Text.null line'
-              then Nothing
-              else Just $ Text.splitAt replInputWidth line'
-
-        linesToImage :: Int -> [Text] -> V.Image
-        linesToImage row textLines = V.vertCat
-          [ V.horizCat
-            [ V.char (attrFn (row, column) defAttr) char
-            | (column, char) <- List.zip [1 + subRow * replInputWidth..] (toString line)
-            ]
-          | (subRow, line) <- List.zip [0..] textLines
+    inputPrompt = "knit> "
+    inputPromptCont = "\n  ... "
+    appendPrompt w = B.Widget (B.hSize w) (B.vSize w) $ do
+      c <- B.getContext
+      result <- B.render $ B.hLimit (c ^. B.availWidthL - T.length inputPrompt) w
+      B.render $
+        B.hBox
+          [ B.txt $ inputPrompt <> T.replicate ((result ^. B.imageL & V.imageHeight) - 1) inputPromptCont
+          , B.Widget (B.hSize w) (B.vSize w) (return result)
           ]
 
-        zipper = replWidgetTextZipper replWidgetState
-        img =
-          V.vertCat $
-          List.zipWith V.horizJoin
-            (V.string defAttr replWidgetPrompt :
-              List.repeat (V.string defAttr replWidgetPromptCont))
-            [ linesToImage row $ wrapLines line
-            | (row, line) <- List.zip [1..] (getText zipper)
-            ]
-        curLoc =
-          let
-            (y, x) = cursorPosition zipper
-            -- We need to take all lines above current, calculate how many screen lines they occupy
-            -- and sum these values to get screen line for the current text line
-            prevLines = sum $ map (\n -> 1 + n `div` replInputWidth) $ take y $ lineLengths zipper
-            (subY, subX) = x `divMod` replInputWidth
-          in B.CursorLocation (B.Location (subX + length replWidgetPrompt, prevLines + subY)) Nothing
-      return $
-        B.emptyResult
-          & B.imageL .~ img
-          & B.cursorsL .~ [curLoc | hasFocus]
 
-inSpans :: [Loc.Span] -> (Int, Int) -> Bool
-inSpans spans (row, column) = inSpan
+handleReplWidgetKey
+  :: KeyboardEvent
+  -> WidgetEventM ReplWidgetState p WidgetEventResult
+handleReplWidgetKey = \case
+    KeyQuit -> do
+      ReplWidgetState{..} <- get
+      if null replWidgetCommand
+        then return WidgetEventNotHandled
+        else do
+          replWidgetCommandL .= ""
+          reparse
+          return WidgetEventHandled
+    KeyEnter -> do
+      ReplWidgetState{..} <- get
+      if
+        | null replWidgetCommand ->
+            return ()
+        | isQuitCommand replWidgetCommand ->
+            liftIO $ putUiEvent replWidgetUiFace $ UiCommandAction UiCommandQuit
+        | otherwise -> do
+            liftIO $ historyAddCommand replWidgetHistoryFace replWidgetCommand
+            case replWidgetParseResult of
+              ReplParseFailure{..} -> do
+                let out = OutputInfo $ \(Named defAttr) (Named w) -> pprDoc defAttr w rpfParseErrDoc
+                zoom replWidgetOutL $ modify (out:)
+              ReplParseSuccess{..} -> do
+                commandId <- liftIO rpfPutCommand
+                let
+                  commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
+                  out = OutputCommand commandId commandSrc [] Nothing
+                zoom replWidgetOutL $ modify (out:)
+                replWidgetCommandL .= ""
+                reparse
+            widgetName <- B.getName <$> lift get
+            liftBrick $ do
+              B.invalidateCacheEntry widgetName
+              scrollToEnd widgetName
+      return WidgetEventHandled
+    KeyUp -> historyNavigate historyPrevCommand
+    KeyDown -> historyNavigate historyNextCommand
+    _ ->
+      return WidgetEventNotHandled
   where
-    inSpan = List.any inSpan1 spans
-    inSpan1 = Loc.overlapping $
-      Loc.fromTo
-        (Loc.loc (fromIntegral row) (fromIntegral column))
-        (Loc.loc (fromIntegral row) (fromIntegral column + 1))
+    historyNavigate action = do
+      ReplWidgetState{..} <- get
+      cmd <- liftIO $ action replWidgetHistoryFace
+      whenJust cmd $ assign replWidgetCommandL
+      reparse
+      return WidgetEventHandled
 
-data NavAction
-  = NavLeft
-  | NavLeftWord
-  | NavHome
-  | NavRight
-  | NavRightWord
-  | NavEnd
-  | NavUp
-  | NavDown
-
-data CommandAction
-  = NextCommand
-  | PrevCommand
-
-data InputModification
-  = InsertChar Char
-  | InsertMany Text
-  | DeleteBackwards
-  | DeleteWordBackwards
-  | DeleteAllBackwards
-  | DeleteForwards
-  | DeleteWordForwards
-  | DeleteAll
-  | BreakLine
-  | ReplaceBreakLine
-
-data ReplInputEvent
-  = ReplCommandEvent UiCommandId UiCommandEvent
-  | ReplInputModifyEvent InputModification
-  | ReplInputNavigationEvent NavAction
-  | ReplCommandNavigationEvent CommandAction
-  | ReplSendEvent
-  | ReplSmartEnterEvent
-  | ReplQuitEvent
-  | ReplMouseDownEvent B.Location
-
-data ReplOutputEvent
-  = ReplOutputScrollingEvent ScrollingAction
-
-data ReplCompleted = ReplCompleted | ReplInProgress
-
-keyToReplInputEvent
-  :: ReplWidgetState
-  -> KeyboardEditEvent
-  -> Maybe ReplInputEvent
-keyToReplInputEvent ReplWidgetState{..} = \case
-  KeyEditLeft ->
-    Just $ ReplInputNavigationEvent NavLeft
-  KeyEditLeftWord ->
-    Just $ ReplInputNavigationEvent NavLeftWord
-  KeyEditHome ->
-    Just $ ReplInputNavigationEvent NavHome
-  KeyEditRight ->
-    Just $ ReplInputNavigationEvent NavRight
-  KeyEditRightWord ->
-    Just $ ReplInputNavigationEvent NavRightWord
-  KeyEditEnd ->
-    Just $ ReplInputNavigationEvent NavEnd
-  -- TODO: go to prev/next command, when we are on first/last line
-  KeyEditUp
-    | isMultiline ->
-        Just $ ReplInputNavigationEvent NavUp
-    | otherwise ->
-        Just $ ReplCommandNavigationEvent PrevCommand
-  KeyEditDown
-    | isMultiline ->
-        Just $ ReplInputNavigationEvent NavDown
-    | otherwise ->
-        Just $ ReplCommandNavigationEvent NextCommand
-  KeyEditDelLeft ->
-    Just $ ReplInputModifyEvent DeleteBackwards
-  KeyEditDelLeftWord ->
-    Just $ ReplInputModifyEvent DeleteWordBackwards
-  KeyEditDelLeftAll ->
-    Just $ ReplInputModifyEvent DeleteAllBackwards
-  KeyEditDelRight ->
-    Just $ ReplInputModifyEvent DeleteForwards
-  KeyEditDelRightWord ->
-    Just $ ReplInputModifyEvent DeleteWordForwards
-  KeyEditSend ->
-    Just ReplSmartEnterEvent
-  KeyEditCancel
-    | not isEmpty ->
-        Just $ ReplInputModifyEvent DeleteAll
-  KeyEditQuit ->
-    Just ReplQuitEvent
-  KeyEditNext ->
-    Just $ ReplCommandNavigationEvent NextCommand
-  KeyEditPrev ->
-    Just $ ReplCommandNavigationEvent PrevCommand
-  KeyEditChar c ->
-    Just $ ReplInputModifyEvent (InsertChar c)
-  _ -> Nothing
-  where
-    isMultiline = length (lineLengths replWidgetTextZipper) > 1
-    isEmpty = Text.null $ Text.unwords $ getText replWidgetTextZipper
-
-handleReplInputEvent
-  :: UiLangFace
-  -> ReplInputEvent
-  -> StateT ReplWidgetState (B.EventM BrickName) ReplCompleted
-handleReplInputEvent langFace = fix $ \go -> \case
-  ReplQuitEvent -> return ReplCompleted
-  ReplInputModifyEvent modification -> do
-    zoom replWidgetTextZipperL $ modify $
-      case modification of
-        InsertChar c -> insertChar c
-        InsertMany t -> insertMany t
-        DeleteBackwards -> deletePrevChar
-        DeleteWordBackwards -> byWord deletePrevChar previousChar
-        DeleteAllBackwards -> killToBOL
-        DeleteForwards -> deleteChar
-        DeleteWordForwards -> byWord deleteChar currentChar
-        DeleteAll -> clearZipper
-        BreakLine -> smartBreakLine
-        ReplaceBreakLine -> smartBreakLine . deletePrevChar
-    replReparse langFace
-    history <- gets replWidgetHistoryFace
-    t <- gets replWidgetText
-    liftIO $ historySetPrefix history t
-    return ReplInProgress
-  ReplInputNavigationEvent nav -> do
-    zoom replWidgetTextZipperL $ modify $
-      case nav of
-        NavLeft -> moveLeft
-        NavLeftWord -> byWord moveLeft previousChar
-        NavRight -> moveRight
-        NavRightWord -> byWord moveRight currentChar
-        NavUp -> moveUp
-        NavDown -> moveDown
-        NavHome -> gotoBOL
-        NavEnd -> gotoEOL
-    return ReplInProgress
-  ReplMouseDownEvent (B.Location (col, row)) -> do
-    zoom replWidgetTextZipperL $ modify $
-      safeMoveCursor (row, col - length replWidgetPrompt - 1)
-    return ReplInProgress
-  ReplCommandNavigationEvent cmdAction -> do
-    -- TODO: handle multi-line commands
-    historyFace <- gets replWidgetHistoryFace
-    let action = case cmdAction of
-                    NextCommand -> historyNextCommand
-                    PrevCommand -> historyPrevCommand
-    cmd <- liftIO $ action historyFace
-    zoom replWidgetTextZipperL $ modify $ insertMany (fromMaybe "" cmd) . clearZipper
-    replReparse langFace
-    return ReplInProgress
-  ReplSmartEnterEvent -> do
-    quitCommandDetected <- gets (isQuitCommand . replWidgetText)
-    if quitCommandDetected
-      then go ReplQuitEvent
-      else do
-        mPrevChar <- uses replWidgetTextZipperL previousChar
-        case mPrevChar of
-          Just '\\' -> go (ReplInputModifyEvent ReplaceBreakLine)
-          _ -> go ReplSendEvent
-  ReplSendEvent -> do
-    history <- gets replWidgetHistoryFace
-    t <- gets replWidgetText
-    liftIO $ historyAddCommand history t
-    replParseResult <- use replWidgetParseResultL
-    case replParseResult of
-      ReplParseFailure{..} -> do
-        let out = OutputInfo $ \(Named defAttr) (Named w) -> pprDoc defAttr w rpfParseErrDoc
-        zoom replWidgetOutL $ modify (out:)
-      ReplParseSuccess{..} -> do
-        commandId <- liftIO rpfPutCommand
-        zoom replWidgetTextZipperL $ modify $ clearZipper
-        let
-          commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
-          out = OutputCommand commandId commandSrc [] Nothing
-        zoom replWidgetOutL $ modify (out:)
-        replReparse langFace
-    lift $ B.invalidateCacheEntry widgetOutputName
-    lift $ scrollToEnd widgetOutputName
-    return ReplInProgress
-  ReplCommandEvent commandId commandEvent -> do
+handleReplWidgetEvent
+  :: UiEvent
+  -> WidgetEventM ReplWidgetState p ()
+handleReplWidgetEvent = \case
+  UiCommandEvent commandId commandEvent -> do
     zoom (replWidgetOutL . traversed) $
       modify (updateCommandResult commandId commandEvent)
-    lift $ B.invalidateCacheEntry widgetOutputName
-    lift $ scrollToEnd widgetOutputName
-    return ReplInProgress
+    widgetName <- B.getName <$> lift get
+    liftBrick $ do
+      B.invalidateCacheEntry widgetName
+      scrollToEnd widgetName
+  _ ->
+    return ()
 
-handleReplOutputEvent
-  :: ReplOutputEvent
-  -> StateT ReplWidgetState (B.EventM BrickName) ()
-handleReplOutputEvent = \case
-  ReplOutputScrollingEvent action -> do
-    lift $ handleScrollingEvent widgetOutputName action
+reparse :: WidgetEventM ReplWidgetState p ()
+reparse = do
+  ReplWidgetState{..} <- get
+  replWidgetParseResultL .= mkReplParseResult replWidgetLangFace replWidgetCommand
 
-isQuitCommand :: Text -> Bool
-isQuitCommand t =
-  Text.strip t `List.elem` ["quit", "q", ":quit", ":q", "exit"]
+historyUpdate :: WidgetEventM ReplWidgetState p ()
+historyUpdate = do
+  ReplWidgetState{..} <- get
+  liftIO $ historySetPrefix replWidgetHistoryFace replWidgetCommand
 
-smartBreakLine :: TextZipper Text -> TextZipper Text
-smartBreakLine tz =
-  let indentation = Text.takeWhile Char.isSpace (currentLine tz)
-  in insertMany indentation (breakLine tz)
-
-byWord
-  :: (TextZipper Text -> TextZipper Text)
-  -> (TextZipper Text -> Maybe Char)
-  -> TextZipper Text
-  -> TextZipper Text
-byWord move check = go Char.isSpace . go (not . Char.isSpace)
-  where
-    go p = until (nothingLeft p) move
-    nothingLeft p tz = case check tz of
-      Nothing -> True
-      Just c -> p c
-
-safeMoveCursor :: (Int, Int) -> TextZipper Text -> TextZipper Text
-safeMoveCursor (row, col) tz = moveCursor (row', col') tz
-  where
-    clamp mn mx = max mn . min mx
-    lengths = lineLengths tz
-    row' = clamp 0 (length lengths - 1) row
-    col' = clamp 0 (lengths List.!! row') col
+mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
+mkReplParseResult UiLangFace{..} t =
+  case langParse t of
+    Left err ->
+      ReplParseFailure
+        { rpfParseErrDoc = langPpParseError err
+        , rpfParseErrSpans = langParseErrSpans err
+        }
+    Right expr ->
+      ReplParseSuccess
+        { rpfExprDoc = langPpExpr expr
+        , rpfPutCommand = langPutCommand expr
+        }
 
 updateCommandResult
   :: UiCommandId
@@ -471,8 +261,22 @@ updateCommandResult
           in message:oldMessages
 updateCommandResult _ _ outCmd = outCmd
 
+spanAttrs :: ReplWidgetState -> (Int, Int) -> B.AttrName
+spanAttrs ReplWidgetState{..} (row, column) = case replWidgetParseResult of
+    ReplParseFailure{..} | any inSpan rpfParseErrSpans -> "error"
+    _ -> "default"
+  where
+    inSpan = Loc.overlapping $
+      Loc.fromTo
+        (Loc.loc (fromIntegral row) (fromIntegral column))
+        (Loc.loc (fromIntegral row) (fromIntegral column + 1))
+
+isQuitCommand :: Text -> Bool
+isQuitCommand t =
+  T.strip t `elem` ["quit", "q", ":quit", ":q", "exit"]
+
 ariadneBanner :: AdaptiveImage
-ariadneBanner (Named defAttr) _ = V.vertCat $ List.map (V.text' defAttr)
+ariadneBanner (Named defAttr) _ = V.vertCat $ map (V.text' defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___ _____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"

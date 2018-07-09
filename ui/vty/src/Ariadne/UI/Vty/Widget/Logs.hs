@@ -1,23 +1,20 @@
 module Ariadne.UI.Vty.Widget.Logs
-       ( LogsWidgetState
-       , initLogsWidget
-       , drawLogsWidget
-
-       , LogsWidgetEvent(..)
-       , handleLogsWidgetEvent
+       ( initLogsWidget
        ) where
 
 import Universum
 
-import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.Scrolling
-import Ariadne.UI.Vty.UI
 import Control.Lens (makeLensesWith, zoom, (+=), (.=))
 import qualified Data.Text as Text
 import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
+
+import Ariadne.UI.Vty.AnsiToVty
+import Ariadne.UI.Vty.Scrolling
+import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Widget
 
 newtype LogMessage = LogMessage Text
 
@@ -31,21 +28,26 @@ data LogsWidgetState =
 
 makeLensesWith postfixLFields ''LogsWidgetState
 
-widgetName :: BrickName
-widgetName = BrickLogs
+initLogsWidget :: Widget p
+initLogsWidget =
+  initWidget $ do
+    setWidgetDraw drawLogsWidget
+    setWidgetHandleScroll handleLogsWidgetScroll
+    setWidgetHandleEvent handleLogsWidgetEvent
+    setWidgetState LogsWidgetState
+      { logsWidgetMessages = []
+      , logsWidgetLinesRendered = 0
+      , logsWidgetLinesTotal = 0
+      , logsWidgetFollow = True
+      }
 
-initLogsWidget :: LogsWidgetState
-initLogsWidget = LogsWidgetState
-  { logsWidgetMessages = []
-  , logsWidgetLinesRendered = 0
-  , logsWidgetLinesTotal = 0
-  , logsWidgetFollow = True
-  }
-
-drawLogsWidget :: LogsWidgetState -> B.Widget BrickName
-drawLogsWidget LogsWidgetState{..} =
-  fixedViewport widgetName B.Both $
-    B.cached widgetName B.Widget
+drawLogsWidget :: LogsWidgetState -> WidgetDrawM LogsWidgetState p (B.Widget WidgetName)
+drawLogsWidget LogsWidgetState{..} = do
+  widgetName <- getWidgetName
+  return $
+    fixedViewport widgetName B.Both $
+    B.cached widgetName $
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -69,41 +71,58 @@ drawLogsWidget LogsWidgetState{..} =
         B.emptyResult
           & B.imageL .~ img
 
-data LogsWidgetEvent
-  = LogsScrollingEvent ScrollingAction
-  | LogsMessage Text
-
-handleLogsWidgetEvent
-  :: LogsWidgetEvent
-  -> StateT LogsWidgetState (B.EventM BrickName) ()
-handleLogsWidgetEvent ev = do
+handleLogsWidgetScroll
+  :: ScrollingAction
+  -> WidgetEventM LogsWidgetState p WidgetEventResult
+handleLogsWidgetScroll action = do
+  widgetName <- B.getName <$> lift get
   rendered <- use logsWidgetLinesRenderedL
   total <- use logsWidgetLinesTotalL
   follow <- use logsWidgetFollowL
 
-  whenJustM (lift $ B.lookupViewport widgetName) $ \vp -> do
+  whenJustM (liftBrick $ B.lookupViewport widgetName) $ \vp -> do
     when (not follow && vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= rendered) $ do
-      lift $ B.invalidateCacheEntry widgetName
+      liftBrick $ B.invalidateCacheEntry widgetName
       when (rendered == total) $ do
-        lift $ B.vScrollToBeginning $ B.viewportScroll widgetName
+        liftBrick $ B.vScrollToBeginning $ B.viewportScroll widgetName
         logsWidgetFollowL .= True
       logsWidgetLinesRenderedL .= total
   follow' <- use logsWidgetFollowL
 
-  case ev of
-    LogsScrollingEvent action -> do
-      when (not follow' && action == ScrollingEnd) $ do
-        lift $ B.invalidateCacheEntry widgetName
+  when (not follow' && action == ScrollingEnd) $ do
+    liftBrick $ B.invalidateCacheEntry widgetName
+    logsWidgetLinesRenderedL .= total
+  when (follow' && action `elem` [ScrollingLineUp, ScrollingPgUp, ScrollingHome]) $ do
+    logsWidgetFollowL .= False
+    liftBrick $ B.invalidateCacheEntry widgetName
+    liftBrick $ scrollToEnd widgetName
+  liftBrick $ handleScrollingEvent widgetName action
+  return WidgetEventHandled
+
+handleLogsWidgetEvent
+  :: UiEvent
+  -> WidgetEventM LogsWidgetState p ()
+handleLogsWidgetEvent = \case
+  UiCardanoEvent (UiCardanoLogEvent message) -> do
+    widgetName <- B.getName <$> lift get
+    rendered <- use logsWidgetLinesRenderedL
+    total <- use logsWidgetLinesTotalL
+    follow <- use logsWidgetFollowL
+
+    whenJustM (liftBrick $ B.lookupViewport widgetName) $ \vp -> do
+      when (not follow && vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= rendered) $ do
+        liftBrick $ B.invalidateCacheEntry widgetName
+        when (rendered == total) $ do
+          liftBrick $ B.vScrollToBeginning $ B.viewportScroll widgetName
+          logsWidgetFollowL .= True
         logsWidgetLinesRenderedL .= total
-      when (follow' && action `elem` [ScrollingLineUp, ScrollingPgUp, ScrollingHome]) $ do
-        logsWidgetFollowL .= False
-        lift $ B.invalidateCacheEntry widgetName
-        lift $ scrollToEnd widgetName
-      lift $ handleScrollingEvent widgetName action
-    LogsMessage message -> do
-      zoom logsWidgetMessagesL $ modify (LogMessage message:)
-      let msgHeight = length (Text.lines message)
-      logsWidgetLinesTotalL += msgHeight
-      when follow' $ do
-        lift $ B.invalidateCacheEntry widgetName
-        logsWidgetLinesRenderedL += msgHeight
+    follow' <- use logsWidgetFollowL
+
+    zoom logsWidgetMessagesL $ modify (LogMessage message:)
+    let msgHeight = length (Text.lines message)
+    logsWidgetLinesTotalL += msgHeight
+    when follow' $ do
+      liftBrick $ B.invalidateCacheEntry widgetName
+      logsWidgetLinesRenderedL += msgHeight
+  _ ->
+    return ()

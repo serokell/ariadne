@@ -1,33 +1,29 @@
 module Ariadne.UI.Vty.Widget.About
-       ( AboutWidgetState
-       , initAboutWidget
-       , drawAboutWidget
-
-       , AboutWidgetEvent(..)
-       , handleAboutWidgetEvent
+       ( initAboutWidget
        ) where
 
 import Universum
-
-import Ariadne.UI.Vty.Scrolling
-import Ariadne.UI.Vty.UI
 
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
 import qualified Graphics.Vty as V
 
-data AboutWidgetState = AboutWidgetState ()
+import Ariadne.UI.Vty.Widget
 
-widgetName :: BrickName
-widgetName = BrickAbout
+initAboutWidget :: Widget p
+initAboutWidget =
+  initWidget $ do
+    setWidgetDraw drawAboutWidget
+    setWidgetScrollable
 
-initAboutWidget :: AboutWidgetState
-initAboutWidget = AboutWidgetState ()
-
-drawAboutWidget :: AboutWidgetState -> B.Widget BrickName
-drawAboutWidget _aboutWidgetState =
-  B.viewport widgetName B.Vertical $
-    B.hCenter $ B.cached widgetName $ B.Widget
+drawAboutWidget :: s -> WidgetDrawM s p (B.Widget WidgetName)
+drawAboutWidget _ = do
+  widgetName <- getWidgetName
+  return $
+    B.viewport widgetName B.Vertical $
+    B.hCenter $
+    B.cached widgetName $
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
       , B.render = render
@@ -42,19 +38,6 @@ drawAboutWidget _aboutWidgetState =
       return $
         B.emptyResult
           & B.imageL .~ img
-
-data AboutCompleted = AboutCompleted | AboutInProgress
-
-data AboutWidgetEvent
-  = AboutScrollingEvent ScrollingAction
-
-handleAboutWidgetEvent
-  :: AboutWidgetEvent
-  -> StateT AboutWidgetState (B.EventM BrickName) ()
-handleAboutWidgetEvent ev = do
-  case ev of
-    AboutScrollingEvent action ->
-      lift $ handleScrollingEvent widgetName action
 
 aboutBanner :: V.Attr -> V.Attr -> V.Image
 aboutBanner defAttr selAttr = V.vertCat

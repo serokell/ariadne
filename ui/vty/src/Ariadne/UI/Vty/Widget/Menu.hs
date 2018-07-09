@@ -1,42 +1,24 @@
 module Ariadne.UI.Vty.Widget.Menu
-       ( MenuWidgetState
-       , MenuWidgetElem(..)
+       ( MenuWidgetElem(..)
        , initMenuWidget
-       , drawMenuWidget
-       , menuWidgetNavMode
-       , menuWidgetSel
-
-       , MenuWidgetEvent(..)
-       , keyToMenuWidgetEvent
-       , handleMenuWidgetEvent
        ) where
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, uses, zoom, (.=))
-import Control.Monad.Trans.State.Strict as State (modify)
+import Control.Lens (makeLensesWith)
 import Data.Char (toLower)
-import Data.Function (fix)
-import Data.List as List
-import Data.List.NonEmpty as NonEmpty
-import Data.Vector as Vector
+import Data.Maybe (fromJust)
+import IiExtras
 
 import qualified Brick as B
+import qualified Brick.Focus as B
 import qualified Brick.Widgets.Center as B
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Keyboard
-import Ariadne.UI.Vty.UI
-
-import IiExtras
-
-data MenuWidgetState a =
-  MenuWidgetState
-    { menuWidgetElems :: !(Vector (MenuWidgetElem a))
-    , menuWidgetSelection :: Int -- invariant: (`mod` length xs)
-    , menuWidgetNavMode :: !Bool
-    }
+import Ariadne.UI.Vty.Widget
 
 data MenuWidgetElem a =
   MenuWidgetElem
@@ -45,55 +27,63 @@ data MenuWidgetElem a =
     , menuWidgetElemKey :: !Char
     }
 
-makeLensesWith postfixLFields ''MenuWidgetState
-makeLensesWith postfixLFields ''MenuWidgetElem
-
-menuWidgetSel :: MenuWidgetState a -> a
-menuWidgetSel MenuWidgetState{..} =
-  -- the lookup is safe due to the invariant on 'menuWidgetSelection'
-  menuWidgetElemSelector $ menuWidgetElems Vector.! menuWidgetSelection
-
-menuWidgetCharToSel :: Char -> MenuWidgetState a -> Maybe a
-menuWidgetCharToSel key MenuWidgetState{..} =
-  view menuWidgetElemSelectorL <$> Vector.find ((== toLower key) . menuWidgetElemKey) menuWidgetElems
-
-initMenuWidget :: NonEmpty (MenuWidgetElem a) -> Int -> MenuWidgetState a
-initMenuWidget xs i =
-  fix $ \this -> MenuWidgetState
-    { menuWidgetElems = Vector.fromList (NonEmpty.toList xs)
-    , menuWidgetSelection = i `mod` Vector.length (menuWidgetElems this)
-    , menuWidgetNavMode = False
+data MenuWidgetState p a =
+  MenuWidgetState
+    { menuWidgetElems :: ![MenuWidgetElem a]
+    , menuWidgetFocusRing :: !(B.FocusRing a)
+    , menuWidgetSelectionLens :: ReifiedLens' p a
     }
 
-drawMenuWidget :: MenuWidgetState a -> B.Widget BrickName
-drawMenuWidget MenuWidgetState{..} =
-  B.withAttr "menu" $
+makeLensesWith postfixLFields ''MenuWidgetState
+
+initMenuWidget
+  :: Eq a
+  => NonEmpty (MenuWidgetElem a)
+  -> Lens' p a
+  -> Widget p
+initMenuWidget xs lens =
+  initWidget $ do
+    setWidgetDrawWithFocused drawMenuWidget
+    setWidgetHandleMouseDown handleMenuWidgetMouseDown
+    setWidgetHandleKey handleMenuWidgetKey
+    setWidgetState MenuWidgetState
+      { menuWidgetElems = NonEmpty.toList xs
+      , menuWidgetFocusRing = B.focusRing $ menuWidgetElemSelector <$> NonEmpty.toList xs
+      , menuWidgetSelectionLens = Lens lens
+      }
+
+drawMenuWidget :: Eq a => Bool -> MenuWidgetState p a -> WidgetDrawM (MenuWidgetState p a) p (B.Widget WidgetName)
+drawMenuWidget focused MenuWidgetState{..} = do
+  widgetName <- getWidgetName
+  selection <- viewWidgetLens menuWidgetSelectionLens
+
+  return $
+    B.withAttr "menu" $
     B.hCenter $
-    B.clickable BrickMenu B.Widget
+    B.clickable widgetName $
+    B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
-      , B.render = render
+      , B.render = render selection
       }
   where
-    render = do
+    render selection = do
       rdrCtx <- B.getContext
+
       let
         defAttr = rdrCtx ^. B.attrL
         attrMap = rdrCtx ^. B.ctxAttrMapL
 
-        menuElems = Vector.toList menuWidgetElems
-        i = menuWidgetSelection
-
-        drawElem j menuElem = V.horizCat
+        drawElem menuElem = V.horizCat
           [ V.text' elemAttr $ " " <> beforeKey
           , V.text' keyAttr $ T.singleton key
           , V.text' elemAttr $ afterKey <> " "
           ]
           where
-            elemAttr = if i == j
+            elemAttr = if selection == menuWidgetElemSelector menuElem
               then defAttr <> B.attrMapLookup "menu.selected" attrMap
               else defAttr
-            keyAttr = if menuWidgetNavMode
+            keyAttr = if focused
               then elemAttr <> B.attrMapLookup "menu.key" attrMap
               else elemAttr
             elemText = menuWidgetElemText menuElem
@@ -106,66 +96,54 @@ drawMenuWidget MenuWidgetState{..} =
 
         img =
           V.horizCat $
-          List.intersperse (V.text' defAttr " ") $
-          List.zipWith drawElem [0..] menuElems
+          intersperse (V.text' defAttr " ") $
+          drawElem <$> menuWidgetElems
 
       return $
         B.emptyResult
           & B.imageL .~ img
 
-data MenuWidgetEvent a
-  = MenuNextEvent
-  | MenuPrevEvent
-  | MenuSelectEvent (a -> Bool)
-  | MenuEnterEvent
-  | MenuExitEvent
-  | MenuMouseDownEvent B.Location
-
-keyToMenuWidgetEvent
-  :: Eq a
-  => MenuWidgetState a
-  -> KeyboardEvent
-  -> Maybe (MenuWidgetEvent a)
-keyToMenuWidgetEvent menuWidgetState = \case
-  KeyNavigation -> Just MenuExitEvent
-  KeyEnter -> Just MenuExitEvent
-  KeyChar ' ' -> Just MenuExitEvent
-  KeyChar c
-    | Just sel <- menuWidgetCharToSel c menuWidgetState -> Just $ MenuSelectEvent (== sel)
-    | otherwise -> Just MenuEnterEvent -- Stay in menu
-  KeyLeft -> Just MenuPrevEvent
-  KeyRight -> Just MenuNextEvent
-  _ -> Nothing -- Exit menu and leave key processing to other widgets
-
-handleMenuWidgetEvent
-  :: MenuWidgetEvent a
-  -> StateT (MenuWidgetState a) (B.EventM BrickName) ()
-handleMenuWidgetEvent ev = do
-  len <- uses menuWidgetElemsL Vector.length
-  let
-    modifySelection f =
-      zoom menuWidgetSelectionL $ State.modify $ (`mod` len) . f
-    colToSelection :: Vector (MenuWidgetElem a) -> Int -> Maybe Int
-    colToSelection = go 0
+handleMenuWidgetMouseDown
+  :: B.Location
+  -> WidgetEventM (MenuWidgetState p a) p WidgetEventResult
+handleMenuWidgetMouseDown (B.Location (col, _)) = do
+    MenuWidgetState{..} <- get
+    whenJust (colToSelection menuWidgetElems col) (assignWidgetLens menuWidgetSelectionLens)
+    widgetEvent WidgetEventMenuSelected
+    return WidgetEventHandled
+  where
+    colToSelection :: [MenuWidgetElem a] -> Int -> Maybe a
+    colToSelection [] _ = Nothing
+    colToSelection (MenuWidgetElem{..}:els) col'
+      | col' < 1 = Nothing -- 1-char space between items
+      | col' <= w = Just menuWidgetElemSelector
+      | otherwise = colToSelection els (col' - w - 1)
       where
-        go acc elements col
-          | Vector.null elements = Nothing
-          | col < 1 = Nothing -- 1-char space between items
-          | col <= w = Just acc
-          | otherwise = go (acc + 1) (Vector.tail elements) (col - w - 1)
-          where
-            el = Vector.head elements
-            -- Width of menu item, including 1-char padding on both sides
-            w = 2 + T.length (menuWidgetElemText el)
-  case ev of
-    MenuNextEvent -> modifySelection succ
-    MenuPrevEvent -> modifySelection pred
-    MenuEnterEvent -> menuWidgetNavModeL .= True
-    MenuExitEvent -> menuWidgetNavModeL .= False
-    MenuSelectEvent p -> do
-      mI <- uses menuWidgetElemsL (Vector.findIndex (p . menuWidgetElemSelector))
-      whenJust mI (assign menuWidgetSelectionL)
-      menuWidgetNavModeL .= False
-    MenuMouseDownEvent (B.Location (col, _)) -> do
-      elements <- use menuWidgetElemsL
-      whenJust (colToSelection elements col) (assign menuWidgetSelectionL)
+        -- Width of menu item, including 1-char padding on both sides
+        w = 2 + T.length menuWidgetElemText
+
+handleMenuWidgetKey
+  :: Eq a
+  => KeyboardEvent
+  -> WidgetEventM (MenuWidgetState p a) p WidgetEventResult
+handleMenuWidgetKey key = do
+  MenuWidgetState{..} <- get
+  let
+    rotate dir = do
+      selection <- useWidgetLens menuWidgetSelectionLens
+      assignWidgetLens menuWidgetSelectionLens $
+        fromJust . B.focusGetCurrent . dir . B.focusSetCurrent selection $ menuWidgetFocusRing
+      return WidgetEventHandled
+    done = do
+      widgetEvent WidgetEventMenuSelected
+      return WidgetEventHandled
+  case key of
+    KeyChar ' ' -> done
+    KeyEnter -> done
+    KeyLeft -> rotate B.focusPrev
+    KeyRight -> rotate B.focusNext
+    KeyChar c
+      | Just sel <- menuWidgetElemSelector <$> find ((== toLower c) . menuWidgetElemKey) menuWidgetElems -> do
+          assignWidgetLens menuWidgetSelectionLens sel
+          done
+    _ -> return WidgetEventNotHandled

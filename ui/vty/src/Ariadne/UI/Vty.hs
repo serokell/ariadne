@@ -11,7 +11,7 @@ import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
 
-import Ariadne.UI.Vty.App (app, initialAppState)
+import Ariadne.UI.Vty.App
 import Ariadne.UI.Vty.Face
 
 type UiAction = UiLangFace -> IO ()
@@ -23,8 +23,9 @@ type UiAction = UiLangFace -> IO ()
 createAriadneUI :: UiHistoryFace -> Text `Named` "ariadne_url" -> IO (UiFace, UiAction)
 createAriadneUI historyFace ariadneURL = do
   eventChan <- mkEventChan
+  let uiFace = mkUiFace eventChan
 
-  return (mkUiFace eventChan, runUI ariadneURL eventChan historyFace)
+  return (uiFace, runUI ariadneURL eventChan uiFace historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
@@ -32,10 +33,11 @@ createAriadneUI historyFace ariadneURL = do
 runUI
   :: Text `Named` "ariadne_url"
   -> BChan UiEvent
+  -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI ariadneURL eventChan historyFace langFace = do
+runUI ariadneURL eventChan uiFace historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -63,10 +65,10 @@ runUI ariadneURL eventChan historyFace langFace = do
 
     -- The third argument to 'customMain' is a record that contains the view
     -- and the controller.
-    (app ariadneURL langFace)
+    app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initialAppState langFace historyFace)
+    (initApp ariadneURL uiFace langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name
@@ -76,8 +78,7 @@ mkVtyConfig = do
   stdConfig <- V.standardIOConfig
   return stdConfig
     { V.mouseMode = Just True
-    , V.bracketedPasteMode = Just False
-      -- ^ Temporary disabled until we refactor widget event handling
+    , V.bracketedPasteMode = Just True
     }
 
 -- Create a channel for application events that aren't user input. This channel
