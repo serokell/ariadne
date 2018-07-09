@@ -291,7 +291,7 @@ uiWalletDatasToTree = map toTree
                 { rootLabel =
                       UiTreeItem
                           { wtiLabel = Just _uadName
-                          , wtiPath = [fromIntegral _uadPath]
+                          , wtiPath = [fromIntegral _uadAccountIdx]
                           , wtiShowPath = True
                           }
                 , subForest = []
@@ -306,15 +306,15 @@ walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletInfo{..}
     (wpiType, wpiLabel, wpiAccounts, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
       Nothing -> error "Invalid wallet index"
       Just UiWalletData{..} -> case uwsPath of
-        [] -> (Just UiWalletInfoWallet, Just _uwdName, toList $ (\UiAccountData{..} -> (_uadPath, _uadName)) <$> _uwdAccounts, [])
+        [] -> (Just UiWalletInfoWallet, Just _uwdName, toList $ (\UiAccountData{..} -> (_uadAccountIdx, _uadName)) <$> _uwdAccounts, [])
         accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
           Nothing -> error "Invalid account index"
           Just UiAccountData{..} ->
-            ( Just $ UiWalletInfoAccount [_uadPath]
+            ( Just $ UiWalletInfoAccount [_uadAccountIdx]
             , Just _uadName
             , []
             , map
-              (second pretty)
+              (\uiAddr -> (uiAddr ^. uiadAddressIdx, pretty $ uiAddr ^. uiadAddress))
               (V.toList _uadAddresses)
             )
 

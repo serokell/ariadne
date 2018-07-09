@@ -258,7 +258,7 @@ uiWalletDatasToTree = map toTree
                 { rootLabel =
                       UiWalletTreeItem
                           { wtiLabel = Just _uadName
-                          , wtiPath = [fromIntegral _uadPath]
+                          , wtiPath = [fromIntegral _uadAccountIdx]
                           , wtiShowPath = True
                           }
                 , subForest = []
