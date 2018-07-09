@@ -100,6 +100,8 @@ data WidgetNamePart
   | WidgetNameAddWalletRestoreButton
 
   | WidgetNameWallet
+  | WidgetNameWalletName
+  | WidgetNameWalletRenameButton
   | WidgetNameWalletAccountList
   | WidgetNameWalletNewAccountName
   | WidgetNameWalletNewAccountButton

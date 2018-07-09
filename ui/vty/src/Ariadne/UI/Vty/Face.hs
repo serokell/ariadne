@@ -13,6 +13,7 @@ module Ariadne.UI.Vty.Face
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiRestoreWalletCommandResult (..)
+       , UiRenameCommandResult (..)
        , UiSelectedItem (..)
        , UiLangFace (..)
        , UiHistoryFace (..)
@@ -100,6 +101,7 @@ data UiCommand
   | UiNewWallet Text Text  -- ^ Name, passphrase
   | UiNewAccount Text  -- ^ Name
   | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
+  | UiRename Text  -- ^ Name
   | UiKill Natural
   | UiCopySelection
 
@@ -110,6 +112,7 @@ data UiCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
+  | UiRenameCommandResult UiRenameCommandResult
 
 data UiBalanceCommandResult
   = UiBalanceCommandSuccess Text
@@ -130,6 +133,10 @@ data UiNewAccountCommandResult
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess
   | UiRestoreWalletCommandFailure Text
+
+data UiRenameCommandResult
+  = UiRenameCommandSuccess
+  | UiRenameCommandFailure Text
 
 -- | Item which is currently selected by the backend.
 data UiSelectedItem
