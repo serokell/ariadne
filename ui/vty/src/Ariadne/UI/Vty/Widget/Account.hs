@@ -10,6 +10,7 @@ import System.Hclip (setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
+import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
@@ -111,7 +112,34 @@ initAccountWidget langFace =
 drawAddressRow :: Bool -> AccountAddress -> B.Widget WidgetName
 drawAddressRow focused AccountAddress{..} =
   (if focused then B.withAttr "selected" else id) $
-  B.txt accountAddressHash
+  B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Fixed
+    , B.render = render
+    }
+  where
+    render = do
+      rdrCtx <- B.getContext
+      let
+        attr = rdrCtx ^. B.attrL
+        width = rdrCtx ^. B.availWidthL
+
+        balance = T.replicate (max 0 (15 - T.length accountAddressBalance)) " " <> accountAddressBalance
+
+        addressWidth = width - (T.length balance) - 1
+        addressLength = T.length accountAddressHash
+        address = if addressWidth >= addressLength
+          then accountAddressHash <> T.replicate (addressWidth - addressLength) " "
+          else
+            T.take ((addressWidth - 3) `div` 2) accountAddressHash <>
+            "..." <>
+            T.takeEnd (addressWidth - 3 - (addressWidth - 3) `div` 2) accountAddressHash
+
+        img = V.horizCat $ V.text' attr <$> [address, " ", balance]
+
+      return $
+        B.emptyResult
+          & B.imageL .~ img
 
 drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p (B.Widget WidgetName)
 drawAccountWidget focus AccountWidgetState{..} = do
