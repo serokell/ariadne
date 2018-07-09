@@ -11,6 +11,7 @@ module Ariadne.UI.Vty.Face
        , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
+       , UiNewAccountCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiSelectedItem (..)
        , UiLangFace (..)
@@ -97,6 +98,7 @@ data UiCommand
   | UiBalance
   | UiSend [Word32] [(Text, Text)] Text -- ^ [Account] [(Address, amount)], passphrase
   | UiNewWallet Text Text  -- ^ Name, passphrase
+  | UiNewAccount Text  -- ^ Name
   | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiKill Natural
   | UiCopySelection
@@ -106,6 +108,7 @@ data UiCommandResult
   = UiBalanceCommandResult UiBalanceCommandResult
   | UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
+  | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
 
 data UiBalanceCommandResult
@@ -119,6 +122,10 @@ data UiSendCommandResult
 data UiNewWalletCommandResult
   = UiNewWalletCommandSuccess [Text]
   | UiNewWalletCommandFailure Text
+
+data UiNewAccountCommandResult
+  = UiNewAccountCommandSuccess
+  | UiNewAccountCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess
