@@ -118,6 +118,8 @@ data WidgetNamePart
   | WidgetNameAccountName
   | WidgetNameAccountRenameButton
   | WidgetNameAccountSend
+  | WidgetNameAccountAddressGenerateButton
+  | WidgetNameAccountAddressList
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree

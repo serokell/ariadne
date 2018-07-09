@@ -12,6 +12,7 @@ module Ariadne.UI.Vty.Face
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
+       , UiNewAddressCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
        , UiSelectedItem (..)
@@ -100,10 +101,10 @@ data UiCommand
   | UiSend [Word32] [(Text, Text)] Text -- ^ [Account] [(Address, amount)], passphrase
   | UiNewWallet Text Text  -- ^ Name, passphrase
   | UiNewAccount Text  -- ^ Name
+  | UiNewAddress
   | UiRestoreWallet Text Text Text Bool  -- ^ Name, mnemonic, passphrase, full
   | UiRename Text  -- ^ Name
   | UiKill Natural
-  | UiCopySelection
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
@@ -111,6 +112,7 @@ data UiCommandResult
   | UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
+  | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
 
@@ -129,6 +131,10 @@ data UiNewWalletCommandResult
 data UiNewAccountCommandResult
   = UiNewAccountCommandSuccess
   | UiNewAccountCommandFailure Text
+
+data UiNewAddressCommandResult
+  = UiNewAddressCommandSuccess
+  | UiNewAddressCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess

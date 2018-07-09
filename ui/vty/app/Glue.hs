@@ -43,7 +43,6 @@ import Ariadne.Wallet.UiAdapter
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
-import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
@@ -124,9 +123,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiCopySelection -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.copySelectionCommandName [])
       UiNewWallet name passphrase -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
@@ -138,6 +134,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.newAccountCommandName $
             (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
           )
+      UiNewAddress -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newAddressCommandName [])
       UiRestoreWallet name mnemonic passphrase full -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
@@ -171,6 +170,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             _ -> Left "Unrecognized return value"
       UiNewAccount{} ->
         Just . UiNewAccountCommandResult . either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
+          fromResult result
+      UiNewAddress{} ->
+        Just . UiNewAddressCommandResult . either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
           fromResult result
       UiRestoreWallet{} ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
