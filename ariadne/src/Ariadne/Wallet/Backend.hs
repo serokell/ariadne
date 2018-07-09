@@ -9,6 +9,7 @@ import Data.Acid (openLocalStateFrom, query)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+import System.Wlog (logMessage, usingLoggerName)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
@@ -16,12 +17,13 @@ import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
+import Ariadne.Wallet.Cardano.Kernel (applyBlunds, bracketPassiveWallet)
 import Ariadne.Wallet.Face
 
 
 createWalletBackend :: WalletConfig -> IO
-  (
-    CardanoFace ->
+  ( BListenerHandle
+  , CardanoFace ->
     (WalletEvent -> IO ()) ->
     ((Doc -> IO ()) -> WalletFace, IO ())
   )
@@ -29,7 +31,15 @@ createWalletBackend walletConfig = do
   walletSelRef <- newIORef Nothing
   -- TODO: Do I need to close session on exit?
   acidDb <- openLocalStateFrom walletAcidDbPathPlaceholder defDB
-  return $ \cf@CardanoFace {..} sendWalletEvent ->
+
+  -- get the block apply handler
+  -- We're doing this dirty hack with MVar for now because we don't have
+  -- a proper bracket architecture anywhere
+  mHandle <- newEmptyMVar
+  bracketPassiveWallet (\sev -> usingLoggerName "passive-wallet" . logMessage sev) (putMVar mHandle)
+  pw <- takeMVar mHandle
+
+  return (BListenerHandle (pw ^. applyBlunds) (const $ pure ()), \cf@CardanoFace {..} sendWalletEvent ->
     let
       Nat runCardanoMode = cardanoRunCardanoMode
       withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
@@ -59,6 +69,7 @@ createWalletBackend walletConfig = do
         refreshState acidDb walletSelRef sendWalletEvent
     in
       (mkWalletFace, initWalletAction)
+    )
 
 -- TODO: Make it configurable
 walletAcidDbPathPlaceholder :: FilePath

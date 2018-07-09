@@ -1,5 +1,6 @@
 module Ariadne.Cardano.Face
-       ( CardanoContext
+       ( BListenerHandle (..)
+       , CardanoContext (..)
        , CardanoMode (..)
        , CardanoModeMonad
        , CardanoStatusUpdate (..)
@@ -27,8 +28,10 @@ module Ariadne.Cardano.Face
 
 import Universum
 
+import Control.Lens (makeLensesWith)
 import Control.Monad.Base (MonadBase)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
+import qualified Control.Monad.Reader as Mtl
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Trans.Reader (ReaderT)
 import Crypto.Random (MonadRandom)
@@ -37,26 +40,47 @@ import IiExtras
 import Mockable
   (ChannelT, Counter, Distribution, Gauge, MFunctor', Mockable, Production,
   Promise, SharedAtomicT, SharedExclusiveT, ThreadId, hoist', liftMockable)
-import Pos.Block.BListener (MonadBListener, onApplyBlocks, onRollbackBlocks)
+import Pos.Block.BListener (MonadBListener(..))
+import Pos.Block.Slog (HasSlogContext(..), HasSlogGState(..))
+import Pos.Block.Types (Blund)
+import Pos.Context (HasNodeContext(..), HasPrimaryKey(..), HasSscContext(..))
 import Pos.Core
   (Address, Coin, EpochIndex(..), EpochOrSlot(..), HasConfiguration,
   HeaderHash, LocalSlotIndex(..), SlotId(..), TxId, TxOut(..),
   decodeTextAddress)
+import Pos.Core.Chrono (NE, NewestFirst, OldestFirst)
 import Pos.Crypto (PassPhrase)
 import Pos.DB (MonadGState(..))
-import Pos.DB.Block (dbGetSerBlockRealDefault, dbGetSerUndoRealDefault)
+import Pos.DB.Block
+  (dbGetSerBlockRealDefault, dbGetSerUndoRealDefault,
+  dbPutSerBlundsRealDefault)
 import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
-import Pos.DB.Rocks (dbGetDefault, dbIterSourceDefault)
+import Pos.DB.DB (gsAdoptedBVDataDefault)
+import Pos.DB.Rocks
+  (dbDeleteDefault, dbGetDefault, dbIterSourceDefault, dbPutDefault,
+  dbWriteBatchDefault)
 import Pos.Infra.Diffusion.Types (Diffusion)
-import Pos.Infra.Reporting (MonadReporting(..))
+import Pos.Infra.Network.Types (HasNodeType(..))
+import Pos.Infra.Reporting
+  (HasMisbehaviorMetrics(..), MonadReporting(..), Reporter(..))
+import Pos.Infra.Shutdown (HasShutdownContext(..))
 import Pos.Infra.Slotting.Class (MonadSlots(..))
+import Pos.Infra.Slotting.Impl
+  (currentTimeSlottingSimple, getCurrentSlotBlockingSimple,
+  getCurrentSlotInaccurateSimple, getCurrentSlotSimple)
+import Pos.Infra.Slotting.MemState (HasSlottingVar(..), MonadSlotsData)
+import Pos.Infra.Util.JsonLog.Events (HasJsonLogConfig(..), jsonLogDefault)
 import Pos.Infra.Util.TimeWarp (CanJsonLog(..))
 import Pos.Launcher (HasConfigurations)
-import Pos.Txp (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..))
+import Pos.Txp
+  (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..), txNormalize,
+  txProcessTransaction)
 import Pos.Util.CompileInfo (HasCompileInfo)
-import Pos.Util.UserSecret (UserSecret, usWallets)
-import Pos.WorkMode (EmptyMempoolExt, RealModeContext)
-import System.Wlog (CanLog, HasLoggerName(..), logDebug)
+import Pos.Util.LoggerName (HasLoggerName'(..))
+import Pos.Util.UserSecret (HasUserSecret(..), UserSecret, usWallets)
+import Pos.Util.Util (HasLens(..))
+import Pos.WorkMode (EmptyMempoolExt, RealModeContext(..))
+import System.Wlog (CanLog, HasLoggerName(..))
 
 data CardanoStatusUpdate = CardanoStatusUpdate
   { tipHeaderHash :: HeaderHash
@@ -74,7 +98,19 @@ data CardanoEvent
   = CardanoLogEvent Text
   | CardanoStatusUpdateEvent CardanoStatusUpdate
 
-type CardanoContext = RealModeContext EmptyMempoolExt
+
+data BListenerHandle
+  = BListenerHandle
+  { bhOnApply :: OldestFirst NE Blund -> IO ()
+  , bhOnRollback :: NewestFirst NE Blund -> IO ()
+  }
+
+data CardanoContext
+  = CardanoContext
+  { ccBListenerHandle :: BListenerHandle
+  , ccRealModeContext :: RealModeContext EmptyMempoolExt
+  }
+makeLensesWith postfixLFields ''CardanoContext
 
 type CardanoModeMonad = ReaderT CardanoContext Production
 newtype CardanoMode a
@@ -95,7 +131,6 @@ newtype CardanoMode a
     , MonadBase IO
     , MonadBaseControl IO
     , MonadRandom
-    , CanJsonLog
     , MonadUnliftIO
     )
 
@@ -107,21 +142,16 @@ type instance ChannelT CardanoMode = ChannelT CardanoModeMonad
 type instance Gauge CardanoMode = Gauge CardanoModeMonad
 type instance Counter CardanoMode = Counter CardanoModeMonad
 type instance Distribution CardanoMode = Distribution CardanoModeMonad
-type instance MempoolExt CardanoMode = MempoolExt CardanoModeMonad
-
--- Cardano instances
-deriving instance HasConfiguration => MonadSlots CardanoContext CardanoMode
-deriving instance HasConfiguration => MonadGState CardanoMode
-deriving instance HasConfiguration => MonadDB CardanoMode
-deriving instance (HasConfiguration, HasTxpConfiguration) => MonadTxpLocal CardanoMode
-deriving instance MonadReporting CardanoMode
+type instance MempoolExt CardanoMode = EmptyMempoolExt
 
 instance MonadBListener CardanoMode where
-  onApplyBlocks _ = do
-    logDebug "BListener: Apply"
+  onApplyBlocks b = do
+    CardanoContext{..} <- ask
+    liftIO $ bhOnApply ccBListenerHandle $ b
     pure mempty
-  onRollbackBlocks _ = do
-    logDebug "BListener Debug"
+  onRollbackBlocks b = do
+    CardanoContext{..} <- ask
+    liftIO $ bhOnRollback ccBListenerHandle $ b
     pure mempty
 
 instance
@@ -132,13 +162,85 @@ instance
   => Mockable d CardanoMode where
   liftMockable = CardanoMode . liftMockable . hoist' unwrapCardanoMode
 
--- For some reason using `deriving instance` on this one didn't work
--- so I define it manually
+-- ♫ E-E-G-G-E-E-G Mr. Boilerplate!
+-- Amazing, with Mr. Boilerplate my code is now twice as long!!!
+
+instance HasNodeType CardanoContext where
+    getNodeType = getNodeType . ccRealModeContext
+
+instance {-# OVERLAPPABLE #-}
+    HasLens tag (RealModeContext EmptyMempoolExt) r =>
+    HasLens tag CardanoContext r
+  where
+    lensOf = ccRealModeContextL . lensOf @tag
+
+instance HasSscContext CardanoContext where
+    sscContext = ccRealModeContextL . sscContext
+
+instance HasPrimaryKey CardanoContext where
+    primaryKey = ccRealModeContextL . primaryKey
+
+instance HasMisbehaviorMetrics CardanoContext where
+    misbehaviorMetrics = ccRealModeContextL . misbehaviorMetrics
+
+instance HasUserSecret CardanoContext where
+    userSecret = ccRealModeContextL . userSecret
+
+instance HasShutdownContext CardanoContext where
+    shutdownContext = ccRealModeContextL . shutdownContext
+
+instance HasSlottingVar CardanoContext where
+    slottingTimestamp = ccRealModeContextL . slottingTimestamp
+    slottingVar = ccRealModeContextL . slottingVar
+
+instance HasSlogContext CardanoContext where
+    slogContext = ccRealModeContextL . slogContext
+
+instance HasSlogGState CardanoContext where
+    slogGState = ccRealModeContextL . slogGState
+
+instance HasNodeContext CardanoContext where
+    nodeContext = ccRealModeContextL . nodeContext
+
+instance HasLoggerName' CardanoContext where
+    loggerName = ccRealModeContextL . loggerName
+
+instance HasJsonLogConfig CardanoContext where
+    jsonLogConfig = ccRealModeContextL . jsonLogConfig
+
+instance {-# OVERLAPPING #-} CanJsonLog CardanoMode where
+    jsonLog = jsonLogDefault
+
+instance (HasConfiguration, MonadSlotsData ctx CardanoMode)
+      => MonadSlots ctx CardanoMode
+  where
+    getCurrentSlot = getCurrentSlotSimple
+    getCurrentSlotBlocking = getCurrentSlotBlockingSimple
+    getCurrentSlotInaccurate = getCurrentSlotInaccurateSimple
+    currentTimeSlotting = currentTimeSlottingSimple
+
+instance HasConfiguration => MonadGState CardanoMode where
+    gsAdoptedBVData = gsAdoptedBVDataDefault
+
 instance HasConfiguration => MonadDBRead CardanoMode where
     dbGet = dbGetDefault
     dbIterSource = dbIterSourceDefault
     dbGetSerBlock = dbGetSerBlockRealDefault
     dbGetSerUndo = dbGetSerUndoRealDefault
+
+instance HasConfiguration => MonadDB CardanoMode where
+    dbPut = dbPutDefault
+    dbWriteBatch = dbWriteBatchDefault
+    dbDelete = dbDeleteDefault
+    dbPutSerBlunds = dbPutSerBlundsRealDefault
+
+instance (HasConfiguration, HasTxpConfiguration) =>
+         MonadTxpLocal CardanoMode where
+    txpNormalize = txNormalize
+    txpProcessTx = txProcessTransaction
+
+instance MonadReporting CardanoMode where
+    report rt = Mtl.ask >>= liftIO . flip runReporter rt . (rmcReporter . ccRealModeContext)
 
 data CardanoFace = CardanoFace
     { cardanoRunCardanoMode :: CardanoMode :~> IO
