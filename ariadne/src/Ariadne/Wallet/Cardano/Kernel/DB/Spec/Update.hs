@@ -21,7 +21,8 @@ import Pos.Core.Chrono (OldestFirst(..))
 import Pos.Crypto (hash)
 import Pos.Txp (Utxo)
 
-import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredBlock(..))
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
+  (PrefilteredBlock(..), pfbInputs, pfbOutputs)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
@@ -89,21 +90,23 @@ class UpdatableWalletState state where
 
 -- | Update (utxo,balance) with the given prefiltered block
 updateUtxo :: PrefilteredBlock -> (Utxo, Core.Coin) -> (Utxo, Core.Coin)
-updateUtxo PrefilteredBlock{..} (currentAccUtxo', currentBalance')
+updateUtxo pfb (currentAccUtxo', currentBalance')
     = (utxo', balance')
     where
-        unionUtxo            = Map.union pfbOutputs currentAccUtxo'
-        utxo'                = utxoRemoveInputs unionUtxo pfbInputs
+        inputs               = pfbInputs pfb
+        outputs              = pfbOutputs pfb
+        unionUtxo            = Map.union outputs currentAccUtxo'
+        utxo'                = utxoRemoveInputs unionUtxo inputs
 
-        unionUtxoRestricted  = utxoRestrictToInputs unionUtxo pfbInputs
-        balanceDelta         = balanceI pfbOutputs - balanceI unionUtxoRestricted
+        unionUtxoRestricted  = utxoRestrictToInputs unionUtxo inputs
+        balanceDelta         = balanceI outputs - balanceI unionUtxoRestricted
         currentBalanceI      = Core.coinToInteger currentBalance'
         balance'             = Core.unsafeIntegerToCoin $ currentBalanceI + balanceDelta
 
 -- | Update the pending transactions with the given prefiltered block
 updatePending :: PrefilteredBlock -> PendingTxs -> PendingTxs
-updatePending PrefilteredBlock{..} =
-    Map.filter (\t -> disjoint (txAuxInputSet t) pfbInputs)
+updatePending pfb =
+    Map.filter (\t -> disjoint (txAuxInputSet t) (pfbInputs pfb))
 
 instance UpdatableWalletState AccCheckpoints where
     newPending tx = do

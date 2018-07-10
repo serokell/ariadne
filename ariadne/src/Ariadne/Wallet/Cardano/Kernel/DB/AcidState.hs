@@ -38,7 +38,6 @@ import Control.Monad.Trans.Except (runExcept)
 import Data.Acid (Query, Update, makeAcidic)
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Set as Set
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
@@ -153,25 +152,21 @@ applyBlock (blocksByAccount,meta) = runUpdateNoErrors $ zoom dbHdWallets $
         (\prefBlock -> zoom hdAddressCheckpoints $
                            modify $ Spec.applyBlock (prefBlock,meta))
         blocksByAccount
-        Map.empty -- we are not expecting to create new accounts in applyBlock
+        Map.empty -- we are not providing custom names to accounts discovered in applyBlock
   where
     -- Accounts are discovered during wallet creation (if the account was given
     -- a balance in the genesis block) or otherwise, during ApplyBlock. For
     -- accounts discovered during ApplyBlock, we can assume that there was no
     -- genesis utxo, hence we use empty initial utxo for such new accounts.
     mkPrefilteredUtxo :: PrefilteredBlock -> PrefilteredUtxo
-    mkPrefilteredUtxo pb = Map.fromList [(addr, Map.empty) | addr <- pfbAddrs pb]
+    mkPrefilteredUtxo = pfbPrefilteredUtxo
 
     prefilterBlockToAddress :: AddrWithId -> PrefilteredBlock -> PrefilteredBlock
-    prefilterBlockToAddress addrWithId@(addressId, address) PrefilteredBlock {..} =
-        PrefilteredBlock inputs' outputs' addrs'
-      where
-        toAddress :: Core.TxOutAux -> Core.Address
-        toAddress = Core.txOutAddress . Core.toaOut
-
-        outputs' = Map.filter (\txOutAux -> address == toAddress txOutAux) pfbOutputs
-        inputs' = pfbInputs `Set.intersection` Spec.utxoInputs outputs'
-        addrs' = [addrWithId]
+    prefilterBlockToAddress addrWithId PrefilteredBlock {..} =
+        PrefilteredBlock
+            { pfbPrefilteredInputs = mkSingleton addrWithId pfbPrefilteredInputs
+            , pfbPrefilteredUtxo   = mkSingleton addrWithId pfbPrefilteredUtxo
+            }
 
 -- | Switch to a fork
 --
@@ -205,7 +200,7 @@ createHdWallet newRoot utxoByAccount accountNames = runUpdate' . zoom dbHdWallet
       createPrefiltered
         identity
         doNothing -- we just want to create the accounts
-        prefilterUtxoToAddress
+        mkSingleton
         doNothing
         utxoByAccount
         accountNames
@@ -224,7 +219,7 @@ createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWall
     createAccPrefiltered
         identity
         doNothing
-        prefilterUtxoToAddress
+        mkSingleton
         doNothing
         accId
         prefilteredUtxo
@@ -235,11 +230,6 @@ createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWall
 
 doNothing :: forall p a e. p -> Update' a e ()
 doNothing _ = pass
-
-prefilterUtxoToAddress :: AddrWithId -> PrefilteredUtxo -> PrefilteredUtxo
-prefilterUtxoToAddress addrWithId prefilteredUtxo =
-    let utxo = prefilteredUtxo ^. at addrWithId . non Map.empty in
-    one $ (addrWithId, utxo)
 
 {-------------------------------------------------------------------------------
   Internal auxiliary: apply a function to a prefiltered block/utxo
@@ -257,8 +247,6 @@ createPrefiltered :: forall p e.
                   -> (AddrWithId -> p -> p)
                       -- ^ Function that prefilters p further, leaving only
                       -- stuff that is relevant to the provided address.
-                      -- TODO(AD-255): this is an ad-hoc solution. We need to
-                      -- refactor & optimize this.
                   -> (p -> Update' HdAddress e ())
                       -- ^ Function to apply to the address
                   -> Map HdAccountId p
@@ -362,6 +350,15 @@ deleteHdRoot rootId = runUpdateNoErrors . zoom dbHdWallets $
 deleteHdAccount :: HdAccountId -> Update DB (Either UnknownHdRoot ())
 deleteHdAccount accId = runUpdate' . zoom dbHdWallets $
     HD.deleteHdAccount accId
+
+{-------------------------------------------------------------------------------
+  Utilities
+-------------------------------------------------------------------------------}
+
+mkSingleton :: (Ord k, Eq m, Monoid m) => k -> Map k m -> Map k m
+mkSingleton addrWithId prefilteredUtxo =
+    let utxo = prefilteredUtxo ^. at addrWithId . non mempty in
+    one (addrWithId, utxo)
 
 {-------------------------------------------------------------------------------
   Acid-state magic
