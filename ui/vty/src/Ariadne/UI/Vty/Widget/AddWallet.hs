@@ -185,7 +185,7 @@ performCreateWallet = do
   passphrase <- use addWalletNewPassL
   use addWalletNewResultL >>= \case
     NewResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiNewWallet name passphrase) >>=
+    _ -> liftIO (langPutUiCommand $ UiNewWallet $ UiNewWalletArgs name passphrase) >>=
       assign addWalletNewResultL . either NewResultError NewResultWaiting
 
 performRestoreWallet :: WidgetEventM AddWalletWidgetState p ()
@@ -197,5 +197,5 @@ performRestoreWallet = do
   full <- use addWalletRestoreFullL
   use addWalletRestoreResultL >>= \case
     RestoreResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiRestoreWallet name mnemonic passphrase full) >>=
+    _ -> liftIO (langPutUiCommand $ UiRestoreWallet $ UiRestoreWalletArgs name mnemonic passphrase full) >>=
       assign addWalletRestoreResultL . either RestoreResultError RestoreResultWaiting
