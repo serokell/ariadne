@@ -95,6 +95,8 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           return ()
       }
 
+    optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
+
     opToExpr = \case
       UiSelect ws ->
         Right $ Knit.ExprProcCall
@@ -113,7 +115,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.sendCommandName $
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts ++
             argOutputs ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "pass" passphrase
           )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
@@ -123,13 +125,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewWallet name passphrase -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "name" name ++
+            optString "pass" passphrase
           )
       UiNewAccount name -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAccountCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+            optString "name" name
           )
       UiNewAddress -> do
         Right $ Knit.ExprProcCall
@@ -140,13 +142,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
             , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
             ] ++
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "name" name ++
+            optString "pass" passphrase
           )
       UiRename name -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.renameCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+            optString "name" name
           )
 
     resultToUI result = \case
