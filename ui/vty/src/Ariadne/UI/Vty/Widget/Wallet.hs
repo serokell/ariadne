@@ -25,6 +25,7 @@ data WalletAccount =
   WalletAccount
     { walletAccountIdx :: !Word32
     , walletAccountName :: !Text
+    , walletAccountBalance :: !Text
     , walletAccountSelected :: Bool
     }
 
@@ -34,7 +35,7 @@ data WalletWidgetState =
 
     , walletName :: !Text
     , walletRenameResult :: !RenameResult
-    , walletBalance :: !BalanceResult
+    , walletBalance :: !Text
 
     , walletAccounts :: ![WalletAccount]
     , walletNewAccountName :: !Text
@@ -46,12 +47,6 @@ data RenameResult
   | RenameResultWaiting !UiCommandId
   | RenameResultError !Text
   | RenameResultSuccess
-
-data BalanceResult
-  = BalanceResultNone
-  | BalanceResultWaiting !UiCommandId
-  | BalanceResultError !Text
-  | BalanceResultSuccess !Text  -- ^ Balance
 
 data NewAccountResult
   = NewAccountResultNone
@@ -73,7 +68,7 @@ initWalletWidget langFace =
 
       , walletName = ""
       , walletRenameResult = RenameResultNone
-      , walletBalance = BalanceResultNone
+      , walletBalance = ""
 
       , walletAccounts = []
       , walletNewAccountName = ""
@@ -155,11 +150,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename a wallet: " <> err
           RenameResultSuccess -> B.emptyWidget
-      , label "Balance:" B.<+> case walletBalance of
-          BalanceResultNone -> B.emptyWidget
-          BalanceResultWaiting _ -> B.txt "calculating..."
-          BalanceResultError err -> B.txt err
-          BalanceResultSuccess balance -> B.txt balance
+      , label "Balance:" B.<+> B.txt walletBalance
       ] ++
       (if null walletAccounts then [] else
         [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
@@ -186,18 +177,13 @@ handleWalletWidgetEvent
   -> WidgetEventM WalletWidgetState p ()
 handleWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
-      Just UiWalletInfoWallet -> do
-        UiLangFace{..} <- use walletLangFaceL
-        walletNameL .= fromMaybe "" wpiLabel
-        walletAccountsL .= map (\(idx, (_, name)) -> WalletAccount idx name False) (zip [0..] wpiAccounts)
-        use walletBalanceL >>= \case
-          BalanceResultWaiting commandId
-            | Just taskId <- cmdTaskId commandId ->
-                void . liftIO . langPutUiCommand $ UiKill taskId
-          _ -> return ()
-        liftIO (langPutUiCommand UiBalance) >>=
-          assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+    whenJust wuSelectionInfo $ \case
+      UiSelectionWallet UiWalletInfo{..} -> do
+        walletNameL .= fromMaybe "" uwiLabel
+        walletBalanceL .= uwiBalance
+        walletAccountsL .= map
+          (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uwiLabel) uwiBalance False)
+          (zip [0..] uwiAccounts)
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     walletRenameResultL %= \case
@@ -205,13 +191,6 @@ handleWalletWidgetEvent = \case
         case result of
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
-      other -> other
-  UiCommandResult commandId (UiBalanceCommandResult result) -> do
-    walletBalanceL %= \case
-      BalanceResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
-          UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiNewAccountCommandResult result) -> do
     use walletNewAccountResultL >>= \case

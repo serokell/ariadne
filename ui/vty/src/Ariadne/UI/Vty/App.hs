@@ -332,10 +332,9 @@ handleAppWidgetEvent
 handleAppWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     appSelectionL .= AppSelectionAddWallet
-    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
-      Just UiWalletInfoWallet -> appSelectionL .= AppSelectionWallet
-      Just UiWalletInfoAccount{} -> appSelectionL .= AppSelectionAccount
-      _ -> return ()
+    whenJust wuSelectionInfo $ \case
+      UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
+      UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
     resetAppFocus
   UiCommandAction UiCommandHelp -> do
     appScreenL .= AppScreenHelp

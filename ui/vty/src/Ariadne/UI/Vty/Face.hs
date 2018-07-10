@@ -8,7 +8,6 @@ module Ariadne.UI.Vty.Face
        , UiEvent (..)
        , UiCommand (..)
        , UiCommandResult (..)
-       , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -23,8 +22,10 @@ module Ariadne.UI.Vty.Face
        , UiTreeItem (..)
        , UiTree
        , UiTreeSelection(..)
-       , UiWalletInfoType(..)
        , UiWalletInfo(..)
+       , UiAccountInfo(..)
+       , UiAddressInfo(..)
+       , UiSelectionInfo(..)
        , TreePath
        ) where
 
@@ -74,7 +75,7 @@ data UiWalletEvent =
   UiWalletUpdate
     { wuTrees :: [UiTree]
     , wuSelection :: Maybe UiTreeSelection
-    , wuPaneInfoUpdate :: Maybe UiWalletInfo
+    , wuSelectionInfo :: Maybe UiSelectionInfo
     }
 
 -- UI event triggered by REPL command
@@ -97,7 +98,6 @@ data UiEvent
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiBalance
   | UiSend [Word32] [(Text, Text)] Text -- ^ [Account] [(Address, amount)], passphrase
   | UiNewWallet Text Text  -- ^ Name, passphrase
   | UiNewAccount Text  -- ^ Name
@@ -108,17 +108,12 @@ data UiCommand
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
-  = UiBalanceCommandResult UiBalanceCommandResult
-  | UiSendCommandResult UiSendCommandResult
+  = UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
-
-data UiBalanceCommandResult
-  = UiBalanceCommandSuccess Text
-  | UiBalanceCommandFailure Text
 
 data UiSendCommandResult
   = UiSendCommandSuccess Text
@@ -182,7 +177,7 @@ data UiFace =
     }
 
 ----------------------------------------------------------------------------
--- Wallet tree widget model
+-- Wallet widget model
 ----------------------------------------------------------------------------
 
 -- | A node in HD-wallet tree.
@@ -211,20 +206,33 @@ data UiTreeSelection =
     , wtsPath :: TreePath
     }
 
-----------------------------------------------------------------------------
--- Wallet pane widget model
-----------------------------------------------------------------------------
-
-data UiWalletInfoType
-  = UiWalletInfoWallet
-  | UiWalletInfoAccount [Word32]
-
+-- Display info for entities on all HD-wallet tree levels
 data UiWalletInfo
   = UiWalletInfo
-    { wpiType :: !(Maybe UiWalletInfoType)
-    , wpiLabel :: !(Maybe Text)
-    , wpiWalletIdx :: !Word
-    , wpiPath :: !TreePath
-    , wpiAccounts :: ![(Word32, Text)]
-    , wpiAddresses :: ![(Word32, Text)]
+    { uwiLabel :: !(Maybe Text)
+    , uwiWalletIdx :: !Word
+    , uwiBalance :: !Text
+    , uwiAccounts :: ![UiAccountInfo]
     }
+
+data UiAccountInfo
+  = UiAccountInfo
+    { uaciLabel :: !(Maybe Text)
+    , uaciWalletIdx :: !Word
+    , uaciPath :: !TreePath
+    , uaciBalance :: !Text
+    , uaciAddresses :: ![UiAddressInfo]
+    }
+
+data UiAddressInfo
+  = UiAddressInfo
+    { uadiWalletIdx :: !Word
+    , uadiPath :: !TreePath
+    , uadiAddress :: !Text
+    , uadiBalance :: !Text
+    }
+
+-- | Info for currently selected tree item
+data UiSelectionInfo
+  = UiSelectionWallet !UiWalletInfo
+  | UiSelectionAccount !UiAccountInfo
