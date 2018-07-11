@@ -229,7 +229,7 @@ performRename = do
   name <- use accountNameL
   use accountRenameResultL >>= \case
     RenameResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiRename name) >>=
+    _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
 
 performNewAddress :: WidgetEventM AccountWidgetState p ()

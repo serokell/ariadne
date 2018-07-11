@@ -216,7 +216,7 @@ performRename = do
   name <- use walletNameL
   use walletRenameResultL >>= \case
     RenameResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiRename name) >>=
+    _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
 
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
@@ -229,5 +229,5 @@ performNewAccount = do
   name <- use walletNewAccountNameL
   use walletNewAccountResultL >>= \case
     NewAccountResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiNewAccount name) >>=
+    _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs name) >>=
       assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting

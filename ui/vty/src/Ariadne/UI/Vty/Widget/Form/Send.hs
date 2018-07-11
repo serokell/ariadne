@@ -211,11 +211,11 @@ performSendTransaction = do
   UiLangFace{..} <- use sendLangFaceL
   parentState <- lift $ lift get
   accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
-  outputs <- fmap (\SendOutput{..} -> (sendAddress, sendAmount)) <$> uses sendOutputsL Map.elems
+  outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
   passphrase <- use sendPassL
   use sendResultL >>= \case
     SendResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiSend accounts outputs passphrase) >>=
+    _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs accounts outputs passphrase) >>=
       assign sendResultL . either SendResultError SendResultWaiting
 
 unsafeFromJust :: Lens' (Maybe a) a

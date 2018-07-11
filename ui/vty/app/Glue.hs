@@ -103,52 +103,52 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiSend accounts outputs passphrase -> do
-        argOutputs <- forM outputs $ \(address, amount) -> do
-          argAddress <- decodeTextAddress address
-          argCoin <- readEither amount
+      UiSend UiSendArgs{..} -> do
+        argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          argCoin <- readEither usoAmount
           Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
             [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
             , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
             ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
-            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts ++
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs ++
-            optString "pass" passphrase
+            optString "pass" usaPassphrase
           )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiNewWallet name passphrase -> do
+      UiNewWallet UiNewWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
-            optString "name" name ++
-            optString "pass" passphrase
+            optString "name" unwaName ++
+            optString "pass" unwaPassphrase
           )
-      UiNewAccount name -> do
+      UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAccountCommandName $
-            optString "name" name
+            optString "name" unaaName
           )
       UiNewAddress -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAddressCommandName [])
-      UiRestoreWallet name mnemonic passphrase full -> do
+      UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
-            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
-            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
+            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
-            optString "name" name ++
-            optString "pass" passphrase
+            optString "name" urwaName ++
+            optString "pass" urwaPassphrase
           )
-      UiRename name -> do
+      UiRename UiRenameArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.renameCommandName $
-            optString "name" name
+            optString "name" uraName
           )
 
     resultToUI result = \case
