@@ -182,7 +182,7 @@ handleWalletWidgetEvent = \case
         walletNameL .= fromMaybe "" uwiLabel
         walletBalanceL .= uwiBalance
         walletAccountsL .= map
-          (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uwiLabel) uwiBalance False)
+          (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
           (zip [0..] uwiAccounts)
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
