@@ -32,7 +32,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
 
 import Universum
 
-import Control.Lens (at)
+import Control.Lens (at, non)
 import Control.Lens.TH (makeLenses)
 import Control.Monad.Trans.Except (runExcept)
 import Data.Acid (Query, Update, makeAcidic)
@@ -44,7 +44,7 @@ import Pos.Core.Chrono (OldestFirst(..))
 import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-  (PrefilteredBlock(..), PrefilteredUtxo)
+  (AddrWithId, PrefilteredBlock(..), PrefilteredUtxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -145,20 +145,28 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
 applyBlock :: (Map HdAccountId PrefilteredBlock, BlockMeta) -> Update DB ()
 applyBlock (blocksByAccount,meta) = runUpdateNoErrors $ zoom dbHdWallets $
     createPrefiltered
-        initUtxoAndAddrs
+        mkPrefilteredUtxo
         (\prefBlock -> zoom hdAccountCheckpoints $
                            modify $ Spec.applyBlock (prefBlock,meta))
+        prefilterBlockToAddress
         (\prefBlock -> zoom hdAddressCheckpoints $
                            modify $ Spec.applyBlock (prefBlock,meta))
         blocksByAccount
-        Map.empty -- we are not expecting to create new accounts in applyBlock
+        Map.empty -- we are not providing custom names to accounts discovered in applyBlock
   where
     -- Accounts are discovered during wallet creation (if the account was given
     -- a balance in the genesis block) or otherwise, during ApplyBlock. For
     -- accounts discovered during ApplyBlock, we can assume that there was no
     -- genesis utxo, hence we use empty initial utxo for such new accounts.
-    initUtxoAndAddrs :: PrefilteredBlock -> PrefilteredUtxo
-    initUtxoAndAddrs pb = Map.fromList [(addr, Map.empty) | addr <- pfbAddrs pb]
+    mkPrefilteredUtxo :: PrefilteredBlock -> PrefilteredUtxo
+    mkPrefilteredUtxo = pfbPrefilteredUtxo
+
+    prefilterBlockToAddress :: AddrWithId -> PrefilteredBlock -> PrefilteredBlock
+    prefilterBlockToAddress addrWithId PrefilteredBlock {..} =
+        PrefilteredBlock
+            { pfbPrefilteredInputs = mkSingleton addrWithId pfbPrefilteredInputs
+            , pfbPrefilteredUtxo   = mkSingleton addrWithId pfbPrefilteredUtxo
+            }
 
 -- | Switch to a fork
 --
@@ -192,6 +200,7 @@ createHdWallet newRoot utxoByAccount accountNames = runUpdate' . zoom dbHdWallet
       createPrefiltered
         identity
         doNothing -- we just want to create the accounts
+        mkSingleton
         doNothing
         utxoByAccount
         accountNames
@@ -200,7 +209,7 @@ createHdAccount :: HdAccountId
                 -> PrefilteredUtxo
                 -> Maybe AccountName
                 -> Update DB (Either HD.CreateHdAccountError ())
-createHdAccount accId prefUtxo mbAccountName = runUpdate' . zoom dbHdWallets $ do
+createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWallets $ do
     -- Make sure root exists. An alternative is to check this within
     -- @createAccPrefiltered@ by passing a handler there (instead of
     -- @assumeHdRootExists@), but it has too many parameters already.
@@ -210,16 +219,17 @@ createHdAccount accId prefUtxo mbAccountName = runUpdate' . zoom dbHdWallets $ d
     createAccPrefiltered
         identity
         doNothing
+        mkSingleton
         doNothing
         accId
-        prefUtxo
+        prefilteredUtxo
         mbAccountName
   where
     rootId :: HdRootId
     rootId = accId ^. hdAccountIdParent
 
 doNothing :: forall p a e. p -> Update' a e ()
-doNothing _ = return ()
+doNothing _ = pass
 
 {-------------------------------------------------------------------------------
   Internal auxiliary: apply a function to a prefiltered block/utxo
@@ -234,30 +244,34 @@ createPrefiltered :: forall p e.
                       -- themselves
                   -> (p -> Update' HdAccount e ())
                       -- ^ Function to apply to the account
+                  -> (AddrWithId -> p -> p)
+                      -- ^ Function that prefilters p further, leaving only
+                      -- stuff that is relevant to the provided address.
                   -> (p -> Update' HdAddress e ())
                       -- ^ Function to apply to the address
                   -> Map HdAccountId p
                   -> Map HdAccountId AccountName
                   -> Update' HdWallets e ()
-createPrefiltered initUtxoAndAddrs accApplyP addrApplyP pByAccount accountNames =
+createPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP pByAccount accountNames =
     forM_ (Map.toList pByAccount) $ \(accId, p) ->
-        createAccPrefiltered initUtxoAndAddrs accApplyP addrApplyP accId p
+        createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
             (accountNames ^. at accId)
 
 -- | See @createPrefiltered@ for comments on parameters.
 createAccPrefiltered :: forall p e.
                         (p -> PrefilteredUtxo)
                      -> (p -> Update' HdAccount e ())
+                     -> (AddrWithId -> p -> p)
                      -> (p -> Update' HdAddress e ())
                      -> HdAccountId
                      -> p
                      -> Maybe AccountName
                      -> Update' HdWallets e ()
-createAccPrefiltered initUtxoAndAddrs accApplyP addrApplyP accId p mbAccountName = do
-    let prefUtxo :: PrefilteredUtxo
-        prefUtxo = initUtxoAndAddrs p
+createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAccountName = do
+    let prefilteredUtxo :: PrefilteredUtxo
+        prefilteredUtxo = mkPrefilteredUtxo p
         accUtxo :: Utxo
-        accUtxo = Map.unions $ Map.elems prefUtxo
+        accUtxo = Map.unions $ Map.elems prefilteredUtxo
 
     -- apply the update to the account
     zoomOrCreateHdAccount
@@ -267,12 +281,12 @@ createAccPrefiltered initUtxoAndAddrs accApplyP addrApplyP accId p mbAccountName
         (accApplyP p)
 
     -- create addresses (if they don't exist)
-    forM_ (Map.toList prefUtxo) $ \((addressId, address), addrUtxo) ->
+    forM_ (Map.toList prefilteredUtxo) $ \(addrWithId@(addressId, address), addrUtxo) ->
         zoomOrCreateHdAddress
             assumeHdAccountExists -- we created it above
             (newAddress addressId address addrUtxo)
             addressId
-            (addrApplyP p)
+            (addrApplyP $ narrowP addrWithId p)
 
     where
         newAccount :: HdAccountId -> Maybe AccountName -> Utxo -> HdAccount
@@ -336,6 +350,15 @@ deleteHdRoot rootId = runUpdateNoErrors . zoom dbHdWallets $
 deleteHdAccount :: HdAccountId -> Update DB (Either UnknownHdRoot ())
 deleteHdAccount accId = runUpdate' . zoom dbHdWallets $
     HD.deleteHdAccount accId
+
+{-------------------------------------------------------------------------------
+  Utilities
+-------------------------------------------------------------------------------}
+
+mkSingleton :: (Ord k, Eq m, Monoid m) => k -> Map k m -> Map k m
+mkSingleton addrWithId prefilteredUtxo =
+    let utxo = prefilteredUtxo ^. at addrWithId . non mempty in
+    one (addrWithId, utxo)
 
 {-------------------------------------------------------------------------------
   Acid-state magic

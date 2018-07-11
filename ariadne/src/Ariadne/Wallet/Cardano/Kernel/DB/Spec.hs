@@ -32,6 +32,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , currentAccPendingTxs
   , currentAccBlockMeta
   , currentAddrCheckpoint
+  , currentAddrUtxo
   , currentAddrUtxoBalance
   ) where
 
@@ -174,7 +175,10 @@ currentAccPendingTxs  = currentAccPending . pendingTransactions . fromDb
 currentAddrCheckpoint :: Lens' AddrCheckpoints AddrCheckpoint
 currentAddrCheckpoint = neHead
 
+currentAddrUtxo        :: Lens' AddrCheckpoints Core.Utxo
 currentAddrUtxoBalance :: Lens' AddrCheckpoints Core.Coin
+
+currentAddrUtxo        = currentAddrCheckpoint . addrCheckpointUtxo        . fromDb
 currentAddrUtxoBalance = currentAddrCheckpoint . addrCheckpointUtxoBalance . fromDb
 
 {-------------------------------------------------------------------------------

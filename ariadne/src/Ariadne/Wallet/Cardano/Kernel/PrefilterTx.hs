@@ -4,6 +4,8 @@ module Ariadne.Wallet.Cardano.Kernel.PrefilterTx
        ( PrefilteredBlock(..)
        , PrefilteredUtxo
        , AddrWithId
+       , pfbInputs
+       , pfbOutputs
        , prefilterBlock
        , prefilterUtxo
        ) where
@@ -14,8 +16,9 @@ import qualified Data.Map as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Set as Set
 import qualified Data.Text.Buildable
-import Formatting (bprint, (%))
-import Serokell.Util (listJson, mapJson)
+import Data.Text.Lazy.Builder (Builder)
+import Formatting (Format, bprint, later, (%))
+import Serokell.Util (listBuilder, pairBuilder)
 
 import Ariadne.Wallet.Cardano.Kernel.Decrypt
   (HDPassphrase, WAddressMeta(..), eskToHDPassphrase, selectOwnAddresses)
@@ -23,7 +26,7 @@ import Ariadne.Wallet.Cardano.Kernel.Decrypt
 import Pos.Core (Address(..))
 import Pos.Core.Txp (TxIn(..), TxOut(..), TxOutAux(..))
 import Pos.Crypto (EncryptedSecretKey)
-import Pos.Txp.Toil.Types (Utxo)
+import Pos.Txp.Toil.Types (Utxo, formatUtxo)
 
 import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -47,22 +50,28 @@ type AddrWithId = (HdAddressId,Address)
 -- | A mapping from (extended) addresses to their corresponding Utxo
 type PrefilteredUtxo = Map AddrWithId Utxo
 
+-- | A mapping from (extended) addresses to the inputs that were spent from them
+type PrefilteredInputs = Map AddrWithId (Set TxIn)
+
 -- | Prefiltered block
 --
 -- A prefiltered block is a block that contains only inputs and outputs from
 -- the block that are relevant to the wallet.
 data PrefilteredBlock = PrefilteredBlock {
       -- | Relevant inputs
-      pfbInputs  :: Set TxIn
+      pfbPrefilteredInputs :: PrefilteredInputs
 
-      -- | Relevant outputs
-    , pfbOutputs :: Utxo
-
-      -- | all output addresses present in the Utxo
-    , pfbAddrs   :: [AddrWithId]
+      -- | Relevant utxo
+    , pfbPrefilteredUtxo   :: PrefilteredUtxo
     }
 
 deriveSafeCopySimple 1 'base ''PrefilteredBlock
+
+pfbInputs :: PrefilteredBlock -> Set TxIn
+pfbInputs PrefilteredBlock {..} = Set.unions $ Map.elems pfbPrefilteredInputs
+
+pfbOutputs :: PrefilteredBlock -> Utxo
+pfbOutputs PrefilteredBlock {..} = Map.unions $ Map.elems pfbPrefilteredUtxo
 
 type WalletKey = (WalletId, HDPassphrase)
 
@@ -76,13 +85,13 @@ toPrefilteredUtxo utxoWithAddrs =
     value (txIn, (txOutAux, _)) = (txIn, txOutAux)
 
     groupBy
-        :: (Ord k2)
+        :: Ord k2
         => ((k1, v1) -> k2)
         -> ((k1, v1) -> v2)
         -> Map k1 v1
         -> Map k2 [v2]
     groupBy getKey getValue =
-      Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
+        Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
 
 -- | Prefilter the transactions of a resolved block for the given wallet.
 --
@@ -95,26 +104,24 @@ prefilterBlock wid esk block
     = Map.fromList $ map mkPrefBlock (Set.toList accountIds)
   where
     mkPrefBlock accId'
-        = (accId', PrefilteredBlock inps' outs' addrs')
+        = (accId', PrefilteredBlock inps' prefUtxo)
         where
             byAccountId accId'' def dict = fromMaybe def $ Map.lookup accId'' dict
 
-            inps'    =                    byAccountId accId' Set.empty inpAll
+            inps'    =                    byAccountId accId' Map.empty inpAll
             prefUtxo = toPrefilteredUtxo (byAccountId accId' Map.empty outAll)
-            addrs'   = Map.keys prefUtxo
-            outs'    = Map.unions $ Map.elems prefUtxo
 
     hdPass :: HDPassphrase
     hdPass = eskToHDPassphrase esk
     wKey = (wid, hdPass)
 
-    inps :: [Map HdAccountId (Set TxIn)]
+    inps :: [Map HdAccountId PrefilteredInputs]
     outs :: [Map HdAccountId UtxoWithAddrId]
     (inps, outs) = unzip $ map (prefilterTx wKey) (block ^. rbTxs)
 
-    inpAll :: Map HdAccountId (Set TxIn)
+    inpAll :: Map HdAccountId PrefilteredInputs
     outAll :: Map HdAccountId UtxoWithAddrId
-    inpAll = Map.unionsWith Set.union inps
+    inpAll = Map.unionsWith (Map.unionWith Set.union) inps
     outAll = Map.unionsWith Map.union outs
 
     accountIds = Map.keysSet inpAll `Set.union` Map.keysSet outAll
@@ -122,7 +129,7 @@ prefilterBlock wid esk block
 -- | Prefilter the inputs and outputs of a resolved transaction
 prefilterTx :: WalletKey
             -> ResolvedTx
-            -> (Map HdAccountId (Set TxIn), Map HdAccountId UtxoWithAddrId)
+            -> (Map HdAccountId PrefilteredInputs, Map HdAccountId UtxoWithAddrId)
 prefilterTx wKey tx = (
       prefilterInputs wKey (toList (tx ^. rtxInputs . fromDb))
     , prefilterUtxo'  wKey (tx ^. rtxOutputs . fromDb)
@@ -131,13 +138,17 @@ prefilterTx wKey tx = (
 -- | Prefilter inputs of a transaction
 prefilterInputs :: WalletKey
           -> [(TxIn, ResolvedInput)]
-          -> Map HdAccountId (Set TxIn)
-prefilterInputs wKey inps
-    = Map.fromListWith Set.union
-      $ map f
-      $ prefilterResolvedTxPairs wKey inps
-    where
-        f (addressId, (txIn, _txOut)) = (addressId ^. hdAddressIdParent, Set.singleton txIn)
+          -> Map HdAccountId PrefilteredInputs
+prefilterInputs wKey inps =
+    Map.fromListWith (Map.unionWith Set.union)
+        $ map f
+        $ prefilterResolvedTxPairs wKey inps
+  where
+    f (addressId, (txIn, txOut)) =
+        (accountId, Map.singleton addrWithId (Set.singleton txIn))
+      where
+        accountId = addressId ^. hdAddressIdParent
+        addrWithId = (addressId, txOutAddress $ toaOut txOut)
 
 -- | Prefilter utxo using wallet key
 prefilterUtxo' :: WalletKey -> Utxo -> Map HdAccountId UtxoWithAddrId
@@ -195,12 +206,31 @@ prefilter (wid,hdPass) selectAddr rtxs
   Pretty-printing
 -------------------------------------------------------------------------------}
 
+setBuilder :: (Buildable a, Foldable t) => t a -> Builder
+setBuilder = listBuilder ("{" :: Builder) (", " :: Builder) ("}" :: Builder)
+
+mapBuilderExplicit
+    :: (k -> Builder)
+    -> (v -> Builder)
+    -> Map k v
+    -> Builder
+mapBuilderExplicit formatK formatV =
+    setBuilder
+    . map (\(k, v) -> (formatK k) <> ": " <> (formatV v))
+    . Map.toList
+
+prefilteredInputsF :: Format r (PrefilteredInputs -> r)
+prefilteredInputsF = later $ mapBuilderExplicit pairBuilder setBuilder
+
+prefilteredUtxoF :: Format r (PrefilteredUtxo -> r)
+prefilteredUtxoF = later $ mapBuilderExplicit pairBuilder formatUtxo
+
 instance Buildable PrefilteredBlock where
   build PrefilteredBlock{..} = bprint
     ( "PrefilteredBlock "
-    % "{ inputs:  " % listJson
-    % ", outputs: " % mapJson
+    % "{ inputs:  " % prefilteredInputsF
+    % ", outputs: " % prefilteredUtxoF
     % "}"
     )
-    (Set.toList pfbInputs)
-    pfbOutputs
+    pfbPrefilteredInputs
+    pfbPrefilteredUtxo
