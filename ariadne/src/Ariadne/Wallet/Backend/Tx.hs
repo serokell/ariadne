@@ -7,7 +7,6 @@ module Ariadne.Wallet.Backend.Tx
 import Universum hiding (list)
 
 import qualified Data.HashMap.Strict as HM
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
@@ -43,6 +42,7 @@ import IiExtras ((:~>)(..))
 
 data SendTxException
     = SendTxNoAddresses !HdRootId
+    | SendTxNoAccounts !HdRootId
     | SendTxIncorrectPassPhrase
     | SendTxAccountIndexOutOfRange !HdRootId !Word
     deriving (Show)
@@ -50,7 +50,9 @@ data SendTxException
 instance Buildable SendTxException where
     build = \case
         SendTxNoAddresses walletIdx ->
-            bprint ("Wallet #"%build%" does not have any addresses") walletIdx
+            bprint ("Wallet "%build%" does not have any addresses") walletIdx
+        SendTxNoAccounts walletIdx ->
+            bprint ("Wallet "%build%" does not have any accounts") walletIdx
         SendTxIncorrectPassPhrase ->
             "Incorrect passphrase"
         SendTxAccountIndexOutOfRange rootId idx ->
@@ -142,12 +144,19 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
             signersMap = walletSigners esk wallets pp accountsToUse
         let getSigner :: Address -> Maybe SafeSigner
             getSigner addr = signersMap ^. at addr
-        -- TODO [AD-234]: generate new change address
         ourAddresses <-
             maybeThrow
                 (SendTxNoAddresses walletRootId)
                 (nonEmpty $ HM.keys signersMap)
-        let ourAddress = NE.head ourAddresses
+        -- We pick one of the accounts to generate change address in it.
+        ourAccount <-
+            maybeThrow
+                (SendTxNoAccounts walletRootId)
+                (toList accountsToUse ^? ix 0)
+        let ourAccountId = ourAccount ^. hdAccountId
+        let newChangeAddress = walletNewAddress
+                (AccountRefByHdAccountId ourAccountId)
+                HdChainInternal pp
         (txAux, _) <-
             prepareMTx
                 getSigner
@@ -155,7 +164,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
                 isp
                 ourAddresses
                 (map TxOutAux outs)
-                ourAddress
+                newChangeAddress
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
