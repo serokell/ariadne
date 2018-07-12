@@ -127,8 +127,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             passphrase <- getPassPhraseArg
             pure (accountRef, chain, passphrase)
         , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            walletNewAddress accountRef chain passphrase
-            return $ toValue ValueUnit
+            toValue . ValueAddress <$> walletNewAddress accountRef chain passphrase
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
         }

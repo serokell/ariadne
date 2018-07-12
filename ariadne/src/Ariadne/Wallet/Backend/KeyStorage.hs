@@ -247,7 +247,7 @@ newAddress ::
     -> AccountReference
     -> HdAddressChain
     -> PassPhrase
-    -> IO ()
+    -> IO Address
 newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = do
   walletDb <- query acidDb Snapshot
   accountId <- resolveAccountRef walletSelRef accRef walletDb
@@ -289,7 +289,7 @@ newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = 
       , _hdAddressCheckpoints = one emptyAddrCheckpoint
       }
   throwLeftIO $ update acidDb (CreateHdAddress hdAddress)
-  walletRefreshState
+  addr <$ walletRefreshState
     where
       -- Using the sequential indexation as in accounts.
       -- TODO:

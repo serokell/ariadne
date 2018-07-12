@@ -43,8 +43,8 @@ instance HasConfigurations => MonadTxHistory CardanoMode where
     saveTx = saveTxDefault
 
 instance MonadAddresses CardanoMode where
-    type AddrData CardanoMode = Address
-    getNewAddress = pure
+    type AddrData CardanoMode = IO Address
+    getNewAddress = liftIO
     -- FIXME: do not assume bootstrap era.
     getFakeChangeAddress = pure largestHDAddressBoot
 

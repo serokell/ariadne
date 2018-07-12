@@ -62,7 +62,8 @@ data WalletRestoreType
 
 data WalletFace =
   WalletFace
-    { walletNewAddress :: AccountReference -> HdAddressChain -> PassPhrase -> IO ()
+    { walletNewAddress ::
+        AccountReference -> HdAddressChain -> PassPhrase -> IO Address
     , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
     , walletNewWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
