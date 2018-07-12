@@ -68,6 +68,7 @@ initRepl langFace historyFace = do
 
   (historyWidget, historyLayout) <- initHistory
   layout <- QVBoxLayout.new
+  QLayout.setContentsMarginsRaw layout 16 8 8 16
   QLayout.addWidget layout historyWidget
 
   cmdLineLayout <- QHBoxLayout.new
