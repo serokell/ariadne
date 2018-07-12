@@ -17,16 +17,13 @@ import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionMode
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QAbstractItemView as QAbstractItemView
-import qualified Graphics.UI.Qtah.Widgets.QAction as QAction
+import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QInputDialog as QInputDialog
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
-import qualified Graphics.UI.Qtah.Widgets.QMenu as QMenu
 import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
-import qualified Graphics.UI.Qtah.Widgets.QToolBar as QToolBar
-import qualified Graphics.UI.Qtah.Widgets.QToolButton as QToolButton
+import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QTreeView as QTreeView
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
-import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
@@ -44,39 +41,27 @@ initWalletTree
   :: UiLangFace
   -> QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
-  -> IO (QWidget.QWidget, WalletTree)
+  -> IO (QVBoxLayout.QVBoxLayout, WalletTree)
 initWalletTree langFace itemModel selectionModel = do
   treeView <- QTreeView.new
+  QTreeView.setHeaderHidden treeView True
+
   QAbstractItemView.setModel treeView itemModel
   QAbstractItemView.setSelectionModel treeView selectionModel
   QAbstractItemView.setSelectionBehavior treeView QAbstractItemView.SelectRows
 
-  addMenu <- QMenu.new
-  addWallet <- QMenu.addNewAction addMenu ("Wallet" :: String)
-  addAccount <- QMenu.addNewAction addMenu ("Account" :: String)
-  addAddress <- QMenu.addNewAction addMenu ("Address" :: String)
-
-  addButton <- QToolButton.new
-  QAbstractButton.setText addButton ("Add" :: String)
-  QToolButton.setMenu addButton addMenu
-  QToolButton.setPopupMode addButton QToolButton.InstantPopup
-
-  toolBar <- QToolBar.new
-  void $ QToolBar.addWidget toolBar addButton
-
   layout <- QVBoxLayout.new
-  QLayout.setContentsMarginsRaw layout 0 0 0 0
-  QLayout.addWidget layout toolBar
+  QLayout.setContentsMarginsRaw layout 20 20 20 20
   QLayout.addWidget layout treeView
 
-  widget <- QWidget.new
-  QWidget.setLayout widget layout
+  newWalletBtn <- QPushButton.newWithText ("New wallet" :: String)
+  QLayout.addWidget layout newWalletBtn
 
-  connect_ addWallet QAction.triggeredSignal $ addWalletClicked langFace WalletTree{..}
-  connect_ addAccount QAction.triggeredSignal $ addAccountClicked langFace WalletTree{..}
-  connect_ addAddress QAction.triggeredSignal $ addAddressClicked langFace WalletTree{..}
+  QBoxLayout.addStretch layout
 
-  return (widget, WalletTree{..})
+  connect_ newWalletBtn QAbstractButton.clickedSignal $ addWalletClicked langFace WalletTree{..}
+
+  return (layout, WalletTree{..})
 
 addWalletClicked :: UiLangFace -> WalletTree -> Bool -> IO ()
 addWalletClicked UiLangFace{..} WalletTree{..} _checked = do

@@ -17,16 +17,17 @@ import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionMode
 import qualified Graphics.UI.Qtah.Core.QModelIndex as QModelIndex
 import qualified Graphics.UI.Qtah.Gui.QStandardItem as QStandardItem
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
-import qualified Graphics.UI.Qtah.Widgets.QSplitter as QSplitter
+import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
-import Ariadne.UI.Qt.Widgets.WalletTree
 import Ariadne.UI.Qt.Widgets.WalletInfo
+import Ariadne.UI.Qt.Widgets.WalletTree
 
 data Wallet =
   Wallet
-    { layout :: QSplitter.QSplitter
+    { layout :: QHBoxLayout.QHBoxLayout
     , walletTree :: WalletTree
     , walletInfo :: WalletInfo
     , itemModel :: QStandardItemModel.QStandardItemModel
@@ -35,7 +36,7 @@ data Wallet =
 
 makeLensesWith postfixLFields ''Wallet
 
-initWallet :: UiLangFace -> IO (QSplitter.QSplitter, Wallet)
+initWallet :: UiLangFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
 initWallet langFace = do
   itemModel <- initItemModel
   selectionModel <- QItemSelectionModel.newWithModel itemModel
@@ -43,11 +44,11 @@ initWallet langFace = do
   (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
   (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
-  layout <- QSplitter.new
-  QSplitter.addWidget layout qWalletTree
-  QSplitter.addWidget layout qWalletInfo
-  QSplitter.setStretchFactor layout 1 1
-  QSplitter.setChildrenCollapsible layout False
+  layout <- QHBoxLayout.new
+  QBoxLayout.addLayout layout qWalletTree
+  QBoxLayout.addWidget layout qWalletInfo
+  QBoxLayout.setStretch layout 0 200
+  QBoxLayout.setStretch layout 1 1080
 
   connect_ selectionModel QItemSelectionModel.currentChangedSignal $
     currentChanged langFace Wallet{..}
