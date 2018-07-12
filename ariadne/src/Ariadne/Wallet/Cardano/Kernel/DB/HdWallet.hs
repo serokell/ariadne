@@ -506,6 +506,10 @@ instance Buildable HdAddressId where
     build (HdAddressId parentId chain addressIx)
         = bprint ("HdAddressId: "%build%", "%build%", "%build) parentId chain addressIx
 
+instance Buildable UnknownHdRoot where
+    build (UnknownHdRoot rootId)
+        = bprint ("UnknownHdRoot: "%build) rootId
+
 instance Buildable UnknownHdAccount where
     build (UnknownHdAccountRoot rootId)
         = bprint ("UnknownHdAccountRoot: "%build) rootId

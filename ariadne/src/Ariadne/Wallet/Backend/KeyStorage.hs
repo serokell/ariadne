@@ -5,6 +5,7 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Commands/other functions
          refreshState
        , resolveWalletRef
+       , resolveWalletRefThenRead
        , newAddress
        , newAccount
        , newWallet
@@ -171,6 +172,22 @@ resolveWalletRef walletSelRef walRef db = case walRef of
 
     walletList :: [HdRoot]
     walletList = toList (readAllHdRoots hdWallets)
+
+-- | Like 'resolveWalletRef', but also reads some data from 'DB'
+-- corresponding to the resolved root ID, assuming that the wallet
+-- with this ID definitely exists.
+resolveWalletRefThenRead
+  :: IORef (Maybe WalletSelection)
+  -> WalletReference
+  -> DB
+  -> (HdRootId -> HdQueryErr UnknownHdRoot a)
+  -> IO (HdRootId, a)
+resolveWalletRefThenRead walletSelRef walRef db q = do
+    rootId <- resolveWalletRef walletSelRef walRef db
+    (rootId,) <$> case q rootId (db ^. dbHdWallets) of
+        -- This function's assumption is that it must not happen.
+        Left err -> error $ "resolveWalletRefThenRead: " <> pretty err
+        Right res -> return res
 
 resolveAccountRef
   :: IORef (Maybe WalletSelection)
