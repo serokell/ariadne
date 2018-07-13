@@ -58,9 +58,11 @@ initMainWindow langFace historyFace = do
 
   QBoxLayout.addLayout mainLayout qTopBar
   QBoxLayout.addLayout mainLayout qWallet
-  QBoxLayout.addLayout mainLayout qRepl
-  QBoxLayout.setStretch mainLayout 1 2
-  QBoxLayout.setStretch mainLayout 2 1
+  QBoxLayout.addWidget mainLayout qRepl
+
+  QBoxLayout.setStretch mainLayout 0 48
+  QBoxLayout.setStretch mainLayout 1 545
+  QBoxLayout.setStretch mainLayout 2 266
 
   centralWidget <- QWidget.new
   QWidget.setLayout centralWidget mainLayout
@@ -98,3 +100,4 @@ connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
   magnify topBarL . doOnLogsAction . runUI showLogsWindow =<< view logsL
   magnify topBarL . doOnHelpAction . runUI showHelpWindow =<< view helpL
+  magnify walletL . doOnReplButtonClick . runUI toggleRepl =<< view replL
