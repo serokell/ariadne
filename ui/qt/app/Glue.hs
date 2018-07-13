@@ -18,9 +18,11 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
+import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
+import qualified Data.Vector as V
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -232,6 +234,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
+        ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
 
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
@@ -263,6 +266,41 @@ uiWalletDatasToTree = map toTree
                           }
                 , subForest = []
                 }
+
+-- TODO: change to use chain type level
+walletSelectionToInfo :: [UiWalletData] -> UiWalletSelection -> UiSelectionInfo
+walletSelectionToInfo uiwd UiWalletSelection{..} =
+  case uiwd ^? ix (fromIntegral uwsWalletIdx) of
+    Nothing -> error "Invalid wallet index"
+    Just walletData@UiWalletData{..} -> case uwsPath of
+      [] -> UiSelectionWallet $ wallet walletData
+      accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
+        Nothing -> error "Invalid account index"
+        Just accountData -> UiSelectionAccount $ account accountData
+  where
+    wallet UiWalletData{..} =
+      UiWalletInfo
+        { uwiLabel = Just _uwdName
+        , uwiWalletIdx = uwsWalletIdx
+        , uwiBalance = balance _uwdBalance
+        , uwiAccounts = account <$> V.toList _uwdAccounts
+        }
+    account UiAccountData{..} =
+      UiAccountInfo
+        { uaciLabel = Just _uadName
+        , uaciWalletIdx = uwsWalletIdx
+        , uaciPath = [fromIntegral _uadAccountIdx]
+        , uaciBalance = balance _uadBalance
+        , uaciAddresses = address [fromIntegral _uadAccountIdx] <$> V.toList _uadAddresses
+        }
+    address acPath UiAddressData{..} =
+      UiAddressInfo
+        { uadiWalletIdx = uwsWalletIdx
+        , uadiPath = acPath ++ [fromIntegral _uiadAddressIdx]
+        , uadiAddress = pretty _uiadAddress
+        , uadiBalance = balance _uiadBalance
+        }
+    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend

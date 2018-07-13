@@ -105,6 +105,7 @@ executable ariadne-qt
     , lens
     , text
     , universum
+    , vector
     , vinyl
   other-modules:
       Paths_ariadne_qt
