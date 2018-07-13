@@ -52,6 +52,7 @@ initWalletTree langFace itemModel selectionModel = do
 
   layout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw layout 20 20 20 20
+  QLayout.setSpacing layout 6
   QLayout.addWidget layout treeView
 
   newWalletBtn <- QPushButton.newWithText ("New wallet" :: String)

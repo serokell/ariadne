@@ -23,8 +23,6 @@ import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
-import qualified Graphics.UI.Qtah.Widgets.QSpacerItem as QSpacerItem
-import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
@@ -44,14 +42,22 @@ initTopBar = do
   topBar <- QHBoxLayout.new
   QObject.setObjectName topBar ("topBar" :: String)
 
-  vertSpacer <- QSpacerItem.newWithOptions 0 48 Minimum Maximum
-  QLayout.addItem topBar vertSpacer
+  -- Add a widget with a fixed height of 48 px.
+  -- It will force the top bar to always be 48 px high,
+  -- provided that all other widgets have `Maximum` vertical size policy.
+  vertSpacer <- QWidget.new
+  QObject.setObjectName vertSpacer ("vertSpacer" :: String)
+  QWidget.setMaximumHeight vertSpacer 48
+  QWidget.setMinimumHeight vertSpacer 48
+  QWidget.setSizePolicyRaw vertSpacer Preferred Maximum
+  QLayout.addWidget topBar vertSpacer
 
-  labelLayout <- QVBoxLayout.new
+  labelLayout <- QHBoxLayout.new
 
   ariadneLabel <- QLabel.newWithText ("ARIADNE" :: String)
   QObject.setObjectName ariadneLabel ("ariadneLabel" :: String)
   QLabel.setAlignment ariadneLabel $ alignHCenter .|. alignVCenter
+  QWidget.setSizePolicyRaw ariadneLabel Preferred Maximum
 
   QLayout.addWidget labelLayout ariadneLabel
   QBoxLayout.addLayout topBar labelLayout
@@ -70,6 +76,7 @@ initTopBar = do
     QBoxLayout.addWidget navMenu lbl
     QBoxLayout.setStretch navMenu i 82
     QWidget.setCursor lbl pointingCursor
+    QWidget.setSizePolicyRaw lbl Preferred Maximum
 
   QBoxLayout.addStretchOf navMenu 477
 

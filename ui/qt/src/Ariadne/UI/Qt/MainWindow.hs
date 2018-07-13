@@ -55,12 +55,13 @@ initMainWindow langFace historyFace = do
 
   mainLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw mainLayout 0 0 0 0
+  QLayout.setSpacing mainLayout 0
 
   QBoxLayout.addLayout mainLayout qTopBar
   QBoxLayout.addLayout mainLayout qWallet
   QBoxLayout.addWidget mainLayout qRepl
 
-  QBoxLayout.setStretch mainLayout 0 48
+  QBoxLayout.setStretch mainLayout 0 0
   QBoxLayout.setStretch mainLayout 1 545
   QBoxLayout.setStretch mainLayout 2 266
 
