@@ -24,7 +24,6 @@ import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
 import Ariadne.UI.Qt.Widgets.TopBar
 import Ariadne.UI.Qt.Widgets.Repl
-import Ariadne.UI.Qt.Widgets.StatusBar
 import Ariadne.UI.Qt.Widgets.Wallet
 
 data MainWindow =
@@ -32,7 +31,6 @@ data MainWindow =
     { mainWindow :: QMainWindow.QMainWindow
     , wallet :: Wallet
     , repl :: Repl
-    , statusBar :: StatusBar
     , topBar :: TopBar
     , logs :: Logs
     , help :: Help
@@ -68,8 +66,6 @@ initMainWindow langFace historyFace = do
   QWidget.setLayout centralWidget mainLayout
   QMainWindow.setCentralWidget mainWindow centralWidget
 
-  statusBar <- initStatusBar mainWindow
-
   QWidget.show mainWindow
 
   runUI connectGlobalSignals MainWindow{..}
@@ -81,7 +77,7 @@ handleMainWindowEvent langFace = \case
   UiCardanoEvent (UiCardanoLogEvent message) ->
     magnify logsL $ displayLogMessage message
   UiCardanoEvent (UiCardanoStatusUpdateEvent update) ->
-    magnify statusBarL $ displayBlockchainInfo update
+    magnify walletL $ displayBlockchainInfo update
   UiCommandEvent commandId result -> do
     magnify replL $ handleReplEvent commandId result
   UiCommandResult commandId commandResult -> case commandResult of
