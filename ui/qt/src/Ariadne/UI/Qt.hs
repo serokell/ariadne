@@ -53,9 +53,12 @@ postEventToQt eventDispatcher = QEvent.new QEvent.None >>= QCoreApplication.post
 mkUiFace :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiFace
 mkUiFace eventBQueue dispatcherIORef =
   UiFace
-    { putUiEvent = \event -> whenJustM (readIORef dispatcherIORef) $ \eventDispatcher -> do
-        postEventToQt eventDispatcher
+    { putUiEvent = \event -> do
+        -- Cardano backend can initialize and start sending events
+        -- before Qt thread is started, populationg dispatcherIORef.
+        -- Therefore we need to cache some events for later processing.
         atomically $ writeTBQueue eventBQueue event
+        whenJustM (readIORef dispatcherIORef) postEventToQt
     }
 
 qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
