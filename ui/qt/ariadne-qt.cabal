@@ -45,7 +45,6 @@ library
       Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
       Ariadne.UI.Qt.Widgets.Repl
-      Ariadne.UI.Qt.Widgets.StatusBar
       Ariadne.UI.Qt.Widgets.TopBar
       Ariadne.UI.Qt.Widgets.Wallet
       Ariadne.UI.Qt.Widgets.WalletInfo

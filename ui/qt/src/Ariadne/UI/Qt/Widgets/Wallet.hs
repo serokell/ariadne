@@ -1,6 +1,8 @@
 module Ariadne.UI.Qt.Widgets.Wallet
        ( Wallet
        , initWallet
+       , displayBlockchainInfo
+       , doOnReplButtonClick
        , WalletEvent(..)
        , handleWalletEvent
        ) where
@@ -15,10 +17,17 @@ import Serokell.Util (enumerate)
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QModelIndex as QModelIndex
+import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Gui.QStandardItem as QStandardItem
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
+import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
+import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
+import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
+import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
@@ -32,6 +41,8 @@ data Wallet =
     , walletInfo :: WalletInfo
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
+    , syncLabel :: QLabel.QLabel
+    , replBtn :: QPushButton.QPushButton
     }
 
 makeLensesWith postfixLFields ''Wallet
@@ -44,9 +55,16 @@ initWallet langFace = do
   (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
   (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
+  rightPaneLayout <- QVBoxLayout.new
+  (statusLayout, syncLabel, replBtn) <- initStatusLayout
+  QBoxLayout.addWidget rightPaneLayout qWalletInfo
+  QBoxLayout.addLayout rightPaneLayout statusLayout
+  QBoxLayout.setStretch rightPaneLayout 0 1
+  QBoxLayout.setStretch rightPaneLayout 1 0
+
   layout <- QHBoxLayout.new
   QBoxLayout.addLayout layout qWalletTree
-  QBoxLayout.addWidget layout qWalletInfo
+  QBoxLayout.addLayout layout rightPaneLayout
   QBoxLayout.setStretch layout 0 200
   QBoxLayout.setStretch layout 1 1080
 
@@ -54,6 +72,46 @@ initWallet langFace = do
     currentChanged langFace Wallet{..}
 
   return (layout, Wallet{..})
+
+initStatusLayout :: IO (QHBoxLayout.QHBoxLayout, QLabel.QLabel, QPushButton.QPushButton)
+initStatusLayout = do
+  statusLayout <- QHBoxLayout.new
+  QLayout.setContentsMarginsRaw statusLayout 6 6 6 6
+
+  reportBugBtn <- QPushButton.newWithText ("BUG" :: String)
+  QObject.setObjectName reportBugBtn ("reportBugBtn" :: String)
+  QBoxLayout.addWidget statusLayout reportBugBtn
+
+  QBoxLayout.addStretchOf statusLayout 1
+
+  replBtn <- QPushButton.newWithText (">_" :: String)
+  QObject.setObjectName replBtn ("replBtn" :: String)
+  QBoxLayout.addWidget statusLayout replBtn
+
+  syncLabel <- QLabel.newWithText ("Sync in progress" :: String)
+  QObject.setObjectName syncLabel ("syncLabel" :: String)
+  QBoxLayout.addWidget statusLayout syncLabel
+
+  return (statusLayout, syncLabel, replBtn)
+
+displayBlockchainInfo :: UiCardanoStatusUpdate -> UI Wallet ()
+displayBlockchainInfo UiCardanoStatusUpdate{..} = do
+  syncLabel <- view syncLabelL
+  liftIO $ QWidget.setToolTip syncLabel $ toString $
+    "Local: " <> blockchainLocal <> "\n"
+    <> "Network: " <> blockchainNetwork
+
+  liftIO $ QLabel.setText syncLabel $ toString $
+    case syncProgress of
+      Just progress ->
+        "Sync in progress (" <> progress <> ")"
+      Nothing ->
+        "Blockhain synced"
+
+doOnReplButtonClick :: IO () -> UI Wallet ()
+doOnReplButtonClick handler = do
+  replBtn <- view replBtnL
+  void $ liftIO $ connect_ replBtn QAbstractButton.clickedSignal $ const handler
 
 initItemModel :: IO QStandardItemModel.QStandardItemModel
 initItemModel = do
