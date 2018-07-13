@@ -141,7 +141,7 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
     unless (null path) $ void $ langPutUiCommand $ UiSelect path
 
 data WalletEvent
-  = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection)
+  = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
   | WalletSendCommandResult UiCommandId UiSendCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
@@ -155,10 +155,10 @@ handleWalletEvent
 handleWalletEvent langFace ev = do
   Wallet{..} <- ask
   case ev of
-    WalletUpdateEvent wallets selection -> do
+    WalletUpdateEvent wallets selection selectionInfo -> do
       lift $ updateModel itemModel selectionModel wallets selection
       magnify walletInfoL $ handleWalletInfoEvent langFace $
-        WalletInfoSelectionChange
+        WalletInfoSelectionChange selectionInfo
     WalletBalanceCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoBalanceCommandResult commandId result

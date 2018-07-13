@@ -36,7 +36,7 @@ import Ariadne.UI.Qt.UI
 
 data WalletInfo =
   WalletInfo
-    { accountLabel :: QLabel.QLabel
+    { itemNameLabel :: QLabel.QLabel
     , balanceLabel :: QLabel.QLabel
     , balanceCommandId :: IORef (Maybe UiCommandId)
     , sendForm :: QGroupBox.QGroupBox
@@ -58,8 +58,8 @@ initWalletInfo langFace itemModel selectionModel = do
   infoLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw infoLayout 36 17 17 36
 
-  accountLabel <- QLabel.newWithText ("ACCOUNT NAME" :: String)
-  QLayout.addWidget infoLayout accountLabel
+  itemNameLabel <- QLabel.newWithText ("Select something..." :: String)
+  QLayout.addWidget infoLayout itemNameLabel
 
   balancePane <- QWidget.new
   QObject.setObjectName balancePane ("balancePane" :: String)
@@ -69,7 +69,7 @@ initWalletInfo langFace itemModel selectionModel = do
   QWidget.setLayout balancePane balanceLayout
   QLayout.addWidget infoLayout balancePane
 
-  balanceLabel <- QLabel.newWithText ("nothing selected" :: String)
+  balanceLabel <- QLabel.new
   balanceCommandId <- newIORef Nothing
   QLayout.addWidget balanceLayout balanceLabel
 
@@ -122,7 +122,7 @@ sendClicked UiLangFace{..} WalletInfo{..} _checked = do
       QWidget.setEnabled sendButton False
 
 data WalletInfoEvent
-  = WalletInfoSelectionChange
+  = WalletInfoSelectionChange (Maybe UiSelectionInfo)
   | WalletInfoBalanceCommandResult UiCommandId UiBalanceCommandResult
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
 
@@ -133,13 +133,17 @@ handleWalletInfoEvent
 handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
-    WalletInfoSelectionChange -> do
+    WalletInfoSelectionChange selectionInfo -> do
       QLabel.setText balanceLabel ("" :: String)
       mCommandId <- atomicModifyIORef' balanceCommandId $ \cid -> (Nothing, cid)
       whenJust (mCommandId >>= cmdTaskId) $ void . langPutUiCommand . UiKill
       whenRightM (langPutUiCommand UiBalance) $ \cid -> do
         QLabel.setText balanceLabel ("calculating..." :: String)
         writeIORef balanceCommandId $ Just cid
+
+      whenJust selectionInfo $ liftIO . \case
+        UiSelectionWallet UiWalletInfo{..} -> whenJust uwiLabel $ QLabel.setText itemNameLabel . toString
+        UiSelectionAccount UiAccountInfo{..} -> whenJust uaciLabel $ QLabel.setText itemNameLabel . toString
 
     WalletInfoBalanceCommandResult commandId result -> do
       mCommandId <- readIORef balanceCommandId

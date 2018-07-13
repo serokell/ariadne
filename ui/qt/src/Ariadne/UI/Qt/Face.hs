@@ -20,6 +20,10 @@ module Ariadne.UI.Qt.Face
        , UiWalletTree
        , UiWalletTreeSelection(..)
        , TreePath
+       , UiWalletInfo(..)
+       , UiAccountInfo(..)
+       , UiAddressInfo(..)
+       , UiSelectionInfo(..)
        ) where
 
 import Universum
@@ -67,6 +71,7 @@ data UiWalletEvent =
   UiWalletUpdate
     { wuTrees :: [UiWalletTree]
     , wuSelection :: Maybe UiWalletTreeSelection
+    , wuSelectionInfo :: Maybe UiSelectionInfo
     }
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
@@ -173,3 +178,31 @@ data UiWalletTreeSelection =
     { wtsWalletIdx :: Word
     , wtsPath :: TreePath
     }
+
+-- Display info for entities on all HD-wallet tree levels
+data UiWalletInfo = UiWalletInfo
+  { uwiLabel :: !(Maybe Text)
+  , uwiWalletIdx :: !Word
+  , uwiBalance :: !Text
+  , uwiAccounts :: ![UiAccountInfo]
+  }
+
+data UiAccountInfo = UiAccountInfo
+  { uaciLabel :: !(Maybe Text)
+  , uaciWalletIdx :: !Word
+  , uaciPath :: !TreePath
+  , uaciBalance :: !Text
+  , uaciAddresses :: ![UiAddressInfo]
+  }
+
+data UiAddressInfo = UiAddressInfo
+  { uadiWalletIdx :: !Word
+  , uadiPath :: !TreePath
+  , uadiAddress :: !Text
+  , uadiBalance :: !Text
+  }
+
+-- | Info for currently selected tree item
+data UiSelectionInfo
+  = UiSelectionWallet !UiWalletInfo
+  | UiSelectionAccount !UiAccountInfo

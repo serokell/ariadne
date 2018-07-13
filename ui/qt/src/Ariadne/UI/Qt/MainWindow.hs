@@ -95,7 +95,7 @@ handleMainWindowEvent langFace = \case
     UiNewAddressCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletNewAddressCommandResult commandId result
   UiWalletEvent UiWalletUpdate{..} ->
-    magnify walletL $ handleWalletEvent langFace $ WalletUpdateEvent wuTrees wuSelection
+    magnify walletL $ handleWalletEvent langFace $ WalletUpdateEvent wuTrees wuSelection wuSelectionInfo
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
