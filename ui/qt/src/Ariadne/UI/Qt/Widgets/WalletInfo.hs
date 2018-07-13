@@ -12,6 +12,8 @@ import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 import IiExtras
 
+import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
+
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
@@ -61,7 +63,7 @@ initWalletInfo langFace itemModel selectionModel = do
 
   balancePane <- QWidget.new
   QObject.setObjectName balancePane ("balancePane" :: String)
-  -- TODO QWidget.setSizePolicy balancePane Preferred Maximum
+  QWidget.setSizePolicyRaw balancePane Preferred Maximum
   balanceLayout <- QHBoxLayout.new
   QLayout.setContentsMarginsRaw balanceLayout 0 0 0 0
   QWidget.setLayout balancePane balanceLayout

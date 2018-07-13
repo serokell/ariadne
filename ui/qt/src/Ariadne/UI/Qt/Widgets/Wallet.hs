@@ -55,6 +55,8 @@ initWallet langFace = do
   (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
   (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
+  QObject.setObjectName qWalletTree ("walletTreeLayout" :: String)
+
   rightPaneLayout <- QVBoxLayout.new
   (statusLayout, syncLabel, replBtn) <- initStatusLayout
   QBoxLayout.addWidget rightPaneLayout qWalletInfo
@@ -63,6 +65,7 @@ initWallet langFace = do
   QBoxLayout.setStretch rightPaneLayout 1 0
 
   layout <- QHBoxLayout.new
+  QObject.setObjectName layout ("walletLayout" :: String)
   QBoxLayout.addLayout layout qWalletTree
   QBoxLayout.addLayout layout rightPaneLayout
   QBoxLayout.setStretch layout 0 200
@@ -77,6 +80,7 @@ initStatusLayout :: IO (QHBoxLayout.QHBoxLayout, QLabel.QLabel, QPushButton.QPus
 initStatusLayout = do
   statusLayout <- QHBoxLayout.new
   QLayout.setContentsMarginsRaw statusLayout 6 6 6 6
+  QLayout.setSpacing statusLayout 6
 
   reportBugBtn <- QPushButton.newWithText ("BUG" :: String)
   QObject.setObjectName reportBugBtn ("reportBugBtn" :: String)
