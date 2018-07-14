@@ -40,7 +40,7 @@ import System.Wlog.LoggerConfig (LoggerConfig)
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.Presence (Presence (File))
+import Ariadne.Config.Presence (Presence (File), _File)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 
@@ -183,7 +183,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         }
 
     mergedCommonArgs = CommonArgs
-        { logConfig = defaultCa ^. logConfigL
+        { logConfig = ((overrideCa ^. cli_logConfigL) ^? _File) <|> (defaultCa ^. logConfigL)
         , logPrefix = (overrideCa ^. cli_logPrefixL) <|> (defaultCa ^. logPrefixL)
         , reportServers = merge (overrideCa ^. cli_reportServersL) (defaultCa ^. reportServersL)
         , updateServers = merge (overrideCa ^. cli_updateServersL) (defaultCa ^. updateServersL)

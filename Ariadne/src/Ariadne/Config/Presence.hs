@@ -1,8 +1,11 @@
 module Ariadne.Config.Presence
   ( Presence (There, File)
+  , _File
   ) where
 
 import Universum
+
+import Control.Lens (Prism', prism')
 
 data Presence a
   = There a
@@ -23,4 +26,9 @@ instance Alternative Presence where
   There f <|> _ = There f
   File _ <|> x = x
 
--- _File :: Prism
+_File :: Prism' (Presence a) FilePath
+_File = prism' (File . Just) to
+  where
+    to :: Presence a -> Maybe FilePath
+    to (File mfp) = mfp
+    to (There _) = Nothing
