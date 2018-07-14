@@ -77,6 +77,10 @@ initWalletInfo langFace itemModel selectionModel = do
   sendButton' <- QPushButton.newWithText ("SEND" :: String)
   requestButton <- QPushButton.newWithText ("REQUEST" :: String)
 
+  -- TODO implement corresponding functionality
+  QWidget.hide sendButton'
+  QWidget.hide requestButton
+
   QBoxLayout.addStretch accountControls
   QLayout.addWidget accountControls sendButton'
   QLayout.addWidget accountControls requestButton

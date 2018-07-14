@@ -85,6 +85,7 @@ initStatusLayout = do
   reportBugBtn <- QPushButton.newWithText ("BUG" :: String)
   QObject.setObjectName reportBugBtn ("reportBugBtn" :: String)
   QBoxLayout.addWidget statusLayout reportBugBtn
+  QWidget.hide reportBugBtn
 
   QBoxLayout.addStretchOf statusLayout 1
 
