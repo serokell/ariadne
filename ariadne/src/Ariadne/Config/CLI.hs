@@ -35,23 +35,25 @@ import System.Directory
   (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
+import System.Wlog.LoggerConfig (LoggerConfig)
 
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.Presence (Presence (File))
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
-  {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
+  { cli_getCardanoConfig :: CLI_CommonNodeArgs}
 
 data CLI_AriadneConfig = CLI_AriadneConfig
   { cli_acCardano :: CLI_CardanoConfig
-  , cli_acWallet :: CLI_WalletConfig } deriving (Eq, Show, Generic)
+  , cli_acWallet :: CLI_WalletConfig }
 
 data CLI_WalletConfig = CLI_WalletConfig
   { cli_wcEntropySize :: Maybe Byte
-  } deriving (Eq, Show)
+  }
 
 data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     { cli_ncoTopology        :: !(Maybe FilePath)
@@ -61,22 +63,22 @@ data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     , cli_ncoPolicies        :: !(Maybe FilePath)
     , cli_ncoBindAddress     :: !(Maybe NetworkAddress)
     , cli_ncoExternalAddress :: !(Maybe NetworkAddress)
-    } deriving (Eq, Show, Generic)
+    }
 
 data CLI_CommonArgs = CLI_CommonArgs
-    { cli_logConfig            :: !(Maybe FilePath)
+    { cli_logConfig            :: !(Presence LoggerConfig)
     , cli_logPrefix            :: !(Maybe FilePath)
     , cli_reportServers        :: !(Maybe [Text])
     , cli_updateServers        :: !(Maybe [Text])
     , cli_configurationOptions :: !CLI_ConfigurationOptions
-    } deriving (Eq, Show, Generic)
+    }
 
 data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     { cli_cfoFilePath    :: !(Maybe FilePath)
     , cli_cfoKey         :: !(Maybe Text)
     , cli_cfoSystemStart :: !(Maybe Timestamp)
     , cli_cfoSeed        :: !(Maybe Integer)
-    } deriving (Eq, Show, Generic)
+    }
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except NetworkAddress and EkgParams due to their parsers
@@ -96,7 +98,7 @@ data CLI_CommonNodeArgs = CLI_CommonNodeArgs
     , cli_statsdParams           :: !CLI_StatsdParams
     , cli_cnaDumpGenesisDataPath :: !(Maybe FilePath)
     , cli_cnaDumpConfiguration   :: !(Maybe Bool)
-    } deriving (Eq, Show, Generic)
+    }
 
 data CLI_StatsdParams = CLI_StatsdParams
     { cli_statsdHost     :: !(Maybe Text)
@@ -105,7 +107,7 @@ data CLI_StatsdParams = CLI_StatsdParams
     , cli_statsdDebug    :: !(Maybe Bool)
     , cli_statsdPrefix   :: !(Maybe Text)
     , cli_statsdSuffix   :: !(Maybe Text)
-    } deriving (Eq, Show, Generic)
+    }
 
 
 makeLensesWith postfixLFields ''CLI_CommonArgs
@@ -181,7 +183,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         }
 
     mergedCommonArgs = CommonArgs
-        { logConfig = (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL)
+        { logConfig = defaultCa ^. logConfigL
         , logPrefix = (overrideCa ^. cli_logPrefixL) <|> (defaultCa ^. logPrefixL)
         , reportServers = merge (overrideCa ^. cli_reportServersL) (defaultCa ^. reportServersL)
         , updateServers = merge (overrideCa ^. cli_updateServersL) (defaultCa ^. updateServersL)
@@ -515,7 +517,7 @@ cliConfigurationOptionsParser = do
 
 cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
 cliCommonArgsParser = do
-  cli_logConfig <- optional $ strOption $ mconcat
+  cli_logConfig <- (<$>) File . optional . strOption . mconcat $
     [ long $ toOptionNameCardano "logConfig"
     , metavar "FILEPATH"
     , help "Path to logger configuration."

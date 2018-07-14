@@ -23,7 +23,7 @@ import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
-import Pos.Launcher
+import Pos.Launcher (ConfigurationOptions(ConfigurationOptions, cfoKey, cfoSeed, cfoFilePath, cfoSystemStart))
 
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig

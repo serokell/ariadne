@@ -114,6 +114,7 @@ library
       Ariadne.Config.CLI
       Ariadne.Config.Cardano
       Ariadne.Config.History
+      Ariadne.Config.Presence
       Ariadne.Config.Update
       Ariadne.Config.DhallUtil
       Ariadne.Config.TH
