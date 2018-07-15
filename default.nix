@@ -20,6 +20,10 @@ let
         # RPATH of binary contains a forbidden reference to /tmp/nix-build...
         preFixup = ''rm -rf "$(pwd)"'';
         enableSharedExecutables = true;
+
+        # Our custom Setup.hs calls `rcc` from Qt and links to libQt5Core
+        librarySystemDepends = [ qt5.qtbase ];
+        libraryToolDepends = [ qt5.qtbase ];
       }));
 
       knit = overrideCabal previous.knit (super: with final; {

@@ -7,8 +7,12 @@ license:        MPL-2.0
 license-file:   COPYING.md
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
-build-type:     Simple
+build-type:     Custom
 cabal-version:  >= 1.10
+
+extra-source-files:
+  resources/ariadne-qt.qrc
+  resources/images/*.png
 
 source-repository head
   type: git
@@ -85,3 +89,8 @@ library
       ViewPatterns
   default-language: Haskell2010
   ghc-options: -Wall -Werror -Wno-unused-top-binds -dynamic
+
+custom-setup
+  setup-depends:
+      base
+    , Cabal
