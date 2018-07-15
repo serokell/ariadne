@@ -15,6 +15,7 @@ import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import IiExtras (postfixLFields)
+-- import Network.Kademlia (Kademlia)
 import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
@@ -22,8 +23,10 @@ import Paths_ariadne (version)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
+import Pos.Infra.DHT.Real.Param (KademliaParams)
 import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
-import Pos.Infra.Network.Types (NodeName(..))
+import Pos.Infra.Network.Types (NodeName(..), Topology)
+import Pos.Infra.Network.Yaml (StaticPolicies)
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp
   (NetworkAddress, addrParser, addrParserNoWildcard)
@@ -56,11 +59,11 @@ data CLI_WalletConfig = CLI_WalletConfig
   }
 
 data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
-    { cli_ncoTopology        :: !(Maybe FilePath)
-    , cli_ncoKademlia        :: !(Maybe FilePath)
+    { cli_ncoTopology        :: !(Presence (Topology KademliaParams))
+    , cli_ncoKademlia        :: !(Presence KademliaParams)
     , cli_ncoSelf            :: !(Maybe NodeName)
     , cli_ncoPort            :: !(Maybe Word16)
-    , cli_ncoPolicies        :: !(Maybe FilePath)
+    , cli_ncoPolicies        :: !(Presence StaticPolicies)
     , cli_ncoBindAddress     :: !(Maybe NetworkAddress)
     , cli_ncoExternalAddress :: !(Maybe NetworkAddress)
     }
@@ -173,11 +176,11 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         }
 
     mergedNetworkConfigOpts = NetworkConfigOpts
-        { ncoTopology  = (overrideNco ^. cli_ncoTopologyL) <|> (defaultNco ^. ncoTopologyL)
-        , ncoKademlia = (overrideNco ^. cli_ncoKademliaL) <|> (defaultNco ^. ncoKademliaL)
+        { ncoTopology  = ((overrideNco ^. cli_ncoTopologyL) ^? _File) <|> (defaultNco ^. ncoTopologyL)
+        , ncoKademlia = ((overrideNco ^. cli_ncoKademliaL) ^? _File) <|> (defaultNco ^. ncoKademliaL)
         , ncoSelf = (overrideNco ^. cli_ncoSelfL) <|> (defaultNco ^. ncoSelfL)
         , ncoPort = merge (overrideNco ^. cli_ncoPortL) (defaultNco ^. ncoPortL)
-        , ncoPolicies = (overrideNco ^. cli_ncoPoliciesL) <|> (defaultNco ^. ncoPoliciesL)
+        , ncoPolicies = ((overrideNco ^. cli_ncoPoliciesL) ^? _File) <|> (defaultNco ^. ncoPoliciesL)
         , ncoBindAddress = (overrideNco ^. cli_ncoBindAddressL) <|> (defaultNco ^. ncoBindAddressL)
         , ncoExternalAddress = (overrideNco ^. cli_ncoExternalAddressL) <|> (defaultNco ^. ncoExternalAddressL)
         }
@@ -441,12 +444,12 @@ cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $ mconcat
 
 cliNetworkConfigOption :: Opt.Parser CLI_NetworkConfigOpts
 cliNetworkConfigOption = do
-  cli_ncoTopology <- optional $ strOption $ mconcat
+  cli_ncoTopology <- (<$>) File . optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ncoTopology"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network topology"
     ]
-  cli_ncoKademlia <- optional $ strOption $ mconcat
+  cli_ncoKademlia <- (<$>) File . optional . strOption . mconcat $
     [ long $ toOptionNameCardano "ncoKademlia"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the kademlia configuration"
@@ -461,7 +464,7 @@ cliNetworkConfigOption = do
     , metavar "PORT"
     , help "Port number for IP address to node ID translation"
     ]
-  cli_ncoPolicies <- optional $ strOption $ mconcat
+  cli_ncoPolicies <- (<$>) File . optional . strOption . mconcat $
     [ long $ toOptionNameCardano "ncoPolicies"
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network policies"
