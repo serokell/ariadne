@@ -1,0 +1,9 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+  <file>images/ariadne.png</file>
+  <file>images/yarn-ic.png</file>
+</qresource>
+</RCC>
+
+<!-- vim: ft=xml
+-->

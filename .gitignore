@@ -35,3 +35,6 @@ ariadne_history
 ariadne_history.db
 db-mainnet
 .wallet-db/
+
+# Qt resources
+ui/qt/resources/*.cpp
