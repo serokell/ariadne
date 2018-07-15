@@ -37,3 +37,6 @@ db-mainnet
 .wallet-db/
 config/cardano-configuration.yaml
 config/mainnet-genesis.json
+
+# Qt resources
+ui/qt-lib/resources/*.cpp
