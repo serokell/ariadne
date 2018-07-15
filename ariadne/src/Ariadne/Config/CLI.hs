@@ -15,7 +15,6 @@ import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import IiExtras (postfixLFields)
--- import Network.Kademlia (Kademlia)
 import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
@@ -47,16 +46,18 @@ import Ariadne.Config.Presence (Presence (File), _File)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 
-newtype CLI_CardanoConfig = CLI_CardanoConfig
-  { cli_getCardanoConfig :: CLI_CommonNodeArgs}
+newtype CLI_CardanoConfig conf = CLI_CardanoConfig
+    { cli_getCardanoConfig :: CLI_CommonNodeArgs conf
+    }
 
-data CLI_AriadneConfig = CLI_AriadneConfig
-  { cli_acCardano :: CLI_CardanoConfig
-  , cli_acWallet :: CLI_WalletConfig }
+data CLI_AriadneConfig conf = CLI_AriadneConfig
+    { cli_acCardano :: CLI_CardanoConfig conf
+    , cli_acWallet :: CLI_WalletConfig
+    }
 
 data CLI_WalletConfig = CLI_WalletConfig
-  { cli_wcEntropySize :: Maybe Byte
-  }
+    { cli_wcEntropySize :: Maybe Byte
+    }
 
 data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     { cli_ncoTopology        :: !(Presence (Topology KademliaParams))
@@ -68,16 +69,16 @@ data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     , cli_ncoExternalAddress :: !(Maybe NetworkAddress)
     }
 
-data CLI_CommonArgs = CLI_CommonArgs
+data CLI_CommonArgs conf = CLI_CommonArgs
     { cli_logConfig            :: !(Presence LoggerConfig)
     , cli_logPrefix            :: !(Maybe FilePath)
     , cli_reportServers        :: !(Maybe [Text])
     , cli_updateServers        :: !(Maybe [Text])
-    , cli_configurationOptions :: !CLI_ConfigurationOptions
+    , cli_configurationOptions :: !(CLI_ConfigurationOptions conf)
     }
 
-data CLI_ConfigurationOptions = CLI_ConfigurationOptions
-    { cli_cfoFilePath    :: !(Maybe FilePath)
+data CLI_ConfigurationOptions conf = CLI_ConfigurationOptions
+    { cli_cfoFilePath    :: !(Presence conf)
     , cli_cfoKey         :: !(Maybe Text)
     , cli_cfoSystemStart :: !(Maybe Timestamp)
     , cli_cfoSeed        :: !(Maybe Integer)
@@ -85,14 +86,14 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except NetworkAddress and EkgParams due to their parsers
-data CLI_CommonNodeArgs = CLI_CommonNodeArgs
+data CLI_CommonNodeArgs conf = CLI_CommonNodeArgs
     { cli_dbPath                 :: !(Maybe FilePath)
     , cli_rebuildDB              :: !(Maybe Bool)
     , cli_devGenesisSecretI      :: !(Maybe Int)
     , cli_keyfilePath            :: !(Maybe FilePath)
     , cli_networkConfigOpts      :: !CLI_NetworkConfigOpts
     , cli_jlPath                 :: !(Maybe FilePath)
-    , cli_commonArgs             :: !CLI_CommonArgs
+    , cli_commonArgs             :: !(CLI_CommonArgs conf)
     , cli_updateLatestPath       :: !(Maybe FilePath)
     , cli_updateWithPackage      :: !(Maybe Bool)
     , cli_route53Params          :: !(Maybe NetworkAddress)
@@ -132,7 +133,7 @@ makeLensesWith postfixLFields ''CardanoConfig
 makeLensesWith postfixLFields ''WalletConfig
 
 -- Poor man's merge config
-mergeConfigs :: CLI_AriadneConfig -> AriadneConfig -> AriadneConfig
+mergeConfigs :: CLI_AriadneConfig conf -> AriadneConfig -> AriadneConfig
 mergeConfigs overrideAc defaultAc = mergedAriadneConfig
   where
     -- TODO: AD-175 Overridable update configuration
@@ -194,7 +195,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         }
 
     mergedConfigurationOptions = ConfigurationOptions
-        { cfoFilePath = merge (overrideCo ^. cli_cfoFilePathL) (defaultCo ^. cfoFilePathL)
+        { cfoFilePath = merge ((overrideCo ^. cli_cfoFilePathL) ^? _File) (defaultCo ^. cfoFilePathL)
         , cfoKey = merge (overrideCo ^. cli_cfoKeyL) (defaultCo ^. cfoKeyL)
         , cfoSystemStart = (overrideCo ^. cli_cfoSystemStartL) <|> (defaultCo ^. cfoSystemStartL)
         , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
@@ -277,13 +278,13 @@ getConfig commitHash = do
             | isAbsoluteConsiderTilde path = path --relative paths without `.` are invalid in dhall.
             | otherwise = "." </> path
 
-opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
+opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig conf)
 opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
   <> Opt.header "Ariadne wallet"
   <> Opt.footer ("For more details see " <> toString ariadneURL))
 
-parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
+parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig conf)
 parseOptions xdgConfigPath = do
   configPath <- strOption $ mconcat
     [ long "config"
@@ -298,7 +299,7 @@ parseOptions xdgConfigPath = do
   cli_ariadneConfig <- cliAriadneConfigParser
   return (configPath, printVersion, cli_ariadneConfig)
 
-cliAriadneConfigParser :: Opt.Parser CLI_AriadneConfig
+cliAriadneConfigParser :: Opt.Parser (CLI_AriadneConfig conf)
 cliAriadneConfigParser = do
   cli_acCardano <- CLI_CardanoConfig <$> cliCommonNodeArgsParser
   cli_acWallet <- cliWalletParser
@@ -318,7 +319,7 @@ cliWalletParser = do
     else err b
   err inp = Opt.readerError $ "Invalid entropy size " <> (show inp) <> ". Chose one of [16, 20, 24, 28, 32]"
 
-cliCommonNodeArgsParser :: Opt.Parser CLI_CommonNodeArgs
+cliCommonNodeArgsParser :: Opt.Parser (CLI_CommonNodeArgs conf)
 cliCommonNodeArgsParser = do
   cli_dbPath <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "dbPath"
@@ -491,9 +492,9 @@ cliListenNetworkAddressOption = optional $ option (fromParsec addrParserNoWildca
     \and port are accessible, otherwise proper work of CSL isn't guaranteed."
   ]
 
-cliConfigurationOptionsParser :: Opt.Parser CLI_ConfigurationOptions
+cliConfigurationOptionsParser :: Opt.Parser (CLI_ConfigurationOptions conf)
 cliConfigurationOptionsParser = do
-  cli_cfoFilePath  <- optional $ strOption $ mconcat
+  cli_cfoFilePath  <- (<$>) File . optional . strOption . mconcat $
     [ long $ toOptionNameCardano "cfoFilePath"
     , metavar "FILEPATH"
     , help "Path to a yaml configuration file"
@@ -518,7 +519,7 @@ cliConfigurationOptionsParser = do
     ]
   return CLI_ConfigurationOptions{..}
 
-cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
+cliCommonArgsParser :: Opt.Parser (CLI_CommonArgs conf)
 cliCommonArgsParser = do
   cli_logConfig <- (<$>) File . optional . strOption . mconcat $
     [ long $ toOptionNameCardano "logConfig"
