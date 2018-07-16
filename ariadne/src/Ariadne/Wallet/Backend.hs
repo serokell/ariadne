@@ -17,7 +17,7 @@ import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
-import Ariadne.Wallet.Cardano.Kernel (applyBlunds, bracketPassiveWallet)
+import Ariadne.Wallet.Cardano.Kernel (applyBlunds, initPassiveWallet)
 import Ariadne.Wallet.Face
 
 
@@ -33,11 +33,9 @@ createWalletBackend walletConfig = do
   acidDb <- openLocalStateFrom walletAcidDbPathPlaceholder defDB
 
   -- get the block apply handler
-  -- We're doing this dirty hack with MVar for now because we don't have
+  -- We're doing this dirty hack with initPassiveWallet for now because we don't have
   -- a proper bracket architecture anywhere
-  mHandle <- newEmptyMVar
-  bracketPassiveWallet (\sev -> usingLoggerName "passive-wallet" . logMessage sev) (putMVar mHandle)
-  pw <- takeMVar mHandle
+  pw <- initPassiveWallet (\sev -> usingLoggerName "passive-wallet" . logMessage sev) acidDb
 
   return (BListenerHandle (pw ^. applyBlunds) (const $ pure ()), \cf@CardanoFace {..} sendWalletEvent ->
     let
