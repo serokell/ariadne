@@ -16,6 +16,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , applyBlocks
   , applyBlunds
   , bracketPassiveWallet
+  , initPassiveWallet
   , createWalletHdRnd
   , init
   , walletLogMessage
