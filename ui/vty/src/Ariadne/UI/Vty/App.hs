@@ -133,7 +133,8 @@ resetAppFocus = get >>= lift . setWidgetFocusList . appFocusList
 
 setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
 setAppFocus focus = do
-  focus' <- uses appWidgetL $ findClosestFocus focus
+  current <- fromMaybe [] <$> uses appFocusRingL B.focusGetCurrent
+  focus' <- uses appWidgetL $ findClosestFocus current focus
   appFocusRingL %= B.focusSetCurrent focus'
 
 updateAppFocusRing :: StateT AppState (B.EventM WidgetName) ()
