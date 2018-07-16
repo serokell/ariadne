@@ -4,9 +4,10 @@ module Ariadne.UI.Vty.Widget.Account
 
 import Universum
 
+import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import IiExtras
-import System.Hclip (setClipboard)
+import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -243,5 +244,7 @@ performNewAddress = do
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()
 performCopyAddress idx = do
   whenJustM ((^? ix idx) <$> use accountAddressesL) $ \AccountAddress{..} -> do
-    liftIO . setClipboard . toString $ accountAddressHash
-    accountAddressResultL .= AddressCopyResultSuccess accountAddressHash
+    result <- liftIO . handle (\e -> return $ AddressResultError $ fromString $ displayException (e :: ClipboardException)) $ do
+      setClipboard . toString $ accountAddressHash
+      return $ AddressCopyResultSuccess accountAddressHash
+    accountAddressResultL .= result
