@@ -33,8 +33,10 @@ import Control.Monad.Base (MonadBase)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Control.Monad.Reader as Mtl
 import Control.Monad.Trans.Control (MonadBaseControl)
-import Control.Monad.Trans.Reader (ReaderT)
+import Control.Monad.Trans.Resource (transResourceT)
+import Control.Monad.Trans.Reader (withReaderT)
 import Crypto.Random (MonadRandom)
+import Data.Conduit (transPipe)
 import Data.Constraint (Dict(..))
 import IiExtras
 import Mockable
@@ -51,23 +53,13 @@ import Pos.Core
 import Pos.Core.Chrono (NE, NewestFirst, OldestFirst)
 import Pos.Crypto (PassPhrase)
 import Pos.DB (MonadGState(..))
-import Pos.DB.Block
-  (dbGetSerBlockRealDefault, dbGetSerUndoRealDefault,
-  dbPutSerBlundsRealDefault)
 import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
-import Pos.DB.DB (gsAdoptedBVDataDefault)
-import Pos.DB.Rocks
-  (dbDeleteDefault, dbGetDefault, dbIterSourceDefault, dbPutDefault,
-  dbWriteBatchDefault)
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Infra.Network.Types (HasNodeType(..))
 import Pos.Infra.Reporting
   (HasMisbehaviorMetrics(..), MonadReporting(..), Reporter(..))
 import Pos.Infra.Shutdown (HasShutdownContext(..))
 import Pos.Infra.Slotting.Class (MonadSlots(..))
-import Pos.Infra.Slotting.Impl
-  (currentTimeSlottingSimple, getCurrentSlotBlockingSimple,
-  getCurrentSlotInaccurateSimple, getCurrentSlotSimple)
 import Pos.Infra.Slotting.MemState (HasSlottingVar(..), MonadSlotsData)
 import Pos.Infra.Util.JsonLog.Events (HasJsonLogConfig(..), jsonLogDefault)
 import Pos.Infra.Util.TimeWarp (CanJsonLog(..))
@@ -79,7 +71,7 @@ import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.LoggerName (HasLoggerName'(..))
 import Pos.Util.UserSecret (HasUserSecret(..), UserSecret, usWallets)
 import Pos.Util.Util (HasLens(..))
-import Pos.WorkMode (EmptyMempoolExt, RealModeContext(..))
+import Pos.WorkMode (EmptyMempoolExt, RealModeContext(..), RealMode)
 import System.Wlog (CanLog, HasLoggerName(..))
 
 data CardanoStatusUpdate = CardanoStatusUpdate
@@ -208,31 +200,35 @@ instance HasLoggerName' CardanoContext where
 instance HasJsonLogConfig CardanoContext where
     jsonLogConfig = ccRealModeContextL . jsonLogConfig
 
+realModeToCardanoMode :: RealMode EmptyMempoolExt a -> CardanoMode a
+realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
+
 instance {-# OVERLAPPING #-} CanJsonLog CardanoMode where
     jsonLog = jsonLogDefault
 
 instance (HasConfiguration, MonadSlotsData ctx CardanoMode)
       => MonadSlots ctx CardanoMode
   where
-    getCurrentSlot = getCurrentSlotSimple
-    getCurrentSlotBlocking = getCurrentSlotBlockingSimple
-    getCurrentSlotInaccurate = getCurrentSlotInaccurateSimple
-    currentTimeSlotting = currentTimeSlottingSimple
+    getCurrentSlot = realModeToCardanoMode ... getCurrentSlot
+    getCurrentSlotBlocking = realModeToCardanoMode ... getCurrentSlotBlocking
+    getCurrentSlotInaccurate = realModeToCardanoMode ... getCurrentSlotInaccurate
+    currentTimeSlotting = realModeToCardanoMode ... currentTimeSlotting
 
 instance HasConfiguration => MonadGState CardanoMode where
-    gsAdoptedBVData = gsAdoptedBVDataDefault
+    gsAdoptedBVData = realModeToCardanoMode ... gsAdoptedBVData
 
 instance HasConfiguration => MonadDBRead CardanoMode where
-    dbGet = dbGetDefault
-    dbIterSource = dbIterSourceDefault
-    dbGetSerBlock = dbGetSerBlockRealDefault
-    dbGetSerUndo = dbGetSerUndoRealDefault
+    dbGet = realModeToCardanoMode ... dbGet
+    dbIterSource tag p =
+      transPipe (transResourceT realModeToCardanoMode) (dbIterSource tag p)
+    dbGetSerBlock = realModeToCardanoMode ... dbGetSerBlock
+    dbGetSerUndo = realModeToCardanoMode ... dbGetSerUndo
 
 instance HasConfiguration => MonadDB CardanoMode where
-    dbPut = dbPutDefault
-    dbWriteBatch = dbWriteBatchDefault
-    dbDelete = dbDeleteDefault
-    dbPutSerBlunds = dbPutSerBlundsRealDefault
+    dbPut = realModeToCardanoMode ... dbPut
+    dbWriteBatch = realModeToCardanoMode ... dbWriteBatch
+    dbDelete = realModeToCardanoMode ... dbDelete
+    dbPutSerBlunds = realModeToCardanoMode ... dbPutSerBlunds
 
 instance (HasConfiguration, HasTxpConfiguration) =>
          MonadTxpLocal CardanoMode where
