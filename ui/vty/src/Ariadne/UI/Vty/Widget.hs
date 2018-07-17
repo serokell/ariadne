@@ -333,17 +333,18 @@ getFocusRing = B.focusRing . collectFocuses
 --
 -- Goes up along the given path to find closest parent with focus list,
 -- then goes down from there to find the first focusable child.
-findClosestFocus :: WidgetName -> Widget p -> WidgetName
-findClosestFocus [] (Widget WidgetInfo{..})
+findClosestFocus :: WidgetName -> WidgetName -> Widget p -> WidgetName
+findClosestFocus current [] (Widget WidgetInfo{..})
     | n:_ <- catMaybes $ findInChild <$> widgetFocusList = n
     | otherwise = widgetName
   where
     findInChild WidgetNameSelf = Just widgetName
-    findInChild namePart = findClosestFocus [] <$> Map.lookup namePart widgetChildren
-findClosestFocus (np:nps) widget@(Widget WidgetInfo{..})
+    findInChild namePart = findClosestFocus current [] <$> Map.lookup namePart widgetChildren
+findClosestFocus current focus@(np:nps) widget@(Widget WidgetInfo{..})
+  | focus `isPrefixOf` current = current
   | np `elem` widgetFocusList
-  , Just child <- Map.lookup np widgetChildren = findClosestFocus nps child
-  | otherwise = findClosestFocus [] widget
+  , Just child <- Map.lookup np widgetChildren = findClosestFocus current nps child
+  | otherwise = findClosestFocus current [] widget
 
 liftBrick :: B.EventM WidgetName a -> WidgetEventM s p a
 liftBrick = lift . lift . lift
