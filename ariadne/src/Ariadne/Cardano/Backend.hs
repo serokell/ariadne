@@ -3,31 +3,32 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 import Universum
 
 import Ariadne.Config.Cardano (CardanoConfig(..))
+import Control.Monad.Trans.Reader (withReaderT)
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import IiExtras
 import Mockable (runProduction)
+import Mockable (Production(..))
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
 import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
 import qualified Pos.DB.BlockIndex as DB
+import Pos.DB.DB (initNodeDBs)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
+import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
+import Pos.Txp (txpGlobalSettings)
 import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
-import Pos.Txp (txpGlobalSettings)
-import Pos.Launcher.Resource (NodeResources (..), bracketNodeResources)
-import Pos.DB.DB (initNodeDBs)
 import Pos.Util.UserSecret (usVss)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
   showTimeB, usingLoggerName)
-import Mockable (Production (..))
 
 import Ariadne.Cardano.Face
 
@@ -85,8 +86,8 @@ runCardanoNode bHandle cardanoContextVar diffusionVar commonArgs sendCardanoEven
               , statusPollingWorker sendCardanoEvent
               ]
       let
-        realModeToCardanoMode m = CardanoMode $ ask >>= lift . runReaderT m . ccRealModeContext
-        cardanoModeToRealMode (CardanoMode m) = ask >>= lift . runReaderT m . CardanoContext bHandle
+        realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
+        cardanoModeToRealMode (CardanoMode m) = withReaderT (CardanoContext bHandle) m
         convertMode f diff =
             cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode diff)
         runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
