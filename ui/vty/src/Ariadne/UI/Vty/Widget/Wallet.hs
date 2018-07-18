@@ -102,14 +102,7 @@ initWalletWidget langFace =
         Just $ widgetParentGetter
         (\WalletWidgetState{..} -> map walletAccountIdx $ filter walletAccountSelected $ walletAccounts)
 
-    setWidgetFocusList
-      [ WidgetNameWalletName
-      , WidgetNameWalletRenameButton
-      , WidgetNameWalletAccountList
-      , WidgetNameWalletNewAccountName
-      , WidgetNameWalletNewAccountButton
-      , WidgetNameWalletSend
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -184,6 +177,7 @@ handleWalletWidgetEvent = \case
         walletAccountsL .= map
           (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
           (zip [0..] uwiAccounts)
+        updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     walletRenameResultL %= \case
@@ -209,6 +203,19 @@ handleWalletWidgetEvent = \case
 ----------------------------------------------------------------------------
 -- Actions
 ----------------------------------------------------------------------------
+
+updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+updateFocusList = do
+  accounts <- use walletAccountsL
+  lift $ setWidgetFocusList $
+    [ WidgetNameWalletName
+    , WidgetNameWalletRenameButton
+    ] ++
+    (if null accounts then [] else [WidgetNameWalletAccountList]) ++
+    [ WidgetNameWalletNewAccountName
+    , WidgetNameWalletNewAccountButton
+    , WidgetNameWalletSend
+    ]
 
 performRename :: WidgetEventM WalletWidgetState p ()
 performRename = do
