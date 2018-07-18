@@ -165,6 +165,8 @@ library
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
       Ariadne.Wallet.Cardano.Kernel.Word31
+      Ariadne.Wallet.Cardano.WalletLayer.Kernel
+      Ariadne.Wallet.Cardano.WalletLayer.Types
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude
