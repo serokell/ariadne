@@ -31,10 +31,9 @@ import Universum
 import Control.Lens (makeLensesWith)
 import Control.Monad.Base (MonadBase)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
-import qualified Control.Monad.Reader as Mtl
 import Control.Monad.Trans.Control (MonadBaseControl)
-import Control.Monad.Trans.Resource (transResourceT)
 import Control.Monad.Trans.Reader (withReaderT)
+import Control.Monad.Trans.Resource (transResourceT)
 import Crypto.Random (MonadRandom)
 import Data.Conduit (transPipe)
 import Data.Constraint (Dict(..))
@@ -56,22 +55,19 @@ import Pos.DB (MonadGState(..))
 import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Infra.Network.Types (HasNodeType(..))
-import Pos.Infra.Reporting
-  (HasMisbehaviorMetrics(..), MonadReporting(..), Reporter(..))
+import Pos.Infra.Reporting (HasMisbehaviorMetrics(..), MonadReporting(..))
 import Pos.Infra.Shutdown (HasShutdownContext(..))
 import Pos.Infra.Slotting.Class (MonadSlots(..))
 import Pos.Infra.Slotting.MemState (HasSlottingVar(..), MonadSlotsData)
 import Pos.Infra.Util.JsonLog.Events (HasJsonLogConfig(..), jsonLogDefault)
 import Pos.Infra.Util.TimeWarp (CanJsonLog(..))
 import Pos.Launcher (HasConfigurations)
-import Pos.Txp
-  (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..), txNormalize,
-  txProcessTransaction)
+import Pos.Txp (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..))
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.LoggerName (HasLoggerName'(..))
 import Pos.Util.UserSecret (HasUserSecret(..), UserSecret, usWallets)
 import Pos.Util.Util (HasLens(..))
-import Pos.WorkMode (EmptyMempoolExt, RealModeContext(..), RealMode)
+import Pos.WorkMode (EmptyMempoolExt, RealMode, RealModeContext(..))
 import System.Wlog (CanLog, HasLoggerName(..))
 
 data CardanoStatusUpdate = CardanoStatusUpdate
@@ -232,11 +228,11 @@ instance HasConfiguration => MonadDB CardanoMode where
 
 instance (HasConfiguration, HasTxpConfiguration) =>
          MonadTxpLocal CardanoMode where
-    txpNormalize = txNormalize
-    txpProcessTx = txProcessTransaction
+    txpNormalize = realModeToCardanoMode ... txpNormalize
+    txpProcessTx = realModeToCardanoMode ... txpProcessTx
 
 instance MonadReporting CardanoMode where
-    report rt = Mtl.ask >>= liftIO . flip runReporter rt . (rmcReporter . ccRealModeContext)
+    report = realModeToCardanoMode ... report
 
 data CardanoFace = CardanoFace
     { cardanoRunCardanoMode :: CardanoMode :~> IO

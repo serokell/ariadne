@@ -10,16 +10,16 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
-import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.CLI (getConfig)
+import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
 import Ariadne.Meta.URL
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
 import Ariadne.Update.Backend
-import Ariadne.Wallet.Backend
 import Ariadne.UX.CommandHistory
+import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -43,8 +43,8 @@ main = do
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace ! #ariadne_url ariadneURL
-  (bHandle, mkWallet) <- createWalletBackend walletConfig
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle
+  (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
@@ -53,7 +53,7 @@ main = do
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
     (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace (putWalletEventToUI uiFace)
+      mkWallet cardanoFace
 
     knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
     knitExecContext putCommandOutput =
