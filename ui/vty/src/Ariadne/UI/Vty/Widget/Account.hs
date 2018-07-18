@@ -98,13 +98,7 @@ initAccountWidget langFace =
       WidgetEventListSelected idx -> performCopyAddress idx
       _ -> return ()
 
-    setWidgetFocusList
-      [ WidgetNameAccountName
-      , WidgetNameAccountRenameButton
-      , WidgetNameAccountSend
-      , WidgetNameAccountAddressGenerateButton
-      , WidgetNameAccountAddressList
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -202,6 +196,7 @@ handleAccountWidgetEvent = \case
         accountNameL .= fromMaybe "" uaciLabel
         accountBalanceL .= uaciBalance
         accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
+        updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     accountRenameResultL %= \case
@@ -223,6 +218,17 @@ handleAccountWidgetEvent = \case
 ----------------------------------------------------------------------------
 -- Actions
 ----------------------------------------------------------------------------
+
+updateFocusList :: Monad m => StateT AccountWidgetState (StateT (WidgetInfo AccountWidgetState p) m) ()
+updateFocusList = do
+  addresses <- use accountAddressesL
+  lift $ setWidgetFocusList $
+    [ WidgetNameAccountName
+    , WidgetNameAccountRenameButton
+    , WidgetNameAccountSend
+    , WidgetNameAccountAddressGenerateButton
+    ] ++
+    (if null addresses then [] else [WidgetNameAccountAddressList])
 
 performRename :: WidgetEventM AccountWidgetState p ()
 performRename = do
