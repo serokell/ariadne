@@ -34,7 +34,6 @@ data TreeWidgetState =
     , treeItems :: ![TreeItem]
     , treeSelection :: !(Maybe Int)
     , treeInitialized :: !Bool
-    , treeScrollBySelection :: !Bool
     }
 
 data TreeItemType
@@ -74,7 +73,6 @@ initTreeWidget langFace =
       , treeItems = [treeItemLoading]
       , treeSelection = Nothing
       , treeInitialized = False
-      , treeScrollBySelection = False
       }
 
 walletsToItems :: [UiTree] -> Maybe UiTreeSelection -> Bool -> [TreeItem]
@@ -123,15 +121,16 @@ walletsToItems wallets selection initialized =
 drawTreeWidget :: TreeWidgetState -> WidgetDrawM TreeWidgetState p (B.Widget WidgetName)
 drawTreeWidget TreeWidgetState{..} = do
   widgetName <- getWidgetName
+  ignoreVisibility <- getIgnoreVisibility
   return $
     fixedViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed
-      , B.render = render
+      , B.render = render ignoreVisibility
       }
   where
-    render = do
+    render ignoreVisibility = do
       rdrCtx <- B.getContext
       let
         attr = rdrCtx ^. B.attrL
@@ -143,8 +142,8 @@ drawTreeWidget TreeWidgetState{..} = do
           (V.text' (if treeItemSelected then selAttr else attr) treeItemLabel)
 
         visibilityRequests
-          | treeScrollBySelection,
-            Just pos <- findIndex treeItemSelected treeItems =
+          | not ignoreVisibility
+          , Just pos <- findIndex treeItemSelected treeItems =
               [B.VR (B.Location (0, pos + 1)) (1, 1)]  -- Account for 1-char padding
           | otherwise = []
       return $ B.emptyResult
@@ -215,7 +214,6 @@ handleTreeWidgetEvent = \case
       whenJust (items ^? ix 0 >>= treeItemPath) performSelect
     treeItemsL .= items
     treeSelectionL .= findIndex treeItemSelected items
-    treeScrollBySelectionL .= True
   _ ->
     return ()
 
