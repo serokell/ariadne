@@ -23,29 +23,30 @@ spanFormat =
       \white-space: pre-wrap;'><span>" % stext % "</span></span>"
 
 -- Colors in this file are from gruvbox theme: https://github.com/morhetz/gruvbox
--- This makes them readable on white background, as opposed to standard HTML colors
 
 getColor :: [AT.SGR] -> Text
 getColor xs = case colors of
-  []    -> "black"
+  []    -> bgColor
   (c:_) -> toColor c
   where
     toColor (AT.SetColor _ _ c) = case c of
-      AT.Black   -> "white"
+      AT.Black   -> "#cdcdcd" -- This one is not from gruvbox, but from our designs
       AT.Red     -> "#cc241d"
       AT.Green   -> "#98971a"
       AT.Yellow  -> "#d79921"
       AT.Blue    -> "#458588"
       AT.Magenta -> "#b16286"
       AT.Cyan    -> "#689d6a"
-      AT.White   -> "black"
-    toColor _ = "black"
+      AT.White   -> "#a89984"
+    toColor _ = bgColor
 
     colors = filter isColor xs
 
     isColor = \case
       AT.SetColor {} -> True
       _ -> False
+
+    bgColor = "#cdcdcd"
 
 simpleDocToHTML :: PP.SimpleDoc -> Text
 simpleDocToHTML sdoc = if innerHTML == "" then "" else
