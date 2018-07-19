@@ -20,6 +20,7 @@ import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
 import Control.Concurrent.STM.TBQueue
 
 import Ariadne.UI.Qt.MainWindow
+import Ariadne.UI.Qt.StyleSheet
 import Ariadne.UI.Qt.UI
 
 type UiAction = UiLangFace -> IO ()
@@ -34,7 +35,9 @@ createAriadneUI historyFace = do
 
 runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFace -> UiAction
 runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
-  runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
+  runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
+    QApplication.setStyleSheet app $ toString styleSheet
+
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
     mainWindow <- initMainWindow langFace historyFace
