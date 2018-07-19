@@ -57,7 +57,7 @@ data CommonNodeArgs = CommonNodeArgs
     , commonArgs             :: !CommonArgs
     , enableMetrics          :: !Bool
     , ekgParams              :: !(Maybe EkgParams)
-    } deriving Show
+    } deriving (Eq, Show)
 
 toCardanoCommonNodeArgs :: CommonNodeArgs -> Cardano.CommonNodeArgs
 toCardanoCommonNodeArgs CommonNodeArgs{..} = Cardano.CommonNodeArgs
@@ -89,7 +89,17 @@ data NodeParams = NodeParams
     , npEkgParams      :: !(Maybe EkgParams)    -- ^ EKG statistics monitoring.
     , npNetworkConfig  :: !(NetworkConfig KademliaParams)
     , npBehaviorConfig :: !BehaviorConfig       -- ^ Behavior (e.g. SSC settings)
-    }
+    } deriving Show
+
+-- Checked all fields except UserSecret, NetworkConfig and BaseParams
+instance Eq NodeParams where
+    np == np' = npDbPathM np == npDbPathM np'
+        && npRebuildDb np == npRebuildDb np'
+        && npSecretKey np == npSecretKey np'
+        && npReportServers np == npReportServers np'
+        && npEnableMetrics np == npEnableMetrics np'
+        && npEkgParams np == npEkgParams np'
+        && npBehaviorConfig np == npBehaviorConfig np'
 
 toCardanoNodeParams :: NodeParams -> Cardano.NodeParams
 toCardanoNodeParams NodeParams{..} = Cardano.NodeParams
@@ -111,7 +121,7 @@ toCardanoNodeParams NodeParams{..} = Cardano.NodeParams
 
 newtype CardanoConfig = CardanoConfig
     { getCardanoConfig :: CommonNodeArgs }
-    deriving Show
+    deriving (Eq, Show)
 
 instance D.Interpret CardanoConfig where
     autoWith _ = CardanoConfig <$> interpretCommonNodeArgs
@@ -274,12 +284,6 @@ cardanoFieldModifier = f
     f "ekgHost" = "host"
     f "ekgPort" = "port"
 
-    f "statsdAddr" = "statsd-server"
-    f "statsdInterval" = "statsd-interval"
-    f "statsdDebug" = "statsd-debug"
-    f "statsdPrefix" = "statsd-prefix"
-    f "statsdSuffix" =  "statsd-suffix"
-
     f "dbPath" = "db-path"
     f "rebuildDB" = "rebuild-db"
     f "devGenesisSecretI" = "genesis-secret"
@@ -430,16 +434,9 @@ interpretCommonNodeArgs = D.Type extractOut expectedOut
       devGenesisSecretI <- parseFieldCardano fields "devGenesisSecretI" (D.maybe interpretInt)
       keyfilePath <- defalultIfNothing "secret.key" $ parseFieldCardano fields "keyfilePath" (D.maybe interpretFilePath)
       networkConfigOpts <- parseFieldCardano fields "networkConfigOpts" interpretNetworkConfigOpts
-      -- jlPath <- parseFieldCardano fields "jlPath" (D.maybe interpretFilePath)
       commonArgs <- parseFieldCardano fields "commonArgs" interpretCommonArgs
-      -- updateLatestPath <- defalultIfNothing "update-installer.exe" $ parseFieldCardano fields "updateLatestPath" (D.maybe interpretFilePath)
-      -- updateWithPackage <- parseFieldCardano fields "updateWithPackage" D.auto
-      -- route53Params <- parseFieldCardano fields "route53Params" (D.maybe interpretNetworkAddress)
       enableMetrics <- parseFieldCardano fields "enableMetrics" D.auto
       ekgParams <- parseFieldCardano fields "ekgParams" (D.maybe interpretEkgParams)
-      -- statsdParams <- parseFieldCardano fields "statsdParams" (D.maybe interpretStatsdParams)
-      -- cnaDumpGenesisDataPath <- parseFieldCardano fields "cnaDumpGenesisDataPath" (D.maybe interpretFilePath)
-      -- cnaDumpConfiguration <- parseFieldCardano fields "cnaDumpConfiguration" D.auto
       return CommonNodeArgs {..}
     extractOut _ = Nothing
 
@@ -451,16 +448,9 @@ interpretCommonNodeArgs = D.Type extractOut expectedOut
               , (cardanoFieldModifier "devGenesisSecretI", D.expected (D.maybe interpretInt))
               , (cardanoFieldModifier "keyfilePath", D.expected (D.maybe interpretFilePath))
               , (cardanoFieldModifier "networkConfigOpts", D.expected interpretNetworkConfigOpts)
-              , (cardanoFieldModifier "jlPath", D.expected (D.maybe interpretFilePath))
               , (cardanoFieldModifier "commonArgs", D.expected interpretCommonArgs)
-              , (cardanoFieldModifier "updateLatestPath", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "updateWithPackage", D.expected (D.auto :: D.Type Bool))
-              , (cardanoFieldModifier "route53Params", D.expected (D.maybe interpretNetworkAddress))
               , (cardanoFieldModifier "enableMetrics", D.expected (D.auto :: D.Type Bool))
               , (cardanoFieldModifier "ekgParams", D.expected (D.maybe interpretEkgParams))
-              , (cardanoFieldModifier "statsdParams", D.expected (D.maybe interpretStatsdParams))
-              , (cardanoFieldModifier "cnaDumpGenesisDataPath", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "cnaDumpConfiguration", D.expected (D.auto :: D.Type Bool))
               ])
 
 -- injects
@@ -596,19 +586,12 @@ injectCommonNodeArgs = D.InputType {..}
             (Map.fromList
                 [ (cardanoFieldModifier "dbPath", D.embed (injectMaybe injectFilePath) dbPath)
                 , (cardanoFieldModifier "rebuildDB", D.embed D.inject rebuildDB)
-                -- , (cardanoFieldModifier "devGenesisSecretI", D.embed (injectMaybe injectInt) devGenesisSecretI)
+                , (cardanoFieldModifier "devGenesisSecretI", D.embed (injectMaybe injectInt) devGenesisSecretI)
                 , (cardanoFieldModifier "keyfilePath", D.embed (injectMaybe injectFilePath) (Just keyfilePath))
                 , (cardanoFieldModifier "networkConfigOpts", D.embed injectNetworkConfigOpts networkConfigOpts)
-                -- , (cardanoFieldModifier "jlPath", D.embed (injectMaybe injectFilePath) jlPath)
                 , (cardanoFieldModifier "commonArgs", D.embed injectCommonArgs commonArgs)
-                -- , (cardanoFieldModifier "updateLatestPath", D.embed (injectMaybe injectFilePath) (Just updateLatestPath))
-                -- , (cardanoFieldModifier "updateWithPackage", D.embed D.inject updateWithPackage)
-                -- , (cardanoFieldModifier "route53Params", D.embed (injectMaybe injectNetworkAddress) route53Params)
                 , (cardanoFieldModifier "enableMetrics", D.embed D.inject enableMetrics)
                 , (cardanoFieldModifier "ekgParams", D.embed (injectMaybe injectEkgParams) ekgParams)
-                -- , (cardanoFieldModifier "statsdParams", D.embed (injectMaybe injectStatsdParams) statsdParams)
-                -- , (cardanoFieldModifier "cnaDumpGenesisDataPath", D.embed (injectMaybe injectFilePath) cnaDumpGenesisDataPath)
-                -- , (cardanoFieldModifier "cnaDumpConfiguration", D.embed D.inject cnaDumpConfiguration)
                 ])
 
       declared = Record
@@ -618,14 +601,7 @@ injectCommonNodeArgs = D.InputType {..}
           , (cardanoFieldModifier "devGenesisSecretI", D.declared (injectMaybe injectInt))
           , (cardanoFieldModifier "keyfilePath", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "networkConfigOpts", D.declared injectNetworkConfigOpts)
-          , (cardanoFieldModifier "jlPath", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "commonArgs", D.declared injectCommonArgs)
-          , (cardanoFieldModifier "updateLatestPath", D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "updateWithPackage", D.declared (D.inject :: D.InputType Bool))
-          , (cardanoFieldModifier "route53Params", D.declared (injectMaybe injectNetworkAddress))
           , (cardanoFieldModifier "enableMetrics", D.declared (D.inject :: D.InputType Bool))
           , (cardanoFieldModifier "ekgParams", D.declared (injectMaybe injectEkgParams))
-          , (cardanoFieldModifier "statsdParams", D.declared (injectMaybe injectStatsdParams))
-          , (cardanoFieldModifier "cnaDumpGenesisDataPath", D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "cnaDumpConfiguration", D.declared (D.inject :: D.InputType Bool))
           ])

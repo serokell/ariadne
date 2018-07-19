@@ -19,7 +19,6 @@ import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne (version)
--- import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.DHT.Real.Param (KademliaParams)

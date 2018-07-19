@@ -41,7 +41,7 @@ data AriadneConfig = AriadneConfig
   , acWallet :: WalletConfig
   , acUpdate :: UpdateConfig
   , acHistory :: HistoryConfig
-  } deriving Show
+  } deriving (Eq, Show)
 
 instance D.Interpret AriadneConfig where
   autoWith _ = D.Type extractOut expectedOut

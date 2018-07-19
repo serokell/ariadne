@@ -3,10 +3,9 @@ module Test.Ariadne.Cardano.Arbitrary where
 
 import Universum
 
-import Ariadne.Config.Cardano (CardanoConfig(..))
+import Ariadne.Config.Cardano (CardanoConfig(..), CommonNodeArgs(..))
 import Data.Text (pack)
 import Data.Time.Units (fromMicroseconds)
-import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
@@ -30,16 +29,9 @@ genCommonNodeArgs = do
     devGenesisSecretI <- arbitrary
     keyfilePath <- genValidString
     networkConfigOpts <- genNetworkConfigOpts
-    jlPath <- genMaybe genValidString
     commonArgs <- genCommonArgs
-    updateLatestPath <- genValidString
-    updateWithPackage <- arbitrary
-    route53Params <- genMaybe genNetworkAddress
     enableMetrics <- arbitrary
     ekgParams <- genMaybe genEkgParams
-    statsdParams <- genMaybe genStatsdParams
-    cnaDumpGenesisDataPath <- genMaybe genValidString
-    cnaDumpConfiguration <- arbitrary
     return CommonNodeArgs {..}
 
 genStatsdParams :: Gen StatsdParams
