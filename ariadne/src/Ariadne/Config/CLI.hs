@@ -19,7 +19,7 @@ import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne (version)
-import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
+-- import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.DHT.Real.Param (KademliaParams)
@@ -40,7 +40,7 @@ import qualified Text.Read as R (readEither)
 import System.Wlog.LoggerConfig (LoggerConfig)
 
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
+import Ariadne.Config.Cardano (CardanoConfig(CardanoConfig), CommonNodeArgs(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Presence (Presence (File), _File)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
@@ -155,25 +155,15 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     overrideCo = overrideCa ^. cli_configurationOptionsL
     defaultCo = defaultCa ^. configurationOptionsL
 
-    overrideSp = overrideCna ^. cli_statsdParamsL
-    mbDefaultSp = defaultCna ^. statsdParamsL
-
     mergedCardanoConfig = CardanoConfig CommonNodeArgs
         { dbPath = (overrideCna ^. cli_dbPathL) <|> (defaultCna ^. dbPathL)
         , rebuildDB = merge (overrideCna ^. cli_rebuildDBL) (defaultCna ^. rebuildDBL)
         , devGenesisSecretI = (overrideCna ^. cli_devGenesisSecretIL) <|> (defaultCna ^. devGenesisSecretIL)
         , keyfilePath = merge (overrideCna ^. cli_keyfilePathL) (defaultCna ^. keyfilePathL)
         , networkConfigOpts = mergedNetworkConfigOpts
-        , jlPath = (overrideCna ^. cli_jlPathL) <|> (defaultCna ^. jlPathL)
         , commonArgs = mergedCommonArgs
-        , updateLatestPath = merge (overrideCna ^. cli_updateLatestPathL) (defaultCna ^. updateLatestPathL)
-        , updateWithPackage = merge (overrideCna ^. cli_updateWithPackageL) (defaultCna ^. updateWithPackageL)
-        , route53Params = (overrideCna ^. cli_route53ParamsL) <|> (defaultCna ^. route53ParamsL)
         , enableMetrics = merge (overrideCna ^. cli_enableMetricsL) (defaultCna ^. enableMetricsL)
         , ekgParams = (overrideCna ^. cli_ekgParamsL) <|> (defaultCna ^. ekgParamsL)
-        , statsdParams = mergedStatsdParams
-        , cnaDumpGenesisDataPath = (overrideCna ^. cli_cnaDumpGenesisDataPathL) <|> (defaultCna ^. cnaDumpGenesisDataPathL)
-        , cnaDumpConfiguration = merge (overrideCna ^. cli_cnaDumpConfigurationL) (defaultCna ^. cnaDumpConfigurationL)
         }
 
     mergedNetworkConfigOpts = NetworkConfigOpts
@@ -200,15 +190,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , cfoSystemStart = (overrideCo ^. cli_cfoSystemStartL) <|> (defaultCo ^. cfoSystemStartL)
         , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
         }
-
-    mergedStatsdParams = fmap (\defaultSp -> StatsdParams
-            { statsdHost = merge (overrideSp ^. cli_statsdHostL) (defaultSp ^. statsdHostL)
-            , statsdPort = merge (overrideSp ^. cli_statsdPortL) (defaultSp ^. statsdPortL)
-            , statsdInterval = merge (overrideSp ^. cli_statsdIntervalL) (defaultSp ^. statsdIntervalL)
-            , statsdDebug = merge (overrideSp ^. cli_statsdDebugL) (defaultSp ^. statsdDebugL)
-            , statsdPrefix = merge (overrideSp ^. cli_statsdPrefixL) (defaultSp ^. statsdPrefixL)
-            , statsdSuffix = merge (overrideSp ^. cli_statsdSuffixL) (defaultSp ^. statsdSuffixL)
-            }) mbDefaultSp
 
 merge :: Maybe a -> a -> a
 merge = flip fromMaybe
@@ -252,7 +233,6 @@ getConfig commitHash = do
         commNodeArgsL.networkConfigOptsL.ncoTopologyL %= (fmap resolve_)
         commNodeArgsL.commonArgsL.logConfigL %= (fmap resolve_)
         commNodeArgsL.commonArgsL.logPrefixL %= (fmap resolve_)
-        commNodeArgsL.updateLatestPathL %= resolve_
         commNodeArgsL.dbPathL %= (fmap resolve_)
         commNodeArgsL.commonArgsL.configurationOptionsL.cfoFilePathL %= resolve_
         commNodeArgsL.keyfilePathL %= resolve_

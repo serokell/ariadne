@@ -47,6 +47,7 @@ library
     , contravariant
     , constraints
     , containers
+    , cryptonite
     , data-default
     , directory
     , dhall
@@ -100,6 +101,7 @@ library
     , process
     , template-haskell
     , safe
+    , yaml
   exposed-modules:
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend
