@@ -292,7 +292,9 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
-    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
+    balance n = let (amount, unit) = Knit.showCoin n in (amount, unitToUI unit)
+    unitToUI Knit.ADA = ADA
+    unitToUI Knit.Lovelace = Lovelace
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend

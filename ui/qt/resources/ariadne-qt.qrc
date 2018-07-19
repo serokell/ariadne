@@ -2,6 +2,12 @@
 <qresource>
   <file>images/ariadne.png</file>
   <file>images/yarn-ic.png</file>
+  <file>images/syncing.png</file>
+  <file>images/synced.png</file>
+  <file>images/terminal-ic.png</file>
+  <file>images/send-ic.png</file>
+  <file>images/receive-ic.png</file>
+  <file>images/ada-symbol-big-dark.png</file>
 </qresource>
 </RCC>
 

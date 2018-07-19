@@ -1,0 +1,100 @@
+QMainWindow, QDialog {
+    background: #fafafa;
+    color: #34343e;
+}
+QPushButton {
+    border: none;
+    border-radius: 2px;
+    background: #00ca9d;
+    padding: 4px 24px 4px 24px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+QPushButton:hover {
+    background: #00e3b2;
+}
+QPushButton:pressed {
+    background: #00b08a;
+}
+QPushButton:disabled {
+    background: #b2efe1;
+}
+
+#topBar {
+    background: #ffffff;
+    border-bottom: 1px solid #7ce1cb;
+}
+#topBar QPushButton {
+    background: transparent;
+    padding: 9px;
+    color: #34343e;
+}
+#topBar QPushButton:hover {
+    background: rgba(52, 52, 62, 12);
+}
+#topBar QToolTip {
+    font-size: 12px;
+    font-weight: 300;
+    text-align: right;
+    border: 1px solid black;
+    border-radius: 5px;
+    background: #5e6066;
+    color: #ffffff;
+    opacity: 230;
+    padding: 6px;
+}
+#topBar QFrame {
+    border-color: rgba(52, 52, 62, 51);
+    margin-top: 9px;
+    margin-bottom: 9px;
+}
+
+#balancePane {
+    background: rgba(52, 52, 62, 12);
+    color: #121327;
+}
+#balancePane QPushButton {
+    font-weight: bold;
+    padding-top: 7px;
+    padding-bottom: 7px;
+}
+#balancePane QLabel {
+    font-size: 24px;
+    font-weight: 300;
+}
+#itemNameLabel {
+    color: rgba(52, 52, 62, 127);
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+#walletTreePane {
+    background: #f2fdf9;
+    border-right: 1px solid #7ce1cb;
+}
+#walletTree {
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+#walletTree::item {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+#walletTree::item:selected {
+    background: rgba(0, 202, 157, 38);
+    border: none;
+    color: #34343e;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* vim: ft=css
+*/

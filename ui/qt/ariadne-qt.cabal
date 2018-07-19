@@ -13,6 +13,7 @@ cabal-version:  >= 1.10
 extra-source-files:
   resources/ariadne-qt.qrc
   resources/images/*.png
+  resources/stylesheet.qss
 
 source-repository head
   type: git
@@ -38,6 +39,7 @@ library
     , lens
     , ii-extras
     , html-entities
+    , file-embed
 
   exposed-modules:
       Ariadne.UI.Qt
@@ -46,6 +48,7 @@ library
       Ariadne.UI.Qt.AnsiToHTML
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
+      Ariadne.UI.Qt.StyleSheet
       Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
       Ariadne.UI.Qt.Widgets.Repl

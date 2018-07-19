@@ -19,6 +19,7 @@ module Ariadne.UI.Qt.Face
        , UiWalletTree
        , UiWalletTreeSelection(..)
        , TreePath
+       , UiCurrency(..)
        , UiWalletInfo(..)
        , UiAccountInfo(..)
        , UiAddressInfo(..)
@@ -172,11 +173,13 @@ data UiWalletTreeSelection =
     , wtsPath :: TreePath
     }
 
+data UiCurrency = ADA | Lovelace
+
 -- Display info for entities on all HD-wallet tree levels
 data UiWalletInfo = UiWalletInfo
   { uwiLabel :: !(Maybe Text)
   , uwiWalletIdx :: !Word
-  , uwiBalance :: !Text
+  , uwiBalance :: !(Text, UiCurrency)
   , uwiAccounts :: ![UiAccountInfo]
   }
 
@@ -184,7 +187,7 @@ data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
   , uaciPath :: !TreePath
-  , uaciBalance :: !Text
+  , uaciBalance :: !(Text, UiCurrency)
   , uaciAddresses :: ![UiAddressInfo]
   }
 
@@ -192,7 +195,7 @@ data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
   , uadiPath :: !TreePath
   , uadiAddress :: !Text
-  , uadiBalance :: !Text
+  , uadiBalance :: !(Text, UiCurrency)
   }
 
 -- | Info for currently selected tree item
