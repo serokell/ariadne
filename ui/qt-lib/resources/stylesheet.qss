@@ -118,5 +118,41 @@ QPushButton:disabled {
     image: url(':/images/branch-closed.png');
 }
 
+#repl {
+    background: rgba(32, 34, 37, 245);
+}
+
+#repl #historyArea {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+#repl #historyArea, #repl #historyWidget {
+    background: transparent;
+}
+
+#repl #historyWidget QLabel {
+    color: #cdcdcd;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+#repl #knitPrompt {
+    font-weight: 600;
+    color: #fefefe;
+}
+
+#repl #cmdLineWidget {
+    background: rgba(20, 21, 23, 245);
+}
+
+#repl #cmdLineWidget QLineEdit {
+    background: transparent;
+    border: none;
+    color: #cdcdcd;
+    font-size: 14px;
+    font-weight: normal;
+}
+
 /* vim: ft=css
 */
