@@ -116,8 +116,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
   widgetName <- getWidgetName
 
   let
-    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
-    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    drawChild = drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . T.takeEnd 13 . (T.append $ T.replicate 13 " ")
     padBottom = B.padBottom (B.Pad 1)
 
@@ -126,7 +125,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
     B.padAll 1 $
     B.vBox $
     padBottom <$>
-      [ visible WidgetNameAddWalletNewName $ B.txt "Create new wallet"
+      [ B.txt "Create new wallet"
       , label       "Name:" B.<+> drawChild WidgetNameAddWalletNewName
       , label "Passphrase:" B.<+> drawChild WidgetNameAddWalletNewPass
       , label            "" B.<+> drawChild WidgetNameAddWalletNewButton

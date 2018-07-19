@@ -126,8 +126,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
 
     labelWidth = 16
 
-    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
-    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    drawChild = drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
   return $

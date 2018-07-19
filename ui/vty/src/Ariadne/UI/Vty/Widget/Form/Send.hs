@@ -90,7 +90,6 @@ initSendWidget langFace accountsGetter =
 drawSendWidget :: WidgetName -> (SendWidgetState p) -> WidgetDrawM (SendWidgetState p) p (B.Widget WidgetName)
 drawSendWidget focus SendWidgetState{..} = do
   widget <- ask
-  widgetName <- getWidgetName
 
   let
     padBottom = B.padBottom (B.Pad 1)
@@ -101,8 +100,7 @@ drawSendWidget focus SendWidgetState{..} = do
     labelWidth = 16
     amountWidth = 15
 
-    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
-    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    drawChild = drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
     drawOutputsHeader = B.hBox

@@ -26,6 +26,7 @@ module Ariadne.UI.Vty.Widget
        , setWidgetHandleEvent
 
        , getWidgetName
+       , getIgnoreVisibility
        , getFocusRing
        , findClosestFocus
        , liftBrick
@@ -161,6 +162,9 @@ data WidgetInfo s p = WidgetInfo
   -- ^ List of events received from child widgets, is traversed after child event handlers complete
   , widgetEventSend :: !(WidgetEvent -> WidgetEventM s p ())
   -- ^ Send event to parent widget's queue
+  , widgetIgnoreVisibility :: Bool
+  -- ^ Ignore visibility requests to allow scrolling focused child away from viewport.
+  -- This is set when scrolling is initiated and reset after any other user interaction.
   , widgetDraw :: !(s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocused :: !(Bool -> s -> WidgetDrawM s p (B.Widget WidgetName))
   , widgetDrawWithFocus :: !(WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName))
@@ -228,6 +232,7 @@ initWidget action =
     , widgetEventHandlers = Map.empty
     , widgetEventQueue = []
     , widgetEventSend = return . const ()
+    , widgetIgnoreVisibility = False
     , widgetDraw = return . const B.emptyWidget
     , widgetDrawWithFocused = \_ s -> do
         draw <- view widgetDrawL
@@ -312,6 +317,9 @@ setWidgetHandleEvent = assign widgetHandleEventL
 getWidgetName :: WidgetDrawM s p WidgetName
 getWidgetName = view widgetNameL
 
+getIgnoreVisibility :: WidgetDrawM s p Bool
+getIgnoreVisibility = view widgetIgnoreVisibilityL
+
 -- | Collects focus list from all widget hierarchy to create a global focus ring
 --
 -- Normally widgets either don't have focus list and are only focused themselves,
@@ -383,12 +391,19 @@ withWidgetState action = do
 ----------------------------------------------------------------------------
 
 drawWidget :: WidgetName -> p -> Widget p -> B.Widget WidgetName
-drawWidget focus parent (Widget widget@WidgetInfo{ widgetState, widgetDrawWithFocus }) =
-  runReader (runReaderT (widgetDrawWithFocus focus widgetState) widget) parent
+drawWidget focus parent (Widget widget@WidgetInfo{..}) =
+    visible $ runReader (runReaderT (widgetDrawWithFocus focus widgetState) widget) parent
+  where
+    visible w
+      | focus == widgetName
+      , not widgetIgnoreVisibility = B.visible w
+      | otherwise = w
 
 drawWidgetChild :: WidgetName -> WidgetInfo s p -> WidgetNamePart -> B.Widget WidgetName
-drawWidgetChild focus widget@WidgetInfo{ widgetChildren } name =
-  maybe B.emptyWidget (drawWidget focus widget) $ Map.lookup name widgetChildren
+drawWidgetChild focus widget@WidgetInfo{..} name =
+    maybe B.emptyWidget (drawWidget focus widget . withIgnoreVisibility) $ Map.lookup name widgetChildren
+  where
+    withIgnoreVisibility (Widget child) = Widget child{ widgetIgnoreVisibility = widgetIgnoreVisibility }
 
 ----------------------------------------------------------------------------
 -- Widget event handling
@@ -397,35 +412,35 @@ drawWidgetChild focus widget@WidgetInfo{ widgetChildren } name =
 handleWidgetEditKey :: KeyboardEditEvent -> WidgetName -> StateT (Widget p) (StateT p (B.EventM WidgetName)) WidgetEventResult
 handleWidgetEditKey editKey name = do
   Widget widget@WidgetInfo{..} <- get
-  handleByName widget name
+  handleByName widget{ widgetIgnoreVisibility = False } name
     (widgetHandleEditKey editKey)
     (handleWidgetEditKey editKey)
 
 handleWidgetKey :: KeyboardEvent -> WidgetName -> StateT (Widget p) (StateT p (B.EventM WidgetName)) WidgetEventResult
 handleWidgetKey key name = do
   Widget widget@WidgetInfo{..} <- get
-  handleByName widget name
+  handleByName widget{ widgetIgnoreVisibility = False } name
     (widgetHandleKey key)
     (handleWidgetKey key)
 
 handleWidgetPaste :: Text -> WidgetName -> StateT (Widget p) (StateT p (B.EventM WidgetName)) WidgetEventResult
 handleWidgetPaste pasted name = do
   Widget widget@WidgetInfo{..} <- get
-  handleByName widget name
+  handleByName widget{ widgetIgnoreVisibility = False } name
     (widgetHandlePaste pasted)
     (handleWidgetPaste pasted)
 
 handleWidgetMouseDown :: B.Location -> WidgetName -> StateT (Widget p) (StateT p (B.EventM WidgetName)) WidgetEventResult
 handleWidgetMouseDown coords name = do
   Widget widget@WidgetInfo{..} <- get
-  handleByName widget name
+  handleByName widget{ widgetIgnoreVisibility = False } name
     (widgetHandleMouseDown coords)
     (handleWidgetMouseDown coords)
 
 handleWidgetScroll :: ScrollingAction -> WidgetName -> StateT (Widget p) (StateT p (B.EventM WidgetName)) WidgetEventResult
 handleWidgetScroll action name = do
   Widget widget@WidgetInfo{..} <- get
-  handleByName widget name
+  handleByName widget{ widgetIgnoreVisibility = True } name
     (widgetHandleScroll action)
     (handleWidgetScroll action)
 
