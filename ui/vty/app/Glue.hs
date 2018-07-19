@@ -324,7 +324,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
-    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
+    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
