@@ -79,14 +79,22 @@ QPushButton:disabled {
     border-right: 1px solid #7ce1cb;
 }
 #walletTree {
+    show-decoration-selected: 1;
+    selection-background-color: transparent;
+    qproperty-indentation: 20;
+
     background: transparent;
     border: none;
+    outline: none;
     font-size: 14px;
     font-weight: 500;
 }
 #walletTree::item {
+    border: none;
+    color: #34343e;
     padding-top: 4px;
     padding-bottom: 4px;
+    padding-right: 20px;
 }
 #walletTree::item:selected {
     background: rgba(0, 202, 157, 38);
@@ -94,6 +102,20 @@ QPushButton:disabled {
     color: #34343e;
     font-size: 14px;
     font-weight: 500;
+}
+#walletTree::branch:has-children {
+    background-position: right;
+}
+#walletTree::branch:selected {
+    background: rgba(0, 202, 157, 38);
+}
+#walletTree::branch:open:has-children {
+    border-image: none;
+    image: url(':/images/branch-open.png');
+}
+#walletTree::branch:closed:has-children {
+    border-image: none;
+    image: url(':/images/branch-closed.png');
 }
 
 /* vim: ft=css

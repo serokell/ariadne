@@ -62,7 +62,7 @@ initWalletTree langFace itemModel selectionModel = do
   QAbstractItemView.setSelectionBehavior treeView QAbstractItemView.SelectRows
 
   layout <- QVBoxLayout.new
-  QLayout.setContentsMarginsRaw layout 20 12 20 12
+  QLayout.setContentsMarginsRaw layout 0 12 0 12
   QLayout.setSpacing layout 6
   QLayout.addWidget layout treeView
 
@@ -71,7 +71,8 @@ initWalletTree langFace itemModel selectionModel = do
   QWidget.setSizePolicyRaw newWalletBtn Maximum Maximum
   void $ QLayout.setWidgetAlignment layout newWalletBtn $ alignHCenter .|. alignVCenter
 
-  QBoxLayout.addStretch layout
+  QBoxLayout.setStretch layout 0 2
+  QBoxLayout.addStretchOf layout 1
 
   connect_ newWalletBtn QAbstractButton.clickedSignal $ addWalletClicked langFace WalletTree{..}
 
