@@ -131,7 +131,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiBalance ->
         Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
           fromResult result >>= fromValue >>= \case
-            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
+            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
             _ -> Left "Unrecognized return value"
       UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
@@ -300,7 +300,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
-    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
+    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend
