@@ -1,8 +1,10 @@
 module Ariadne.UI.Qt.Widgets.TopBar
   ( TopBar
   , initTopBar
+  , doOnReplButtonClick
   , doOnLogsAction
   , doOnHelpAction
+  , displayBlockchainInfo
   ) where
 
 import Universum
@@ -12,35 +14,47 @@ import IiExtras
 
 import Data.Bits
 
-import Graphics.UI.Qtah.Core.Types (QtCursorShape(..), alignHCenter, alignVCenter)
+import Graphics.UI.Qtah.Core.Types
+  (QtCursorShape(..), alignHCenter, alignVCenter)
+import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
-import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
-import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
+import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
+import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 
 data TopBar =
   TopBar
-    { walletHdr :: QLabel.QLabel
-    , helpHdr :: QLabel.QLabel
-    , logsHdr :: QLabel.QLabel
-    , settingsHdr :: QLabel.QLabel
+    { syncLabel :: QPushButton.QPushButton
+    , replButton :: QPushButton.QPushButton
+    , helpButton :: QPushButton.QPushButton
+    , logsButton :: QPushButton.QPushButton
+    , syncingIcon :: QIcon.QIcon
+    , syncedIcon :: QIcon.QIcon
     }
 
 makeLensesWith postfixLFields ''TopBar
 
-initTopBar :: IO (QHBoxLayout.QHBoxLayout, TopBar)
+initTopBar :: IO (QWidget.QWidget, TopBar)
 initTopBar = do
+  widget <- QWidget.new
+  QObject.setObjectName widget ("topBar" :: String)
+
   topBar <- QHBoxLayout.new
-  QObject.setObjectName topBar ("topBar" :: String)
+  QWidget.setLayout widget topBar
+  QLayout.setSpacing topBar 0
+  QLayout.setContentsMarginsRaw topBar 0 0 0 0
 
   -- Add a widget with a fixed height of 48 px.
   -- It will force the top bar to always be 48 px high,
@@ -53,48 +67,92 @@ initTopBar = do
   QLayout.addWidget topBar vertSpacer
 
   labelLayout <- QHBoxLayout.new
+  QLayout.setSpacing labelLayout 12
 
-  ariadneLabel <- QLabel.newWithText ("ARIADNE" :: String)
+  yarnLabel <- QLabel.newWithText ("<img src=':/images/yarn-ic.png'>" :: String)
+  QObject.setObjectName yarnLabel ("yarnLabel" :: String)
+  QLabel.setAlignment yarnLabel $ alignHCenter .|. alignVCenter
+  QWidget.setSizePolicyRaw yarnLabel Preferred Maximum
+
+  ariadneLabel <- QLabel.newWithText ("<img src=':/images/ariadne.png'>" :: String)
   QObject.setObjectName ariadneLabel ("ariadneLabel" :: String)
   QLabel.setAlignment ariadneLabel $ alignHCenter .|. alignVCenter
   QWidget.setSizePolicyRaw ariadneLabel Preferred Maximum
 
+  QBoxLayout.addStretch labelLayout
+  QLayout.addWidget labelLayout yarnLabel
   QLayout.addWidget labelLayout ariadneLabel
+  QBoxLayout.addStretch labelLayout
   QBoxLayout.addLayout topBar labelLayout
 
   navMenu <- QHBoxLayout.new
-  QBoxLayout.addStretchOf navMenu 277
+  QLayout.setContentsMarginsRaw navMenu 0 8 32 8
+  QLayout.setSpacing navMenu 5
+  QBoxLayout.addStretch navMenu
 
-  walletHdr <- QLabel.newWithText ("Wallet" :: String)
-  helpHdr <- QLabel.newWithText ("Help" :: String)
-  logsHdr <- QLabel.newWithText ("Logs" :: String)
-  settingsHdr <- QLabel.newWithText ("Settings" :: String)
+  syncLabel <- QPushButton.newWithText ("Syncing" :: String)
+  replButton <- QPushButton.new
+  helpButton <- QPushButton.newWithText ("Help" :: String)
+  logsButton <- QPushButton.newWithText ("Logs" :: String)
 
   pointingCursor <- QCursor.newWithCursorShape PointingHandCursor
 
-  forM_ (zip [1..] [walletHdr, helpHdr, logsHdr, settingsHdr]) $ \(i, lbl) -> do
-    QBoxLayout.addWidget navMenu lbl
-    QBoxLayout.setStretch navMenu i 82
-    QWidget.setCursor lbl pointingCursor
-    QWidget.setSizePolicyRaw lbl Preferred Maximum
+  let createSeparator = do
+        separator <- QFrame.new
+        QFrame.setFrameShape separator QFrame.VLine
+        QBoxLayout.addWidget navMenu separator
 
-  QBoxLayout.addStretchOf navMenu 477
+      createButton btn = do
+        QBoxLayout.addWidget navMenu btn
+        QWidget.setCursor btn pointingCursor
+        QWidget.setSizePolicyRaw btn Preferred Maximum
+
+  sequence_ $ intersperse createSeparator $ map createButton
+    [syncLabel, replButton, helpButton, logsButton]
 
   QBoxLayout.addLayout topBar navMenu
 
   QBoxLayout.setStretch topBar 1 200
   QBoxLayout.setStretch topBar 2 1080
 
-  return (topBar, TopBar{..})
+  syncingIcon <- QIcon.newWithFile (":/images/syncing.png" :: String)
+  syncedIcon <- QIcon.newWithFile (":/images/synced.png" :: String)
+  terminalIcon <- QIcon.newWithFile (":/images/terminal-ic.png" :: String)
+
+  QAbstractButton.setIcon syncLabel syncingIcon
+  QAbstractButton.setIcon replButton terminalIcon
+
+  return (widget, TopBar{..})
+
+doOnReplButtonClick :: IO () -> UI TopBar ()
+doOnReplButtonClick handler = do
+  replButton <- view replButtonL
+  void $ liftIO $ connect_ replButton QAbstractButton.clickedSignal $ const handler
 
 doOnLogsAction :: IO () -> UI TopBar ()
 doOnLogsAction handler = do
-  logsHdr <- view logsHdrL
-  void $ liftIO $ Event.onEvent logsHdr $
-    \(_ :: QMouseEvent.QMouseEvent) -> handler >> return True
+  logsButton <- view logsButtonL
+  void $ liftIO $ connect_ logsButton QAbstractButton.clickedSignal $ const handler
 
 doOnHelpAction :: IO () -> UI TopBar ()
 doOnHelpAction handler = do
-  helpHdr <- view helpHdrL
-  void $ liftIO $ Event.onEvent helpHdr $
-    \(_ :: QMouseEvent.QMouseEvent) -> handler >> return True
+  helpButton <- view helpButtonL
+  void $ liftIO $ connect_ helpButton QAbstractButton.clickedSignal $ const handler
+
+displayBlockchainInfo :: UiBackendStatusUpdate -> UI TopBar ()
+displayBlockchainInfo UiBackendStatusUpdate{..} = do
+  syncLabel <- view syncLabelL
+  liftIO $ QWidget.setToolTip syncLabel $ toString $
+    "Local: <b>" <> blockchainLocal <> "</b><br>"
+    <> "Network: <b>" <> blockchainNetwork <> "</b>"
+
+  syncingIcon <- view syncingIconL
+  syncedIcon <- view syncedIconL
+
+  liftIO $ case syncProgress of
+    Just progress -> do
+      QAbstractButton.setText syncLabel $ toString $ "Syncing (" <> progress <> ")"
+      QAbstractButton.setIcon syncLabel syncingIcon
+    Nothing -> do
+      QAbstractButton.setText syncLabel ("Synced" :: String)
+      QAbstractButton.setIcon syncLabel syncedIcon

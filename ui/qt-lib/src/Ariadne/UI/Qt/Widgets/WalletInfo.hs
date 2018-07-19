@@ -8,6 +8,8 @@ module Ariadne.UI.Qt.Widgets.WalletInfo
 
 import Universum
 
+import Data.Text (toUpper)
+
 import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 import IiExtras
@@ -16,6 +18,7 @@ import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
@@ -56,16 +59,21 @@ initWalletInfo
   -> IO (QWidget.QWidget, WalletInfo)
 initWalletInfo langFace itemModel selectionModel = do
   infoLayout <- QVBoxLayout.new
-  QLayout.setContentsMarginsRaw infoLayout 36 17 17 36
+  QLayout.setContentsMarginsRaw infoLayout 0 0 0 0
 
+  headerLayout <- QHBoxLayout.new
+  QLayout.setContentsMarginsRaw headerLayout 36 12 36 12
   itemNameLabel <- QLabel.newWithText ("Select something..." :: String)
-  QLayout.addWidget infoLayout itemNameLabel
+  QObject.setObjectName itemNameLabel ("itemNameLabel" :: String)
+  QLayout.addWidget headerLayout itemNameLabel
+
+  QBoxLayout.addLayout infoLayout headerLayout
 
   balancePane <- QWidget.new
   QObject.setObjectName balancePane ("balancePane" :: String)
   QWidget.setSizePolicyRaw balancePane Preferred Maximum
   balanceLayout <- QHBoxLayout.new
-  QLayout.setContentsMarginsRaw balanceLayout 0 0 0 0
+  QLayout.setContentsMarginsRaw balanceLayout 36 24 36 24
   QWidget.setLayout balancePane balanceLayout
   QLayout.addWidget infoLayout balancePane
 
@@ -74,8 +82,14 @@ initWalletInfo langFace itemModel selectionModel = do
   QLayout.addWidget balanceLayout balanceLabel
 
   accountControls <- QVBoxLayout.new
-  sendButton' <- QPushButton.newWithText ("SEND" :: String)
-  requestButton <- QPushButton.newWithText ("REQUEST" :: String)
+  sendButton' <- QPushButton.newWithText (" SEND" :: String)
+  requestButton <- QPushButton.newWithText (" REQUEST" :: String)
+
+  sendIcon <- QIcon.newWithFile (":/images/send-ic.png" :: String)
+  receiveIcon <- QIcon.newWithFile (":/images/receive-ic.png" :: String)
+
+  QAbstractButton.setIcon sendButton' sendIcon
+  QAbstractButton.setIcon requestButton receiveIcon
 
   -- TODO implement corresponding functionality
   QWidget.hide sendButton'
@@ -137,13 +151,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      let (itemName, balance) =
+      let (itemName, (balance, unit)) =
             case selectionInfo of
               UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance)
               UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance)
 
-      whenJust itemName $ QLabel.setText itemNameLabel . toString
-      QLabel.setText balanceLabel $ toString balance
+      whenJust itemName $ QLabel.setText itemNameLabel . toString . toUpper
+      QLabel.setText balanceLabel $ toString $ balance <> " " <> unitToHtml unit
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
@@ -154,3 +168,7 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiSendCommandFailure err -> do
         QWidget.setEnabled sendButton True
         void $ QMessageBox.critical sendForm ("Error" :: String) $ toString err
+
+unitToHtml :: UiCurrency -> Text
+unitToHtml ADA = "<img src=':/images/ada-symbol-big-dark.png'>"
+unitToHtml Lovelace = "Lovelace"

@@ -57,7 +57,7 @@ initMainWindow langFace historyFace = do
   QLayout.setContentsMarginsRaw mainLayout 0 0 0 0
   QLayout.setSpacing mainLayout 0
 
-  QBoxLayout.addLayout mainLayout qTopBar
+  QBoxLayout.addWidget mainLayout qTopBar
   QBoxLayout.addLayout mainLayout qWallet
   QBoxLayout.addWidget mainLayout qRepl
 
@@ -80,7 +80,7 @@ handleMainWindowEvent langFace = \case
   UiBackendEvent (UiBackendLogEvent message) ->
     magnify logsL $ displayLogMessage message
   UiBackendEvent (UiBackendStatusUpdateEvent update) ->
-    magnify walletL $ displayBlockchainInfo update
+    magnify topBarL $ displayBlockchainInfo update
   UiCommandEvent commandId result -> do
     magnify replL $ handleReplEvent commandId result
   UiCommandResult commandId commandResult -> case commandResult of
@@ -99,4 +99,4 @@ connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
   magnify topBarL . doOnLogsAction . runUI showLogsWindow =<< view logsL
   magnify topBarL . doOnHelpAction . runUI showHelpWindow =<< view helpL
-  magnify walletL . doOnReplButtonClick . runUI toggleRepl =<< view replL
+  magnify topBarL . doOnReplButtonClick . runUI toggleRepl =<< view replL
