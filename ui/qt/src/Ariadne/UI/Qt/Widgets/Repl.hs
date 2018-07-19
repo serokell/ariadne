@@ -18,7 +18,7 @@ import Graphics.UI.Qtah.Core.Types
 import Graphics.UI.Qtah.Signal (connect_)
 
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
-import qualified Graphics.UI.Qtah.Core.QPalette as QPalette
+import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
 import qualified Graphics.UI.Qtah.Gui.QKeyEvent as QKeyEvent
@@ -67,24 +67,35 @@ makeLensesWith postfixLFields ''CommandOutput
 initRepl :: UiLangFace -> UiHistoryFace -> IO (QWidget.QWidget, Repl)
 initRepl langFace historyFace = do
   cmdLine <- QLineEdit.new
+  QObject.setObjectName cmdLine ("cmdLine" :: String)
 
   (historyWidget, historyLayout) <- initHistory
   layout <- QVBoxLayout.new
-  QLayout.setContentsMarginsRaw layout 16 8 8 16
+  QLayout.setContentsMarginsRaw layout 0 8 0 0
+  QLayout.setSpacing layout 8
   QLayout.addWidget layout historyWidget
 
+  cmdLineWidget <- QWidget.new
+  QObject.setObjectName cmdLineWidget ("cmdLineWidget" :: String)
   cmdLineLayout <- QHBoxLayout.new
+  QLayout.setContentsMarginsRaw cmdLineLayout 16 8 16 8
+  QLayout.setSpacing cmdLineLayout 10
+  QWidget.setLayout cmdLineWidget cmdLineLayout
+
   knitPrompt <- QLabel.newWithText ("knit>" :: String)
+  QObject.setObjectName knitPrompt ("knitPrompt" :: String)
+
   QLayout.addWidget cmdLineLayout knitPrompt
   QLayout.addWidget cmdLineLayout cmdLine
 
-  QBoxLayout.addLayout layout cmdLineLayout
+  QBoxLayout.addWidget layout cmdLineWidget
 
   commandOutputs <- newIORef []
 
   beamCursor <- QCursor.newWithCursorShape IBeamCursor
 
   replWidget <- QWidget.new
+  QObject.setObjectName replWidget ("repl" :: String)
   QWidget.setLayout replWidget layout
   QWidget.hide replWidget
 
@@ -101,20 +112,19 @@ initRepl langFace historyFace = do
 
   void $ Event.onEvent cmdLine $ handleKeyEvent historyFace cmdLine
 
-  QWidget.setFocus cmdLine
-
   return (replWidget, repl)
 
 initHistory :: IO (QScrollArea.QScrollArea, QVBoxLayout.QVBoxLayout)
 initHistory = do
   scrollArea <- QScrollArea.new
-  QWidget.setBackgroundRole scrollArea QPalette.Base
+  QObject.setObjectName scrollArea ("historyArea" :: String)
 
   historyWidget <- QWidget.new
-  QWidget.setContentsMarginsRaw historyWidget 0 0 0 0
+  QObject.setObjectName historyWidget ("historyWidget" :: String)
 
   layout <- QVBoxLayout.new
   QWidget.setLayout historyWidget layout
+  QLayout.setContentsMarginsRaw layout 0 0 0 0
   QLayout.setSizeConstraint layout QLayout.SetMinAndMaxSize
 
   QScrollArea.setWidget scrollArea historyWidget
@@ -124,9 +134,12 @@ initHistory = do
 toggleRepl :: UI Repl ()
 toggleRepl = do
   replWidget <- view replWidgetL
+  cmdLine <- view cmdLineL
   liftIO $ do
-    visible <- QWidget.isVisible replWidget
-    QWidget.setVisible replWidget $ not visible
+    wasVisible <- QWidget.isVisible replWidget
+    QWidget.setVisible replWidget $ not wasVisible
+
+    unless wasVisible $ QWidget.setFocus cmdLine
 
 createCommandOutput :: QCursor.QCursor -> UiCommandId -> String -> IO CommandOutput
 createCommandOutput beamCursor commandId command = do
