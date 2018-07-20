@@ -143,7 +143,6 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
 
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
-  | WalletBalanceCommandResult UiCommandId UiBalanceCommandResult
   | WalletSendCommandResult UiCommandId UiSendCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
@@ -158,11 +157,9 @@ handleWalletEvent langFace ev = do
   case ev of
     WalletUpdateEvent wallets selection selectionInfo -> do
       lift $ updateModel itemModel selectionModel wallets selection
-      magnify walletInfoL $ handleWalletInfoEvent langFace $
-        WalletInfoSelectionChange selectionInfo
-    WalletBalanceCommandResult commandId result ->
-      magnify walletInfoL $ handleWalletInfoEvent langFace $
-        WalletInfoBalanceCommandResult commandId result
+      whenJust selectionInfo $
+        magnify walletInfoL . handleWalletInfoEvent langFace .
+          WalletInfoSelectionChange
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
