@@ -7,7 +7,6 @@ module Ariadne.UI.Qt.Face
        , UiEvent (..)
        , UiCommand (..)
        , UiCommandResult (..)
-       , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -86,7 +85,6 @@ data UiEvent
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiBalance
   | UiSend Text Text  -- ^ Address, amount
   | UiNewWallet Text  -- ^ Name
   | UiNewAccount Text  -- ^ Name
@@ -95,15 +93,10 @@ data UiCommand
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
-  = UiBalanceCommandResult UiBalanceCommandResult
-  | UiSendCommandResult UiSendCommandResult
+  = UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
-
-data UiBalanceCommandResult
-  = UiBalanceCommandSuccess Text
-  | UiBalanceCommandFailure Text
 
 data UiSendCommandResult
   = UiSendCommandSuccess Text

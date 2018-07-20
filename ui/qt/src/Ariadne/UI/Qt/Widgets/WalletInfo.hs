@@ -126,8 +126,7 @@ sendClicked UiLangFace{..} WalletInfo{..} _checked = do
       QWidget.setEnabled sendButton False
 
 data WalletInfoEvent
-  = WalletInfoSelectionChange (Maybe UiSelectionInfo)
-  | WalletInfoBalanceCommandResult UiCommandId UiBalanceCommandResult
+  = WalletInfoSelectionChange UiSelectionInfo
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
 
 handleWalletInfoEvent
@@ -138,26 +137,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      QLabel.setText balanceLabel ("" :: String)
-      mCommandId <- atomicModifyIORef' balanceCommandId $ \cid -> (Nothing, cid)
-      whenJust (mCommandId >>= cmdTaskId) $ void . langPutUiCommand . UiKill
-      whenRightM (langPutUiCommand UiBalance) $ \cid -> do
-        QLabel.setText balanceLabel ("calculating..." :: String)
-        writeIORef balanceCommandId $ Just cid
+      let (itemName, balance) =
+            case selectionInfo of
+              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance)
+              UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance)
 
-      whenJust selectionInfo $ liftIO . \case
-        UiSelectionWallet UiWalletInfo{..} -> whenJust uwiLabel $ QLabel.setText itemNameLabel . toString
-        UiSelectionAccount UiAccountInfo{..} -> whenJust uaciLabel $ QLabel.setText itemNameLabel . toString
-
-    WalletInfoBalanceCommandResult commandId result -> do
-      mCommandId <- readIORef balanceCommandId
-      when (mCommandId == Just commandId) $ do
-        writeIORef balanceCommandId Nothing
-        case result of
-          UiBalanceCommandSuccess balance -> do
-            QLabel.setText balanceLabel $ toString balance
-          UiBalanceCommandFailure err -> do
-            QLabel.setText balanceLabel $ toString err
+      whenJust itemName $ QLabel.setText itemNameLabel . toString
+      QLabel.setText balanceLabel $ toString balance
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do

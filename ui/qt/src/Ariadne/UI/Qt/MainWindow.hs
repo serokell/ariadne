@@ -84,8 +84,6 @@ handleMainWindowEvent langFace = \case
   UiCommandEvent commandId result -> do
     magnify replL $ handleReplEvent commandId result
   UiCommandResult commandId commandResult -> case commandResult of
-    UiBalanceCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletBalanceCommandResult commandId result
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
     UiNewWalletCommandResult result ->

@@ -94,9 +94,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiBalance ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.balanceCommandName [])
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
@@ -128,11 +125,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.newAddressCommandName [])
 
     resultToUI result = \case
-      UiBalance ->
-        Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
-          fromResult result >>= fromValue >>= \case
-            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
-            _ -> Left "Unrecognized return value"
       UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
