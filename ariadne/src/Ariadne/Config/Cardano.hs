@@ -14,6 +14,7 @@ module Ariadne.Config.Cardano
 import Universum
 
 import Ariadne.Config.DhallUtil
+import Ariadne.Config.Presence (Presence (There, File))
 import Control.Lens (ix)
 import Crypto.Random (MonadRandom)
 import Data.Default (def)
@@ -32,9 +33,9 @@ import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core (HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair), genesisSecretsRich)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (SecretKey, VssKeyPair, keyGen, runSecureRandom, vssKeyGen)
-import Pos.Infra.DHT.Real.Param (KademliaParams)
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts)
-import Pos.Infra.Network.Types (NetworkConfig, NodeName(..))
+import Pos.Infra.DHT.Real.Param (KademliaParams (..))
+import Pos.Infra.Network.CLI (intNetworkConfigOpts) -- NetworkConfigOpts(..),
+import Pos.Infra.Network.Types (NetworkConfig, NodeName(..), Topology(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher (BaseParams (BaseParams, bpLoggingParams), ConfigurationOptions(..), LoggingParams(..))
@@ -47,6 +48,7 @@ import System.Wlog.LoggerName (LoggerName)
 
 import qualified Pos.Launcher as Cardano (NodeParams(..))
 import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
+import qualified Pos.Infra.Network.CLI as Cardano (NetworkConfigOpts(..))
 
 data CommonNodeArgs = CommonNodeArgs
     { dbPath                 :: !(Maybe FilePath)
@@ -65,7 +67,7 @@ toCardanoCommonNodeArgs CommonNodeArgs{..} = Cardano.CommonNodeArgs
     , Cardano.rebuildDB = rebuildDB
     , Cardano.devGenesisSecretI = devGenesisSecretI
     , Cardano.keyfilePath = keyfilePath
-    , Cardano.networkConfigOpts = networkConfigOpts
+    , Cardano.networkConfigOpts = toCardanoNetworkConfigOpts networkConfigOpts
     , Cardano.jlPath = Nothing
     , Cardano.commonArgs = commonArgs
     , Cardano.updateLatestPath = ""
@@ -119,6 +121,17 @@ toCardanoNodeParams NodeParams{..} = Cardano.NodeParams
     , Cardano.npBehaviorConfig = npBehaviorConfig
     }
 
+data NetworkConfigOpts = NetworkConfigOpts
+    { ncoTopology :: !(Presence (Topology KademliaParams))
+    , ncoPort  :: !Word16
+    } deriving (Eq, Show)
+
+toCardanoNetworkConfigOpts :: NetworkConfigOpts -> Cardano.NetworkConfigOpts
+toCardanoNetworkConfigOpts = undefined
+
+deriving instance Eq KademliaParams
+deriving instance Eq a => Eq (Topology a)
+
 newtype CardanoConfig = CardanoConfig
     { getCardanoConfig :: CommonNodeArgs }
     deriving (Eq, Show)
@@ -137,12 +150,8 @@ defaultCardanoConfig = CardanoConfig
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = Just "config/cardano/topology.yaml"
-            , ncoKademlia = Nothing
-            , ncoSelf = Just (NodeName "node0")
-            , ncoPort = 3000, ncoPolicies = Nothing
-            , ncoBindAddress = Nothing
-            , ncoExternalAddress = Nothing
+            { ncoTopology = File $ Just "config/cardano/topology.yaml"
+            , ncoPort = 3000
             }
         , commonArgs = CommonArgs
             { logConfig = Just "config/cardano/log-config.yaml"
@@ -239,7 +248,7 @@ getNodeParams :: (MonadIO m, WithLogger m, MonadCatch m, HasConfiguration)
 getNodeParams defaultLoggerName cArgs@CommonNodeArgs{..} NodeArgs{..} = do
     (primarySK, userSecret) <-
         prepareUserSecret cArgs =<< peekUserSecret (getKeyfilePath cArgs)
-    npNetworkConfig <- intNetworkConfigOpts networkConfigOpts
+    npNetworkConfig <- intNetworkConfigOpts $ toCardanoNetworkConfigOpts networkConfigOpts
     npBehaviorConfig <- case behaviorConfigPath of
         Nothing -> pure def
         Just fp -> eitherToThrow =<< liftIO (decodeFileEither fp)
@@ -326,7 +335,7 @@ interpretNetworkConfigOpts = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
       ncoTopology <- parseFieldCardano fields "ncoTopology" (D.maybe interpretFilePath)
-      ncoKademlia <- parseFieldCardano fields "ncoKademlia" (D.maybe interpretFilePath)
+      ncoKademlia <- (<$>) File $ parseFieldCardano fields "ncoKademlia" (D.maybe interpretFilePath)
       ncoSelf <- parseFieldCardano fields "ncoSelf" (D.maybe interpretNodeName)
       ncoPort <- defalultIfNothing 3000 (parseFieldCardano fields "ncoPort" (D.maybe interpretWord16))
       ncoPolicies <- parseFieldCardano fields "ncoPolicies" (D.maybe interpretFilePath)
@@ -488,25 +497,13 @@ injectNetworkConfigOpts = D.InputType {..}
       embed NetworkConfigOpts {..} = RecordLit
         (Map.fromList
           [ (cardanoFieldModifier "ncoTopology", D.embed (injectMaybe injectFilePath) ncoTopology)
-          , (cardanoFieldModifier "ncoKademlia", D.embed (injectMaybe injectFilePath) ncoKademlia)
-          , (cardanoFieldModifier "ncoSelf", D.embed (injectMaybe injectNodeName) ncoSelf)
-          -- `Just` is used to make ncoPort Optional in config.dhall
           , (cardanoFieldModifier "ncoPort", D.embed (injectMaybe injectWord16) $ Just ncoPort)
-          , (cardanoFieldModifier "ncoPolicies", D.embed (injectMaybe injectFilePath) ncoPolicies)
-          -- Should be injected as NetworkAddress not tuple
-          , (cardanoFieldModifier "ncoExternalAddress", D.embed (injectMaybe injectNetworkAddress) ncoExternalAddress)
-          , (cardanoFieldModifier "ncoBindAddress", D.embed (injectMaybe injectNetworkAddress) ncoBindAddress)
           ])
 
       declared = Record
         (Map.fromList
           [ (cardanoFieldModifier "ncoTopology", D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "ncoKademlia",  D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "ncoSelf",  D.declared (injectMaybe injectNodeName))
           , (cardanoFieldModifier "ncoPort", D.declared (injectMaybe injectWord16))
-          , (cardanoFieldModifier "ncoPolicies",  D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "ncoExternalAddress", D.declared (injectMaybe injectNetworkAddress))
-          , (cardanoFieldModifier "ncoBindAddress", D.declared (injectMaybe injectNetworkAddress))
           ])
 
 injectConfigurationOptions :: D.InputType ConfigurationOptions
