@@ -106,11 +106,9 @@ handleWalletEvent langFace ev = do
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeNewWalletCommandResult commandId result
     WalletNewAccountCommandResult commandId result ->
-      magnify walletTreeL $ handleWalletTreeEvent langFace $
-        WalletTreeNewAccountCommandResult commandId result
-    WalletNewAddressCommandResult commandId result ->
-      magnify walletTreeL $ handleWalletTreeEvent langFace $
-        WalletTreeNewAddressCommandResult commandId result
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoNewAccountCommandResult commandId result
+    WalletNewAddressCommandResult _ _ -> return ()
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

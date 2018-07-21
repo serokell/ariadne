@@ -14,10 +14,12 @@ import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 import IiExtras
 
+import Graphics.UI.Qtah.Core.Types (QtCursorShape(..))
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
+import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
@@ -26,6 +28,7 @@ import qualified Graphics.UI.Qtah.Widgets.QDialogButtonBox as QDialogButtonBox
 import qualified Graphics.UI.Qtah.Widgets.QFormLayout as QFormLayout
 import qualified Graphics.UI.Qtah.Widgets.QGroupBox as QGroupBox
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QInputDialog as QInputDialog
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
@@ -39,7 +42,8 @@ import Ariadne.UI.Qt.UI
 
 data WalletInfo =
   WalletInfo
-    { itemNameLabel :: QLabel.QLabel
+    { walletInfo :: QWidget.QWidget
+    , itemNameLabel :: QLabel.QLabel
     , balanceLabel :: QLabel.QLabel
     , balanceCommandId :: IORef (Maybe UiCommandId)
     , sendForm :: QGroupBox.QGroupBox
@@ -48,6 +52,7 @@ data WalletInfo =
     , sendButton :: QPushButton.QPushButton
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
+    , createAccountButton :: QPushButton.QPushButton
     }
 
 makeLensesWith postfixLFields ''WalletInfo
@@ -61,13 +66,28 @@ initWalletInfo langFace itemModel selectionModel = do
   infoLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw infoLayout 0 0 0 0
 
+  header <- QWidget.new
+  QObject.setObjectName header ("walletHeader" :: String)
   headerLayout <- QHBoxLayout.new
+  QWidget.setLayout header headerLayout
+
   QLayout.setContentsMarginsRaw headerLayout 36 12 36 12
+  QLayout.setSpacing headerLayout 36
+
   itemNameLabel <- QLabel.newWithText ("Select something..." :: String)
   QObject.setObjectName itemNameLabel ("itemNameLabel" :: String)
   QLayout.addWidget headerLayout itemNameLabel
+  QBoxLayout.addStretch headerLayout
 
-  QBoxLayout.addLayout infoLayout headerLayout
+  pointingCursor <- QCursor.newWithCursorShape PointingHandCursor
+  createAccountButton <- QPushButton.newWithText (" Create account" :: String)
+  createAccountIcon <- QIcon.newWithFile (":/images/add-ic.png" :: String)
+  QAbstractButton.setIcon createAccountButton createAccountIcon
+  QWidget.setCursor createAccountButton pointingCursor
+  QWidget.hide createAccountButton -- will be shown only if applicable
+  QLayout.addWidget headerLayout createAccountButton
+
+  QBoxLayout.addWidget infoLayout header
 
   balancePane <- QWidget.new
   QObject.setObjectName balancePane ("balancePane" :: String)
@@ -121,13 +141,15 @@ initWalletInfo langFace itemModel selectionModel = do
   QLayout.addWidget infoLayout sendForm
 
   QBoxLayout.addStretch infoLayout
-  widget <- QWidget.new
-  QWidget.setLayout widget infoLayout
+  walletInfo <- QWidget.new
+  QWidget.setLayout walletInfo infoLayout
 
   connect_ sendButton QAbstractButton.clickedSignal $
     sendClicked langFace WalletInfo{..}
+  connect_ createAccountButton QAbstractButton.clickedSignal $
+    addAccountClicked langFace WalletInfo{..}
 
-  return (widget, WalletInfo{..})
+  return (walletInfo, WalletInfo{..})
 
 sendClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 sendClicked UiLangFace{..} WalletInfo{..} _checked = do
@@ -142,6 +164,7 @@ sendClicked UiLangFace{..} WalletInfo{..} _checked = do
 data WalletInfoEvent
   = WalletInfoSelectionChange UiSelectionInfo
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
+  | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
 
 handleWalletInfoEvent
   :: UiLangFace
@@ -151,13 +174,15 @@ handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      let (itemName, (balance, unit)) =
+      let (itemName, (balance, unit), isWallet) =
             case selectionInfo of
-              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance)
-              UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance)
+              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, True)
+              UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance, False)
 
       whenJust itemName $ QLabel.setText itemNameLabel . toString . toUpper
       QLabel.setText balanceLabel $ toString $ balance <> " " <> unitToHtml unit
+
+      QWidget.setVisible createAccountButton isWallet
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
@@ -169,6 +194,17 @@ handleWalletInfoEvent UiLangFace{..} ev = do
         QWidget.setEnabled sendButton True
         void $ QMessageBox.critical sendForm ("Error" :: String) $ toString err
 
+    WalletInfoNewAccountCommandResult _commandId result -> case result of
+      UiNewAccountCommandSuccess -> do
+        void $ QMessageBox.information walletInfo ("Success" :: String) ("Account created" :: String)
+      UiNewAccountCommandFailure err -> do
+        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+
 unitToHtml :: UiCurrency -> Text
 unitToHtml ADA = "<img src=':/images/ada-symbol-big-dark.png'>"
 unitToHtml Lovelace = "Lovelace"
+
+addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
+  name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
+  unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
