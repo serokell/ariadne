@@ -53,6 +53,14 @@ QPushButton:disabled {
     margin-bottom: 9px;
 }
 
+#walletHeader QPushButton {
+    background: transparent;
+    color: #34343e;
+    font-size: 16px;
+    font-weight: 500px;
+    padding: 0px;
+}
+
 #balancePane {
     background: rgba(52, 52, 62, 12);
     color: #121327;
