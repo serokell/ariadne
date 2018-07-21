@@ -85,19 +85,8 @@ addWalletClicked UiLangFace{..} WalletTree{..} _checked = do
   name <- toText <$> QInputDialog.getText treeView ("New wallet" :: String) ("Wallet name" :: String)
   unless (null name) $ void $ langPutUiCommand $ UiNewWallet name
 
-addAccountClicked :: UiLangFace -> WalletTree -> Bool -> IO ()
-addAccountClicked UiLangFace{..} WalletTree{..} _checked = do
-  name <- toText <$> QInputDialog.getText treeView ("New account" :: String) ("Account name" :: String)
-  unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
-
-addAddressClicked :: UiLangFace -> WalletTree -> Bool -> IO ()
-addAddressClicked UiLangFace{..} WalletTree{..} _checked = do
-  void $ langPutUiCommand $ UiNewAddress
-
 data WalletTreeEvent
   = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult
-  | WalletTreeNewAddressCommandResult UiCommandId UiNewAddressCommandResult
-  | WalletTreeNewAccountCommandResult UiCommandId UiNewAccountCommandResult
 
 handleWalletTreeEvent
   :: UiLangFace
@@ -111,14 +100,4 @@ handleWalletTreeEvent UiLangFace{..} ev = do
         void $ QMessageBox.information treeView ("Success" :: String) $
           toString $ "This is your wallet mnemonic. Save it.\n\n" <> intercalate " " mnemonic
       UiNewWalletCommandFailure err -> do
-        void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
-    WalletTreeNewAccountCommandResult _commandId result -> case result of
-      UiNewAccountCommandSuccess -> do
-        void $ QMessageBox.information treeView ("Success" :: String) ("Account created" :: String)
-      UiNewAccountCommandFailure err -> do
-        void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
-    WalletTreeNewAddressCommandResult _commandId result -> case result of
-      UiNewAddressCommandSuccess -> do
-        void $ QMessageBox.information treeView ("Success" :: String) ("Address created" :: String)
-      UiNewAddressCommandFailure err -> do
         void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
