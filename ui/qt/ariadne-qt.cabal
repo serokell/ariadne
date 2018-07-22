@@ -40,6 +40,7 @@ library
     , ii-extras
     , html-entities
     , file-embed
+    , bytestring
 
   exposed-modules:
       Ariadne.UI.Qt
