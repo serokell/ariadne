@@ -6,6 +6,8 @@ module Ariadne.Config.Cardano
   , toCardanoCommonNodeArgs
   , NodeParams (..)
   , toCardanoNodeParams
+  , NetworkConfigOpts (..)
+  , toCardanoNetworkConfigOpts
   , getNodeParams
   , gtSscParams
   , loggingParams
@@ -14,7 +16,7 @@ module Ariadne.Config.Cardano
 import Universum
 
 import Ariadne.Config.DhallUtil
-import Ariadne.Config.Presence (Presence (There, File))
+import Ariadne.Config.Presence (Presence (File), _File)
 import Control.Lens (ix)
 import Crypto.Random (MonadRandom)
 import Data.Default (def)
@@ -124,13 +126,21 @@ toCardanoNodeParams NodeParams{..} = Cardano.NodeParams
 data NetworkConfigOpts = NetworkConfigOpts
     { ncoTopology :: !(Presence (Topology KademliaParams))
     , ncoPort  :: !Word16
-    } deriving (Eq, Show)
+    } deriving Show
+
+instance Eq NetworkConfigOpts where
+    nco == nco' = ncoPort nco ==  ncoPort nco'
 
 toCardanoNetworkConfigOpts :: NetworkConfigOpts -> Cardano.NetworkConfigOpts
-toCardanoNetworkConfigOpts = undefined
-
-deriving instance Eq KademliaParams
-deriving instance Eq a => Eq (Topology a)
+toCardanoNetworkConfigOpts NetworkConfigOpts{..} = Cardano.NetworkConfigOpts
+    { Cardano.ncoTopology = ncoTopology ^? _File
+    , Cardano.ncoKademlia = Nothing
+    , Cardano.ncoSelf = Nothing
+    , Cardano.ncoPort = ncoPort
+    , Cardano.ncoPolicies = Nothing
+    , Cardano.ncoBindAddress = Nothing
+    , Cardano.ncoExternalAddress = Nothing
+    }
 
 newtype CardanoConfig = CardanoConfig
     { getCardanoConfig :: CommonNodeArgs }
@@ -334,13 +344,8 @@ interpretNetworkConfigOpts :: D.Type NetworkConfigOpts
 interpretNetworkConfigOpts = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
-      ncoTopology <- parseFieldCardano fields "ncoTopology" (D.maybe interpretFilePath)
-      ncoKademlia <- (<$>) File $ parseFieldCardano fields "ncoKademlia" (D.maybe interpretFilePath)
-      ncoSelf <- parseFieldCardano fields "ncoSelf" (D.maybe interpretNodeName)
+      ncoTopology <- (<$>) File $ parseFieldCardano fields "ncoTopology" (D.maybe interpretFilePath)
       ncoPort <- defalultIfNothing 3000 (parseFieldCardano fields "ncoPort" (D.maybe interpretWord16))
-      ncoPolicies <- parseFieldCardano fields "ncoPolicies" (D.maybe interpretFilePath)
-      ncoExternalAddress <- parseFieldCardano fields "ncoExternalAddress" (D.maybe interpretNetworkAddress)
-      ncoBindAddress <- parseFieldCardano fields "ncoBindAddress" (D.maybe interpretNetworkAddress)
       return NetworkConfigOpts {..}
     extractOut _ = Nothing
 
@@ -496,7 +501,7 @@ injectNetworkConfigOpts = D.InputType {..}
   where
       embed NetworkConfigOpts {..} = RecordLit
         (Map.fromList
-          [ (cardanoFieldModifier "ncoTopology", D.embed (injectMaybe injectFilePath) ncoTopology)
+          [ (cardanoFieldModifier "ncoTopology", D.embed (injectMaybe injectFilePath) $ ncoTopology ^? _File)
           , (cardanoFieldModifier "ncoPort", D.embed (injectMaybe injectWord16) $ Just ncoPort)
           ])
 
