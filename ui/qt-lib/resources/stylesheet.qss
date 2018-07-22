@@ -24,6 +24,17 @@ QPushButton:disabled {
     background: #b2efe1;
 }
 
+QPushButton[styleRole="secondaryButton"] {
+    background: rgba(52, 52, 62, 12);
+    color: #34343e;
+}
+QPushButton[styleRole="secondaryButton"]:pressed {
+    background: #fbfbfb;
+}
+QPushButton[styleRole="secondaryButton"]:hover {
+    background: #eaeaeb;
+}
+
 QScrollBar {
     border: none;
     background: transparent;
@@ -83,8 +94,10 @@ QScrollBar::up-arrow, QScrollBar::down-arrow {
     opacity: 230;
     padding: 6px;
 }
-#topBar QFrame {
-    border-color: rgba(52, 52, 62, 51);
+#topBar QFrame[styleRole="separator"] {
+    border: none;
+    background: rgba(52, 52, 62, 51);
+    max-width: 1px;
     margin-top: 9px;
     margin-bottom: 9px;
 }
