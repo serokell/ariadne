@@ -24,6 +24,42 @@ QPushButton:disabled {
     background: #b2efe1;
 }
 
+QScrollBar {
+    border: none;
+    background: transparent;
+}
+
+QScrollBar:vertical {
+    /* For some reason margin for scroll bar is included in width.
+     * This creates 4px wide bar with 2px margin.
+     */
+    width: 6px;
+    margin-right: 2px;
+}
+QScrollBar:horizontal {
+    height: 6px;
+    margin-bottom: 2px;
+}
+
+QScrollBar::handle {
+    border-radius: 2px;
+    background: rgba(206, 206, 206, 96);
+}
+
+QScrollBar::handle:hover {
+    background: rgba(206, 206, 206, 127);
+}
+
+QScrollBar::handle:pressed {
+    background: rgba(206, 206, 206, 63);
+}
+
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::up-arrow, QScrollBar::down-arrow {
+    background: transparent;
+    border: none;
+}
+
 #topBar {
     background: #ffffff;
     border-bottom: 1px solid #7ce1cb;
