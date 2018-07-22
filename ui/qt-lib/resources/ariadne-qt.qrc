@@ -11,6 +11,13 @@
   <file>images/branch-closed.png</file>
   <file>images/branch-open.png</file>
   <file>images/add-ic.png</file>
+  <file>museo/MuseoSansCyrl_100.otf</file>
+  <file>museo/MuseoSansCyrl_300.otf</file>
+  <file>museo/MuseoSansCyrl_500.otf</file>
+  <file>museo/MuseoSansCyrl_700.otf</file>
+  <file>museo/MuseoSansCyrl_900.otf</file>
+  <file>museo/MuseoSansCyrl_italic_100.ttf</file>
+  <file>museo/MuseoSansCyrl_italic_300.ttf</file>
 </qresource>
 </RCC>
 
