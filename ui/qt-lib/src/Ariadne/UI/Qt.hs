@@ -15,6 +15,7 @@ import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QFontDatabase as QFontDatabase
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
 
 import Control.Concurrent.STM.TBQueue
@@ -33,10 +34,23 @@ createAriadneUI historyFace = do
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
   return (mkUiFace eventQueue dispatcherIORef, runUIEventLoop eventQueue dispatcherIORef historyFace)
 
+fonts :: [Text]
+fonts =
+  [ "MuseoSansCyrl_100.otf"
+  , "MuseoSansCyrl_300.otf"
+  , "MuseoSansCyrl_500.otf"
+  , "MuseoSansCyrl_700.otf"
+  , "MuseoSansCyrl_900.otf"
+  , "MuseoSansCyrl_italic_100.ttf"
+  , "MuseoSansCyrl_italic_300.ttf"
+  ]
+
 runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFace -> UiAction
 runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
     QApplication.setStyleSheet app $ toString styleSheet
+
+    forM_ fonts $ \font -> QFontDatabase.addApplicationFont $ toString $ ":/museo/" <> font
 
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher

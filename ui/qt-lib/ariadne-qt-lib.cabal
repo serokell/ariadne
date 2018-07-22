@@ -13,6 +13,8 @@ cabal-version:  >= 1.10
 extra-source-files:
   resources/ariadne-qt.qrc
   resources/images/*.png
+  resources/museo/*.ttf
+  resources/museo/*.otf
   resources/stylesheet.qss
 
 source-repository head
