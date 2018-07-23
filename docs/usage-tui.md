@@ -5,35 +5,35 @@ emulator.
 
 ## About mouse support
 
-Note that almost any action accomplishable with keyboard can also be performed with a mouse in an
+Almost any action accomplishable with a keyboard can also be performed with a mouse in an
 intuitive way. This guide will mostly focus on keyboard shortcuts, mentioning mouse where its usage
 is not obvious.
 
-Also please note that while Ariadne has no native support for text selection with mouse (yet), you
-can still select text by using your terminal emulator's features. On Linux you usually need to hold
-`Shift` while selecting. On macOS try holding `Alt` or `Fn` or consult your terminal emulator's
+Furthermore, please note that while Ariadne has no native support for text selection with a mouse (yet), you
+can still select text by using your terminal emulator's features. In Linux, you usually need to hold
+`Shift` while selecting. In macOS, you should try holding `Alt` or `Fn`, or consult your terminal emulator's
 documentation.
 
 ## Screen layout and navigation
 
-Ariadne window consists of several tabs, presented at the top of the screen. Each tab has some
+Ariadne window consists of several tabs, presented at the top of the screen. Each tab has a number of
 widgets.
 
 ![](../img/main_screen.png)
 
-There are two ways of navigating the tabs and widgets: with shortcuts and by using `Tab` key.  To
-access shortcuts press `Esc` key. Each tab and each widget will get a red underlined letter in front
-of them. To switch to the desired widget, press the corresponding letter. For example, to switch to
-the logs tab, press `Esc` and then `l`. Currently active widget will get a red dot on its first line
-and brighter text.
+There are two ways of navigating the tabs and widgets: with shortcuts and by using the `Tab` key.  To
+access shortcuts, press the `Esc` key. There will appear a red underlined letter in front
+of each tab and widget. To switch to the desired tab or widget, press the corresponding letter. For example, to switch to
+the logs tab, press `Esc` and then `l`. The currently active widget will show a red dot on its first line
+and have brighter text.
 
 The `Tab` key provides you with the usual cyclic navigation: pressing `Tab` moves selection one
 widget forward and pressing `Shift-Tab` &mdash; one widget backward.
 
 Here are all the tabs present in Ariadne:
-- `Wallet`: main tab, where you can do all wallet operations
+- `Wallet`: main tab, where you can do all the wallet operations
 - `Help`: a short help about `Knit` commands
-- `About`: an about screen, with licensing information
+- `About`: an about screen with licensing information
 - `Logs`: logs from an embedded Cardano node, which may be useful should something go wrong
 
 All widgets that have a lot of text (e.g. About and Logs) can be scrolled with mouse, arrow keys or
@@ -41,29 +41,28 @@ All widgets that have a lot of text (e.g. About and Logs) can be scrolled with m
 
 ## Wallet tab &mdash; the heart of Ariadne
 
-On the `Wallet` tab you can see all your wallets with their accounts organized in a tree. To the
-right of the tree you can see details of the selected wallet or account.
+In the `Wallet` tab, you can see all your wallets and accounts organized as a tree. To the
+right of the tree, you can see details of the selected wallet or account.
 
-The tree can be navigated in several ways. First of all, you can select any entry by clicking it
-with mouse. You can also change the current selection with the keyboard. Up and Down keys will go to
-the previous and the next item respectively, including the `[ + Add wallet ]` button. Right key will
-go to the first child of the current item and Left key will go to the parent. Ctrl-Up and Ctrl-Down
-can be used to jump between wallets: Ctrl-Up will first go to the current wallet, when an account is
-selected, then to the previous wallet. Ctrl-Down will always go to the next wallet.  Finally, `h`,
+The tree can be navigated in several ways. First of all, you can select any entry by clicking on it
+with the mouse. You can also change the current selection with the keyboard. Up and Down keys will go to
+the previous and the next item respectively (including the `[ + Add wallet ]` button). Right key will
+go to the first child of the current item, and Left key will go to the parent. Ctrl-Up and Ctrl-Down
+can be used to jump between wallets: Ctrl-Up will first go to the current wallet (when an account is
+selected), then to the previous wallet. Ctrl-Down will always go to the next wallet.  Finally, `h`,
 `j`, `k`, `l` keys will work exactly as Left, Down, Up and Right arrow keys (without Ctrl).
 
-To create a new wallet, select `[ + Add wallet ]` line in the tree, so that a special widget appears
-to the right. There you can either create a completely new wallet by specifying its name and a
+To create a new wallet, select `[ + Add wallet ]` line in the tree. A special widget will appear
+on the right. There you can either create a completely new wallet by specifying its name and
 passphrase, or restore an existing one. When a new wallet is created, Ariadne will print you its
 mnemonic. **Please save it somewhere safe**.
 
-Note that Ariadne mnemonics have more words than 12-words mnemonics of Daedalus, and that the last
-word of the mnemonic is always fixed (currently it is `ariadne-v0`).  This means you won't be able
+Note that Ariadne mnemonics have more words (13) than mnemonics of Daedalus (12), and that the last
+word of the mnemonic is always fixed (currently it is `ariadne-v0`). This means you won't be able
 to use your Ariadne wallet in Daedalus. However, you can import your Daedalus wallet into Ariadne
-using the 12 words mnemonic.
+using the 12 word mnemonic.
 
-When you select a wallet or an account, you can see its balance and send some transactions with a
-special form.  You must fill at least one receiver's address. To add or remove address lines use
+When you select a wallet or an account, you can see its balance and send some transactions using the form.  You must fill at least one receiver's address. To add or remove address lines use
 `[ - ]` / `[ + ]` buttons on the right. If the wallet has a passphrase, you need to specify that as
 well. When sending a transaction from a wallet, you can also choose which accounts to use as inputs
 using a list just above the form. Use Enter, Space or mouse click to select accounts.
@@ -73,14 +72,14 @@ focus an address, you can copy it to the clipboard by pressing Enter, Space or c
 mouse. On macOS this will work out of the box, on Linux you have to have either `xsel` or `xclip`
 installed. To make a new address, press the `[ Generate ]` button.
 
-On the bottom half of the screen you see the REPL widget which consists of command history and an
-input line. The REPL lets you do all sorts of things with your wallet using `Knit` command language.
-In fact, all operations you do with widgets are mapped to some `Knit` commands.
+On the bottom half of the screen, you can see the REPL widget, which consists of command history and an
+input line. The REPL lets you to do all sorts of things with your wallet using the `Knit` command language.
+In fact, all operations you do using the widgets are mapped to `Knit` commands.
 
 ## `Knit` command language
 
-`Knit` is a simple dynamically-typed command language created by Serokell. It lets you control
-Ariadne by calling and composing functions. On the `Help` tab you can see a complete list of all
+`Knit` is a simple dynamically-typed command language created by Serokell. It lets you to control
+Ariadne by calling and composing functions. On the `Help` tab, you can see a complete list of all
 available functions, along with their signatures and short descriptions. Let's explore `Knit` syntax
 and these functions in more detail.
 
@@ -88,10 +87,10 @@ and these functions in more detail.
 
 To begin with, all `Knit` functions accept keyword arguments, some of which may be optional.
 Optional arguments are marked with "`?`" suffix in the help. If an argument can be specified many
-times (including zero), it's marked with "`*`" suffix. If it can be specified many times, but at
+times (including zero), it's marked with "`*`" suffix. If it can be specified many times, but has to be specified at
 least once, it's marked with "`+`" suffix. To specify a keyword argument, write its name followed by
-`:` and the value. Types are checked while executing the command, not when parsing it.  Functions
-may also have variable number of arguments.
+`:` and the value. Types are checked while executing the command, not when parsing it. Functions
+may also have a variable number of arguments.
 
 Let's take `print` command for example. It expects a single argument named "`value`" of any type. To
 run it, type in the REPL:
@@ -125,7 +124,7 @@ specify only the second argument:
 - Hashes start with `#` (`#af879787af97b77c8866c655ddd666a77765565bbf98989898989898`). For example,
   wallet identifiers (denoted as `WalletId` below) are hashes.
 
-Let's first cover `Knit` commands that are not related to cryptocurrency. There are not many:
+Let's first cover `Knit` commands that are not related to cryptocurrency. There are not many of them:
 
 - `L`: create a list of things. Call it with any number of arguments, which may be of different
     types:
@@ -139,18 +138,18 @@ Let's first cover `Knit` commands that are not related to cryptocurrency. There 
 - `sleep`: delay execution for a given number of microseconds
 - `not`, `true` and `false`: boolean negation and two boolean literals
 
-Aside from that you can enter multiple commands in one input. To do so, separate the commands with
+Aside from that, you can enter multiple commands in one input. To do so, separate the commands with
 `;`.  REPL widget input line also allows you to break lines for visual stylization of commands. If
 you enter a backslash (`\ `) and press the Enter key, a new input line will appear.
 
 All `Knit` commands are executed asynchronously, giving you back the control of REPL right after you
-press Enter. Ariadne has a task manager for these background commands.  When you run some
+press Enter. Ariadne has a task manager for these background commands. When you run a
 long-running task, its id (a number in angle brackets like `<1>`) and a string `"Waiting for
-result"` will appear. To cancel a command, use `kill` command like so:
+result"` will appear. To cancel a command, use the `kill` command:
 
     kill <1>
 
-You can also make some commands depend on others by using `wait` command with a specific task id.
+You can also make some commands depend on others by using the `wait` command with a specific task id.
 
 ### User interface and Knit integration
 
@@ -160,7 +159,7 @@ using `new-account` command &mdash; it will use the currently selected one.
 
 ### Cardano-related commands
 
-Finally, to the commands which will help you manage your `ADA` wallet. Each command will be
+Finally, the commands which will help you manage your `ADA` wallet. Each command will be
 annotated with its arguments and their types. Optional arguments will be marked with "`?`".
 
 - `new-wallet pass: String? name: String? entropy-size: Int?`: create a new wallet with a
@@ -187,7 +186,7 @@ annotated with its arguments and their types. Optional arguments will be marked 
   should perform a full restore: find all used accounts and addresses of the restored wallet in
   the blockchain.
 - `restore-from-daedalus-file name: String? file: FilePath full: Bool`: restore wallet from
-  Daedalus's secret file. `full` argument has the same effect as for `restore` command. Please
+  Daedalus's secret file. `full` argument has the same effect as the `restore` command. Please
   note that the restored wallet will have the same passphrase as in Daedalus.
 
 There is also a command to send a transaction from your wallet:
@@ -211,19 +210,19 @@ So, to construct an output, do this:
 
     tx-out sxtitePxjp5dcfm1u8gWgDBGMCEZMhGa6kUPu8VHhqpCtBDPExrJTTCCUHKkyEJSgjb41JT5Tfh1QXb7uUpgjyBKMw 2ADA
 
-Note that receiver's address does not take quotes.
+Note that the receiver's address does not take quotes.
 
-Finally, send a transaction by giving `send` command a list of outputs (`out` argument), wallet
+Finally, send a transaction by giving the `send` command a list of outputs (`out` argument), wallet
 passphrase (`pass` argument) if any and, optionally, wallet's name or index (`wallet` argument) as
 well as list of source accounts (as names or indices). If you don't specify a wallet, the selected
 one will be used.
 
-Transaction inputs are selected automatically from a set of accounts which depends on `account`
-arguments and current selection:
+Transaction inputs are selected automatically from a set of accounts that depends on the `account`
+arguments and the current selection:
 * If at least one account is explicitly specified, only the specified accounts can be used as
   inputs.
-* If no accounts are explicitly specified and an account from the input wallet is selected,
-  only its addresses will be used as inputs.  Otherwise, addresses will be picked from all accounts
+* If no accounts are explicitly specified, and an account from the input wallet is selected,
+  only its addresses will be used as inputs. Otherwise, addresses will be picked from all accounts
   in the input wallet.
 
 Input selection algorithm depends on the `policy` argument which can
@@ -231,7 +230,7 @@ be one of the following:
 * `security`. In this case TODO
 * `high-throughput`. In this case confirmed inputs will be prefered.
 
-By default the `security` policy is used.
+By default, the `security` policy is used.
 
 Here's an example:
 
@@ -244,5 +243,5 @@ send pass: "cat"
 As a call to `send` command can get rather long, it's a good idea to use multiline feature to write
 each output on a separate line.
 
-If a transaction is successful, after a while you'll get its id. If there appears a problem, e.g.
+If a transaction is successful, after a while you'll get its id. If there is a problem, e.g.
 if you try to send more coins than you have, an error will be printed.
