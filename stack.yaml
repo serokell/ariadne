@@ -139,10 +139,11 @@ packages:
 
 # Ariadne dependencies
 
-## We are using our fork because it has we added some stuff there
+## We are using our fork because we added some stuff there
 - location:
     git: https://github.com/serokell/qtah.git
     commit: da34829dfa1906f26e5bba7de0fde6ba577951cb
+    # srk-july branch until merged upstream
   extra-dep: true
   subdirs:
   - qtah-generator
