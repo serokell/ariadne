@@ -6,7 +6,7 @@ emulator.
 ## About mouse support
 
 Almost any action accomplishable with a keyboard can also be performed with a mouse in an
-intuitive way. This guide will mostly focus on keyboard shortcuts, mentioning mouse where its usage
+intuitive way. This guide will mostly focus on keyboard shortcuts, only mentioning mouse where its usage
 is not obvious.
 
 Furthermore, please note that while Ariadne has no native support for text selection with a mouse (yet), you
@@ -49,10 +49,10 @@ with the mouse. You can also change the current selection with the keyboard. Up 
 the previous and the next item respectively (including the `[ + Add wallet ]` button). Right key will
 go to the first child of the current item, and Left key will go to the parent. Ctrl-Up and Ctrl-Down
 can be used to jump between wallets: Ctrl-Up will first go to the current wallet (when an account is
-selected), then to the previous wallet. Ctrl-Down will always go to the next wallet.  Finally, `h`,
+selected), then to the previous wallet. Ctrl-Down will always go to the next wallet. Finally, `h`,
 `j`, `k`, `l` keys will work exactly as Left, Down, Up and Right arrow keys (without Ctrl).
 
-To create a new wallet, select `[ + Add wallet ]` line in the tree. A special widget will appear
+To create a new wallet, select the `[ + Add wallet ]` line in the tree. A special widget will appear
 on the right. There you can either create a completely new wallet by specifying its name and
 passphrase, or restore an existing one. When a new wallet is created, Ariadne will print you its
 mnemonic. **Please save it somewhere safe**.
@@ -62,13 +62,13 @@ word of the mnemonic is always fixed (currently it is `ariadne-v0`). This means 
 to use your Ariadne wallet in Daedalus. However, you can import your Daedalus wallet into Ariadne
 using the 12 word mnemonic.
 
-When you select a wallet or an account, you can see its balance and send some transactions using the form.  You must fill at least one receiver's address. To add or remove address lines use
+When you select a wallet or an account, you can see its balance and send transactions using the form provided. You must fill at least one receiver's address. To add or remove address lines, use
 `[ - ]` / `[ + ]` buttons on the right. If the wallet has a passphrase, you need to specify that as
 well. When sending a transaction from a wallet, you can also choose which accounts to use as inputs
 using a list just above the form. Use Enter, Space or mouse click to select accounts.
 
 When an account is selected, you will see the list of its addresses below the send form. If you
-focus an address, you can copy it to the clipboard by pressing Enter, Space or clicking with the
+focus an address, you can copy it to the clipboard by pressing Enter, Space, or clicking with the
 mouse. On macOS this will work out of the box, on Linux you have to have either `xsel` or `xclip`
 installed. To make a new address, press the `[ Generate ]` button.
 
@@ -79,32 +79,32 @@ In fact, all operations you do using the widgets are mapped to `Knit` commands.
 ## `Knit` command language
 
 `Knit` is a simple dynamically-typed command language created by Serokell. It lets you to control
-Ariadne by calling and composing functions. On the `Help` tab, you can see a complete list of all
+Ariadne by calling and composing functions. In the `Help` tab, you can see a complete list of all
 available functions, along with their signatures and short descriptions. Let's explore `Knit` syntax
 and these functions in more detail.
 
 ### General syntax
 
 To begin with, all `Knit` functions accept keyword arguments, some of which may be optional.
-Optional arguments are marked with "`?`" suffix in the help. If an argument can be specified many
-times (including zero), it's marked with "`*`" suffix. If it can be specified many times, but has to be specified at
-least once, it's marked with "`+`" suffix. To specify a keyword argument, write its name followed by
-`:` and the value. Types are checked while executing the command, not when parsing it. Functions
+Optional arguments are marked with a "`?`" suffix in help. If an argument can be specified many
+times (including zero), it's marked with a "`*`" suffix. If it can be specified many times, but has to be specified at
+least once, it's marked with a "`+`" suffix. To specify a keyword argument, write its name, followed by
+`:` and a value. Types are checked while executing the command, not when parsing it. Functions
 may also have a variable number of arguments.
 
-Let's take `print` command for example. It expects a single argument named "`value`" of any type. To
+Let's take the `print` command for example. It expects a single argument named "`value`" of any type. To
 run it, type in the REPL:
 
     print value: "test"
 
-Here we call `print` command passing it the string `"test"` as a value for `"value"` argument. Of
+Here we call the `print` command, passing it the string `"test"` as a value for the `"value"` argument. Of
 course, you can omit argument names, specifying them in the same order as in help:
 
     print "test"
 
 You can also specify some of the command's optional arguments without specifying others. For
 example, `new-wallet` command creates a new wallet and expects three arguments: `pass`, `name` and
-`entropy-size`. You can either call it with both passphrase and name, omitting argument names:
+`entropy-size`. There are two ways to call it. You can call it with both the passphrase and name, omitting the argument names:
 
     new-wallet "cat" "test"
 
@@ -163,28 +163,28 @@ Finally, the commands which will help you manage your `ADA` wallet. Each command
 annotated with its arguments and their types. Optional arguments will be marked with "`?`".
 
 - `new-wallet pass: String? name: String? entropy-size: Int?`: create a new wallet with a
-  passphrase, name and size of entropy. Size of entropy influences security of your wallet and the
+  passphrase, name and size of entropy. Size of entropy influences the security of your wallet and the
   length of the mnemonic. Default value is 16 bytes, leading to mnemonics of 13 words. Ariadne
   mnemonics follow [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) with
   an addition of one extra word as mentioned above.
 - `new-account wallet: WalletId or Word name: String?`: create a new account in the specified or
-  the currently selected wallet. You can specify wallet either by its ID or by its (zero-based)
+  currently selected wallet. You can specify a wallet either by its ID or by its (zero-based)
   index in the wallet tree.
 - `new-address wallet: WalletId or Word account: Word pass: String?`: create a new address,
-  supplying a passphrase for wallet, if any. This command will use either the currently selected
-  account or the one specified by `wallet` and `account` arguments. Once again, you can either use
-  ID or index of wallet. Account is refered by its index in the wallet tree.
+  supplying a passphrase for the wallet, if any. This command will use either the currently selected
+  account or the one specified by `wallet` and `account` arguments. Once again, you can either use an
+  ID or an index of a wallet. Account is refered by its index in the wallet tree.
 - `balance`: get balance of the currently selected wallet or account.
 - `select wallet: WalletId or Word a: Word?`: select an item. Specify a wallet by its ID or
-  index and then, optionally, specify index of an acccount in that wallet.
+  index and then, optionally, specify an index of an acccount in that wallet.
   Like this: `select 3 1` to select the second account in the fourth wallet.
 - `rename name: String`: give a new name to the currently selected wallet or account.
-- `remove`: remove currently selected wallet or account.
+- `remove`: remove the currently selected wallet or account.
 - `restore pass: String? name: String? mnemonic: String full: Bool`: restore a wallet from mnemonic.
   A passphrase is used to encrypt the restored wallet in Ariadne, it does not have to be the same
   as the passphrase the old wallet was encrypted with. `full` argument specifies whether Ariadne
-  should perform a full restore: find all used accounts and addresses of the restored wallet in
-  the blockchain.
+  should perform a full restore (find all used accounts and addresses of the restored wallet in
+  the blockchain).
 - `restore-from-daedalus-file name: String? file: FilePath full: Bool`: restore wallet from
   Daedalus's secret file. `full` argument has the same effect as the `restore` command. Please
   note that the restored wallet will have the same passphrase as in Daedalus.
@@ -194,7 +194,7 @@ There is also a command to send a transaction from your wallet:
     send wallet: (String or Word)? account: (String or Word)* pass: String? policy: InputSelectionPolicy? out: TxOut+
 
 Since one transaction can have multiple outputs, you have to pass these outputs to the `send`
-command. An output is constructed with `tx-out` command, which takes a receiver's address and an
+command. An output is constructed with the `tx-out` command, which takes a receiver's address and an
 amount of ADA you want to send to this address. There are several ways to specify the amount of
 coins:
 
@@ -214,7 +214,7 @@ Note that the receiver's address does not take quotes.
 
 Finally, send a transaction by giving the `send` command a list of outputs (`out` argument), wallet
 passphrase (`pass` argument) if any and, optionally, wallet's name or index (`wallet` argument) as
-well as list of source accounts (as names or indices). If you don't specify a wallet, the selected
+well as list of source accounts (as names or indices). If you don't specify a wallet, the currently selected
 one will be used.
 
 Transaction inputs are selected automatically from a set of accounts that depends on the `account`
@@ -225,10 +225,10 @@ arguments and the current selection:
   only its addresses will be used as inputs. Otherwise, addresses will be picked from all accounts
   in the input wallet.
 
-Input selection algorithm depends on the `policy` argument which can
+Input selection algorithm depends on the `policy` argument, which can
 be one of the following:
-* `security`. In this case TODO
-* `high-throughput`. In this case confirmed inputs will be prefered.
+* `security`. In this case, TODO
+* `high-throughput`. In this case, confirmed inputs will be prefered.
 
 By default, the `security` policy is used.
 
@@ -240,7 +240,7 @@ send pass: "cat"
      out:(tx-out sxtitePxjp65TKMXHNaLsBbJywqdYW4xLJzNVvT7ksTvVR1AVxFTH8PivZa2VtfcD9bu62MWKu6dnjbreSZCdsuDB1 100000Lovelace)
 ```
 
-As a call to `send` command can get rather long, it's a good idea to use multiline feature to write
+As a call to the `send` command can get rather long, it's a good idea to use multiline feature to write
 each output on a separate line.
 
 If a transaction is successful, after a while you'll get its id. If there is a problem, e.g.
