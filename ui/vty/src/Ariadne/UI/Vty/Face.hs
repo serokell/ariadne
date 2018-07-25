@@ -10,6 +10,7 @@ module Ariadne.UI.Vty.Face
        , UiCardanoEvent (..)
        , UiCardanoStatusUpdate (..)
        , UiWalletEvent (..)
+       , UiNewVersionEvent (..)
 
        , UiCommand (..)
        , UiSendOutput (..)
@@ -88,7 +89,7 @@ data UiEvent
   | UiCommandAction UiCommandAction
   | UiCardanoEvent UiCardanoEvent
   | UiWalletEvent UiWalletEvent
-  | UiNewVersionEvent Version
+  | UiNewVersionEvent UiNewVersionEvent
 
 data UiCommandId = UiCommandId
   { -- This field is used to compare whether two command identifiers are equal.
@@ -135,6 +136,11 @@ data UiWalletEvent = UiWalletUpdate
   { wuTrees :: [UiTree]
   , wuSelection :: Maybe UiTreeSelection
   , wuSelectionInfo :: Maybe UiSelectionInfo
+  }
+
+data UiNewVersionEvent = UiNewVersion
+  { nvVersion :: Version
+  , nvUpdateURL :: Text
   }
 
 ----------------------------------------------------------------------------

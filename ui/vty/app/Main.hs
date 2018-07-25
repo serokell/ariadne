@@ -4,7 +4,6 @@ import Universum
 
 import Control.Concurrent.Async
 import IiExtras
-import Named ((!))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend
@@ -14,7 +13,6 @@ import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
-import Ariadne.Meta.URL
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
 import Ariadne.Update.Backend
@@ -42,7 +40,7 @@ main = do
   history <- openCommandHistory $ hcPath historyConfig
   let historyFace = historyToUI history
 
-  (uiFace, mkUiAction) <- createAriadneUI historyFace ! #ariadne_url ariadneURL
+  (uiFace, mkUiAction) <- createAriadneUI historyFace
   (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode

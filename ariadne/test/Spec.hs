@@ -141,7 +141,8 @@ expectedAriadneConfig = AriadneConfig
     }
   , acWallet = WalletConfig {wcEntropySize = fromBytes 32}
   , acUpdate = UpdateConfig
-      { ucVersionCheckUrl = "https://ariadnewallet.io"
+      { ucVersionCheckUrl = "https://serokell.io/ariadne/version"
+      , ucUpdateUrl = "https://serokell.io/ariadne/"
       , ucCheckDelay = 3600
       }
   , acHistory = HistoryConfig {hcPath = "ariadne_history.db"}

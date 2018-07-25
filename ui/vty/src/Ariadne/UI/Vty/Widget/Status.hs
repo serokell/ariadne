@@ -7,7 +7,6 @@ import Universum
 import Control.Lens (makeLensesWith, (.=))
 import Data.List as List
 import Data.Version (Version, showVersion)
-import Named (Named(..))
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -23,13 +22,13 @@ data StatusWidgetState =
     , statusWidgetBlockchainLocal :: !Text
     , statusWidgetBlockchainNetwork :: !Text
     , statusWidgetNewVersion :: !(Maybe Version)
-    , statusWidgetAriadneURL :: !Text
+    , statusWidgetUpdateURL :: !(Maybe Text)
     }
 
 makeLensesWith postfixLFields ''StatusWidgetState
 
-initStatusWidget :: Text `Named` "ariadne_url" -> Widget p
-initStatusWidget (Named ariadneURL) =
+initStatusWidget :: Widget p
+initStatusWidget =
   initWidget $ do
     setWidgetDraw drawStatusWidget
     setWidgetHandleEvent handleStatusWidgetEvent
@@ -38,7 +37,7 @@ initStatusWidget (Named ariadneURL) =
       , statusWidgetBlockchainLocal = "<unknown>"
       , statusWidgetBlockchainNetwork = "<unknown>"
       , statusWidgetNewVersion = Nothing
-      , statusWidgetAriadneURL = ariadneURL
+      , statusWidgetUpdateURL = Nothing
       }
 
 drawStatusWidget :: StatusWidgetState -> WidgetDrawM StatusWidgetState p (B.Widget WidgetName)
@@ -68,8 +67,8 @@ drawStatusWidget StatusWidgetState{..} =
 
     updateNotification :: Version -> B.Widget name
     updateNotification ver = B.padLeftRight 1 . B.txt $
-      "Version " <> (fromString $ showVersion ver) <>
-      " is available! Download it at " <> statusWidgetAriadneURL
+      "Version " <> (fromString $ showVersion ver) <> " is available!" <>
+      maybe "" (" Download it at " <>) statusWidgetUpdateURL
 
     drawItem :: (Text, Text) -> B.Widget name
     drawItem (title, content) = B.padLeftRight 1 $ B.hBox
@@ -85,7 +84,8 @@ handleStatusWidgetEvent = \case
     statusWidgetSyncProgressL .= syncProgress
     statusWidgetBlockchainLocalL .= blockchainLocal
     statusWidgetBlockchainNetworkL .= blockchainNetwork
-  UiNewVersionEvent ver -> do
-    statusWidgetNewVersionL .= Just ver
+  UiNewVersionEvent UiNewVersion{..} -> do
+    statusWidgetNewVersionL .= Just nvVersion
+    statusWidgetUpdateURLL .= Just nvUpdateURL
   _ ->
     return ()
