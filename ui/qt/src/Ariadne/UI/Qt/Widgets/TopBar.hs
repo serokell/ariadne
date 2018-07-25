@@ -20,6 +20,7 @@ import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
+import qualified Graphics.UI.Qtah.Core.QSize as QSize
 import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
@@ -69,10 +70,12 @@ initTopBar = do
   labelLayout <- QHBoxLayout.new
   QLayout.setSpacing labelLayout 12
 
-  yarnLabel <- QLabel.newWithText ("<img src=':/images/yarn-ic.png'>" :: String)
+  yarnLabel <- QLabel.new --WithText ("<img src=':/images/yarn-ic.png'>" :: String)
   QObject.setObjectName yarnLabel ("yarnLabel" :: String)
   QLabel.setAlignment yarnLabel $ alignHCenter .|. alignVCenter
   QWidget.setSizePolicyRaw yarnLabel Preferred Maximum
+  yarnIcon <- QIcon.newWithFile (":/images/yarn-ic.svg" :: String) >>= \icon -> QIcon.pixmapRaw icon 33 24
+  QLabel.setPixmap yarnLabel yarnIcon
 
   ariadneLabel <- QLabel.newWithText ("<img src=':/images/ariadne.png'>" :: String)
   QObject.setObjectName ariadneLabel ("ariadneLabel" :: String)
@@ -107,6 +110,9 @@ initTopBar = do
         QBoxLayout.addWidget navMenu btn
         QWidget.setCursor btn pointingCursor
         QWidget.setSizePolicyRaw btn Preferred Maximum
+        -- For some reason Qt does not let me override this in QSS
+        -- *SIGH*
+        QAbstractButton.setIconSize btn =<< QSize.new 12 12
 
   sequence_ $ intersperse createSeparator $ map createButton
     [syncLabel, replButton, helpButton, logsButton]
@@ -116,9 +122,9 @@ initTopBar = do
   QBoxLayout.setStretch topBar 1 200
   QBoxLayout.setStretch topBar 2 1080
 
-  syncingIcon <- QIcon.newWithFile (":/images/syncing.png" :: String)
-  syncedIcon <- QIcon.newWithFile (":/images/synced.png" :: String)
-  terminalIcon <- QIcon.newWithFile (":/images/terminal-ic.png" :: String)
+  syncingIcon <- QIcon.newWithFile (":/images/syncing.svg" :: String)
+  syncedIcon <- QIcon.newWithFile (":/images/synced.svg" :: String)
+  terminalIcon <- QIcon.newWithFile (":/images/terminal-ic.svg" :: String)
 
   QAbstractButton.setIcon syncLabel syncingIcon
   QAbstractButton.setIcon replButton terminalIcon

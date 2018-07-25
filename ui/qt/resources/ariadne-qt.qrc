@@ -1,10 +1,12 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
   <file>images/ariadne.png</file>
+  <file>images/ariadne.svg</file>
   <file>images/yarn-ic.png</file>
-  <file>images/syncing.png</file>
-  <file>images/synced.png</file>
-  <file>images/terminal-ic.png</file>
+  <file>images/yarn-ic.svg</file>
+  <file>images/syncing.svg</file>
+  <file>images/synced.svg</file>
+  <file>images/terminal-ic.svg</file>
   <file>images/send-ic.png</file>
   <file>images/receive-ic.png</file>
   <file>images/ada-symbol-big-dark.png</file>

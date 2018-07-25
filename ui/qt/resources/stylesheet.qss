@@ -82,6 +82,9 @@ QScrollBar::up-arrow, QScrollBar::down-arrow {
     background: #ffffff;
     border-bottom: 1px solid #7ce1cb;
 }
+#topBar QLabel {
+    background: transparent;
+}
 #topBar QPushButton {
     background: transparent;
     padding: 9px;
