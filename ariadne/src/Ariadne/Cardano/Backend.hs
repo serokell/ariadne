@@ -9,7 +9,6 @@ import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import IiExtras
 import Mockable (runProduction)
-import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
@@ -28,7 +27,7 @@ import System.Wlog (consoleActionB, maybeLogsDirB, removeAllHandlers
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: CardanoConfig -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend :: CardanoConfig conf -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend cardanoConfig = do
   let commonArgs' = getCardanoConfig cardanoConfig
   cardanoContextVar <- newEmptyMVar
@@ -53,7 +52,7 @@ runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
     => MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
-    -> CommonNodeArgs
+    -> CommonNodeArgs conf
     -> (CardanoEvent -> IO ())
     -> IO ()
 runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do

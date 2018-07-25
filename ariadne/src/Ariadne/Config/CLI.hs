@@ -8,6 +8,7 @@ module Ariadne.Config.CLI
 import Universum
 
 import Control.Lens (makeLensesWith, (%=))
+import Data.Default (Default)
 import Data.List.Utils (replace)
 import Data.Time.Units (fromMicroseconds)
 import Data.Version (showVersion)
@@ -19,13 +20,12 @@ import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne (version)
-import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp
   (NetworkAddress, addrParser, addrParserNoWildcard)
-import Pos.Launcher
+import Pos.Launcher ()
 import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
@@ -35,9 +35,10 @@ import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
 
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(CardanoConfig), CommonNodeArgs(..), NetworkConfigOpts(..), cardanoFieldModifier)
+import Ariadne.Config.Cardano (CardanoConfig(CardanoConfig), CommonArgs(..), CommonNodeArgs(..)
+    , ConfigurationOptions (..), NetworkConfigOpts(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.Presence (Presence (File))
+import Ariadne.Config.Presence (Presence (File), _File)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Meta.URL (ariadneURL)
 
@@ -45,7 +46,7 @@ newtype CLI_CardanoConfig = CLI_CardanoConfig
     { cli_getCardanoConfig :: CLI_CommonNodeArgs
     }
 
-data CLI_AriadneConfig conf = CLI_AriadneConfig
+data CLI_AriadneConfig = CLI_AriadneConfig
     { cli_acCardano :: CLI_CardanoConfig
     , cli_acWallet :: CLI_WalletConfig
     }
@@ -128,7 +129,7 @@ makeLensesWith postfixLFields ''CardanoConfig
 makeLensesWith postfixLFields ''WalletConfig
 
 -- Poor man's merge config
-mergeConfigs :: CLI_AriadneConfig conf -> AriadneConfig -> AriadneConfig
+mergeConfigs :: CLI_AriadneConfig -> AriadneConfig conf -> AriadneConfig conf
 mergeConfigs overrideAc defaultAc = mergedAriadneConfig
   where
     -- TODO: AD-175 Overridable update configuration
@@ -147,7 +148,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     overrideCa = overrideCna ^. cli_commonArgsL
     defaultCa = defaultCna ^. commonArgsL
 
-    overrideCo = overrideCa ^. cli_configurationOptionsL
     defaultCo = defaultCa ^. configurationOptionsL
 
     mergedCardanoConfig = CardanoConfig CommonNodeArgs
@@ -167,18 +167,9 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         }
 
     mergedCommonArgs = CommonArgs
-        { logConfig = (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL)
+        { logConfig = File $ (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL ^? _File)
         , logPrefix = (overrideCa ^. cli_logPrefixL) <|> (defaultCa ^. logPrefixL)
-        , reportServers = merge (overrideCa ^. cli_reportServersL) (defaultCa ^. reportServersL)
-        , updateServers = merge (overrideCa ^. cli_updateServersL) (defaultCa ^. updateServersL)
-        , configurationOptions = mergedConfigurationOptions
-        }
-
-    mergedConfigurationOptions = ConfigurationOptions
-        { cfoFilePath = merge (overrideCo ^. cli_cfoFilePathL) (defaultCo ^. cfoFilePathL)
-        , cfoKey = merge (overrideCo ^. cli_cfoKeyL) (defaultCo ^. cfoKeyL)
-        , cfoSystemStart = (overrideCo ^. cli_cfoSystemStartL) <|> (defaultCo ^. cfoSystemStartL)
-        , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
+        , configurationOptions = ConfigurationOptions $ defaultCo ^. cfoL
         }
 
 merge :: Maybe a -> a -> a
@@ -188,7 +179,7 @@ data ConfigDirectories = ConfigDirectories
   { cdDataDir :: !FilePath
   , cdPWD :: !FilePath }
 
-getConfig :: String -> IO AriadneConfig
+getConfig :: forall conf . Default conf => String -> IO (AriadneConfig conf)
 getConfig commitHash = do
   xdgConfigPath <- getXdgDirectory XdgConfig "ariadne"
   (configPath, printVersion, cli_config) <- Opt.execParser (opts xdgConfigPath)
@@ -203,7 +194,7 @@ getConfig commitHash = do
 
       -- Passing path as dhall import is needed for relative import paths
       -- to be relative to the config path.
-      unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
+      unresolved <- fromDhall @(AriadneConfig conf) $ toDhallImport configPath
       configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
       return (resolvePaths unresolved configPath configDirs))
     (do
@@ -212,20 +203,15 @@ getConfig commitHash = do
 
   return $ mergeConfigs cli_config config
     where
-      resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> AriadneConfig
+      resolvePaths :: AriadneConfig conf -> FilePath -> ConfigDirectories -> AriadneConfig conf
       resolvePaths unresolved ariadneConfigPath configDirs =
         execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
-      resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
+      resolveState :: FilePath -> ConfigDirectories -> State (AriadneConfig conf) ()
       resolveState ariadneConfigDir configDirs = do
         let commNodeArgsL = acCardanoL . getCardanoConfigL
             resolve_ = resolve ariadneConfigDir configDirs
-        -- We should resolve this filepath only if default value isn't present
-        -- commNodeArgsL.networkConfigOptsL.ncoTopologyL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.logConfigL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.logPrefixL %= (fmap resolve_)
         commNodeArgsL.dbPathL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.configurationOptionsL.cfoFilePathL %= resolve_
         commNodeArgsL.keyfilePathL %= resolve_
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
@@ -249,13 +235,13 @@ getConfig commitHash = do
             | isAbsoluteConsiderTilde path = path --relative paths without `.` are invalid in dhall.
             | otherwise = "." </> path
 
-opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig conf)
+opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
   <> Opt.header "Ariadne wallet"
   <> Opt.footer ("For more details see " <> toString ariadneURL))
 
-parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig conf)
+parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
   configPath <- strOption $ mconcat
     [ long "config"
@@ -270,7 +256,7 @@ parseOptions xdgConfigPath = do
   cli_ariadneConfig <- cliAriadneConfigParser
   return (configPath, printVersion, cli_ariadneConfig)
 
-cliAriadneConfigParser :: Opt.Parser (CLI_AriadneConfig conf)
+cliAriadneConfigParser :: Opt.Parser CLI_AriadneConfig
 cliAriadneConfigParser = do
   cli_acCardano <- CLI_CardanoConfig <$> cliCommonNodeArgsParser
   cli_acWallet <- cliWalletParser
