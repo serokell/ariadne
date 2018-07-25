@@ -488,12 +488,7 @@ interpretNetworkConfigOpts = D.Type extractOut expectedOut
       Record
           (Map.fromList
               [ (cardanoFieldModifier "ncoTopology", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "ncoKademlia", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "ncoSelf", D.expected (D.maybe interpretNodeName))
               , (cardanoFieldModifier "ncoPort", D.expected (D.maybe interpretWord16))
-              , (cardanoFieldModifier "ncoPolicies", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "ncoExternalAddress", D.expected (D.maybe interpretNetworkAddress))
-              , (cardanoFieldModifier "ncoBindAddress", D.expected (D.maybe interpretNetworkAddress))
               ]
           )
 

@@ -3,16 +3,14 @@ module Test.Ariadne.Cardano.Arbitrary where
 
 import Universum
 
-import Ariadne.Config.Cardano (CardanoConfig(..), CommonNodeArgs(..))
+import Ariadne.Config.Cardano (CardanoConfig(..), CommonArgs(..)
+    , CommonNodeArgs(..), ConfigurationOptions(..), NetworkConfigOpts(..))
+import Ariadne.Config.Presence (Presence(..))
 import Data.Text (pack)
 import Data.Time.Units (fromMicroseconds)
-import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
-import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
-import Pos.Launcher
 import Test.QuickCheck (Gen, suchThat)
 import Test.QuickCheck.Arbitrary (Arbitrary(..))
 import Test.QuickCheck.Gen (choose, elements, listOf, oneof)
@@ -46,21 +44,14 @@ genStatsdParams = do
 
 genNetworkConfigOpts :: Gen NetworkConfigOpts
 genNetworkConfigOpts = do
-    ncoTopology <- genMaybe genValidString
-    ncoKademlia <- genMaybe genValidString
-    ncoSelf <- genMaybe $ NodeName <$> genValidText
+    ncoTopology <- File <$> genMaybe genValidString
     ncoPort <- arbitrary
-    ncoPolicies <- genMaybe genValidString
-    ncoBindAddress <- genMaybe genNetworkAddress
-    ncoExternalAddress <- genMaybe genNetworkAddress
     return NetworkConfigOpts {..}
 
 genCommonArgs :: Gen CommonArgs
 genCommonArgs = do
-    logConfig <- genMaybe genValidString
+    logConfig <- File <$> genMaybe genValidString
     logPrefix <- genMaybe genValidString
-    reportServers <- listOf genValidText
-    updateServers <- listOf genValidText
     configurationOptions <- genConfigurationOptions
     return CommonArgs {..}
 
@@ -72,10 +63,7 @@ genEkgParams = do
 
 genConfigurationOptions :: Gen ConfigurationOptions
 genConfigurationOptions = do
-    cfoFilePath <- genValidString
-    cfoKey <- genValidText
-    cfoSystemStart <- genMaybe genValidTimestamp
-    cfoSeed <- genMaybe ((arbitrary :: Gen Integer) `suchThat` (> 0))
+    cfo <- File . Just <$> genValidString
     return ConfigurationOptions {..}
 
 -- Assume that Timestamp is mlillions of microseconds so seconds is integer.

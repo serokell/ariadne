@@ -4,20 +4,18 @@ import Universum
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(..), CommonNodeArgs(..))
+import Ariadne.Config.Cardano (CardanoConfig(..), CommonArgs(..)
+    , CommonNodeArgs(..), NetworkConfigOpts(..), ConfigurationOptions(..))
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.History (HistoryConfig(..))
+import Ariadne.Config.Presence (Presence(..))
 import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Control.Lens (makeLensesWith)
 import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
-import Pos.Client.CLI.Options (CommonArgs(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
-import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
-import Pos.Launcher
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
@@ -61,20 +59,11 @@ cliArgs =
   , "--cardano:genesis-secret", "111"
   , "--cardano:keyfile", "new-keyfile"
   , "--cardano:topology", "new-topology"
-  , "--cardano:kademlia", "new-kademlia"
   , "--cardano:node-id", "new-node-id"
   , "--cardano:default-port", "4444"
-  , "--cardano:policies", "new-policies"
-  , "--cardano:address", "255.255.255.255:8888"
-  , "--cardano:listen", "255.255.255.254:8888"
   , "--cardano:log-config", "new-log-config"
   , "--cardano:log-prefix", "new-log-prefix"
-  , "--cardano:report-servers", "[\"new-report-server-1\", \"new-report-server-2\"]"
-  , "--cardano:update-servers", "[\"new-update-server-1\", \"new-update-server-2\"]"
   , "--cardano:configuration-file", "new-configuration-file"
-  , "--cardano:configuration-key", "new-configuration-key"
-  , "--cardano:system-start", "89"
-  , "--cardano:configuration-seed", "9"
   , "--cardano:metrics", "True"
   , "--cardano:ekg-params", "255.255.255.252:8888"
   , "--cardano:dump-genesis-data-to", "new-dump-genesis-data-to"
@@ -92,24 +81,14 @@ expectedAriadneConfig = AriadneConfig
         , devGenesisSecretI = Just 111
         , keyfilePath = "new-keyfile"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = Just "new-topology"
-            , ncoKademlia = Just "new-kademlia"
-            , ncoSelf = Just (NodeName "new-node-id")
+            { ncoTopology = File . Just $ "new-topology"
             , ncoPort = 4444
-            , ncoPolicies = Just "new-policies"
-            , ncoBindAddress = Just ("255.255.255.254",8888)
-            , ncoExternalAddress = Just ("255.255.255.255",8888)
             }
         , commonArgs = CommonArgs
-          { logConfig = Just "new-log-config"
+          { logConfig = File . Just $ "new-log-config"
           , logPrefix = Just "new-log-prefix"
-          , reportServers = ["new-report-server-1", "new-report-server-2"]
-          , updateServers = ["new-update-server-1", "new-update-server-2"]
           , configurationOptions = ConfigurationOptions
-            {cfoFilePath = "new-configuration-file"
-            , cfoKey = "new-configuration-key"
-            , cfoSystemStart = Just 89000000, cfoSeed = Just 9
-            }
+            { cfo = File . Just $ "new-configuration-file" }
           }
         , enableMetrics = True
         , ekgParams = Just (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
