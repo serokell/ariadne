@@ -27,7 +27,7 @@ import System.Wlog (consoleActionB, maybeLogsDirB, removeAllHandlers
 
 import Ariadne.Cardano.Face
 
-createCardanoBackend :: CardanoConfig conf -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend :: CardanoConfig -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend cardanoConfig = do
   let commonArgs' = getCardanoConfig cardanoConfig
   cardanoContextVar <- newEmptyMVar
@@ -52,7 +52,7 @@ runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
     => MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
-    -> CommonNodeArgs conf
+    -> CommonNodeArgs
     -> (CardanoEvent -> IO ())
     -> IO ()
 runCardanoNode cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do

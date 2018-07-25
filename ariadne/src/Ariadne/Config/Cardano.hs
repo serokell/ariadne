@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Ariadne.Config.Cardano
   ( defaultCardanoConfig
   , cardanoFieldModifier
@@ -33,26 +35,28 @@ import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
-import Pos.Behavior (BehaviorConfig (BehaviorConfig, bcSscBehavior))
+import Pos.Behavior (BehaviorConfig(..))
 import Pos.Block.Configuration (BlockConfiguration(..))
 import Pos.Client.CLI (NodeArgs(..))
-import Pos.Configuration (NodeConfiguration (..))
-import Pos.Core (ApplicationName (ApplicationName), BlockVersion(..)
-    , HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair), defaultCoreConfiguration, genesisSecretsRich)
+import Pos.Configuration (NodeConfiguration(..))
+import Pos.Core (ApplicationName(..), BlockVersion(..), CoreConfiguration(..), FakeAvvmOptions (..)
+    , GenesisConfiguration(..), GenesisInitializer(..), GenesisSpec(..)
+    , HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair)
+    , SystemTag(..), TestnetBalanceOptions(..), defaultCoreConfiguration, genesisSecretsRich)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (SecretKey, VssKeyPair, keyGen, runSecureRandom, vssKeyGen)
-import Pos.Delegation (DlgConfiguration (..))
-import Pos.Infra.DHT.Real.Param (KademliaParams (..))
+import Pos.Delegation (DlgConfiguration(..))
+import Pos.Infra.DHT.Real.Param (KademliaParams(..))
 import Pos.Infra.Network.CLI (intNetworkConfigOpts)
 import Pos.Infra.Network.Types (NetworkConfig, NodeName(..), Topology(..))
 import Pos.Infra.Ntp.Configuration (NtpConfiguration (..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
-import Pos.Launcher (BaseParams (BaseParams, bpLoggingParams), Configuration (..), LoggingParams(..))
+import Pos.Launcher (BaseParams(..), Configuration (..), LoggingParams(..))
 import Pos.Ssc.Configuration (SscConfiguration (..))
-import Pos.Ssc.Types (SscParams (SscParams, spSscEnabled, spVssKeyPair, spBehavior))
+import Pos.Ssc.Types (SscParams(..))
 import Pos.Txp.Configuration (TxpConfiguration(..))
-import Pos.Update.Params (UpdateParams (UpdateParams))
+import Pos.Update.Params (UpdateParams(..))
 import Pos.Update.Configuration (UpdateConfiguration(..))
 import Pos.Util.UserSecret (UserSecret, peekUserSecret, usPrimKey, usVss, writeUserSecret)
 import Pos.Util.Util (eitherToThrow)
@@ -65,47 +69,48 @@ import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
 import qualified Pos.Client.CLI.Options as Cardano (CommonArgs(..))
 import qualified Pos.Infra.Network.CLI as Cardano (NetworkConfigOpts(..))
 
-instance {-# OVERLAPPING #-} Default NtpConfiguration where
+instance Default NtpConfiguration where
     def = NtpConfiguration
         { ntpcServers = ["0.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"]
         , ntpcResponseTimeout = 30000000
         , ntpcPollDelay = 1800000000
         }
 
-instance {-# OVERLAPPING #-} Default ApplicationName where
+instance Default ApplicationName where
     def = ApplicationName "cardano-sl"
 
-instance {-# OVERLAPPING #-} Default BlockVersion where
+instance Default BlockVersion where
     def = BlockVersion
         { bvMajor = 0
         , bvMinor = 0
         , bvAlt = 0
         }
 
-instance {-# OVERLAPPING #-} Default UpdateConfiguration where
+instance Default UpdateConfiguration where
     def = UpdateConfiguration
         { ccApplicationName = def
         , ccLastKnownBlockVersion = def
         , ccApplicationVersion = 0
+        , ccSystemTag = SystemTag ""
         }
 
-instance {-# OVERLAPPING #-} Default SscConfiguration where
+instance Default SscConfiguration where
     def = SscConfiguration
         { ccMpcSendInterval = 10
         , ccMdNoCommitmentsEpochThreshold = 3
         , ccNoReportNoSecretsForEpoch1 = False
         }
 
-instance {-# OVERLAPPING #-} Default DlgConfiguration where
+instance Default DlgConfiguration where
     def = DlgConfiguration
         { ccDlgCacheParam = 500
         , ccMessageCacheTimeout = 30
         }
 
-instance {-# OVERLAPPING #-} Default TxpConfiguration where
+instance Default TxpConfiguration where
     def = TxpConfiguration { ccMemPoolLimitTx = 200 }
 
-instance {-# OVERLAPPING #-} Default BlockConfiguration where
+instance Default BlockConfiguration where
     def = BlockConfiguration
         { ccNetworkDiameter = 3
         , ccRecoveryHeadersMessage = 20
@@ -117,7 +122,7 @@ instance {-# OVERLAPPING #-} Default BlockConfiguration where
         , ccFixedTimeCQ = 10
         }
 
-instance {-# OVERLAPPING #-} Default NodeConfiguration where
+instance Default NodeConfiguration where
     def = NodeConfiguration
         { ccNetworkConnectionTimeout = 15000
         , ccConversationEstablishTimeout = 30000
@@ -127,7 +132,7 @@ instance {-# OVERLAPPING #-} Default NodeConfiguration where
         , ccWalletTxCreationDisabled = False
         }
 
-instance {-# OVERLAPPING #-} Default Configuration where
+instance Default Configuration where
     def = Configuration
         { ccCore = defaultCoreConfiguration
         , ccNtp = def
@@ -139,18 +144,31 @@ instance {-# OVERLAPPING #-} Default Configuration where
         , ccNode = def
         }
 
-data CommonNodeArgs conf = CommonNodeArgs
+deriving instance Eq BlockConfiguration
+deriving instance Eq CoreConfiguration
+deriving instance Eq FakeAvvmOptions
+deriving instance Eq GenesisConfiguration
+deriving instance Eq GenesisInitializer
+deriving instance Eq GenesisSpec
+deriving instance Eq NodeConfiguration
+deriving instance Eq NtpConfiguration
+deriving instance Eq UpdateConfiguration
+deriving instance Eq SscConfiguration
+deriving instance Eq TestnetBalanceOptions
+deriving instance Eq Configuration
+
+data CommonNodeArgs = CommonNodeArgs
     { dbPath                 :: !(Maybe FilePath)
     , rebuildDB              :: !Bool
     , devGenesisSecretI      :: !(Maybe Int)
     , keyfilePath            :: !FilePath
     , networkConfigOpts      :: !NetworkConfigOpts
-    , commonArgs             :: !(CommonArgs conf)
+    , commonArgs             :: !CommonArgs
     , enableMetrics          :: !Bool
     , ekgParams              :: !(Maybe EkgParams)
     } deriving (Eq, Show)
 
-toCardanoCommonNodeArgs :: CommonNodeArgs conf -> Cardano.CommonNodeArgs
+toCardanoCommonNodeArgs :: CommonNodeArgs -> Cardano.CommonNodeArgs
 toCardanoCommonNodeArgs CommonNodeArgs{..} = Cardano.CommonNodeArgs
     { Cardano.dbPath = dbPath
     , Cardano.rebuildDB = rebuildDB
@@ -227,14 +245,14 @@ toCardanoNetworkConfigOpts NetworkConfigOpts{..} = Cardano.NetworkConfigOpts
     , Cardano.ncoExternalAddress = Nothing
     }
 
-data ConfigurationOptions conf = ConfigurationOptions
+data ConfigurationOptions = ConfigurationOptions
     { cfo :: !(Presence Configuration) }
     deriving (Eq, Show)
 
-instance Default (ConfigurationOptions conf) where
+instance Default ConfigurationOptions where
     def = ConfigurationOptions $ There def
 
-toCardanoConfigurationOptions :: ConfigurationOptions conf -> Cardano.ConfigurationOptions
+toCardanoConfigurationOptions :: ConfigurationOptions -> Cardano.ConfigurationOptions
 toCardanoConfigurationOptions ConfigurationOptions{..} = Cardano.ConfigurationOptions
     { Cardano.cfoFilePath = maybe "" id $ cfo ^? _File
     , Cardano.cfoKey = "mainnet_full"
@@ -242,22 +260,22 @@ toCardanoConfigurationOptions ConfigurationOptions{..} = Cardano.ConfigurationOp
     , Cardano.cfoSeed = Nothing
     }
 
-data CommonArgs conf = CommonArgs
+data CommonArgs = CommonArgs
     { logConfig            :: !(Presence LoggerConfig)
     , logPrefix            :: !(Maybe FilePath)
-    , configurationOptions :: !(ConfigurationOptions conf)
+    , configurationOptions :: !ConfigurationOptions
     }
 
 -- Checked all fields except logConfig
-instance Eq conf => Eq (CommonArgs conf) where
+instance Eq CommonArgs where
     ca == ca' = logPrefix ca == logPrefix ca'
         && configurationOptions ca == configurationOptions ca'
 
-instance Show conf => Show (CommonArgs conf) where
+instance Show CommonArgs where
     show CommonArgs{..} = "CommonArgs { " <> show logPrefix <>
         ", " <> show configurationOptions <> " }"
 
-toCardanoCommonArgs :: CommonArgs conf -> Cardano.CommonArgs
+toCardanoCommonArgs :: CommonArgs -> Cardano.CommonArgs
 toCardanoCommonArgs CommonArgs{..} = Cardano.CommonArgs
     { Cardano.logConfig = logConfig ^? _File
     , Cardano.logPrefix = Nothing
@@ -266,17 +284,17 @@ toCardanoCommonArgs CommonArgs{..} = Cardano.CommonArgs
     , Cardano.configurationOptions = toCardanoConfigurationOptions configurationOptions
     }
 
-newtype CardanoConfig conf = CardanoConfig
-    { getCardanoConfig :: CommonNodeArgs conf }
+newtype CardanoConfig = CardanoConfig
+    { getCardanoConfig :: CommonNodeArgs }
     deriving (Eq, Show)
 
-instance Default conf => D.Interpret (CardanoConfig conf) where
+instance D.Interpret CardanoConfig where
     autoWith _ = CardanoConfig <$> interpretCommonNodeArgs
 
-instance D.Inject (CardanoConfig conf) where
+instance D.Inject CardanoConfig where
     injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
-defaultCardanoConfig :: CardanoConfig conf
+defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
     CommonNodeArgs
         { dbPath = Just "db-mainnet"
@@ -291,13 +309,13 @@ defaultCardanoConfig = CardanoConfig
             { logConfig = File $ Just "config/cardano/log-config.yaml"
             , logPrefix = Just "logs/mainnet"
             , configurationOptions = ConfigurationOptions
-                { cfo = File $ Just "config/cardano/cardano-config.yaml" }
+                { cfo = There $ def }
             }
         , enableMetrics = False
         , ekgParams = Nothing
         }
 
-loggingParams :: LoggerName -> CommonNodeArgs conf -> LoggingParams
+loggingParams :: LoggerName -> CommonNodeArgs -> LoggingParams
 loggingParams defaultName CommonNodeArgs{..} = LoggingParams
     { lpHandlerPrefix = logPrefix commonArgs
     , lpConfigPath    = (logConfig commonArgs) ^? _File
@@ -305,7 +323,7 @@ loggingParams defaultName CommonNodeArgs{..} = LoggingParams
     , lpConsoleLog    = Nothing -- no override by default
     }
 
-gtSscParams :: CommonNodeArgs conf -> VssKeyPair -> BehaviorConfig -> SscParams
+gtSscParams :: CommonNodeArgs -> VssKeyPair -> BehaviorConfig -> SscParams
 gtSscParams CommonNodeArgs {..} vssSK BehaviorConfig{..} =
     SscParams
     { spSscEnabled = True
@@ -317,8 +335,8 @@ gtSscParams CommonNodeArgs {..} vssSK BehaviorConfig{..} =
 -- ensures that primary key and VSS key are present in
 -- 'UserSecret'. They are either taken from generated secrets or
 -- generated by this function using secure source of randomness.
-prepareUserSecret :: forall conf m . (HasConfiguration, MonadIO m, WithLogger m)
-    => CommonNodeArgs conf -> UserSecret -> m (SecretKey, UserSecret)
+prepareUserSecret :: forall m . (HasConfiguration, MonadIO m, WithLogger m)
+    => CommonNodeArgs -> UserSecret -> m (SecretKey, UserSecret)
 prepareUserSecret CommonNodeArgs {devGenesisSecretI} userSecret = do
     (_, userSecretWithVss) <-
         fillUserSecretVSS (rsVssKeyPair <$> predefinedRichKeys) userSecret
@@ -362,17 +380,17 @@ fillUserSecretPart genValue l description desiredValue userSecret = do
                 " in keyfile, generating random one..."
             liftIO (runSecureRandom genValue)
 
-getBaseParams :: LoggerName -> CommonNodeArgs conf -> BaseParams
+getBaseParams :: LoggerName -> CommonNodeArgs -> BaseParams
 getBaseParams defaultLoggerName args@CommonNodeArgs {..} =
     BaseParams { bpLoggingParams = loggingParams defaultLoggerName args }
 
-getKeyfilePath :: CommonNodeArgs conf -> FilePath
+getKeyfilePath :: CommonNodeArgs -> FilePath
 getKeyfilePath CommonNodeArgs {..} = case devGenesisSecretI of
     Nothing -> keyfilePath
     Just i  -> "node-" ++ show i ++ "." ++ keyfilePath
 
 getNodeParams :: (MonadIO m, WithLogger m, MonadCatch m, HasConfiguration)
-    => LoggerName -> CommonNodeArgs conf -> NodeArgs -> m NodeParams
+    => LoggerName -> CommonNodeArgs -> NodeArgs -> m NodeParams
 getNodeParams defaultLoggerName cArgs@CommonNodeArgs{..} NodeArgs{..} = do
     (primarySK, userSecret) <-
         prepareUserSecret cArgs =<< peekUserSecret (getKeyfilePath cArgs)
@@ -479,8 +497,8 @@ interpretNetworkConfigOpts = D.Type extractOut expectedOut
               ]
           )
 
-interpretConfigurationOptions :: forall conf . Default conf => D.Type (ConfigurationOptions conf)
-interpretConfigurationOptions = D.Type @(ConfigurationOptions conf) extractOut expectedOut
+interpretConfigurationOptions :: D.Type ConfigurationOptions
+interpretConfigurationOptions = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
       cfo <- defalultIfNothing (cfo def) ((parseFieldCardano fields "cfo") (Just . File <$> D.maybe interpretFilePath))
@@ -489,7 +507,7 @@ interpretConfigurationOptions = D.Type @(ConfigurationOptions conf) extractOut e
 
     expectedOut = Record (Map.fromList [(cardanoFieldModifier "cfo", D.expected $ D.maybe interpretFilePath)])
 
-interpretCommonArgs :: forall conf . Default conf => D.Type (CommonArgs conf)
+interpretCommonArgs :: D.Type CommonArgs
 interpretCommonArgs = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
@@ -504,7 +522,7 @@ interpretCommonArgs = D.Type extractOut expectedOut
           (Map.fromList
               [ (cardanoFieldModifier "logConfig", D.expected (D.maybe interpretFilePath))
               , (cardanoFieldModifier "logPrefix", D.expected (D.maybe interpretFilePath))
-              , (cardanoFieldModifier "configurationOptions", D.expected $ interpretConfigurationOptions @(ConfigurationOptions conf))
+              , (cardanoFieldModifier "configurationOptions", D.expected interpretConfigurationOptions)
               ]
           )
 
@@ -541,7 +559,7 @@ interpretStatsdParams = D.Type extractOut expectedOut
               , (cardanoFieldModifier "statsdSuffix", D.expected  (D.auto :: D.Type (Maybe Text)))
               ])
 
-interpretCommonNodeArgs :: forall conf . Default conf => D.Type (CommonNodeArgs conf)
+interpretCommonNodeArgs :: D.Type CommonNodeArgs
 interpretCommonNodeArgs = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
@@ -564,7 +582,7 @@ interpretCommonNodeArgs = D.Type extractOut expectedOut
               , (cardanoFieldModifier "devGenesisSecretI", D.expected (D.maybe interpretInt))
               , (cardanoFieldModifier "keyfilePath", D.expected (D.maybe interpretFilePath))
               , (cardanoFieldModifier "networkConfigOpts", D.expected interpretNetworkConfigOpts)
-              , (cardanoFieldModifier "commonArgs", D.expected $ interpretCommonArgs @conf)
+              , (cardanoFieldModifier "commonArgs", D.expected interpretCommonArgs)
               , (cardanoFieldModifier "enableMetrics", D.expected (D.auto :: D.Type Bool))
               , (cardanoFieldModifier "ekgParams", D.expected (D.maybe interpretEkgParams))
               ])
@@ -613,7 +631,7 @@ injectNetworkConfigOpts = D.InputType {..}
           , (cardanoFieldModifier "ncoPort", D.declared (injectMaybe injectWord16))
           ])
 
-injectConfigurationOptions :: D.InputType (ConfigurationOptions conf)
+injectConfigurationOptions :: D.InputType ConfigurationOptions
 injectConfigurationOptions = D.InputType {..}
   where
       embed ConfigurationOptions {..} = RecordLit $ Map.fromList
@@ -622,7 +640,7 @@ injectConfigurationOptions = D.InputType {..}
       declared = Record $ Map.fromList
         [ (cardanoFieldModifier "cfo", D.declared (injectMaybe injectFilePath)) ]
 
-injectCommonArgs :: D.InputType (CommonArgs conf)
+injectCommonArgs :: D.InputType CommonArgs
 injectCommonArgs = D.InputType {..}
   where
       embed CommonArgs {..} = RecordLit
@@ -669,7 +687,7 @@ injectStatsdParams = D.InputType {..}
           , (cardanoFieldModifier "statsdSuffix", D.declared (D.inject :: D.InputType (Maybe Text)))
           ])
 
-injectCommonNodeArgs :: D.InputType (CommonNodeArgs conf)
+injectCommonNodeArgs :: D.InputType CommonNodeArgs
 injectCommonNodeArgs = D.InputType {..}
   where
       embed CommonNodeArgs {..} = RecordLit

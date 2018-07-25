@@ -8,7 +8,6 @@ module Ariadne.Config.CLI
 import Universum
 
 import Control.Lens (makeLensesWith, (%=))
-import Data.Default (Default)
 import Data.List.Utils (replace)
 import Data.Time.Units (fromMicroseconds)
 import Data.Version (showVersion)
@@ -129,7 +128,7 @@ makeLensesWith postfixLFields ''CardanoConfig
 makeLensesWith postfixLFields ''WalletConfig
 
 -- Poor man's merge config
-mergeConfigs :: CLI_AriadneConfig -> AriadneConfig conf -> AriadneConfig conf
+mergeConfigs :: CLI_AriadneConfig -> AriadneConfig -> AriadneConfig
 mergeConfigs overrideAc defaultAc = mergedAriadneConfig
   where
     -- TODO: AD-175 Overridable update configuration
@@ -179,7 +178,7 @@ data ConfigDirectories = ConfigDirectories
   { cdDataDir :: !FilePath
   , cdPWD :: !FilePath }
 
-getConfig :: forall conf . Default conf => String -> IO (AriadneConfig conf)
+getConfig :: String -> IO AriadneConfig
 getConfig commitHash = do
   xdgConfigPath <- getXdgDirectory XdgConfig "ariadne"
   (configPath, printVersion, cli_config) <- Opt.execParser (opts xdgConfigPath)
@@ -194,7 +193,7 @@ getConfig commitHash = do
 
       -- Passing path as dhall import is needed for relative import paths
       -- to be relative to the config path.
-      unresolved <- fromDhall @(AriadneConfig conf) $ toDhallImport configPath
+      unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
       configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
       return (resolvePaths unresolved configPath configDirs))
     (do
@@ -203,11 +202,11 @@ getConfig commitHash = do
 
   return $ mergeConfigs cli_config config
     where
-      resolvePaths :: AriadneConfig conf -> FilePath -> ConfigDirectories -> AriadneConfig conf
+      resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> AriadneConfig
       resolvePaths unresolved ariadneConfigPath configDirs =
         execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
-      resolveState :: FilePath -> ConfigDirectories -> State (AriadneConfig conf) ()
+      resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
       resolveState ariadneConfigDir configDirs = do
         let commNodeArgsL = acCardanoL . getCardanoConfigL
             resolve_ = resolve ariadneConfigDir configDirs
