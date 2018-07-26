@@ -60,8 +60,9 @@ import Pos.Update.Params (UpdateParams(..))
 import Pos.Update.Configuration (UpdateConfiguration(..))
 import Pos.Util.UserSecret (UserSecret, peekUserSecret, usPrimKey, usVss, writeUserSecret)
 import Pos.Util.Util (eitherToThrow)
-import System.Wlog (LoggerConfig, WithLogger, logInfo)
+import System.Wlog (HandlerWrap(..), LoggerConfig(..), LoggerTree(..), RotationParameters(..), WithLogger, logInfo)
 import System.Wlog.LoggerName (LoggerName)
+import System.Wlog.Severity (debugPlus)
 import Text.Show (Show(show))
 
 import qualified Pos.Launcher as Cardano (ConfigurationOptions(..), NodeParams(..))
@@ -294,6 +295,40 @@ instance D.Interpret CardanoConfig where
 instance D.Inject CardanoConfig where
     injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
+instance Default RotationParameters where
+    def = RotationParameters
+        { rpLogLimit = 104857600
+        , rpKeepFiles = 20
+        }
+
+instance Default LoggerTree where
+    def = LoggerTree
+        { _ltSubloggers = mempty
+        , _ltFiles =
+            [ HandlerWrap "logs/node.pub" Nothing
+            , HandlerWrap "logs/node" Nothing
+            ]
+        , _ltSeverity = Just debugPlus
+        }
+
+instance Default LoggerConfig where
+    def = LoggerConfig
+        { _lcRotation = Just def
+        , _lcTermSeverityOut = Nothing
+        , _lcTermSeverityErr = Nothing
+        , _lcShowTime = mempty
+        , _lcShowTid  = mempty
+        , _lcConsoleAction = mempty
+        , _lcMapper = mempty
+        , _lcLogsDirectory = Nothing
+        , _lcTree = def
+        }
+
+-- TODO: define default topology value cause
+-- I didn't get which invariant is in topology.yaml
+instance Default (Topology KademliaParams) where
+    def = TopologyAuxx { topologyRelays = [] }
+
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
     CommonNodeArgs
@@ -302,14 +337,14 @@ defaultCardanoConfig = CardanoConfig
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = File $ Just "config/cardano/topology.yaml"
+            { ncoTopology = There def
             , ncoPort = 3000
             }
         , commonArgs = CommonArgs
-            { logConfig = File $ Just "config/cardano/log-config.yaml"
+            { logConfig = There def
             , logPrefix = Just "logs/mainnet"
             , configurationOptions = ConfigurationOptions
-                { cfo = There $ def }
+                { cfo = There def }
             }
         , enableMetrics = False
         , ekgParams = Nothing
