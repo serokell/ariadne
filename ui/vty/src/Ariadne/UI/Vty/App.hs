@@ -8,7 +8,6 @@ import Universum
 import Control.Lens (makeLensesWith, uses, (.=), (%=))
 import Data.Char (toLower)
 import IiExtras
-import Named (Named(..))
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -64,8 +63,8 @@ data AppState =
 makeLensesWith postfixLFields ''AppWidgetState
 makeLensesWith postfixLFields ''AppState
 
-initApp :: Text `Named` "ariadne_url" -> UiFace -> UiLangFace -> UiHistoryFace -> AppState
-initApp ariadneURL uiFace langFace historyFace =
+initApp :: UiFace -> UiLangFace -> UiHistoryFace -> AppState
+initApp uiFace langFace historyFace =
   AppState
     { appWidget = appWidget
     , appFocusRing = getFocusRing appWidget
@@ -80,7 +79,7 @@ initApp ariadneURL uiFace langFace historyFace =
       setWidgetHandleEvent handleAppWidgetEvent
 
       addWidgetChild WidgetNameMenu $ initMenuWidget menuItems (widgetParentLens appScreenL)
-      addWidgetChild WidgetNameStatus $ initStatusWidget ariadneURL
+      addWidgetChild WidgetNameStatus $ initStatusWidget
       addWidgetChild WidgetNameTree $ initTreeWidget langFace
       addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace
       addWidgetChild WidgetNameWallet $ initWalletWidget langFace

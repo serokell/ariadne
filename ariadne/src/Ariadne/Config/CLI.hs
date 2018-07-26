@@ -40,7 +40,6 @@ import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
-import Ariadne.Meta.URL (ariadneURL)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
   {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
@@ -276,7 +275,7 @@ opts :: FilePath -> Opt.ParserInfo (FilePath, Bool, CLI_AriadneConfig)
 opts xdgConfigPath = Opt.info ((parseOptions xdgConfigPath) <**> Opt.helper)
   (  Opt.fullDesc
   <> Opt.header "Ariadne wallet"
-  <> Opt.footer ("For more details see " <> toString ariadneURL))
+  <> Opt.footer ("For more details see https://serokell.io/ariadne/"))
 
 parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do

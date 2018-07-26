@@ -22,7 +22,7 @@ data FailedToParseResponse = FailedToParseResponse
 instance Exception FailedToParseResponse where
   displayException _ = "Failed to parse server response"
 
-updateCheckLoop :: UpdateConfig -> Request -> Manager -> (Version -> IO ()) -> IO ()
+updateCheckLoop :: UpdateConfig -> Request -> Manager -> (Version -> Text -> IO ()) -> IO ()
 updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
   let
     getVersionParse =
@@ -35,12 +35,12 @@ updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
       usingLoggerName "ariadne" . logWarning . fromString $ "Failed to check for an update: " <> displayException e
     Right ver -> do
       usingLoggerName "ariadne" . logDebug . fromString $ "Fetched version from the server: " <> showVersion ver
-      when (ver > version) (notifyUpdate ver)
+      when (ver > version) (notifyUpdate ver ucUpdateUrl)
   threadDelay (ucCheckDelay * 1000000)
   updateCheckLoop uc req man notifyUpdate
 
-runUpdateCheck :: UpdateConfig -> (Version -> IO ()) -> IO ()
+runUpdateCheck :: UpdateConfig -> (Version -> Text -> IO ()) -> IO ()
 runUpdateCheck uc@UpdateConfig{..} notifyUpdate = do
   man <- newTlsManager
-  req <- parseRequest $ T.unpack ucVersionCheckUrl ++ "/version"
+  req <- parseRequest $ T.unpack ucVersionCheckUrl
   updateCheckLoop uc req man notifyUpdate

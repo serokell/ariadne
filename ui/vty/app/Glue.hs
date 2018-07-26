@@ -352,8 +352,8 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
 -- Glue between the Update backend and Vty frontend
 ----------------------------------------------------------------------------
 
-putUpdateEventToUI :: UiFace -> Version -> IO ()
-putUpdateEventToUI UiFace{..} ver = putUiEvent $ UiNewVersionEvent ver
+putUpdateEventToUI :: UiFace -> Version -> Text -> IO ()
+putUpdateEventToUI UiFace{..} ver updateURL = putUiEvent $ UiNewVersionEvent $ UiNewVersion ver updateURL
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend
