@@ -228,11 +228,11 @@ knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput 
 cardanoEventToUI :: CardanoEvent -> Maybe UiEvent
 cardanoEventToUI = \case
   CardanoLogEvent message ->
-    Just $ UiCardanoEvent $
-      UiCardanoLogEvent message
+    Just $ UiBackendEvent $
+      UiBackendLogEvent message
   CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
-    Just $ UiCardanoEvent $
-      UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+    Just $ UiBackendEvent $
+      UiBackendStatusUpdateEvent UiBackendStatusUpdate
         { syncProgress = (<> "%") . toFixed 1 . fromRational . (* 100) <$> syncProgress
         , blockchainLocal = "block " <> pretty tipHeaderHash <> ", " <> pEpochOrSlot tipEpochOrSlot
         , blockchainNetwork = pSlotId currentSlot
