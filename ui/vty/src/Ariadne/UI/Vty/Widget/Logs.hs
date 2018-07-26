@@ -103,7 +103,7 @@ handleLogsWidgetEvent
   :: UiEvent
   -> WidgetEventM LogsWidgetState p ()
 handleLogsWidgetEvent = \case
-  UiCardanoEvent (UiCardanoLogEvent message) -> do
+  UiBackendEvent (UiBackendLogEvent message) -> do
     widgetName <- B.getName <$> lift get
     rendered <- use logsWidgetLinesRenderedL
     total <- use logsWidgetLinesTotalL

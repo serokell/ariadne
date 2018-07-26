@@ -7,8 +7,8 @@ module Ariadne.UI.Vty.Face
        , UiCommandId (..)
        , UiCommandEvent (..)
        , UiCommandAction (..)
-       , UiCardanoEvent (..)
-       , UiCardanoStatusUpdate (..)
+       , UiBackendEvent (..)
+       , UiBackendStatusUpdate (..)
        , UiWalletEvent (..)
        , UiNewVersionEvent (..)
 
@@ -87,7 +87,7 @@ data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCommandResult UiCommandId UiCommandResult
   | UiCommandAction UiCommandAction
-  | UiCardanoEvent UiCardanoEvent
+  | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
   | UiNewVersionEvent UiNewVersionEvent
 
@@ -121,11 +121,11 @@ data UiCommandAction
   | UiCommandQuit
 
 -- Update current displayed slot, chain difficulty, etc
-data UiCardanoEvent
-  = UiCardanoLogEvent Text
-  | UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+data UiBackendEvent
+  = UiBackendLogEvent Text
+  | UiBackendStatusUpdateEvent UiBackendStatusUpdate
 
-data UiCardanoStatusUpdate = UiCardanoStatusUpdate
+data UiBackendStatusUpdate = UiBackendStatusUpdate
   { syncProgress :: Maybe Text
   , blockchainLocal :: Text
   , blockchainNetwork :: Text

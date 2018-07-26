@@ -99,8 +99,8 @@ initStatusLayout = do
 
   return (statusLayout, syncLabel, replBtn)
 
-displayBlockchainInfo :: UiCardanoStatusUpdate -> UI Wallet ()
-displayBlockchainInfo UiCardanoStatusUpdate{..} = do
+displayBlockchainInfo :: UiBackendStatusUpdate -> UI Wallet ()
+displayBlockchainInfo UiBackendStatusUpdate{..} = do
   syncLabel <- view syncLabelL
   liftIO $ QWidget.setToolTip syncLabel $ toString $
     "Local: " <> blockchainLocal <> "\n"

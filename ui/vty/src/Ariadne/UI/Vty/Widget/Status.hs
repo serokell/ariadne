@@ -80,7 +80,7 @@ handleStatusWidgetEvent
   :: UiEvent
   -> WidgetEventM StatusWidgetState p ()
 handleStatusWidgetEvent = \case
-  UiCardanoEvent (UiCardanoStatusUpdateEvent UiCardanoStatusUpdate{..}) -> do
+  UiBackendEvent (UiBackendStatusUpdateEvent UiBackendStatusUpdate{..}) -> do
     statusWidgetSyncProgressL .= syncProgress
     statusWidgetBlockchainLocalL .= blockchainLocal
     statusWidgetBlockchainNetworkL .= blockchainNetwork

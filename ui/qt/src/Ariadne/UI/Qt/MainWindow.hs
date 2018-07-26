@@ -77,9 +77,9 @@ initMainWindow langFace historyFace = do
 
 handleMainWindowEvent :: UiLangFace -> UiEvent -> UI MainWindow ()
 handleMainWindowEvent langFace = \case
-  UiCardanoEvent (UiCardanoLogEvent message) ->
+  UiBackendEvent (UiBackendLogEvent message) ->
     magnify logsL $ displayLogMessage message
-  UiCardanoEvent (UiCardanoStatusUpdateEvent update) ->
+  UiBackendEvent (UiBackendStatusUpdateEvent update) ->
     magnify walletL $ displayBlockchainInfo update
   UiCommandEvent commandId result -> do
     magnify replL $ handleReplEvent commandId result

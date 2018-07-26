@@ -2,8 +2,8 @@ module Ariadne.UI.Qt.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
        , UiWalletEvent (..)
-       , UiCardanoStatusUpdate (..)
-       , UiCardanoEvent (..)
+       , UiBackendStatusUpdate (..)
+       , UiBackendEvent (..)
        , UiEvent (..)
        , UiCommand (..)
        , UiCommandResult (..)
@@ -55,16 +55,16 @@ data UiCommandEvent
   | UiCommandFailure Doc
   | UiCommandOutput Doc
 
-data UiCardanoStatusUpdate = UiCardanoStatusUpdate
+data UiBackendStatusUpdate = UiBackendStatusUpdate
   { syncProgress :: Maybe Text
   , blockchainLocal :: Text
   , blockchainNetwork :: Text
   }
 
 -- Update current displayed slot, chain difficulty, etc
-data UiCardanoEvent
-  = UiCardanoLogEvent Text
-  | UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+data UiBackendEvent
+  = UiBackendLogEvent Text
+  | UiBackendStatusUpdateEvent UiBackendStatusUpdate
 
 data UiWalletEvent =
   UiWalletUpdate
@@ -79,7 +79,7 @@ data UiWalletEvent =
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCommandResult UiCommandId UiCommandResult
-  | UiCardanoEvent UiCardanoEvent
+  | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
 
 -- | Commands issued by the UI widgets
