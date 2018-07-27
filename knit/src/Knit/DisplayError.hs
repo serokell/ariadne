@@ -86,7 +86,7 @@ ppProcError ProcError{..} = ppArgumentError peArgumentError <$> typeErrorsDoc
         if null peTypeErrors
         then empty
         else "Following type errors occured:" <$>
-             (indent 2 . hcat . map ppTypeError . Set.toList) peTypeErrors
+             (indent 2 . hcat . map ppTypeError) peTypeErrors
 
 ppEvalError :: PrettyPrintValue components => EvalError components -> Doc
 ppEvalError (InvalidArguments name procError) =

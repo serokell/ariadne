@@ -23,7 +23,7 @@ module Knit.Argument
 import Control.Lens
 import Control.Monad
 import Control.Monad.State
-import Data.List (sortOn)
+import Data.List as List
 import Data.List.NonEmpty
 import Data.Maybe
 import Data.Monoid
@@ -68,7 +68,7 @@ deriving instance Show (Value components) => Show (TypeError components)
 
 data ProcError components = ProcError
     { peArgumentError :: !ArgumentError
-    , peTypeErrors    :: !(Set (TypeError components))
+    , peTypeErrors    :: !([TypeError components])
     }
 
 deriving instance Eq (Value components) => Eq (ProcError components)
@@ -77,12 +77,12 @@ deriving instance Show (Value components) => Show (ProcError components)
 
 isEmptyProcError :: ProcError components -> Bool
 isEmptyProcError ProcError{..} =
-    isEmptyArgumentError peArgumentError && Set.null peTypeErrors
+    isEmptyArgumentError peArgumentError && List.null peTypeErrors
 
-instance Ord (Value components) => Monoid (ProcError components) where
-    mempty = ProcError mempty Set.empty
+instance Eq (Value components) => Monoid (ProcError components) where
+    mempty = ProcError mempty []
     mappend (ProcError a1 t1) (ProcError a2 t2) =
-        ProcError (mappend a1 a2) (Set.union t1 t2)
+        ProcError (mappend a1 a2) (List.union t1 t2)
 
 data ArgumentConsumerState components = ACS
     { acsRemaining :: ![Arg (Value components)]
@@ -167,7 +167,7 @@ getArgSome
 getArgSome = GetArg ArgCardSome
 
 runArgumentConsumer :: forall components a.
-       Ord (Value components)
+       Eq (Value components)
     => ArgumentConsumer components a
     -> ArgumentConsumerState components
     -> (Maybe a, ArgumentConsumerState components)
@@ -191,7 +191,7 @@ runArgumentConsumer ac acs = case ac of
                       { teExpectedType = tpTypeName tp
                       , teActualValue = v }
                     procError = (mempty @(ProcError components))
-                      { peTypeErrors = Set.singleton typeError }
+                      { peTypeErrors = [typeError] }
                   unless (isJust mResult) $ modify $ \a ->
                     a { acsError = acsError a `mappend` procError }
                   return mResult
@@ -260,7 +260,7 @@ lookupArgSome name args = do
     return $ over _1 (v :|) $ lookupArgMany name args'
 
 consumeArguments ::
-       Ord (Value components)
+       Eq (Value components)
     => ArgumentConsumer components a
     -> [Arg (Value components)]
     -> Either (ProcError components) a
