@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Ariadne.Config.Cardano
   ( defaultCardanoConfig
   , cardanoFieldModifier
@@ -22,6 +20,7 @@ module Ariadne.Config.Cardano
 import Universum hiding (show)
 
 import Ariadne.Config.DhallUtil
+import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Presence (Presence (File, There), _File)
 import Control.Lens (ix)
 import Crypto.Random (MonadRandom)
@@ -39,10 +38,9 @@ import Pos.Behavior (BehaviorConfig(..))
 import Pos.Block.Configuration (BlockConfiguration(..))
 import Pos.Client.CLI (NodeArgs(..))
 import Pos.Configuration (NodeConfiguration(..))
-import Pos.Core (ApplicationName(..), BlockVersion(..), CoreConfiguration(..), FakeAvvmOptions (..)
-    , GenesisConfiguration(..), GenesisInitializer(..), GenesisSpec(..)
+import Pos.Core (ApplicationName(..), BlockVersion(..)
     , HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair)
-    , SystemTag(..), TestnetBalanceOptions(..), defaultCoreConfiguration, genesisSecretsRich)
+    , SystemTag(..), defaultCoreConfiguration, genesisSecretsRich)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (SecretKey, VssKeyPair, keyGen, runSecureRandom, vssKeyGen)
 import Pos.Delegation (DlgConfiguration(..))
@@ -70,93 +68,80 @@ import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
 import qualified Pos.Client.CLI.Options as Cardano (CommonArgs(..))
 import qualified Pos.Infra.Network.CLI as Cardano (NetworkConfigOpts(..))
 
-instance Default NtpConfiguration where
-    def = NtpConfiguration
-        { ntpcServers = ["0.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"]
-        , ntpcResponseTimeout = 30000000
-        , ntpcPollDelay = 1800000000
-        }
+defNtpConfiguration :: NtpConfiguration
+defNtpConfiguration = NtpConfiguration
+    { ntpcServers = ["0.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"]
+    , ntpcResponseTimeout = 30000000
+    , ntpcPollDelay = 1800000000
+    }
 
-instance Default ApplicationName where
-    def = ApplicationName "cardano-sl"
+defApplicationName :: ApplicationName
+defApplicationName = ApplicationName "cardano-sl"
 
-instance Default BlockVersion where
-    def = BlockVersion
-        { bvMajor = 0
-        , bvMinor = 0
-        , bvAlt = 0
-        }
+defBlockVersion :: BlockVersion
+defBlockVersion = BlockVersion
+    { bvMajor = 0
+    , bvMinor = 0
+    , bvAlt = 0
+    }
 
-instance Default UpdateConfiguration where
-    def = UpdateConfiguration
-        { ccApplicationName = def
-        , ccLastKnownBlockVersion = def
-        , ccApplicationVersion = 0
-        , ccSystemTag = SystemTag ""
-        }
+defUpdateConfiguration :: UpdateConfiguration
+defUpdateConfiguration = UpdateConfiguration
+    { ccApplicationName = defApplicationName
+    , ccLastKnownBlockVersion = defBlockVersion
+    , ccApplicationVersion = 0
+    , ccSystemTag = SystemTag ""
+    }
 
-instance Default SscConfiguration where
-    def = SscConfiguration
-        { ccMpcSendInterval = 10
-        , ccMdNoCommitmentsEpochThreshold = 3
-        , ccNoReportNoSecretsForEpoch1 = False
-        }
+defSscConfiguration :: SscConfiguration
+defSscConfiguration = SscConfiguration
+    { ccMpcSendInterval = 10
+    , ccMdNoCommitmentsEpochThreshold = 3
+    , ccNoReportNoSecretsForEpoch1 = False
+    }
 
-instance Default DlgConfiguration where
-    def = DlgConfiguration
-        { ccDlgCacheParam = 500
-        , ccMessageCacheTimeout = 30
-        }
+defDlgConfiguration :: DlgConfiguration
+defDlgConfiguration = DlgConfiguration
+    { ccDlgCacheParam = 500
+    , ccMessageCacheTimeout = 30
+    }
 
-instance Default TxpConfiguration where
-    def = TxpConfiguration { ccMemPoolLimitTx = 200 }
+defTxpConfiguration :: TxpConfiguration
+defTxpConfiguration = TxpConfiguration { ccMemPoolLimitTx = 200 }
 
-instance Default BlockConfiguration where
-    def = BlockConfiguration
-        { ccNetworkDiameter = 3
-        , ccRecoveryHeadersMessage = 20
-        , ccNonCriticalCQBootstrap = 0.95
-        , ccCriticalCQBootstrap = 0.8888
-        , ccNonCriticalCQ = 0.8
-        , ccCriticalCQ = 0.654321
-        , ccCriticalForkThreshold = 2
-        , ccFixedTimeCQ = 10
-        }
+defBlockConfiguration :: BlockConfiguration
+defBlockConfiguration = BlockConfiguration
+    { ccNetworkDiameter = 3
+    , ccRecoveryHeadersMessage = 20
+    , ccNonCriticalCQBootstrap = 0.95
+    , ccCriticalCQBootstrap = 0.8888
+    , ccNonCriticalCQ = 0.8
+    , ccCriticalCQ = 0.654321
+    , ccCriticalForkThreshold = 2
+    , ccFixedTimeCQ = 10
+    }
 
-instance Default NodeConfiguration where
-    def = NodeConfiguration
-        { ccNetworkConnectionTimeout = 15000
-        , ccConversationEstablishTimeout = 30000
-        , ccBlockRetrievalQueueSize = 100
-        , ccPendingTxResubmissionPeriod = 7
-        , ccWalletProductionApi = False
-        , ccWalletTxCreationDisabled = False
-        }
+defNodeConfiguration :: NodeConfiguration
+defNodeConfiguration = NodeConfiguration
+    { ccNetworkConnectionTimeout = 15000
+    , ccConversationEstablishTimeout = 30000
+    , ccBlockRetrievalQueueSize = 100
+    , ccPendingTxResubmissionPeriod = 7
+    , ccWalletProductionApi = False
+    , ccWalletTxCreationDisabled = False
+    }
 
-instance Default Configuration where
-    def = Configuration
-        { ccCore = defaultCoreConfiguration
-        , ccNtp = def
-        , ccUpdate = def
-        , ccSsc = def
-        , ccDlg = def
-        , ccTxp = def
-        , ccBlock = def
-        , ccNode = def
-        }
-
-deriving instance Eq BlockConfiguration
-deriving instance Eq CoreConfiguration
-deriving instance Eq FakeAvvmOptions
-deriving instance Eq GenesisConfiguration
-deriving instance Eq GenesisInitializer
-deriving instance Eq GenesisSpec
-deriving instance Eq NodeConfiguration
-deriving instance Eq NtpConfiguration
-deriving instance Eq UpdateConfiguration
-deriving instance Eq SscConfiguration
-deriving instance Eq TestnetBalanceOptions
-deriving instance Eq Configuration
+defConfiguration :: Configuration
+defConfiguration = Configuration
+    { ccCore = defaultCoreConfiguration
+    , ccNtp = defNtpConfiguration
+    , ccUpdate = defUpdateConfiguration
+    , ccSsc = defSscConfiguration
+    , ccDlg = defDlgConfiguration
+    , ccTxp = defTxpConfiguration
+    , ccBlock = defBlockConfiguration
+    , ccNode = defNodeConfiguration
+    }
 
 data CommonNodeArgs = CommonNodeArgs
     { dbPath                 :: !(Maybe FilePath)
@@ -251,7 +236,7 @@ data ConfigurationOptions = ConfigurationOptions
     deriving (Eq, Show)
 
 instance Default ConfigurationOptions where
-    def = ConfigurationOptions $ There def
+    def = ConfigurationOptions $ There defConfiguration
 
 toCardanoConfigurationOptions :: ConfigurationOptions -> Cardano.ConfigurationOptions
 toCardanoConfigurationOptions ConfigurationOptions{..} = Cardano.ConfigurationOptions
@@ -295,39 +280,39 @@ instance D.Interpret CardanoConfig where
 instance D.Inject CardanoConfig where
     injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
-instance Default RotationParameters where
-    def = RotationParameters
-        { rpLogLimit = 104857600
-        , rpKeepFiles = 20
-        }
+defRotationParameters :: RotationParameters
+defRotationParameters = RotationParameters
+    { rpLogLimit = 104857600
+    , rpKeepFiles = 20
+    }
 
-instance Default LoggerTree where
-    def = LoggerTree
-        { _ltSubloggers = mempty
-        , _ltFiles =
-            [ HandlerWrap "logs/node.pub" Nothing
-            , HandlerWrap "logs/node" Nothing
-            ]
-        , _ltSeverity = Just debugPlus
-        }
+defLoggerTree :: LoggerTree
+defLoggerTree = LoggerTree
+    { _ltSubloggers = mempty
+    , _ltFiles =
+        [ HandlerWrap "logs/node.pub" Nothing
+        , HandlerWrap "logs/node" Nothing
+        ]
+    , _ltSeverity = Just debugPlus
+    }
 
-instance Default LoggerConfig where
-    def = LoggerConfig
-        { _lcRotation = Just def
-        , _lcTermSeverityOut = Nothing
-        , _lcTermSeverityErr = Nothing
-        , _lcShowTime = mempty
-        , _lcShowTid  = mempty
-        , _lcConsoleAction = mempty
-        , _lcMapper = mempty
-        , _lcLogsDirectory = Nothing
-        , _lcTree = def
-        }
+defLoggerConfig :: LoggerConfig
+defLoggerConfig = LoggerConfig
+    { _lcRotation = Just defRotationParameters
+    , _lcTermSeverityOut = Nothing
+    , _lcTermSeverityErr = Nothing
+    , _lcShowTime = mempty
+    , _lcShowTid  = mempty
+    , _lcConsoleAction = mempty
+    , _lcMapper = mempty
+    , _lcLogsDirectory = Nothing
+    , _lcTree = defLoggerTree
+    }
 
 -- TODO: define default topology value cause
 -- I didn't get which invariant is in topology.yaml
-instance Default (Topology KademliaParams) where
-    def = TopologyAuxx { topologyRelays = [] }
+defTopology :: Topology KademliaParams
+defTopology = TopologyAuxx { topologyRelays = [] }
 
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
@@ -337,14 +322,14 @@ defaultCardanoConfig = CardanoConfig
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = There def
+            { ncoTopology = There defTopology
             , ncoPort = 3000
             }
         , commonArgs = CommonArgs
-            { logConfig = There def
+            { logConfig = There defLoggerConfig
             , logPrefix = Just "logs/mainnet"
             , configurationOptions = ConfigurationOptions
-                { cfo = There def }
+                { cfo = There defConfiguration }
             }
         , enableMetrics = False
         , ekgParams = Nothing
