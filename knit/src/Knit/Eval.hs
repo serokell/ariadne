@@ -38,7 +38,7 @@ evaluate
   :: ( AllConstrained (ComponentCommandExec m components) components
      , AllConstrained (ComponentLitToValue components) components
      , Monad m
-     , Ord (Value components)
+     , Eq (Value components)
      )
   => ExecContext m components
   -> Expr (Some (Elem components) (CommandProc components)) components
@@ -49,7 +49,7 @@ eval
   :: ( AllConstrained (ComponentCommandExec m components) components
      , AllConstrained (ComponentLitToValue components) components
      , Monad m
-     , Ord (Value components)
+     , Eq (Value components)
      )
   => ExecContext m components
   -> Expr (Some (Elem components) (CommandProc components)) components
@@ -63,7 +63,7 @@ evalProcCall
   :: forall m components.
      ( AllConstrained (ComponentCommandExec m components) components
      , Monad m
-     , Ord (Value components)
+     , Eq (Value components)
      )
   => ExecContext m components
   -> ProcCall (Some (Elem components) (CommandProc components)) (Value components)
@@ -86,7 +86,7 @@ componentEvalProcCall
      ( AllConstrained (ComponentCommandExec m components) components
      , Elem components component
      , Monad m
-     , Ord (Value components)
+     , Eq (Value components)
      )
   => ComponentExecContext m components component
   -> ProcCall (CommandProc components component) (Value components)

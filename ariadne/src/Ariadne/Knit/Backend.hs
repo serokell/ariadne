@@ -21,7 +21,7 @@ type Components components =
   , AllConstrained (Knit.ComponentLitToValue components) components
   , AllConstrained (Knit.ComponentInflate components) components
   , AllConstrained Knit.ComponentPrinter components
-  , Ord (Knit.Value components)
+  , Eq (Knit.Value components)
   )
 
 createKnitBackend
