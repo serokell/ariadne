@@ -25,123 +25,42 @@ import Ariadne.Config.Presence (Presence (File, There), _File)
 import Control.Lens (ix)
 import Crypto.Random (MonadRandom)
 import Data.Default (Default(def))
+import Data.FileEmbed (embedFile)
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map
 import Data.Time.Units (Microsecond, Second, convertUnit, fromMicroseconds)
-import Data.Yaml (decodeFileEither)
+import Data.Yaml (decodeEither', decodeFileEither)
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import Pos.Behavior (BehaviorConfig(..))
-import Pos.Block.Configuration (BlockConfiguration(..))
 import Pos.Client.CLI (NodeArgs(..))
-import Pos.Configuration (NodeConfiguration(..))
-import Pos.Core (ApplicationName(..), BlockVersion(..)
-    , HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair)
-    , SystemTag(..), defaultCoreConfiguration, genesisSecretsRich)
+import Pos.Core (HasConfiguration, RichSecrets (rsPrimaryKey, rsVssKeyPair), genesisSecretsRich)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (SecretKey, VssKeyPair, keyGen, runSecureRandom, vssKeyGen)
-import Pos.Delegation (DlgConfiguration(..))
 import Pos.Infra.DHT.Real.Param (KademliaParams(..))
 import Pos.Infra.Network.CLI (intNetworkConfigOpts)
-import Pos.Infra.Network.Types (NetworkConfig, NodeName(..), Topology(..))
-import Pos.Infra.Ntp.Configuration (NtpConfiguration (..))
+import Pos.Infra.Network.Types (NetworkConfig, NodeName(..))
+import Pos.Infra.Network.Yaml (Topology(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher (BaseParams(..), Configuration (..), LoggingParams(..))
-import Pos.Ssc.Configuration (SscConfiguration (..))
 import Pos.Ssc.Types (SscParams(..))
-import Pos.Txp.Configuration (TxpConfiguration(..))
 import Pos.Update.Params (UpdateParams(..))
-import Pos.Update.Configuration (UpdateConfiguration(..))
 import Pos.Util.UserSecret (UserSecret, peekUserSecret, usPrimKey, usVss, writeUserSecret)
 import Pos.Util.Util (eitherToThrow)
-import System.Wlog (HandlerWrap(..), LoggerConfig(..), LoggerTree(..), RotationParameters(..), WithLogger, logInfo)
+import System.Directory (getCurrentDirectory)
+import System.IO.Unsafe (unsafePerformIO)
+import System.Wlog (LoggerConfig(..), WithLogger, logInfo)
 import System.Wlog.LoggerName (LoggerName)
-import System.Wlog.Severity (debugPlus)
 import Text.Show (Show(show))
 
 import qualified Pos.Launcher as Cardano (ConfigurationOptions(..), NodeParams(..))
 import qualified Pos.Client.CLI.NodeOptions as Cardano (CommonNodeArgs(..))
 import qualified Pos.Client.CLI.Options as Cardano (CommonArgs(..))
 import qualified Pos.Infra.Network.CLI as Cardano (NetworkConfigOpts(..))
-
-defNtpConfiguration :: NtpConfiguration
-defNtpConfiguration = NtpConfiguration
-    { ntpcServers = ["0.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"]
-    , ntpcResponseTimeout = 30000000
-    , ntpcPollDelay = 1800000000
-    }
-
-defApplicationName :: ApplicationName
-defApplicationName = ApplicationName "cardano-sl"
-
-defBlockVersion :: BlockVersion
-defBlockVersion = BlockVersion
-    { bvMajor = 0
-    , bvMinor = 0
-    , bvAlt = 0
-    }
-
-defUpdateConfiguration :: UpdateConfiguration
-defUpdateConfiguration = UpdateConfiguration
-    { ccApplicationName = defApplicationName
-    , ccLastKnownBlockVersion = defBlockVersion
-    , ccApplicationVersion = 0
-    , ccSystemTag = SystemTag ""
-    }
-
-defSscConfiguration :: SscConfiguration
-defSscConfiguration = SscConfiguration
-    { ccMpcSendInterval = 10
-    , ccMdNoCommitmentsEpochThreshold = 3
-    , ccNoReportNoSecretsForEpoch1 = False
-    }
-
-defDlgConfiguration :: DlgConfiguration
-defDlgConfiguration = DlgConfiguration
-    { ccDlgCacheParam = 500
-    , ccMessageCacheTimeout = 30
-    }
-
-defTxpConfiguration :: TxpConfiguration
-defTxpConfiguration = TxpConfiguration { ccMemPoolLimitTx = 200 }
-
-defBlockConfiguration :: BlockConfiguration
-defBlockConfiguration = BlockConfiguration
-    { ccNetworkDiameter = 3
-    , ccRecoveryHeadersMessage = 20
-    , ccNonCriticalCQBootstrap = 0.95
-    , ccCriticalCQBootstrap = 0.8888
-    , ccNonCriticalCQ = 0.8
-    , ccCriticalCQ = 0.654321
-    , ccCriticalForkThreshold = 2
-    , ccFixedTimeCQ = 10
-    }
-
-defNodeConfiguration :: NodeConfiguration
-defNodeConfiguration = NodeConfiguration
-    { ccNetworkConnectionTimeout = 15000
-    , ccConversationEstablishTimeout = 30000
-    , ccBlockRetrievalQueueSize = 100
-    , ccPendingTxResubmissionPeriod = 7
-    , ccWalletProductionApi = False
-    , ccWalletTxCreationDisabled = False
-    }
-
-defConfiguration :: Configuration
-defConfiguration = Configuration
-    { ccCore = defaultCoreConfiguration
-    , ccNtp = defNtpConfiguration
-    , ccUpdate = defUpdateConfiguration
-    , ccSsc = defSscConfiguration
-    , ccDlg = defDlgConfiguration
-    , ccTxp = defTxpConfiguration
-    , ccBlock = defBlockConfiguration
-    , ccNode = defNodeConfiguration
-    }
 
 data CommonNodeArgs = CommonNodeArgs
     { dbPath                 :: !(Maybe FilePath)
@@ -213,7 +132,7 @@ toCardanoNodeParams NodeParams{..} = Cardano.NodeParams
     }
 
 data NetworkConfigOpts = NetworkConfigOpts
-    { ncoTopology :: !(Presence (Topology KademliaParams))
+    { ncoTopology :: !(Presence Topology)
     , ncoPort  :: !Word16
     } deriving Show
 
@@ -280,39 +199,20 @@ instance D.Interpret CardanoConfig where
 instance D.Inject CardanoConfig where
     injectWith _ = contramap getCardanoConfig injectCommonNodeArgs
 
-defRotationParameters :: RotationParameters
-defRotationParameters = RotationParameters
-    { rpLogLimit = 104857600
-    , rpKeepFiles = 20
-    }
-
-defLoggerTree :: LoggerTree
-defLoggerTree = LoggerTree
-    { _ltSubloggers = mempty
-    , _ltFiles =
-        [ HandlerWrap "logs/node.pub" Nothing
-        , HandlerWrap "logs/node" Nothing
-        ]
-    , _ltSeverity = Just debugPlus
-    }
+defTopology :: Topology
+defTopology = either (error "LoggerConfig retrieving failed during parsing") id . decodeEither' $
+    $(embedFile $ (unsafePerformIO $ (\fp -> flip take fp $ (length fp) - 8 ) <$> getCurrentDirectory)
+        <> "/config/cardano/topology.yaml")
 
 defLoggerConfig :: LoggerConfig
-defLoggerConfig = LoggerConfig
-    { _lcRotation = Just defRotationParameters
-    , _lcTermSeverityOut = Nothing
-    , _lcTermSeverityErr = Nothing
-    , _lcShowTime = mempty
-    , _lcShowTid  = mempty
-    , _lcConsoleAction = mempty
-    , _lcMapper = mempty
-    , _lcLogsDirectory = Nothing
-    , _lcTree = defLoggerTree
-    }
+defLoggerConfig = either (error "LoggerConfig retrieving failed during parsing") id . decodeEither' $
+    $(embedFile $ (unsafePerformIO $ (\fp -> flip take fp $ (length fp) - 8 ) <$> getCurrentDirectory)
+        <> "/config/cardano/log-config.yaml")
 
--- TODO: define default topology value cause
--- I didn't get which invariant is in topology.yaml
-defTopology :: Topology KademliaParams
-defTopology = TopologyAuxx { topologyRelays = [] }
+defConfiguration :: Configuration
+defConfiguration = either (error "Configuration retrieving failed during parsing") id . decodeEither' $
+    $(embedFile $ (unsafePerformIO $ (\fp -> flip take fp $ (length fp) - 8 ) <$> getCurrentDirectory)
+        <> "/config/cardano/cardano-config.yaml")
 
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
