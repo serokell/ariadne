@@ -9,7 +9,6 @@ import Universum
 
 import Control.Lens (makeLensesWith, (%=))
 import Data.List.Utils (replace)
-import Data.Time.Units (fromMicroseconds)
 import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
@@ -19,8 +18,6 @@ import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne (version)
-import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp
   (NetworkAddress, addrParser, addrParserNoWildcard)
@@ -56,28 +53,17 @@ data CLI_WalletConfig = CLI_WalletConfig
 
 data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     { cli_ncoTopology        :: !(Maybe FilePath)
-    , cli_ncoKademlia        :: !(Maybe FilePath)
-    , cli_ncoSelf            :: !(Maybe NodeName)
     , cli_ncoPort            :: !(Maybe Word16)
-    , cli_ncoPolicies        :: !(Maybe FilePath)
-    , cli_ncoBindAddress     :: !(Maybe NetworkAddress)
-    , cli_ncoExternalAddress :: !(Maybe NetworkAddress)
     }
 
 data CLI_CommonArgs = CLI_CommonArgs
     { cli_logConfig            :: !(Maybe FilePath)
     , cli_logPrefix            :: !(Maybe FilePath)
-    , cli_reportServers        :: !(Maybe [Text])
-    , cli_updateServers        :: !(Maybe [Text])
     , cli_configurationOptions :: !CLI_ConfigurationOptions
     }
 
 data CLI_ConfigurationOptions = CLI_ConfigurationOptions
-    { cli_cfoFilePath    :: !(Maybe FilePath)
-    , cli_cfoKey         :: !(Maybe Text)
-    , cli_cfoSystemStart :: !(Maybe Timestamp)
-    , cli_cfoSeed        :: !(Maybe Integer)
-    }
+    { cli_cfoFilePath :: !(Maybe FilePath) }
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except NetworkAddress and EkgParams due to their parsers
@@ -87,31 +73,13 @@ data CLI_CommonNodeArgs = CLI_CommonNodeArgs
     , cli_devGenesisSecretI      :: !(Maybe Int)
     , cli_keyfilePath            :: !(Maybe FilePath)
     , cli_networkConfigOpts      :: !CLI_NetworkConfigOpts
-    , cli_jlPath                 :: !(Maybe FilePath)
     , cli_commonArgs             :: !CLI_CommonArgs
-    , cli_updateLatestPath       :: !(Maybe FilePath)
-    , cli_updateWithPackage      :: !(Maybe Bool)
-    , cli_route53Params          :: !(Maybe NetworkAddress)
     , cli_enableMetrics          :: !(Maybe Bool)
     , cli_ekgParams              :: !(Maybe EkgParams)
-    , cli_statsdParams           :: !CLI_StatsdParams
-    , cli_cnaDumpGenesisDataPath :: !(Maybe FilePath)
-    , cli_cnaDumpConfiguration   :: !(Maybe Bool)
     }
-
-data CLI_StatsdParams = CLI_StatsdParams
-    { cli_statsdHost     :: !(Maybe Text)
-    , cli_statsdPort     :: !(Maybe Int)
-    , cli_statsdInterval :: !(Maybe Int)
-    , cli_statsdDebug    :: !(Maybe Bool)
-    , cli_statsdPrefix   :: !(Maybe Text)
-    , cli_statsdSuffix   :: !(Maybe Text)
-    }
-
 
 makeLensesWith postfixLFields ''CLI_CommonArgs
 makeLensesWith postfixLFields ''CLI_NetworkConfigOpts
-makeLensesWith postfixLFields ''CLI_StatsdParams
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_AriadneConfig
 makeLensesWith postfixLFields ''CLI_CardanoConfig
@@ -300,47 +268,13 @@ cliCommonNodeArgsParser = do
     , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkConfigOpts <- cliNetworkConfigOption
-  cli_jlPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "jlPath"
-    , metavar "FILEPATH"
-    , help "Path to JSON log file."
-    ]
   cli_commonArgs <- cliCommonArgsParser
-  cli_updateLatestPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "updateLatestPath"
-    , metavar "FILEPATH"
-    , help "Path to update installer file, \
-    \which should be downloaded by Update System."
-    ]
-  cli_updateWithPackage <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "updateWithPackage"
-    , metavar "BOOL"
-    , help "Enable updating via installer."
-    ]
-  cli_route53Params <- optional $ option (fromParsec addrParser) $ mconcat
-    [ long $ toOptionNameCardano "route53Params"
-    , metavar "IP:PORT"
-    , help "Host and port for the Route53 DNS health check."
-    ]
   cli_enableMetrics <- optional $ option auto $ mconcat
     [ long $ toOptionNameCardano "enableMetrics"
     , metavar "BOOL"
     , help "Enable metrics (EKG, statsd)"
     ]
   cli_ekgParams <- optional cliEkgParamsOption
-  cli_statsdParams <- cliStatsdParamsOption
-
-  cli_cnaDumpGenesisDataPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "cnaDumpGenesisDataPath"
-    , metavar "FILEPATH"
-    , help "Dump genesis data in canonical JSON format to this file."
-    ]
-  cli_cnaDumpConfiguration <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "cnaDumpConfiguration"
-    , metavar "BOOL"
-    , help "Dump configuration and exit."
-    ]
-
   pure CLI_CommonNodeArgs{..}
 
 cliEkgParamsOption :: Opt.Parser EkgParams
@@ -358,47 +292,6 @@ cliEkgServerOption = option (fromParsec addrParser) $ mconcat
   , help "Host and port for the EKG server"
   ]
 
-cliStatsdParamsOption :: Opt.Parser CLI_StatsdParams
-cliStatsdParamsOption = do
-  addr <- optional cliStatsdServerOption
-  interval <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "statsdInterval"
-    , metavar "MILLISECONDS"
-    , help "Polling interval for statsd (milliseconds)"
-    ]
-  debug <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "statsdDebug"
-    , metavar "BOOL"
-    , help "Enable statsd debug mode"
-    ]
-  prefix <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "statsdPrefix"
-    , metavar "TEXT"
-    , help "Prefix for statsd"
-    ]
-  suffix <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "statsdSuffix"
-    , metavar "TEXT"
-    , help "Suffix for statsd"
-    ]
-  pure CLI_StatsdParams
-    { -- The network address parser only accepts ByteStrings which are
-      -- UTF8 encoded
-      cli_statsdHost = decodeUtf8 . fst <$> addr
-    , cli_statsdPort = fromIntegral . snd <$> addr
-    , cli_statsdInterval = interval
-    , cli_statsdDebug = debug
-    , cli_statsdPrefix = prefix
-    , cli_statsdSuffix = suffix
-    }
-
-cliStatsdServerOption :: Opt.Parser NetworkAddress
-cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $ mconcat
-  [ long $ toOptionNameCardano "statsdAddr"
-  , metavar "IP:PORT"
-  , help "Host and port for the statsd server"
-  ]
-
 cliNetworkConfigOption :: Opt.Parser CLI_NetworkConfigOpts
 cliNetworkConfigOption = do
   cli_ncoTopology <- optional $ strOption $ mconcat
@@ -406,28 +299,11 @@ cliNetworkConfigOption = do
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network topology"
     ]
-  cli_ncoKademlia <- optional . strOption . mconcat $
-    [ long $ toOptionNameCardano "ncoKademlia"
-    , metavar "FILEPATH"
-    , help "Path to a YAML file containing the kademlia configuration"
-    ]
-  cli_ncoSelf <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ncoSelf"
-    , metavar "NODE_ID"
-    , help "Identifier for this node within the network"
-    ]
   cli_ncoPort <- optional $ option auto $ mconcat
     [ long $ toOptionNameCardano "ncoPort"
     , metavar "PORT"
     , help "Port number for IP address to node ID translation"
     ]
-  cli_ncoPolicies <- optional . strOption . mconcat $
-    [ long $ toOptionNameCardano "ncoPolicies"
-    , metavar "FILEPATH"
-    , help "Path to a YAML file containing the network policies"
-    ]
-  cli_ncoExternalAddress <- cliExternalNetworkAddressOption
-  cli_ncoBindAddress <- cliListenNetworkAddressOption
   pure CLI_NetworkConfigOpts {..}
 
 cliExternalNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
@@ -455,24 +331,6 @@ cliConfigurationOptionsParser = do
     , metavar "FILEPATH"
     , help "Path to a yaml configuration file"
     ]
-  cli_cfoKey <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "cfoKey"
-    , metavar "TEXT"
-    , help "Key within the configuration file to use"
-    ]
-  cli_cfoSystemStart <-
-      (fmap . fmap) (Timestamp . fromMicroseconds . (*) 1000000) $
-      optional $ option auto $
-      mconcat
-    [ long $ toOptionNameCardano "cfoSystemStart"
-    , metavar "TIMESTAMP"
-    , help "System start time. Format - seconds since Unix Epoch."
-    ]
-  cli_cfoSeed        <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "cfoSeed"
-    , metavar "INTEGER"
-    , help "Seed for genesis generation. Overrides one from configuration file."
-    ]
   return CLI_ConfigurationOptions{..}
 
 cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
@@ -487,17 +345,6 @@ cliCommonArgsParser = do
     , metavar "FILEPATH"
     , help "Prefix to logger output path."
     ]
-  cli_reportServers <- optional $ option listParser $ mconcat
-    [ long $ toOptionNameCardano "reportServers"
-    , metavar "[URI]"
-    , help "Reporting servers to send crash/error logs on. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
-    ]
-  cli_updateServers <- optional $ option listParser $ mconcat
-    [ long $ toOptionNameCardano "updateServers"
-    , metavar "[URI]"
-    , help "Servers to download updates from. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
-    ]
-
   cli_configurationOptions <- cliConfigurationOptionsParser
   pure CLI_CommonArgs {..}
 
