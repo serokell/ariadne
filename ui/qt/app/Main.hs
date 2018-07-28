@@ -38,17 +38,17 @@ main = do
   let historyFace = historyToUI history
 
   (uiFace, mkUiAction) <- createAriadneUI historyFace
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig
+  (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
-  mkWallet <- createWalletBackend walletConfig
 
   let
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
     (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace (putWalletEventToUI uiFace)
+      mkWallet cardanoFace
 
     knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
     knitExecContext putCommandOutput =

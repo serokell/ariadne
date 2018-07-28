@@ -12,13 +12,17 @@ import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 import IiExtras
 
+import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
+
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
+import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QDialogButtonBox as QDialogButtonBox
 import qualified Graphics.UI.Qtah.Widgets.QFormLayout as QFormLayout
 import qualified Graphics.UI.Qtah.Widgets.QGroupBox as QGroupBox
+import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
@@ -32,7 +36,8 @@ import Ariadne.UI.Qt.UI
 
 data WalletInfo =
   WalletInfo
-    { balanceLabel :: QLabel.QLabel
+    { itemNameLabel :: QLabel.QLabel
+    , balanceLabel :: QLabel.QLabel
     , balanceCommandId :: IORef (Maybe UiCommandId)
     , sendForm :: QGroupBox.QGroupBox
     , sendAddress :: QLineEdit.QLineEdit
@@ -50,14 +55,40 @@ initWalletInfo
   -> QItemSelectionModel.QItemSelectionModel
   -> IO (QWidget.QWidget, WalletInfo)
 initWalletInfo langFace itemModel selectionModel = do
-  balanceLabel <- QLabel.newWithText ("nothing selected" :: String)
+  infoLayout <- QVBoxLayout.new
+  QLayout.setContentsMarginsRaw infoLayout 36 17 17 36
+
+  itemNameLabel <- QLabel.newWithText ("Select something..." :: String)
+  QLayout.addWidget infoLayout itemNameLabel
+
+  balancePane <- QWidget.new
+  QObject.setObjectName balancePane ("balancePane" :: String)
+  QWidget.setSizePolicyRaw balancePane Preferred Maximum
+  balanceLayout <- QHBoxLayout.new
+  QLayout.setContentsMarginsRaw balanceLayout 0 0 0 0
+  QWidget.setLayout balancePane balanceLayout
+  QLayout.addWidget infoLayout balancePane
+
+  balanceLabel <- QLabel.new
   balanceCommandId <- newIORef Nothing
+  QLayout.addWidget balanceLayout balanceLabel
 
-  infoLayout <- QFormLayout.new
-  QFormLayout.addRowStringWidget infoLayout ("Balance:" :: String) balanceLabel
+  accountControls <- QVBoxLayout.new
+  sendButton' <- QPushButton.newWithText ("SEND" :: String)
+  requestButton <- QPushButton.newWithText ("REQUEST" :: String)
 
-  infoBox <- QGroupBox.newWithTitle ("Selected item" :: String)
-  QWidget.setLayout infoBox infoLayout
+  -- TODO implement corresponding functionality
+  QWidget.hide sendButton'
+  QWidget.hide requestButton
+
+  QBoxLayout.addStretch accountControls
+  QLayout.addWidget accountControls sendButton'
+  QLayout.addWidget accountControls requestButton
+  QBoxLayout.addStretch accountControls
+
+  QBoxLayout.addLayout balanceLayout accountControls
+  QBoxLayout.setStretch balanceLayout 0 1
+  QBoxLayout.setStretch balanceLayout 1 0
 
   sendAddress <- QLineEdit.new
   sendAmount <- QLineEdit.new
@@ -73,14 +104,11 @@ initWalletInfo langFace itemModel selectionModel = do
   sendForm <- QGroupBox.newWithTitle ("Send transaction" :: String)
   QWidget.setLayout sendForm sendFormLayout
 
-  layout <- QVBoxLayout.new
-  QLayout.setContentsMarginsRaw layout 0 0 0 0
-  QLayout.addWidget layout infoBox
-  QLayout.addWidget layout sendForm
-  QBoxLayout.addStretch layout
+  QLayout.addWidget infoLayout sendForm
 
+  QBoxLayout.addStretch infoLayout
   widget <- QWidget.new
-  QWidget.setLayout widget layout
+  QWidget.setLayout widget infoLayout
 
   connect_ sendButton QAbstractButton.clickedSignal $
     sendClicked langFace WalletInfo{..}
@@ -98,8 +126,7 @@ sendClicked UiLangFace{..} WalletInfo{..} _checked = do
       QWidget.setEnabled sendButton False
 
 data WalletInfoEvent
-  = WalletInfoSelectionChange
-  | WalletInfoBalanceCommandResult UiCommandId UiBalanceCommandResult
+  = WalletInfoSelectionChange UiSelectionInfo
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
 
 handleWalletInfoEvent
@@ -109,23 +136,14 @@ handleWalletInfoEvent
 handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
-    WalletInfoSelectionChange -> do
-      QLabel.setText balanceLabel ("" :: String)
-      mCommandId <- atomicModifyIORef' balanceCommandId $ \cid -> (Nothing, cid)
-      whenJust (mCommandId >>= cmdTaskId) $ void . langPutUiCommand . UiKill
-      whenRightM (langPutUiCommand UiBalance) $ \cid -> do
-        QLabel.setText balanceLabel ("calculating..." :: String)
-        writeIORef balanceCommandId $ Just cid
+    WalletInfoSelectionChange selectionInfo -> do
+      let (itemName, balance) =
+            case selectionInfo of
+              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance)
+              UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance)
 
-    WalletInfoBalanceCommandResult commandId result -> do
-      mCommandId <- readIORef balanceCommandId
-      when (mCommandId == Just commandId) $ do
-        writeIORef balanceCommandId Nothing
-        case result of
-          UiBalanceCommandSuccess balance -> do
-            QLabel.setText balanceLabel $ toString balance
-          UiBalanceCommandFailure err -> do
-            QLabel.setText balanceLabel $ toString err
+      whenJust itemName $ QLabel.setText itemNameLabel . toString
+      QLabel.setText balanceLabel $ toString balance
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do

@@ -103,6 +103,10 @@ library
     , process
     , template-haskell
     , safe
+    , unliftio-core
+    , monad-control
+    , transformers-base
+    , cryptonite
     , yaml
   exposed-modules:
       Ariadne.TaskManager.Knit
@@ -135,7 +139,6 @@ library
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
       Ariadne.Knit.Help
-      Ariadne.Meta.URL
       Ariadne.UX.CommandHistory
 
       Ariadne.Wallet.Cardano.Kernel
@@ -166,6 +169,8 @@ library
       Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
       Ariadne.Wallet.Cardano.Kernel.Word31
+      Ariadne.Wallet.Cardano.WalletLayer.Kernel
+      Ariadne.Wallet.Cardano.WalletLayer.Types
   default-extensions:
       ApplicativeDo
       NoImplicitPrelude

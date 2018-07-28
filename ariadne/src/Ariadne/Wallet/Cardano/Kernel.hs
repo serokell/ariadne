@@ -15,6 +15,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , applyBlock
   , applyBlocks
   , bracketPassiveWallet
+  , initPassiveWallet
   , createWalletHdRnd
   , init
   , walletLogMessage
@@ -28,10 +29,10 @@ module Ariadne.Wallet.Cardano.Kernel (
 
 import Universum hiding (State, init)
 
-import Control.Concurrent.MVar (modifyMVar_, withMVar)
 import Control.Lens.TH
 import qualified Data.Map.Strict as Map
 import Data.Time.Clock.POSIX (getPOSIXTime)
+import Control.Concurrent.STM.TVar (readTVar)
 
 import Formatting (build, sformat)
 
@@ -39,7 +40,6 @@ import System.Wlog (Severity(..))
 
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
-import Data.Acid.Memory (openMemoryState)
 
 import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
@@ -48,7 +48,7 @@ import Ariadne.Wallet.Cardano.Kernel.Types (WalletESKs, WalletId(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (ApplyBlock(..), CreateHdWallet(..), DB, NewPending(..), NewPendingError,
-  Snapshot(..), dbHdWallets, defDB)
+  Snapshot(..), dbHdWallets)
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (BlockMeta(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
@@ -61,8 +61,9 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read as Spec
 
 import Pos.Core (AddressHash, Coin, Timestamp(..), TxAux(..))
 
-import Pos.Core.Chrono (OldestFirst)
+import Pos.Core.Chrono (OldestFirst(..))
 import Pos.Crypto (EncryptedSecretKey, PublicKey)
+import Pos.Util.UserSecret (UserSecret, usWallets)
 import Pos.Txp (Utxo)
 
 {-------------------------------------------------------------------------------
@@ -76,9 +77,9 @@ import Pos.Txp (Utxo)
 --
 data PassiveWallet = PassiveWallet {
       -- | Send log message
-      _walletLogMessage :: Severity -> Text -> IO () -- ^ Logger
-    , _walletESKs       :: MVar WalletESKs           -- ^ ESKs indexed by WalletId
-    , _wallets          :: AcidState DB              -- ^ Database handle
+      _walletLogMessage :: Severity -> Text -> IO ()     -- ^ Logger
+    , _walletUS         :: TVar UserSecret               -- ^ Wallet user secret
+    , _wallets          :: AcidState DB                  -- ^ Database handle
     }
 
 makeLenses ''PassiveWallet
@@ -93,28 +94,35 @@ makeLenses ''PassiveWallet
 -- it shouldn't be too specific.
 bracketPassiveWallet :: (MonadMask m, MonadIO m)
                      => (Severity -> Text -> IO ())
+                     -> TVar UserSecret
+                     -> AcidState DB
                      -> (PassiveWallet -> m a) -> m a
-bracketPassiveWallet _walletLogMessage f =
-    bracket (liftIO $ openMemoryState defDB)
+bracketPassiveWallet _walletLogMessage us db f =
+    bracket (return ())
             (\_ -> return ())
-            (\db ->
+            (\_ ->
                 bracket
-                  (liftIO $ initPassiveWallet _walletLogMessage db)
+                  (liftIO $ initPassiveWallet _walletLogMessage us db)
                   (\_ -> return ())
                   f)
-
 {-------------------------------------------------------------------------------
   Manage the WalletESKs Map
 -------------------------------------------------------------------------------}
 
 -- | Insert an ESK, indexed by WalletId, to the WalletESK map
 insertWalletESK :: PassiveWallet -> WalletId -> EncryptedSecretKey -> IO ()
-insertWalletESK pw wid esk
-    = modifyMVar_ (pw ^. walletESKs) (return . f)
-    where f = Map.insert wid esk
+insertWalletESK _ _ _ = pure ()
+-- Implementation commented out for now
+--insertWalletESK pw wid esk = pure ()
+--    = modifyMVar_ (pw ^. walletESKs) (return . f)
+--    where f = Map.insert wid esk
 
 withWalletESKs :: forall a. PassiveWallet -> (WalletESKs -> IO a) -> IO a
-withWalletESKs pw = withMVar (pw ^. walletESKs)
+withWalletESKs pw f = atomically (readTVar (pw ^. walletUS)) >>= \us ->
+    let
+        esks = Map.mapKeys (WalletIdHdRnd . HdRootId . InDb) (us ^. usWallets)
+    in
+        f esks
 
 {-------------------------------------------------------------------------------
   Wallet Initialisers
@@ -122,11 +130,10 @@ withWalletESKs pw = withMVar (pw ^. walletESKs)
 
 -- | Initialise Passive Wallet with empty Wallets collection
 initPassiveWallet :: (Severity -> Text -> IO ())
+                  -> TVar UserSecret
                   -> AcidState DB
                   -> IO PassiveWallet
-initPassiveWallet logMessage db = do
-    esks <- Universum.newMVar Map.empty
-    return $ PassiveWallet logMessage esks db
+initPassiveWallet logMessage us db = return $ PassiveWallet logMessage us db
 
 -- | Initialize the Passive wallet (specified by the ESK) with the given Utxo
 --

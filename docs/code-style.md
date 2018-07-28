@@ -512,19 +512,6 @@ Align the `->` arrows when it helps readability.
 It's suggested to use `-XLambdaCase` extension because it's a great extension!
 See [this discussion](https://github.com/jaspervdj/stylish-haskell/issues/186) for nice usage examples.
 
-### let expressions
-
-Put `let` before each variable inside a `do` block. But beware of name shadowing
-(though compiler can help with it).
-
-```haskell
-foo = do
-    let x   = 10
-    let f 1 = 5
-        f _ = 0  -- possible shadowing here with let
-    return $ x + f 2
-```
-
 ### ApplicativeDo
 
 Don't use `-XApplicativeDo` blindly everywhere. Only when necessary.

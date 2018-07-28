@@ -95,69 +95,63 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           return ()
       }
 
+    optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
+
     opToExpr = \case
       UiSelect ws ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiBalance ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.balanceCommandName [])
-      UiSend accounts outputs passphrase -> do
-        argOutputs <- forM outputs $ \(address, amount) -> do
-          argAddress <- decodeTextAddress address
-          argCoin <- readEither amount
+      UiSend UiSendArgs{..} -> do
+        argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          argCoin <- readEither usoAmount
           Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
             [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
             , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
             ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
-            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts ++
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "pass" usaPassphrase
           )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiNewWallet name passphrase -> do
+      UiNewWallet UiNewWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "name" unwaName ++
+            optString "pass" unwaPassphrase
           )
-      UiNewAccount name -> do
+      UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAccountCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+            optString "name" unaaName
           )
       UiNewAddress -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAddressCommandName [])
-      UiRestoreWallet name mnemonic passphrase full -> do
+      UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
-            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
-            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
+            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]) ++
-            (if null passphrase then [] else [Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString $ passphrase])
+            optString "name" urwaName ++
+            optString "pass" urwaPassphrase
           )
-      UiRename name -> do
+      UiRename UiRenameArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.renameCommandName $
-            (if null name then [] else [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name])
+            optString "name" uraName
           )
 
     resultToUI result = \case
-      UiBalance{} ->
-        Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
-          fromResult result >>= fromValue >>= \case
-            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
-            _ -> Left "Unrecognized return value"
       UiSend{} ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
@@ -234,11 +228,11 @@ knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput 
 cardanoEventToUI :: CardanoEvent -> Maybe UiEvent
 cardanoEventToUI = \case
   CardanoLogEvent message ->
-    Just $ UiCardanoEvent $
-      UiCardanoLogEvent message
+    Just $ UiBackendEvent $
+      UiBackendLogEvent message
   CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
-    Just $ UiCardanoEvent $
-      UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+    Just $ UiBackendEvent $
+      UiBackendStatusUpdateEvent UiBackendStatusUpdate
         { syncProgress = (<> "%") . toFixed 1 . fromRational . (* 100) <$> syncProgress
         , blockchainLocal = "block " <> pretty tipHeaderHash <> ", " <> pEpochOrSlot tipEpochOrSlot
         , blockchainNetwork = pSlotId currentSlot
@@ -265,7 +259,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
-        ((walletSelectionToPane (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
+        ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =
@@ -298,26 +292,39 @@ uiWalletDatasToTree = map toTree
                 }
 
 -- TODO: change to use chain type level
-walletSelectionToPane :: [UiWalletData] -> UiWalletSelection -> UiWalletInfo
-walletSelectionToPane uiwd UiWalletSelection{..} = UiWalletInfo{..}
+walletSelectionToInfo :: [UiWalletData] -> UiWalletSelection -> UiSelectionInfo
+walletSelectionToInfo uiwd UiWalletSelection{..} =
+  case uiwd ^? ix (fromIntegral uwsWalletIdx) of
+    Nothing -> error "Invalid wallet index"
+    Just walletData@UiWalletData{..} -> case uwsPath of
+      [] -> UiSelectionWallet $ wallet walletData
+      accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
+        Nothing -> error "Invalid account index"
+        Just accountData -> UiSelectionAccount $ account accountData
   where
-    wpiWalletIdx = uwsWalletIdx
-    wpiPath = uwsPath
-    (wpiType, wpiLabel, wpiAccounts, wpiAddresses) = case uiwd ^? ix (fromIntegral uwsWalletIdx) of
-      Nothing -> error "Invalid wallet index"
-      Just UiWalletData{..} -> case uwsPath of
-        [] -> (Just UiWalletInfoWallet, Just _uwdName, toList $ (\UiAccountData{..} -> (_uadAccountIdx, _uadName)) <$> _uwdAccounts, [])
-        accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
-          Nothing -> error "Invalid account index"
-          Just UiAccountData{..} ->
-            ( Just $ UiWalletInfoAccount [_uadAccountIdx]
-            , Just _uadName
-            , []
-            , map
-              (\uiAddr -> (uiAddr ^. uiadAddressIdx, pretty $ uiAddr ^. uiadAddress))
-              (V.toList _uadAddresses)
-            )
-
+    wallet UiWalletData{..} =
+      UiWalletInfo
+        { uwiLabel = Just _uwdName
+        , uwiWalletIdx = uwsWalletIdx
+        , uwiBalance = balance _uwdBalance
+        , uwiAccounts = account <$> V.toList _uwdAccounts
+        }
+    account UiAccountData{..} =
+      UiAccountInfo
+        { uaciLabel = Just _uadName
+        , uaciWalletIdx = uwsWalletIdx
+        , uaciPath = [fromIntegral _uadAccountIdx]
+        , uaciBalance = balance _uadBalance
+        , uaciAddresses = address [fromIntegral _uadAccountIdx] <$> V.toList _uadAddresses
+        }
+    address acPath UiAddressData{..} =
+      UiAddressInfo
+        { uadiWalletIdx = uwsWalletIdx
+        , uadiPath = acPath ++ [fromIntegral _uiadAddressIdx]
+        , uadiAddress = pretty _uiadAddress
+        , uadiBalance = balance _uiadBalance
+        }
+    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
 
 -- | Get currently selected item from the backend and convert it to
 -- 'UiSelectedItem'.
@@ -345,8 +352,8 @@ uiGetSelectedItem WalletFace {walletGetSelection} =
 -- Glue between the Update backend and Vty frontend
 ----------------------------------------------------------------------------
 
-putUpdateEventToUI :: UiFace -> Version -> IO ()
-putUpdateEventToUI UiFace{..} ver = putUiEvent $ UiNewVersionEvent ver
+putUpdateEventToUI :: UiFace -> Version -> Text -> IO ()
+putUpdateEventToUI UiFace{..} ver updateURL = putUiEvent $ UiNewVersionEvent $ UiNewVersion ver updateURL
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend

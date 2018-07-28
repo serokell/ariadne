@@ -142,7 +142,7 @@ packages:
 ## We are using our fork because it has we added some stuff there
 - location:
     git: https://github.com/serokell/qtah.git
-    commit: de0de826290b96b04ecb4d4aebeadd54d5fb162c
+    commit: c930fbfeba5936fde1bb9cc08bf1d9ff7ea0058f
   extra-dep: true
   subdirs:
   - qtah-generator

@@ -44,9 +44,8 @@ library
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
-      Ariadne.UI.Qt.Widgets.MenuBar
       Ariadne.UI.Qt.Widgets.Repl
-      Ariadne.UI.Qt.Widgets.StatusBar
+      Ariadne.UI.Qt.Widgets.TopBar
       Ariadne.UI.Qt.Widgets.Wallet
       Ariadne.UI.Qt.Widgets.WalletInfo
       Ariadne.UI.Qt.Widgets.WalletTree
@@ -106,6 +105,7 @@ executable ariadne-qt
     , lens
     , text
     , universum
+    , vector
     , vinyl
   other-modules:
       Paths_ariadne_qt

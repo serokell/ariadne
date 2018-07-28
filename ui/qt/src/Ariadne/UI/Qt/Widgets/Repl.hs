@@ -2,6 +2,7 @@ module Ariadne.UI.Qt.Widgets.Repl
        ( Repl
        , initRepl
        , handleReplEvent
+       , toggleRepl
        ) where
 
 import Universum
@@ -39,7 +40,8 @@ import Ariadne.UI.Qt.UI
 
 data Repl =
   Repl
-    { layout :: QVBoxLayout.QVBoxLayout
+    { replWidget :: QWidget.QWidget
+    , layout :: QVBoxLayout.QVBoxLayout
     , cmdLine :: QLineEdit.QLineEdit
     , historyWidget :: QScrollArea.QScrollArea
     , historyLayout :: QVBoxLayout.QVBoxLayout
@@ -62,12 +64,13 @@ data CommandOutput =
 makeLensesWith postfixLFields ''Repl
 makeLensesWith postfixLFields ''CommandOutput
 
-initRepl :: UiLangFace -> UiHistoryFace -> IO (QVBoxLayout.QVBoxLayout, Repl)
+initRepl :: UiLangFace -> UiHistoryFace -> IO (QWidget.QWidget, Repl)
 initRepl langFace historyFace = do
   cmdLine <- QLineEdit.new
 
   (historyWidget, historyLayout) <- initHistory
   layout <- QVBoxLayout.new
+  QLayout.setContentsMarginsRaw layout 16 8 8 16
   QLayout.addWidget layout historyWidget
 
   cmdLineLayout <- QHBoxLayout.new
@@ -80,6 +83,10 @@ initRepl langFace historyFace = do
   commandOutputs <- newIORef []
 
   beamCursor <- QCursor.newWithCursorShape IBeamCursor
+
+  replWidget <- QWidget.new
+  QWidget.setLayout replWidget layout
+  QWidget.hide replWidget
 
   let repl = Repl{..}
 
@@ -96,7 +103,7 @@ initRepl langFace historyFace = do
 
   QWidget.setFocus cmdLine
 
-  return (layout, repl)
+  return (replWidget, repl)
 
 initHistory :: IO (QScrollArea.QScrollArea, QVBoxLayout.QVBoxLayout)
 initHistory = do
@@ -113,6 +120,13 @@ initHistory = do
   QScrollArea.setWidget scrollArea historyWidget
 
   return (scrollArea, layout)
+
+toggleRepl :: UI Repl ()
+toggleRepl = do
+  replWidget <- view replWidgetL
+  liftIO $ do
+    visible <- QWidget.isVisible replWidget
+    QWidget.setVisible replWidget $ not visible
 
 createCommandOutput :: QCursor.QCursor -> UiCommandId -> String -> IO CommandOutput
 createCommandOutput beamCursor commandId command = do

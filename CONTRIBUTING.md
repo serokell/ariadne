@@ -14,7 +14,7 @@ otherwise improve Ariadne, pull requests are most welcome.
 
 Please make sure your contributions adhere to our coding guidelines:
 
-*  Code must adhere to the [Style Guide](code-style.md).
+*  Code must adhere to the [Style Guide](docs/code-style.md).
 *  Code should be documented with [Haddock](https://www.haskell.org/haddock/doc/html/index.html).
 *  Please refer to [this guide](https://chris.beams.io/posts/git-commit/) to write a good
    Git commit message.

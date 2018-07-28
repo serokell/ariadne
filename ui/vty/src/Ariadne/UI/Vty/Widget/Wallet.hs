@@ -25,6 +25,7 @@ data WalletAccount =
   WalletAccount
     { walletAccountIdx :: !Word32
     , walletAccountName :: !Text
+    , walletAccountBalance :: !Text
     , walletAccountSelected :: Bool
     }
 
@@ -34,7 +35,7 @@ data WalletWidgetState =
 
     , walletName :: !Text
     , walletRenameResult :: !RenameResult
-    , walletBalance :: !BalanceResult
+    , walletBalance :: !Text
 
     , walletAccounts :: ![WalletAccount]
     , walletNewAccountName :: !Text
@@ -46,12 +47,6 @@ data RenameResult
   | RenameResultWaiting !UiCommandId
   | RenameResultError !Text
   | RenameResultSuccess
-
-data BalanceResult
-  = BalanceResultNone
-  | BalanceResultWaiting !UiCommandId
-  | BalanceResultError !Text
-  | BalanceResultSuccess !Text  -- ^ Balance
 
 data NewAccountResult
   = NewAccountResultNone
@@ -73,7 +68,7 @@ initWalletWidget langFace =
 
       , walletName = ""
       , walletRenameResult = RenameResultNone
-      , walletBalance = BalanceResultNone
+      , walletBalance = ""
 
       , walletAccounts = []
       , walletNewAccountName = ""
@@ -107,14 +102,7 @@ initWalletWidget langFace =
         Just $ widgetParentGetter
         (\WalletWidgetState{..} -> map walletAccountIdx $ filter walletAccountSelected $ walletAccounts)
 
-    setWidgetFocusList
-      [ WidgetNameWalletName
-      , WidgetNameWalletRenameButton
-      , WidgetNameWalletAccountList
-      , WidgetNameWalletNewAccountName
-      , WidgetNameWalletNewAccountButton
-      , WidgetNameWalletSend
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -138,8 +126,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
 
     labelWidth = 16
 
-    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
-    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    drawChild = drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
   return $
@@ -155,11 +142,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename a wallet: " <> err
           RenameResultSuccess -> B.emptyWidget
-      , label "Balance:" B.<+> case walletBalance of
-          BalanceResultNone -> B.emptyWidget
-          BalanceResultWaiting _ -> B.txt "calculating..."
-          BalanceResultError err -> B.txt err
-          BalanceResultSuccess balance -> B.txt balance
+      , label "Balance:" B.<+> B.txt walletBalance
       ] ++
       (if null walletAccounts then [] else
         [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
@@ -186,18 +169,14 @@ handleWalletWidgetEvent
   -> WidgetEventM WalletWidgetState p ()
 handleWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
-      Just UiWalletInfoWallet -> do
-        UiLangFace{..} <- use walletLangFaceL
-        walletNameL .= fromMaybe "" wpiLabel
-        walletAccountsL .= map (\(idx, (_, name)) -> WalletAccount idx name False) (zip [0..] wpiAccounts)
-        use walletBalanceL >>= \case
-          BalanceResultWaiting commandId
-            | Just taskId <- cmdTaskId commandId ->
-                void . liftIO . langPutUiCommand $ UiKill taskId
-          _ -> return ()
-        liftIO (langPutUiCommand UiBalance) >>=
-          assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+    whenJust wuSelectionInfo $ \case
+      UiSelectionWallet UiWalletInfo{..} -> do
+        walletNameL .= fromMaybe "" uwiLabel
+        walletBalanceL .= uwiBalance
+        walletAccountsL .= map
+          (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
+          (zip [0..] uwiAccounts)
+        updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     walletRenameResultL %= \case
@@ -205,13 +184,6 @@ handleWalletWidgetEvent = \case
         case result of
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
-      other -> other
-  UiCommandResult commandId (UiBalanceCommandResult result) -> do
-    walletBalanceL %= \case
-      BalanceResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
-          UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiNewAccountCommandResult result) -> do
     use walletNewAccountResultL >>= \case
@@ -231,13 +203,26 @@ handleWalletWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
+updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+updateFocusList = do
+  accounts <- use walletAccountsL
+  lift $ setWidgetFocusList $
+    [ WidgetNameWalletName
+    , WidgetNameWalletRenameButton
+    ] ++
+    (if null accounts then [] else [WidgetNameWalletAccountList]) ++
+    [ WidgetNameWalletNewAccountName
+    , WidgetNameWalletNewAccountButton
+    , WidgetNameWalletSend
+    ]
+
 performRename :: WidgetEventM WalletWidgetState p ()
 performRename = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNameL
   use walletRenameResultL >>= \case
     RenameResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiRename name) >>=
+    _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
 
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
@@ -250,5 +235,5 @@ performNewAccount = do
   name <- use walletNewAccountNameL
   use walletNewAccountResultL >>= \case
     NewAccountResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiNewAccount name) >>=
+    _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs name) >>=
       assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting

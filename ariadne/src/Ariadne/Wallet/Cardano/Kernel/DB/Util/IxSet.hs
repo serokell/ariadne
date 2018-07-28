@@ -25,6 +25,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , emptyIxSet
     -- * Conversion
   , toAscList
+    -- * Indexing
+  , (@+)
   ) where
 
 import Universum
@@ -215,3 +217,11 @@ toAscList ::
     => IxSet a
     -> [a]
 toAscList = coerce . IxSet.toAscList (Proxy @(PrimKey a)) . unwrapIxSet
+
+{-------------------------------------------------------------------------------
+  Indexing
+-------------------------------------------------------------------------------}
+
+-- | Creates the subset that has an index in the provided list.
+(@+) :: Indexable a => IxSet a -> [PrimKey a] -> IxSet a
+(WrapIxSet ixSet) @+ indices = WrapIxSet (ixSet IxSet.@+ indices)

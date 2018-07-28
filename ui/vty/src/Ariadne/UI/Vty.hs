@@ -5,8 +5,6 @@ module Ariadne.UI.Vty
 
 import Universum
 
-import Named (Named(..))
-
 import qualified Brick as B
 import Brick.BChan
 import qualified Graphics.Vty as V
@@ -20,24 +18,23 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: UiHistoryFace -> Text `Named` "ariadne_url" -> IO (UiFace, UiAction)
-createAriadneUI historyFace ariadneURL = do
+createAriadneUI :: UiHistoryFace -> IO (UiFace, UiAction)
+createAriadneUI historyFace = do
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan
 
-  return (uiFace, runUI ariadneURL eventChan uiFace historyFace)
+  return (uiFace, runUI eventChan uiFace historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
 runUI
-  :: Text `Named` "ariadne_url"
-  -> BChan UiEvent
+  :: BChan UiEvent
   -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI ariadneURL eventChan uiFace historyFace langFace = do
+runUI eventChan uiFace historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -68,7 +65,7 @@ runUI ariadneURL eventChan uiFace historyFace langFace = do
     app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initApp ariadneURL uiFace langFace historyFace)
+    (initApp uiFace langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name

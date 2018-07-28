@@ -18,6 +18,7 @@ let
         # https://github.com/NixOS/nixpkgs/issues/25585
         # RPATH of binary contains a forbidden reference to /tmp/nix-build...
         preFixup = ''rm -rf "$(pwd)"'';
+        enableSharedExecutables = true;
       }));
 
       knit = overrideCabal previous.knit (super: with final; {

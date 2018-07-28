@@ -7,5 +7,6 @@
   - [ ] [TUI usage guide](docs/usage-tui.md)
 - [ ] Adressed HLint warnings and hints
 - [ ] Rebased branch on current master and squashed all "Address PR comment" commits
+- [ ] Tested my changes if they modify code
 
 **Description:**

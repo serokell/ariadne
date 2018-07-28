@@ -2,12 +2,11 @@ module Ariadne.UI.Qt.Face
        ( UiCommandId (..)
        , UiCommandEvent (..)
        , UiWalletEvent (..)
-       , UiCardanoStatusUpdate (..)
-       , UiCardanoEvent (..)
+       , UiBackendStatusUpdate (..)
+       , UiBackendEvent (..)
        , UiEvent (..)
        , UiCommand (..)
        , UiCommandResult (..)
-       , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -20,6 +19,10 @@ module Ariadne.UI.Qt.Face
        , UiWalletTree
        , UiWalletTreeSelection(..)
        , TreePath
+       , UiWalletInfo(..)
+       , UiAccountInfo(..)
+       , UiAddressInfo(..)
+       , UiSelectionInfo(..)
        ) where
 
 import Universum
@@ -52,21 +55,22 @@ data UiCommandEvent
   | UiCommandFailure Doc
   | UiCommandOutput Doc
 
-data UiCardanoStatusUpdate = UiCardanoStatusUpdate
+data UiBackendStatusUpdate = UiBackendStatusUpdate
   { syncProgress :: Maybe Text
   , blockchainLocal :: Text
   , blockchainNetwork :: Text
   }
 
 -- Update current displayed slot, chain difficulty, etc
-data UiCardanoEvent
-  = UiCardanoLogEvent Text
-  | UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+data UiBackendEvent
+  = UiBackendLogEvent Text
+  | UiBackendStatusUpdateEvent UiBackendStatusUpdate
 
 data UiWalletEvent =
   UiWalletUpdate
     { wuTrees :: [UiWalletTree]
     , wuSelection :: Maybe UiWalletTreeSelection
+    , wuSelectionInfo :: Maybe UiSelectionInfo
     }
 
 -- | Events as perceived by the UI. They will be generated from backend-specific
@@ -75,13 +79,12 @@ data UiWalletEvent =
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
   | UiCommandResult UiCommandId UiCommandResult
-  | UiCardanoEvent UiCardanoEvent
+  | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
 
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiBalance
   | UiSend Text Text  -- ^ Address, amount
   | UiNewWallet Text  -- ^ Name
   | UiNewAccount Text  -- ^ Name
@@ -90,15 +93,10 @@ data UiCommand
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
-  = UiBalanceCommandResult UiBalanceCommandResult
-  | UiSendCommandResult UiSendCommandResult
+  = UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
-
-data UiBalanceCommandResult
-  = UiBalanceCommandSuccess Text
-  | UiBalanceCommandFailure Text
 
 data UiSendCommandResult
   = UiSendCommandSuccess Text
@@ -173,3 +171,31 @@ data UiWalletTreeSelection =
     { wtsWalletIdx :: Word
     , wtsPath :: TreePath
     }
+
+-- Display info for entities on all HD-wallet tree levels
+data UiWalletInfo = UiWalletInfo
+  { uwiLabel :: !(Maybe Text)
+  , uwiWalletIdx :: !Word
+  , uwiBalance :: !Text
+  , uwiAccounts :: ![UiAccountInfo]
+  }
+
+data UiAccountInfo = UiAccountInfo
+  { uaciLabel :: !(Maybe Text)
+  , uaciWalletIdx :: !Word
+  , uaciPath :: !TreePath
+  , uaciBalance :: !Text
+  , uaciAddresses :: ![UiAddressInfo]
+  }
+
+data UiAddressInfo = UiAddressInfo
+  { uadiWalletIdx :: !Word
+  , uadiPath :: !TreePath
+  , uadiAddress :: !Text
+  , uadiBalance :: !Text
+  }
+
+-- | Info for currently selected tree item
+data UiSelectionInfo
+  = UiSelectionWallet !UiWalletInfo
+  | UiSelectionAccount !UiAccountInfo

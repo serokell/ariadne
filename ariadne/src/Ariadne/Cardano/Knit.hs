@@ -110,7 +110,7 @@ instance ComponentDetokenizer Cardano where
     TokenAddress a -> pretty a
     TokenPublicKey pk -> sformat fullPublicKeyF pk
     TokenHash h -> sformat ("#"%hashHexF) (getAHash h)
-    TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> unit
+    TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> show unit
 
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
@@ -225,17 +225,19 @@ adaToCoin (normalize -> normalized) =
 scientificToCoinValue :: Scientific -> Maybe Scientific
 scientificToCoinValue c = if isInteger c then Just c else Nothing
 
-showCoin :: Coin -> (Text, Text)
+data Currency = ADA | Lovelace deriving (Eq, Show)
+
+showCoin :: Coin -> (Text, Currency)
 showCoin = showScientificCoin . fromIntegral . unsafeGetCoin
 
-showScientificCoin :: Scientific -> (Text, Text)
+showScientificCoin :: Scientific -> (Text, Currency)
 showScientificCoin c =
   case floatingOrInteger ada of
     Left (_ :: Double) ->
       if ada >= 1
-         then (show ada, "ADA")
-         else (componentTokenRender $ TokenNumber c, "Lovelace")
-    Right (n :: Integer) -> (show n, "ADA")
+         then (show ada, ADA)
+         else (componentTokenRender $ TokenNumber c, Lovelace)
+    Right (n :: Integer) -> (show n, ADA)
   where
     ada :: Scientific
     ada = c / adaMultiplier

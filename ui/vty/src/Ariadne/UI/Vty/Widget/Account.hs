@@ -4,12 +4,14 @@ module Ariadne.UI.Vty.Widget.Account
 
 import Universum
 
+import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import IiExtras
-import System.Hclip (setClipboard)
+import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
+import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
@@ -22,17 +24,22 @@ import Ariadne.UI.Vty.Widget.Form.Send
 -- Model
 ----------------------------------------------------------------------------
 
+data AccountAddress =
+  AccountAddress
+    { accountAddressHash :: !Text
+    , accountAddressBalance :: !Text
+    }
+
 data AccountWidgetState =
   AccountWidgetState
     { accountLangFace :: !UiLangFace
 
     , accountName :: !Text
     , accountRenameResult :: !RenameResult
-    , accountDerivationPath :: ![Word32]
-    , accountBalance :: !BalanceResult
+    , accountBalance :: !Text
 
     , accountAddressResult :: !AddressResult
-    , accountAddresses :: ![(Word32, Text)]
+    , accountAddresses :: ![AccountAddress]
     }
 
 data RenameResult
@@ -41,12 +48,6 @@ data RenameResult
   | RenameResultError !Text
   | RenameResultSuccess
 
-data BalanceResult
-  = BalanceResultNone
-  | BalanceResultWaiting !UiCommandId
-  | BalanceResultError !Text
-  | BalanceResultSuccess !Text  -- ^ Balance
-
 data AddressResult
   = AddressResultNone
   | AddressResultWaiting !UiCommandId
@@ -54,6 +55,7 @@ data AddressResult
   | AddressNewResultSuccess
   | AddressCopyResultSuccess !Text  -- ^ Address
 
+makeLensesWith postfixLFields ''AccountAddress
 makeLensesWith postfixLFields ''AccountWidgetState
 
 initAccountWidget :: UiLangFace -> Widget p
@@ -67,8 +69,7 @@ initAccountWidget langFace =
 
       , accountName = ""
       , accountRenameResult = RenameResultNone
-      , accountDerivationPath = []
-      , accountBalance = BalanceResultNone
+      , accountBalance = ""
 
       , accountAddressResult = AddressResultNone
       , accountAddresses = []
@@ -97,22 +98,43 @@ initAccountWidget langFace =
       WidgetEventListSelected idx -> performCopyAddress idx
       _ -> return ()
 
-    setWidgetFocusList
-      [ WidgetNameAccountName
-      , WidgetNameAccountRenameButton
-      , WidgetNameAccountSend
-      , WidgetNameAccountAddressGenerateButton
-      , WidgetNameAccountAddressList
-      ]
+    withWidgetState updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
 ----------------------------------------------------------------------------
 
-drawAddressRow :: Bool -> (Word32, Text) -> B.Widget WidgetName
-drawAddressRow focused (_, address) =
+drawAddressRow :: Bool -> AccountAddress -> B.Widget WidgetName
+drawAddressRow focused AccountAddress{..} =
   (if focused then B.withAttr "selected" else id) $
-  B.txt address
+  B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Fixed
+    , B.render = render
+    }
+  where
+    render = do
+      rdrCtx <- B.getContext
+      let
+        attr = rdrCtx ^. B.attrL
+        width = rdrCtx ^. B.availWidthL
+
+        balance = T.replicate (max 0 (15 - T.length accountAddressBalance)) " " <> accountAddressBalance
+
+        addressWidth = width - (T.length balance) - 1
+        addressLength = T.length accountAddressHash
+        address = if addressWidth >= addressLength
+          then accountAddressHash <> T.replicate (addressWidth - addressLength) " "
+          else
+            T.take ((addressWidth - 3) `div` 2) accountAddressHash <>
+            "..." <>
+            T.takeEnd (addressWidth - 3 - (addressWidth - 3) `div` 2) accountAddressHash
+
+        img = V.horizCat $ V.text' attr <$> [address, " ", balance]
+
+      return $
+        B.emptyResult
+          & B.imageL .~ img
 
 drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p (B.Widget WidgetName)
 drawAccountWidget focus AccountWidgetState{..} = do
@@ -126,8 +148,7 @@ drawAccountWidget focus AccountWidgetState{..} = do
 
     labelWidth = 16
 
-    visible namePart = if focus == widgetName ++ [namePart] then B.visible else identity
-    drawChild namePart = visible namePart $ drawWidgetChild focus widget namePart
+    drawChild = drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
   return $
@@ -143,11 +164,7 @@ drawAccountWidget focus AccountWidgetState{..} = do
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename the account: " <> err
           RenameResultSuccess -> B.emptyWidget
-      , padBottom $ label "Balance:" B.<+> case accountBalance of
-          BalanceResultNone -> B.emptyWidget
-          BalanceResultWaiting _ -> B.txt "calculating..."
-          BalanceResultError err -> B.txt err
-          BalanceResultSuccess balance -> B.txt balance
+      , padBottom $ label "Balance:" B.<+> B.txt accountBalance
 
       , drawChild WidgetNameAccountSend
 
@@ -173,19 +190,12 @@ handleAccountWidgetEvent
   -> WidgetEventM AccountWidgetState p ()
 handleAccountWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    whenJust wuPaneInfoUpdate $ \UiWalletInfo{..} -> case wpiType of
-      Just (UiWalletInfoAccount dp) -> do
-        UiLangFace{..} <- use accountLangFaceL
-        accountNameL .= fromMaybe "" wpiLabel
-        accountDerivationPathL .= dp
-        accountAddressesL .= wpiAddresses
-        use accountBalanceL >>= \case
-          BalanceResultWaiting commandId
-            | Just taskId <- cmdTaskId commandId ->
-                void . liftIO . langPutUiCommand $ UiKill taskId
-          _ -> return ()
-        liftIO (langPutUiCommand UiBalance) >>=
-          assign accountBalanceL . either BalanceResultError BalanceResultWaiting
+    whenJust wuSelectionInfo $ \case
+      UiSelectionAccount UiAccountInfo{..} -> do
+        accountNameL .= fromMaybe "" uaciLabel
+        accountBalanceL .= uaciBalance
+        accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
+        updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     accountRenameResultL %= \case
@@ -193,13 +203,6 @@ handleAccountWidgetEvent = \case
         case result of
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
-      other -> other
-  UiCommandResult commandId (UiBalanceCommandResult result) -> do
-    accountBalanceL %= \case
-      BalanceResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
-          UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiNewAddressCommandResult result) -> do
     accountAddressResultL %= \case
@@ -215,13 +218,24 @@ handleAccountWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
+updateFocusList :: Monad m => StateT AccountWidgetState (StateT (WidgetInfo AccountWidgetState p) m) ()
+updateFocusList = do
+  addresses <- use accountAddressesL
+  lift $ setWidgetFocusList $
+    [ WidgetNameAccountName
+    , WidgetNameAccountRenameButton
+    , WidgetNameAccountSend
+    , WidgetNameAccountAddressGenerateButton
+    ] ++
+    (if null addresses then [] else [WidgetNameAccountAddressList])
+
 performRename :: WidgetEventM AccountWidgetState p ()
 performRename = do
   UiLangFace{..} <- use accountLangFaceL
   name <- use accountNameL
   use accountRenameResultL >>= \case
     RenameResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiRename name) >>=
+    _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
 
 performNewAddress :: WidgetEventM AccountWidgetState p ()
@@ -234,6 +248,8 @@ performNewAddress = do
 
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()
 performCopyAddress idx = do
-  whenJustM ((^? ix idx) <$> use accountAddressesL) $ \(_, address) -> do
-    liftIO . setClipboard . toString $ address
-    accountAddressResultL .= AddressCopyResultSuccess address
+  whenJustM ((^? ix idx) <$> use accountAddressesL) $ \AccountAddress{..} -> do
+    result <- liftIO . handle (\e -> return $ AddressResultError $ fromString $ displayException (e :: ClipboardException)) $ do
+      setClipboard . toString $ accountAddressHash
+      return $ AddressCopyResultSuccess accountAddressHash
+    accountAddressResultL .= result

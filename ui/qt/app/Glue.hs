@@ -18,9 +18,11 @@ module Glue
 import Universum
 
 import Control.Exception (displayException)
+import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
+import qualified Data.Vector as V
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -92,9 +94,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.selectCommandName
            (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
-      UiBalance ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.balanceCommandName [])
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
@@ -126,11 +125,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.newAddressCommandName [])
 
     resultToUI result = \case
-      UiBalance ->
-        Just . UiBalanceCommandResult . either UiBalanceCommandFailure UiBalanceCommandSuccess $
-          fromResult result >>= fromValue >>= \case
-            Knit.ValueCoin n -> Right $ let (amount, unit) = Knit.showCoin n in amount <> " " <> unit
-            _ -> Left "Unrecognized return value"
       UiSend _ _ ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
@@ -201,11 +195,11 @@ knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput 
 cardanoEventToUI :: CardanoEvent -> Maybe UiEvent
 cardanoEventToUI = \case
   CardanoLogEvent message ->
-    Just $ UiCardanoEvent $
-      UiCardanoLogEvent message
+    Just $ UiBackendEvent $
+      UiBackendLogEvent message
   CardanoStatusUpdateEvent CardanoStatusUpdate{..} ->
-    Just $ UiCardanoEvent $
-      UiCardanoStatusUpdateEvent UiCardanoStatusUpdate
+    Just $ UiBackendEvent $
+      UiBackendStatusUpdateEvent UiBackendStatusUpdate
         { syncProgress = (<> "%") . toFixed 1 . fromRational . (* 100) <$> syncProgress
         , blockchainLocal = "block " <> pretty tipHeaderHash <> ", " <> pEpochOrSlot tipEpochOrSlot
         , blockchainNetwork = pSlotId currentSlot
@@ -232,6 +226,7 @@ walletEventToUI = \case
       UiWalletUpdate
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
+        ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
 
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
@@ -263,6 +258,41 @@ uiWalletDatasToTree = map toTree
                           }
                 , subForest = []
                 }
+
+-- TODO: change to use chain type level
+walletSelectionToInfo :: [UiWalletData] -> UiWalletSelection -> UiSelectionInfo
+walletSelectionToInfo uiwd UiWalletSelection{..} =
+  case uiwd ^? ix (fromIntegral uwsWalletIdx) of
+    Nothing -> error "Invalid wallet index"
+    Just walletData@UiWalletData{..} -> case uwsPath of
+      [] -> UiSelectionWallet $ wallet walletData
+      accIdx:_ -> case _uwdAccounts ^? ix (fromIntegral accIdx) of
+        Nothing -> error "Invalid account index"
+        Just accountData -> UiSelectionAccount $ account accountData
+  where
+    wallet UiWalletData{..} =
+      UiWalletInfo
+        { uwiLabel = Just _uwdName
+        , uwiWalletIdx = uwsWalletIdx
+        , uwiBalance = balance _uwdBalance
+        , uwiAccounts = account <$> V.toList _uwdAccounts
+        }
+    account UiAccountData{..} =
+      UiAccountInfo
+        { uaciLabel = Just _uadName
+        , uaciWalletIdx = uwsWalletIdx
+        , uaciPath = [fromIntegral _uadAccountIdx]
+        , uaciBalance = balance _uadBalance
+        , uaciAddresses = address [fromIntegral _uadAccountIdx] <$> V.toList _uadAddresses
+        }
+    address acPath UiAddressData{..} =
+      UiAddressInfo
+        { uadiWalletIdx = uwsWalletIdx
+        , uadiPath = acPath ++ [fromIntegral _uiadAddressIdx]
+        , uadiAddress = pretty _uiadAddress
+        , uadiBalance = balance _uiadBalance
+        }
+    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
 
 ----------------------------------------------------------------------------
 -- Glue between command history and Vty frontend
