@@ -101,6 +101,7 @@ initTopBar = do
         separator <- QFrame.new
         QFrame.setFrameShape separator QFrame.VLine
         void $ setProperty separator ("styleRole" :: Text) ("separator" :: Text)
+        void $ setProperty separator ("orientation" :: Text) ("vertical" :: Text)
         QBoxLayout.addWidget navMenu separator
 
       createButton btn = do

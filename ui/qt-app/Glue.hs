@@ -110,10 +110,11 @@ knitFaceToUI UiFace{..} KnitFace{..} =
                 ]
             ]
           )
-      UiNewWallet name -> do
+      UiNewWallet name password -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newWalletCommandName
+          (Knit.ProcCall Knit.newWalletCommandName $
             [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+            ++ maybe [] ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
           )
       UiNewAccount name -> do
         Right $ Knit.ExprProcCall
@@ -130,7 +131,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
-      UiNewWallet _ ->
+      UiNewWallet _ _ ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
