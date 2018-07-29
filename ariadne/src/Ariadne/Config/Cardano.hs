@@ -15,6 +15,10 @@ module Ariadne.Config.Cardano
   , getNodeParams
   , gtSscParams
   , loggingParams
+  -- TH functions
+  , defTopology
+  , defLoggerConfig
+  , defConfiguration
   ) where
 
 import Universum hiding (show)
@@ -218,7 +222,7 @@ defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
     CommonNodeArgs
         { dbPath = Just "db-mainnet"
-        , rebuildDB = False
+        , rebuildDB = True
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts

@@ -5,7 +5,8 @@ import Universum
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano (CardanoConfig(..), CommonArgs(..)
-    , CommonNodeArgs(..), NetworkConfigOpts(..), ConfigurationOptions(..))
+    , CommonNodeArgs(..), NetworkConfigOpts(..), ConfigurationOptions(..)
+    , defTopology, defConfiguration, defLoggerConfig)
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.History (HistoryConfig(..))
@@ -53,7 +54,7 @@ overrideConfigUnitTest = actual `shouldBe` Just expectedAriadneConfig
 
 cliArgs :: [String]
 cliArgs =
-  [ "--config", "doesNotMatter"
+  ["--config", "doesNotMatter"
   , "--cardano:db-path", "new-db-path"
   , "--cardano:rebuild-db", "True"
   , "--cardano:genesis-secret", "111"
@@ -81,14 +82,14 @@ expectedAriadneConfig = AriadneConfig
         , devGenesisSecretI = Just 111
         , keyfilePath = "new-keyfile"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = File . Just $ "new-topology"
+            { ncoTopology = There defTopology
             , ncoPort = 4444
             }
         , commonArgs = CommonArgs
-          { logConfig = File . Just $ "new-log-config"
+          { logConfig = There defLoggerConfig
           , logPrefix = Just "new-log-prefix"
           , configurationOptions = ConfigurationOptions
-            { cfo = File . Just $ "new-configuration-file" }
+            { cfo = There defConfiguration }
           }
         , enableMetrics = True
         , ekgParams = Just (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
