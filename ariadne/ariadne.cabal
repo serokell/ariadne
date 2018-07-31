@@ -282,3 +282,110 @@ test-suite ariadne-test
   ghc-options: -Wall -Wcompat -Werror
                -Wincomplete-uni-patterns -Wincomplete-record-updates
                -Wredundant-constraints
+
+test-suite backend-test
+  type: exitcode-stdio-1.0
+  main-is: WalletUnitTest.hs
+  hs-source-dirs:
+      test/backend
+  other-modules:
+      Test.Infrastructure.Generator
+      Test.Infrastructure.Genesis
+      Test.Spec.Kernel
+      Test.Spec.Models
+      Test.Spec.Translation
+      Test.Spec.WalletWorker
+      Util
+      Util.Buildable
+      Util.Buildable.Hspec
+      Util.Buildable.QuickCheck
+      Util.Validated
+      UTxO.Bootstrap
+      UTxO.Context
+      UTxO.Crypto
+      UTxO.DSL
+      UTxO.Generator
+      UTxO.Interpreter
+      UTxO.Translate
+      UTxO.Verify
+      Wallet.Abstract
+      Wallet.Basic
+      Wallet.Incremental
+      Wallet.Inductive
+      Wallet.Inductive.Cardano
+      Wallet.Inductive.Generator
+      Wallet.Inductive.Interpreter
+      Wallet.Inductive.Invariants
+      Wallet.Inductive.Validation
+      Wallet.Prefiltered
+      Wallet.Rollback.Basic
+      Wallet.Rollback.Full
+  default-language:   Haskell2010
+  default-extensions:
+      BangPatterns
+      ConstraintKinds
+      DeriveGeneric
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      InstanceSigs
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NoImplicitPrelude
+      OverloadedStrings
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TypeFamilies
+  other-extensions:
+      DeriveAnyClass
+      GeneralizedNewtypeDeriving
+      UndecidableInstances
+  build-depends:
+      ariadne
+    , base
+    , bytestring
+    , acid-state
+    , cardano-sl
+    , cardano-sl-block
+    , cardano-sl-client
+    , cardano-sl-core
+    , cardano-sl-crypto
+    , cardano-sl-db
+    , cardano-sl-delegation
+    , cardano-sl-lrc
+    , cardano-sl-ssc
+    , cardano-sl-txp
+    , cardano-sl-txp-test
+    , cardano-sl-update
+    , cardano-sl-util
+    , constraints
+    , containers
+    , cryptonite
+    , data-default
+    , formatting
+    , hspec
+    , lens
+    , log-warper
+    , mtl
+    , QuickCheck
+    , quickcheck-instances
+    , safe-exceptions
+    , serokell-util
+    , tabl
+    , text
+    , text-format
+    , universum
+    , unordered-containers
+    , vector
+      -- needed only for input selection evaluation
+    , bytestring
+    , conduit
+    , directory
+    , filepath
+    , normaldistribution
+    , optparse-applicative
+    , random
+    , time
