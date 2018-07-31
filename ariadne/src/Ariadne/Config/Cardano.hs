@@ -222,7 +222,7 @@ defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig = CardanoConfig
     CommonNodeArgs
         { dbPath = Just "db-mainnet"
-        , rebuildDB = True
+        , rebuildDB = False
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
