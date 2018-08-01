@@ -81,6 +81,5 @@ library
   ghc-options: -Wall -Wcompat -Werror
                -Wincomplete-uni-patterns -Wincomplete-record-updates
                -Wredundant-constraints
-               -Wno-unused-top-binds
 
   build-tools: cpphs >= 1.19

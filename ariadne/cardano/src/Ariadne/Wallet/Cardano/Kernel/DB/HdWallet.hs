@@ -44,6 +44,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- ** Composite lenses
   , hdAccountRootId
   , hdAddressRootId
+  , hdAddressChain
   , hdAddressAccountId
     -- * Unknown identifiers
   , UnknownHdRoot(..)

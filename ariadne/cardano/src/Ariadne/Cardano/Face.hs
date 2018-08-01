@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
+
 module Ariadne.Cardano.Face
        ( BListenerHandle (..)
        , CardanoContext (..)

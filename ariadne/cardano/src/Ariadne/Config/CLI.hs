@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
+
 module Ariadne.Config.CLI
     ( getConfig
     -- * Exported for testing

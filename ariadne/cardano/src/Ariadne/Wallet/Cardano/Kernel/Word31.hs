@@ -49,7 +49,7 @@ unsafeMkWord31 n =
 {-# INLINE unsafeMkWord31 #-}
 
 word31ToWord32 :: Word31 -> Word32
-word31ToWord32 (Word31 n) = n
+word31ToWord32 = getWord31
 
 {-------------------------------------------------------------------------------
   Instances
