@@ -12,7 +12,8 @@ import Pos.Launcher (ConfigurationOptions(..))
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
-import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
+import Test.Hspec
+  (Expectation, Spec, describe, expectationFailure, hspec, it, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Property)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
@@ -44,12 +45,18 @@ propHandleCardanoConfig conf = monadicIO $ do
   assert (conf == parsed)
 
 overrideConfigUnitTest :: Expectation
-overrideConfigUnitTest = actual `shouldBe` Just expectedAriadneConfig
+overrideConfigUnitTest =
+    case parserResult of
+        Opt.Success (_, _, cliConfig) ->
+            (cliConfig `mergeConfigs` defaultAriadneConfig) `shouldBe`
+            expectedAriadneConfig
+        Opt.Failure failure ->
+            let (failureMsg, _) = Opt.renderFailure failure "test"
+            in expectationFailure ("Parser failed: " <> failureMsg)
+        _ -> error $ "Unexpected parser result: " <> show parserResult
   where
     opts' = opts "doesNotMatter"
-    actual =
-        (`mergeConfigs` defaultAriadneConfig) . view _3 <$>
-        Opt.getParseResult (Opt.execParserPure Opt.defaultPrefs opts' cliArgs)
+    parserResult = Opt.execParserPure Opt.defaultPrefs opts' cliArgs
 
 cliArgs :: [String]
 cliArgs =
