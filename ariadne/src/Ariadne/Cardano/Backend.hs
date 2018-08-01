@@ -2,7 +2,8 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 
 import Universum
 
-import Ariadne.Config.Cardano (CardanoConfig(..))
+import Ariadne.Config.Cardano (CardanoConfig(..), CommonNodeArgs(..)
+    , getNodeParams, toCardanoCommonNodeArgs, toCardanoNodeParams)
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Trans.Reader (withReaderT)
 import Data.Constraint (Dict(..))
@@ -15,11 +16,12 @@ import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
+import Pos.Core (headerHash)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.DB.DB (initNodeDBs)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
-import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
+import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate)
+    , epochOrSlotG, flattenEpochOrSlot, flattenSlotId)
 import Pos.Launcher
 import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
 import Pos.Txp (txpGlobalSettings)
@@ -44,7 +46,7 @@ createCardanoBackend cardanoConfig bHandle addUs = do
   diffusionVar <- newEmptyMVar
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
-      withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonArgs) $ \_ntpConf ->
+      withConfigurations (CLI.configurationOptions . CLI.commonArgs . toCardanoCommonNodeArgs $ commonArgs) $ \_ntpConf ->
       return (CardanoFace
           { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
@@ -64,11 +66,11 @@ runCardanoNode ::
     -> (TVar UserSecret -> IO ())
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
-    -> CLI.CommonNodeArgs
+    -> CommonNodeArgs
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
-  let loggingParams = CLI.loggingParams "ariadne" commonArgs
+runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonNodeArgs sendCardanoEvent = do
+  let loggingParams = CLI.loggingParams "ariadne" $ toCardanoCommonNodeArgs commonNodeArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
           let cfgBuilder = showTidB
@@ -83,9 +85,9 @@ runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonArgs sendCarda
           putMVar diffusionVar diffusion
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
       nodeParams <- usingLoggerName ("ariadne" <> "cardano" <> "init") $
-          CLI.getNodeParams "ariadne" commonArgs nodeArgs
-      let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
-      let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
+          getNodeParams "ariadne" commonNodeArgs nodeArgs
+      let vssSK = fromJust $ npUserSecret (toCardanoNodeParams nodeParams) ^. usVss
+      let sscParams = CLI.gtSscParams (toCardanoCommonNodeArgs commonNodeArgs) vssSK (npBehaviorConfig $ toCardanoNodeParams nodeParams)
       let workers =
               [ updateTriggerWorker
               , extractionWorker
@@ -96,7 +98,7 @@ runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonArgs sendCarda
         cardanoModeToRealMode (CardanoMode m) = withReaderT (CardanoContext bHandle) m
         convertMode f diff =
             cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode diff)
-        runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
+        runMode = bracketNodeResources (toCardanoNodeParams nodeParams) sscParams txpGlobalSettings initNodeDBs
             $ \nr@NodeResources{..} -> Production . runRealMode nr . convertMode $ \diff -> do
                 ctx <- ask
                 liftIO . addUs $ ctx ^. userSecret

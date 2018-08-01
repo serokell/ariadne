@@ -9,7 +9,6 @@ import Universum
 
 import Control.Lens (makeLensesWith, (%=))
 import Data.List.Utils (replace)
-import Data.Time.Units (fromMicroseconds)
 import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
@@ -19,15 +18,9 @@ import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne (version)
-import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
-import Pos.Client.CLI.Options (CommonArgs(..))
-import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
-import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
 import Pos.Infra.Util.TimeWarp
   (NetworkAddress, addrParser, addrParserNoWildcard)
-import Pos.Launcher
 import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
@@ -37,45 +30,38 @@ import System.FilePath (isAbsolute, takeDirectory, (</>))
 import qualified Text.Read as R (readEither)
 
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(..), cardanoFieldModifier)
+import Ariadne.Config.Cardano (CardanoConfig(CardanoConfig), CommonArgs(..), CommonNodeArgs(..)
+    , ConfigurationOptions (..), NetworkConfigOpts(..), cardanoFieldModifier)
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.Presence (Presence (File), _File)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 
 newtype CLI_CardanoConfig = CLI_CardanoConfig
-  {cli_getCardanoConfig :: CLI_CommonNodeArgs} deriving (Eq, Show, Generic)
+    { cli_getCardanoConfig :: CLI_CommonNodeArgs
+    }
 
 data CLI_AriadneConfig = CLI_AriadneConfig
-  { cli_acCardano :: CLI_CardanoConfig
-  , cli_acWallet :: CLI_WalletConfig } deriving (Eq, Show, Generic)
+    { cli_acCardano :: CLI_CardanoConfig
+    , cli_acWallet :: CLI_WalletConfig
+    }
 
 data CLI_WalletConfig = CLI_WalletConfig
-  { cli_wcEntropySize :: Maybe Byte
-  } deriving (Eq, Show)
+    { cli_wcEntropySize :: Maybe Byte
+    }
 
 data CLI_NetworkConfigOpts = CLI_NetworkConfigOpts
     { cli_ncoTopology        :: !(Maybe FilePath)
-    , cli_ncoKademlia        :: !(Maybe FilePath)
-    , cli_ncoSelf            :: !(Maybe NodeName)
     , cli_ncoPort            :: !(Maybe Word16)
-    , cli_ncoPolicies        :: !(Maybe FilePath)
-    , cli_ncoBindAddress     :: !(Maybe NetworkAddress)
-    , cli_ncoExternalAddress :: !(Maybe NetworkAddress)
-    } deriving (Eq, Show, Generic)
+    }
 
 data CLI_CommonArgs = CLI_CommonArgs
     { cli_logConfig            :: !(Maybe FilePath)
     , cli_logPrefix            :: !(Maybe FilePath)
-    , cli_reportServers        :: !(Maybe [Text])
-    , cli_updateServers        :: !(Maybe [Text])
     , cli_configurationOptions :: !CLI_ConfigurationOptions
-    } deriving (Eq, Show, Generic)
+    }
 
 data CLI_ConfigurationOptions = CLI_ConfigurationOptions
-    { cli_cfoFilePath    :: !(Maybe FilePath)
-    , cli_cfoKey         :: !(Maybe Text)
-    , cli_cfoSystemStart :: !(Maybe Timestamp)
-    , cli_cfoSeed        :: !(Maybe Integer)
-    } deriving (Eq, Show, Generic)
+    { cli_cfoFilePath :: !(Maybe FilePath) }
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except NetworkAddress and EkgParams due to their parsers
@@ -85,31 +71,13 @@ data CLI_CommonNodeArgs = CLI_CommonNodeArgs
     , cli_devGenesisSecretI      :: !(Maybe Int)
     , cli_keyfilePath            :: !(Maybe FilePath)
     , cli_networkConfigOpts      :: !CLI_NetworkConfigOpts
-    , cli_jlPath                 :: !(Maybe FilePath)
     , cli_commonArgs             :: !CLI_CommonArgs
-    , cli_updateLatestPath       :: !(Maybe FilePath)
-    , cli_updateWithPackage      :: !(Maybe Bool)
-    , cli_route53Params          :: !(Maybe NetworkAddress)
     , cli_enableMetrics          :: !(Maybe Bool)
     , cli_ekgParams              :: !(Maybe EkgParams)
-    , cli_statsdParams           :: !CLI_StatsdParams
-    , cli_cnaDumpGenesisDataPath :: !(Maybe FilePath)
-    , cli_cnaDumpConfiguration   :: !(Maybe Bool)
-    } deriving (Eq, Show, Generic)
-
-data CLI_StatsdParams = CLI_StatsdParams
-    { cli_statsdHost     :: !(Maybe Text)
-    , cli_statsdPort     :: !(Maybe Int)
-    , cli_statsdInterval :: !(Maybe Int)
-    , cli_statsdDebug    :: !(Maybe Bool)
-    , cli_statsdPrefix   :: !(Maybe Text)
-    , cli_statsdSuffix   :: !(Maybe Text)
-    } deriving (Eq, Show, Generic)
-
+    }
 
 makeLensesWith postfixLFields ''CLI_CommonArgs
 makeLensesWith postfixLFields ''CLI_NetworkConfigOpts
-makeLensesWith postfixLFields ''CLI_StatsdParams
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_AriadneConfig
 makeLensesWith postfixLFields ''CLI_CardanoConfig
@@ -145,11 +113,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     overrideCa = overrideCna ^. cli_commonArgsL
     defaultCa = defaultCna ^. commonArgsL
 
-    overrideCo = overrideCa ^. cli_configurationOptionsL
     defaultCo = defaultCa ^. configurationOptionsL
-
-    overrideSp = overrideCna ^. cli_statsdParamsL
-    mbDefaultSp = defaultCna ^. statsdParamsL
 
     mergedCardanoConfig = CardanoConfig CommonNodeArgs
         { dbPath = (overrideCna ^. cli_dbPathL) <|> (defaultCna ^. dbPathL)
@@ -157,51 +121,21 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , devGenesisSecretI = (overrideCna ^. cli_devGenesisSecretIL) <|> (defaultCna ^. devGenesisSecretIL)
         , keyfilePath = merge (overrideCna ^. cli_keyfilePathL) (defaultCna ^. keyfilePathL)
         , networkConfigOpts = mergedNetworkConfigOpts
-        , jlPath = (overrideCna ^. cli_jlPathL) <|> (defaultCna ^. jlPathL)
         , commonArgs = mergedCommonArgs
-        , updateLatestPath = merge (overrideCna ^. cli_updateLatestPathL) (defaultCna ^. updateLatestPathL)
-        , updateWithPackage = merge (overrideCna ^. cli_updateWithPackageL) (defaultCna ^. updateWithPackageL)
-        , route53Params = (overrideCna ^. cli_route53ParamsL) <|> (defaultCna ^. route53ParamsL)
         , enableMetrics = merge (overrideCna ^. cli_enableMetricsL) (defaultCna ^. enableMetricsL)
         , ekgParams = (overrideCna ^. cli_ekgParamsL) <|> (defaultCna ^. ekgParamsL)
-        , statsdParams = mergedStatsdParams
-        , cnaDumpGenesisDataPath = (overrideCna ^. cli_cnaDumpGenesisDataPathL) <|> (defaultCna ^. cnaDumpGenesisDataPathL)
-        , cnaDumpConfiguration = merge (overrideCna ^. cli_cnaDumpConfigurationL) (defaultCna ^. cnaDumpConfigurationL)
         }
 
     mergedNetworkConfigOpts = NetworkConfigOpts
-        { ncoTopology  = (overrideNco ^. cli_ncoTopologyL) <|> (defaultNco ^. ncoTopologyL)
-        , ncoKademlia = (overrideNco ^. cli_ncoKademliaL) <|> (defaultNco ^. ncoKademliaL)
-        , ncoSelf = (overrideNco ^. cli_ncoSelfL) <|> (defaultNco ^. ncoSelfL)
+        { ncoTopology  = (File $ overrideNco ^. cli_ncoTopologyL) <|> (defaultNco ^. ncoTopologyL)
         , ncoPort = merge (overrideNco ^. cli_ncoPortL) (defaultNco ^. ncoPortL)
-        , ncoPolicies = (overrideNco ^. cli_ncoPoliciesL) <|> (defaultNco ^. ncoPoliciesL)
-        , ncoBindAddress = (overrideNco ^. cli_ncoBindAddressL) <|> (defaultNco ^. ncoBindAddressL)
-        , ncoExternalAddress = (overrideNco ^. cli_ncoExternalAddressL) <|> (defaultNco ^. ncoExternalAddressL)
         }
 
     mergedCommonArgs = CommonArgs
-        { logConfig = (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL)
+        { logConfig = File $ (overrideCa ^. cli_logConfigL) <|> (defaultCa ^. logConfigL ^? _File)
         , logPrefix = (overrideCa ^. cli_logPrefixL) <|> (defaultCa ^. logPrefixL)
-        , reportServers = merge (overrideCa ^. cli_reportServersL) (defaultCa ^. reportServersL)
-        , updateServers = merge (overrideCa ^. cli_updateServersL) (defaultCa ^. updateServersL)
-        , configurationOptions = mergedConfigurationOptions
+        , configurationOptions = ConfigurationOptions $ defaultCo ^. cfoL
         }
-
-    mergedConfigurationOptions = ConfigurationOptions
-        { cfoFilePath = merge (overrideCo ^. cli_cfoFilePathL) (defaultCo ^. cfoFilePathL)
-        , cfoKey = merge (overrideCo ^. cli_cfoKeyL) (defaultCo ^. cfoKeyL)
-        , cfoSystemStart = (overrideCo ^. cli_cfoSystemStartL) <|> (defaultCo ^. cfoSystemStartL)
-        , cfoSeed = (overrideCo ^. cli_cfoSeedL) <|> (defaultCo ^. cfoSeedL)
-        }
-
-    mergedStatsdParams = fmap (\defaultSp -> StatsdParams
-            { statsdHost = merge (overrideSp ^. cli_statsdHostL) (defaultSp ^. statsdHostL)
-            , statsdPort = merge (overrideSp ^. cli_statsdPortL) (defaultSp ^. statsdPortL)
-            , statsdInterval = merge (overrideSp ^. cli_statsdIntervalL) (defaultSp ^. statsdIntervalL)
-            , statsdDebug = merge (overrideSp ^. cli_statsdDebugL) (defaultSp ^. statsdDebugL)
-            , statsdPrefix = merge (overrideSp ^. cli_statsdPrefixL) (defaultSp ^. statsdPrefixL)
-            , statsdSuffix = merge (overrideSp ^. cli_statsdSuffixL) (defaultSp ^. statsdSuffixL)
-            }) mbDefaultSp
 
 merge :: Maybe a -> a -> a
 merge = flip fromMaybe
@@ -242,12 +176,7 @@ getConfig commitHash = do
       resolveState ariadneConfigDir configDirs = do
         let commNodeArgsL = acCardanoL . getCardanoConfigL
             resolve_ = resolve ariadneConfigDir configDirs
-        commNodeArgsL.networkConfigOptsL.ncoTopologyL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.logConfigL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.logPrefixL %= (fmap resolve_)
-        commNodeArgsL.updateLatestPathL %= resolve_
         commNodeArgsL.dbPathL %= (fmap resolve_)
-        commNodeArgsL.commonArgsL.configurationOptionsL.cfoFilePathL %= resolve_
         commNodeArgsL.keyfilePathL %= resolve_
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
@@ -337,47 +266,13 @@ cliCommonNodeArgsParser = do
     , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkConfigOpts <- cliNetworkConfigOption
-  cli_jlPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "jlPath"
-    , metavar "FILEPATH"
-    , help "Path to JSON log file."
-    ]
   cli_commonArgs <- cliCommonArgsParser
-  cli_updateLatestPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "updateLatestPath"
-    , metavar "FILEPATH"
-    , help "Path to update installer file, \
-    \which should be downloaded by Update System."
-    ]
-  cli_updateWithPackage <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "updateWithPackage"
-    , metavar "BOOL"
-    , help "Enable updating via installer."
-    ]
-  cli_route53Params <- optional $ option (fromParsec addrParser) $ mconcat
-    [ long $ toOptionNameCardano "route53Params"
-    , metavar "IP:PORT"
-    , help "Host and port for the Route53 DNS health check."
-    ]
   cli_enableMetrics <- optional $ option auto $ mconcat
     [ long $ toOptionNameCardano "enableMetrics"
     , metavar "BOOL"
     , help "Enable metrics (EKG, statsd)"
     ]
   cli_ekgParams <- optional cliEkgParamsOption
-  cli_statsdParams <- cliStatsdParamsOption
-
-  cli_cnaDumpGenesisDataPath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "cnaDumpGenesisDataPath"
-    , metavar "FILEPATH"
-    , help "Dump genesis data in canonical JSON format to this file."
-    ]
-  cli_cnaDumpConfiguration <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "cnaDumpConfiguration"
-    , metavar "BOOL"
-    , help "Dump configuration and exit."
-    ]
-
   pure CLI_CommonNodeArgs{..}
 
 cliEkgParamsOption :: Opt.Parser EkgParams
@@ -395,47 +290,6 @@ cliEkgServerOption = option (fromParsec addrParser) $ mconcat
   , help "Host and port for the EKG server"
   ]
 
-cliStatsdParamsOption :: Opt.Parser CLI_StatsdParams
-cliStatsdParamsOption = do
-  addr <- optional cliStatsdServerOption
-  interval <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "statsdInterval"
-    , metavar "MILLISECONDS"
-    , help "Polling interval for statsd (milliseconds)"
-    ]
-  debug <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "statsdDebug"
-    , metavar "BOOL"
-    , help "Enable statsd debug mode"
-    ]
-  prefix <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "statsdPrefix"
-    , metavar "TEXT"
-    , help "Prefix for statsd"
-    ]
-  suffix <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "statsdSuffix"
-    , metavar "TEXT"
-    , help "Suffix for statsd"
-    ]
-  pure CLI_StatsdParams
-    { -- The network address parser only accepts ByteStrings which are
-      -- UTF8 encoded
-      cli_statsdHost = decodeUtf8 . fst <$> addr
-    , cli_statsdPort = fromIntegral . snd <$> addr
-    , cli_statsdInterval = interval
-    , cli_statsdDebug = debug
-    , cli_statsdPrefix = prefix
-    , cli_statsdSuffix = suffix
-    }
-
-cliStatsdServerOption :: Opt.Parser NetworkAddress
-cliStatsdServerOption = Opt.option (fromParsec addrParserNoWildcard) $ mconcat
-  [ long $ toOptionNameCardano "statsdAddr"
-  , metavar "IP:PORT"
-  , help "Host and port for the statsd server"
-  ]
-
 cliNetworkConfigOption :: Opt.Parser CLI_NetworkConfigOpts
 cliNetworkConfigOption = do
   cli_ncoTopology <- optional $ strOption $ mconcat
@@ -443,28 +297,11 @@ cliNetworkConfigOption = do
     , metavar "FILEPATH"
     , help "Path to a YAML file containing the network topology"
     ]
-  cli_ncoKademlia <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ncoKademlia"
-    , metavar "FILEPATH"
-    , help "Path to a YAML file containing the kademlia configuration"
-    ]
-  cli_ncoSelf <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ncoSelf"
-    , metavar "NODE_ID"
-    , help "Identifier for this node within the network"
-    ]
   cli_ncoPort <- optional $ option auto $ mconcat
     [ long $ toOptionNameCardano "ncoPort"
     , metavar "PORT"
     , help "Port number for IP address to node ID translation"
     ]
-  cli_ncoPolicies <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ncoPolicies"
-    , metavar "FILEPATH"
-    , help "Path to a YAML file containing the network policies"
-    ]
-  cli_ncoExternalAddress <- cliExternalNetworkAddressOption
-  cli_ncoBindAddress <- cliListenNetworkAddressOption
   pure CLI_NetworkConfigOpts {..}
 
 cliExternalNetworkAddressOption :: Opt.Parser (Maybe NetworkAddress)
@@ -487,34 +324,16 @@ cliListenNetworkAddressOption = optional $ option (fromParsec addrParserNoWildca
 
 cliConfigurationOptionsParser :: Opt.Parser CLI_ConfigurationOptions
 cliConfigurationOptionsParser = do
-  cli_cfoFilePath  <- optional $ strOption $ mconcat
+  cli_cfoFilePath  <- optional . strOption . mconcat $
     [ long $ toOptionNameCardano "cfoFilePath"
     , metavar "FILEPATH"
     , help "Path to a yaml configuration file"
-    ]
-  cli_cfoKey <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "cfoKey"
-    , metavar "TEXT"
-    , help "Key within the configuration file to use"
-    ]
-  cli_cfoSystemStart <-
-      (fmap . fmap) (Timestamp . fromMicroseconds . (*) 1000000) $
-      optional $ option auto $
-      mconcat
-    [ long $ toOptionNameCardano "cfoSystemStart"
-    , metavar "TIMESTAMP"
-    , help "System start time. Format - seconds since Unix Epoch."
-    ]
-  cli_cfoSeed        <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "cfoSeed"
-    , metavar "INTEGER"
-    , help "Seed for genesis generation. Overrides one from configuration file."
     ]
   return CLI_ConfigurationOptions{..}
 
 cliCommonArgsParser :: Opt.Parser CLI_CommonArgs
 cliCommonArgsParser = do
-  cli_logConfig <- optional $ strOption $ mconcat
+  cli_logConfig <- optional . strOption . mconcat $
     [ long $ toOptionNameCardano "logConfig"
     , metavar "FILEPATH"
     , help "Path to logger configuration."
@@ -524,17 +343,6 @@ cliCommonArgsParser = do
     , metavar "FILEPATH"
     , help "Prefix to logger output path."
     ]
-  cli_reportServers <- optional $ option listParser $ mconcat
-    [ long $ toOptionNameCardano "reportServers"
-    , metavar "[URI]"
-    , help "Reporting servers to send crash/error logs on. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
-    ]
-  cli_updateServers <- optional $ option listParser $ mconcat
-    [ long $ toOptionNameCardano "updateServers"
-    , metavar "[URI]"
-    , help "Servers to download updates from. Expected formatting: '[\"serv-uri-1\", \"serv-uri-2\"]'"
-    ]
-
   cli_configurationOptions <- cliConfigurationOptionsParser
   pure CLI_CommonArgs {..}
 
