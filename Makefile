@@ -1,6 +1,7 @@
-.PHONY: dev dev-lib dev-tui dev-qt test stylish clean
+.PHONY: dev dev-core dev-cardano dev-vty dev-qt test stylish clean
 
-ARIADNE_PACKAGES = ariadne
+CORE_PACKAGES = ariadne-core
+CARDANO_PACKAGES = ariadne-cardano
 VTY_PACKAGES = ariadne-vty
 QT_PACKAGES = ariadne-qt
 
@@ -13,10 +14,15 @@ STACK_BUILD_MORE_OPTIONS = --test --bench --no-run-tests --no-run-benchmarks
 dev:
 	stack build $(STACK_DEV_OPTIONS) $(STACK_BUILD_MORE_OPTIONS) .
 
-# Build only `ariadne` library with development options.
+# Build only `ariadne-core` library with development options.
 # Useful because logs will be printed.
-dev-lib:
-	stack build $(ARIADNE_PACKAGES) $(STACK_DEV_OPTIONS)
+dev-core:
+	stack build $(CORE_PACKAGES) $(STACK_DEV_OPTIONS)
+
+# Build only `ariadne-cardano` library with development options.
+# Useful because logs will be printed.
+dev-cardano:
+	stack build $(CARDANO_PACKAGES) $(STACK_DEV_OPTIONS)
 
 # Build only TUI with development options.
 dev-vty:
@@ -27,7 +33,7 @@ dev-qt:
 	stack build $(QT_PACKAGES) $(STACK_DEV_OPTIONS)
 
 test:
-	stack test ii-extras knit ariadne-vty-ui ariadne
+	stack test ii-extras knit ariadne-vty ariadne-qt ariadne-core ariadne-cardano
 
 stylish:
 	stylish-haskell -i `find ariadne knit util ui -iname '*.hs'`
