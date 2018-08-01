@@ -16,6 +16,7 @@ import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QFontDatabase as QFontDatabase
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
 
 import Control.Concurrent.STM.TBQueue
@@ -49,6 +50,7 @@ runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFac
 runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
     QApplication.setStyleSheet app $ toString styleSheet
+    QApplication.setWindowIcon app =<< QIcon.newWithFile (":/images/yarn-ic.png" :: String)
 
     forM_ fonts $ \font -> QFontDatabase.addApplicationFont $ toString $ ":/museo/" <> font
 
