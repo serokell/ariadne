@@ -6,14 +6,11 @@ import Universum
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Data.Text (pack)
 import Data.Time.Units (fromMicroseconds)
-import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
-import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
 import Pos.Infra.Network.Types (NodeName(..))
-import Pos.Infra.Statistics (EkgParams(..), StatsdParams(..))
+import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
-import Pos.Launcher
+import Pos.Launcher (ConfigurationOptions(..))
 import Test.QuickCheck (Gen, suchThat)
 import Test.QuickCheck.Arbitrary (Arbitrary(..))
 import Test.QuickCheck.Gen (choose, elements, listOf, oneof)
@@ -21,56 +18,19 @@ import Test.QuickCheck.Gen (choose, elements, listOf, oneof)
 import qualified Data.ByteString.Char8 as B8
 
 instance Arbitrary CardanoConfig where
-  arbitrary = CardanoConfig <$> genCommonNodeArgs
-
-genCommonNodeArgs :: Gen CommonNodeArgs
-genCommonNodeArgs = do
-    dbPath <- genMaybe genValidString
-    rebuildDB <- arbitrary
-    devGenesisSecretI <- arbitrary
-    keyfilePath <- genValidString
-    networkConfigOpts <- genNetworkConfigOpts
-    jlPath <- genMaybe genValidString
-    commonArgs <- genCommonArgs
-    updateLatestPath <- genValidString
-    updateWithPackage <- arbitrary
-    route53Params <- genMaybe genNetworkAddress
-    enableMetrics <- arbitrary
-    ekgParams <- genMaybe genEkgParams
-    statsdParams <- genMaybe genStatsdParams
-    cnaDumpGenesisDataPath <- genMaybe genValidString
-    cnaDumpConfiguration <- arbitrary
-    return CommonNodeArgs {..}
-
-genStatsdParams :: Gen StatsdParams
-genStatsdParams = do
-    statsdHost <- genValidText
-    statsdPort <- (arbitrary :: Gen Int) `suchThat` (> 0)
-    statsdInterval <- arbitrary
-    statsdDebug <- arbitrary
-    statsdPrefix <- genValidText
-    statsdSuffix <- genValidText
-    return StatsdParams {..}
-
-genNetworkConfigOpts :: Gen NetworkConfigOpts
-genNetworkConfigOpts = do
-    ncoTopology <- genMaybe genValidString
-    ncoKademlia <- genMaybe genValidString
-    ncoSelf <- genMaybe $ NodeName <$> genValidText
-    ncoPort <- arbitrary
-    ncoPolicies <- genMaybe genValidString
-    ncoBindAddress <- genMaybe genNetworkAddress
-    ncoExternalAddress <- genMaybe genNetworkAddress
-    return NetworkConfigOpts {..}
-
-genCommonArgs :: Gen CommonArgs
-genCommonArgs = do
-    logConfig <- genMaybe genValidString
-    logPrefix <- genMaybe genValidString
-    reportServers <- listOf genValidText
-    updateServers <- listOf genValidText
-    configurationOptions <- genConfigurationOptions
-    return CommonArgs {..}
+    arbitrary = do
+        ccDbPath <- genMaybe genValidString
+        ccRebuildDB <- arbitrary
+        ccKeyfilePath <- genValidString
+        ccNetworkTopology <- genMaybe genValidString
+        ccNetworkNodeId <- genMaybe $ NodeName <$> genValidText
+        ccNetworkPort <- arbitrary
+        ccLogConfig <- genMaybe genValidString
+        ccLogPrefix <- genMaybe genValidString
+        ccConfigurationOptions <- genConfigurationOptions
+        ccEnableMetrics <- arbitrary
+        ccEkgParams <- genMaybe genEkgParams
+        return CardanoConfig {..}
 
 genEkgParams :: Gen EkgParams
 genEkgParams = do

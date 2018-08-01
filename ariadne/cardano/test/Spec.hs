@@ -6,8 +6,6 @@ import Control.Lens (makeLensesWith)
 import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
-import Pos.Client.CLI.Options (CommonArgs(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Launcher (ConfigurationOptions(..))
@@ -77,38 +75,28 @@ cliArgs =
 expectedAriadneConfig :: AriadneConfig
 expectedAriadneConfig = defaultAriadneConfig
   { acCardano = defaultCardanoConfig
-    { getCardanoConfig = defaultCommonNodeArgs
-        { dbPath = Just "new-db-path"
-        , rebuildDB = True
-        , keyfilePath = "new-keyfile"
-        , networkConfigOpts = defaultNetworkConfigOpts
-            { ncoTopology = Just "new-topology"
-            , ncoSelf = Just (NodeName "new-node-id")
-            , ncoPort = 4444
-            }
-        , commonArgs = defaultCommonArgs
-          { logConfig = Just "new-log-config"
-          , logPrefix = Just "new-log-prefix"
-          , configurationOptions = ConfigurationOptions
-            { cfoFilePath = "new-configuration-file"
-            , cfoKey = "new-configuration-key"
-            , cfoSystemStart = Just 89000000
-            , cfoSeed = Just 9
-            }
+      { ccDbPath = Just "new-db-path"
+      , ccRebuildDB = True
+      , ccKeyfilePath = "new-keyfile"
+      , ccNetworkTopology = Just "new-topology"
+      , ccNetworkNodeId = Just (NodeName "new-node-id")
+      , ccNetworkPort = 4444
+      , ccLogConfig = Just "new-log-config"
+      , ccLogPrefix = Just "new-log-prefix"
+      , ccConfigurationOptions = ConfigurationOptions
+          { cfoFilePath = "new-configuration-file"
+          , cfoKey = "new-configuration-key"
+          , cfoSystemStart = Just 89000000
+          , cfoSeed = Just 9
           }
-        , enableMetrics = True
-        , ekgParams = Just
-          (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
-        }
-    }
+      , ccEnableMetrics = True
+      , ccEkgParams = Just
+        (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
+      }
   , acWallet = defaultWalletConfig
     { wcEntropySize = fromBytes 32
     }
   }
   where
     defaultCardanoConfig = acCardano defaultAriadneConfig
-    defaultCommonNodeArgs = getCardanoConfig defaultCardanoConfig
-    defaultCommonArgs = commonArgs defaultCommonNodeArgs
-    defaultNetworkConfigOpts = networkConfigOpts defaultCommonNodeArgs
-
     defaultWalletConfig = acWallet defaultAriadneConfig

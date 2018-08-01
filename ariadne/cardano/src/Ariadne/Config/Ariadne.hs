@@ -1,6 +1,11 @@
 module Ariadne.Config.Ariadne
-  ( defaultAriadneConfig
-  , AriadneConfig (..)) where
+       ( defaultAriadneConfig
+       , AriadneConfig (..)
+       , acCardanoL
+       , acWalletL
+       , acUpdateL
+       , acHistoryL
+       ) where
 
 import Universum
 
@@ -9,11 +14,13 @@ import Ariadne.Config.DhallUtil (parseField)
 import Ariadne.Config.History
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
+import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
+import IiExtras (postfixLFields)
 
 -- default Ariadne config with Cardano mainnet config
 defaultAriadneConfig :: AriadneConfig
@@ -42,6 +49,8 @@ data AriadneConfig = AriadneConfig
   , acUpdate :: UpdateConfig
   , acHistory :: HistoryConfig
   } deriving (Eq, Show)
+
+makeLensesWith postfixLFields ''AriadneConfig
 
 instance D.Interpret AriadneConfig where
   autoWith _ = D.Type extractOut expectedOut
