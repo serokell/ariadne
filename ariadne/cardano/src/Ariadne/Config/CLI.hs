@@ -18,7 +18,7 @@ import IiExtras (postfixLFields)
 import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
-import Paths_ariadne (version)
+import Paths_ariadne_cardano (version)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Core.Slotting (Timestamp(..))
