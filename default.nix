@@ -14,7 +14,7 @@ let
         buildTools = [ git ];
       }));
 
-      ariadne-qt = disableLibraryProfiling (overrideCabal previous.ariadne-qt (super: {
+      ariadne-qt-lib = disableLibraryProfiling (overrideCabal previous.ariadne-qt-lib (super: {
         # https://github.com/NixOS/nixpkgs/issues/25585
         # RPATH of binary contains a forbidden reference to /tmp/nix-build...
         preFixup = ''rm -rf "$(pwd)"'';
@@ -37,4 +37,4 @@ let
   };
 in
 
-{ inherit (closure) ariadne-vty ariadne-qt; }
+{ inherit (closure) ariadne-vty-app ariadne-qt-app; }
