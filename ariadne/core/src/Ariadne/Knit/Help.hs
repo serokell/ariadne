@@ -1,11 +1,14 @@
 module Ariadne.Knit.Help (generateKnitHelp) where
 
-import qualified Data.Text as T
-import IiExtras
-import qualified Knit
-import Pos.Util.Justify (leftAlign)
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Universum
+
+import IiExtras
+
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text as Text
+import qualified Knit
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 generateKnitHelp :: forall components.
   ( AllConstrained (Knit.ComponentCommandProcs components) components
@@ -15,7 +18,7 @@ generateKnitHelp _ =
   let
     procs = Knit.commandProcs @components
     sortedProcs = sortBy (\(Some p) (Some p') -> compare (Knit.cpName p) (Knit.cpName p')) procs
-  in fmap (PP.text . T.unpack) $ T.lines $ mkHelpMessage sortedProcs
+  in fmap (PP.text . Text.unpack) $ Text.lines $ mkHelpMessage sortedProcs
 
 commandHelp :: Knit.CommandProc components component -> Text
 commandHelp Knit.CommandProc{..} =
@@ -27,16 +30,16 @@ commandHelp Knit.CommandProc{..} =
         op = \case
           Knit.OpUnit -> "()"
           Knit.OpAndThen -> "(;)"
-        prefixes = name cpName : repeat (T.replicate (T.length $ name cpName) " ")
+        prefixes = name cpName : repeat (Text.replicate (Text.length $ name cpName) " ")
         helpLines = map (\l -> "-- " <> l <> "\n") $ leftAlign 40 cpHelp
         parameterLines =
             if null parameters
             then [""]
             else map parameterHelp parameters
-        commandDesc = T.intercalate "\n" $
+        commandDesc = Text.intercalate "\n" $
             zipWith (\p h -> p <> " " <> h) prefixes parameterLines
     in
-        T.concat helpLines <> commandDesc
+        Text.concat helpLines <> commandDesc
 
 parameterHelp :: (Knit.Name, Knit.TypeName, Knit.SomeArgCardinality) -> Text
 parameterHelp (name, tn, ac) = pretty name <> ": " <> withArgCardinality ac (withTypeName tn NeedWrap)
@@ -65,3 +68,44 @@ mkHelpMessage :: [Some (Elem components) (Knit.CommandProc components)] -> Text
 mkHelpMessage cps =
     "Available commands:\n \n" <>
     mconcat (map (\(Some cp) -> commandHelp cp <> "\n \n") cps)
+
+data Line = Line
+  { lineWidth :: Int
+  , lineWords :: NonEmpty Text
+  }
+
+initLine :: Text -> Line
+initLine w = Line (Text.length w) (w :| [])
+
+appendLine :: Line -> Line -> Line
+appendLine line1 line2 =
+  Line
+    (lineWidth line1 + 1 + lineWidth line2)
+    (lineWords line1 <>    lineWords line2)
+
+nonEmptyTails :: NonEmpty a -> NonEmpty [a]
+nonEmptyTails = NonEmpty.fromList . List.tail . List.tails . NonEmpty.toList
+
+leftAlign :: Int -> Text -> [Text]
+leftAlign desiredLineWidth =
+    fmap mergeLine . groupWords . List.map initLine . words
+  where
+    groupWords :: [Line] -> [Line]
+    groupWords = List.unfoldr (fmap @Maybe groupWords' . nonEmpty)
+
+    groupWords' :: NonEmpty Line -> (Line, [Line])
+    groupWords' ls =
+        fromMaybe (NonEmpty.head groupings) $
+            NonEmpty.last <$> nonEmpty goodGroupings
+      where
+        goodGroupings = NonEmpty.takeWhile (fits . fst) groupings
+        groupings =
+            NonEmpty.zip
+                (NonEmpty.scanl1 appendLine ls)
+                (nonEmptyTails ls)
+
+    fits :: Line -> Bool
+    fits line = lineWidth line <= desiredLineWidth
+
+    mergeLine :: Line -> Text
+    mergeLine = unwords . NonEmpty.toList . lineWords

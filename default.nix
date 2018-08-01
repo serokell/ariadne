@@ -10,7 +10,7 @@ with nixpkgs;
 let
   closure = (stackClosure haskell.compiler.ghc822 ./.).override {
     overrides = final: previous: with haskell.lib; {
-      ariadne = haskell.lib.doCheck (overrideCabal previous.ariadne (super: {
+      ariadne-cardano = haskell.lib.doCheck (overrideCabal previous.ariadne-cardano (super: {
         buildTools = [ git ];
       }));
 

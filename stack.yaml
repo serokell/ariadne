@@ -6,11 +6,12 @@ flags:
 
 packages:
 # Our packages
-- ./ariadne
+- ./ariadne/core
+- ./ariadne/cardano
 - ./ui/qt
 - ./ui/vty
 - ./knit
-- ./util/
+- ./util
 
 # Cardano SL itself
 - location:

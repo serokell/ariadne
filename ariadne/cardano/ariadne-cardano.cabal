@@ -1,4 +1,4 @@
-name:           ariadne
+name:           ariadne-cardano
 version:        0.2.0.0
 description:    Please see the README on Github at <https://github.com/serokell/ariadne#readme>
 homepage:       https://github.com/serokell/ariadne#readme
@@ -19,9 +19,9 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , ansi-terminal
     , ansi-wl-pprint
     , acid-state
+    , ariadne-core
     , async
     , beam-core
     , beam-migrate
@@ -56,22 +56,16 @@ library
     , http-client
     , http-client-tls
     , insert-ordered-containers
-    , kademlia
     , knit
     , lens
     , log-warper
     , loot-crypto
     , megaparsec
     , memory
-    , mmorph
     , mtl
     , resourcet
-    , network-transport-tcp
     , named
     , optparse-applicative
-    , plutus-prototype
-    , raw-strings-qq
-    , rocksdb-haskell-ng
     , safe-exceptions
     , safecopy
     , ixset-typed
@@ -82,21 +76,16 @@ library
     , sqlite-simple-errors
     , text
     , text-format
-    , temporary
     , time
     , time-units
     , universum
     , unliftio
     , vector
-    , word-wrap
     , transformers
-    , loc
     , Earley
     , ii-extras
-    , parsec
     , QuickCheck
     , unordered-containers
-    , vinyl
     , process
     , template-haskell
     , safe
@@ -105,9 +94,6 @@ library
     , transformers-base
     , cryptonite
   exposed-modules:
-      Ariadne.TaskManager.Knit
-      Ariadne.TaskManager.Backend
-      Ariadne.TaskManager.Face
       Ariadne.Update.Backend
       Ariadne.Cardano.Knit
       Ariadne.Cardano.Backend
@@ -131,10 +117,6 @@ library
       Ariadne.Wallet.Backend.Util
       Ariadne.Wallet.Face
       Ariadne.Wallet.UiAdapter
-      Ariadne.Knit.Backend
-      Ariadne.Knit.Face
-      Ariadne.Knit.Help
-      Ariadne.UX.CommandHistory
 
       Ariadne.Wallet.Cardano.Kernel
       Ariadne.Wallet.Cardano.Kernel.Actions
@@ -204,7 +186,7 @@ library
       ViewPatterns
       EmptyCase
   other-modules:
-      Paths_ariadne
+      Paths_ariadne_cardano
   default-language: Haskell2010
   ghc-options: -Wall -Wcompat -Werror
                -Wincomplete-uni-patterns -Wincomplete-record-updates
@@ -213,14 +195,15 @@ library
 
   build-tools: cpphs >= 1.19
 
-test-suite ariadne-test
+test-suite ariadne-cardano-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ariadne
+      ariadne-cardano
+    , ariadne-core
     , base >=4.7 && <5
     , bytestring
     , cardano-sl-infra
@@ -238,7 +221,7 @@ test-suite ariadne-test
     , time-units
     , universum
   other-modules:
-      Paths_ariadne
+      Paths_ariadne_cardano
       Test.Ariadne.Cardano.Arbitrary
       Test.Ariadne.Knit
   default-language: Haskell2010

@@ -10,7 +10,7 @@ import Data.Version (Version(..), parseVersion, showVersion)
 import Network.HTTP.Client
   (Manager, Request(..), httpLbs, parseRequest, responseBody)
 import Network.HTTP.Client.TLS (newTlsManager)
-import Paths_ariadne (version)
+import Paths_ariadne_cardano (version)
 import System.Wlog (logDebug, logWarning, usingLoggerName)
 import Text.ParserCombinators.ReadP (readP_to_S)
 
