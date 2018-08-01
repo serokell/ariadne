@@ -7,8 +7,12 @@ license:        MPL-2.0
 license-file:   COPYING.md
 author:         @serokell
 maintainer:     Serokell <hi@serokell.io>
-build-type:     Simple
+build-type:     Custom
 cabal-version:  >= 1.10
+
+extra-source-files:
+  resources/ariadne-qt.qrc
+  resources/images/*.png
 
 source-repository head
   type: git
@@ -150,3 +154,8 @@ executable ariadne-qt
                -Wincomplete-uni-patterns -Wincomplete-record-updates
                -Wredundant-constraints
                -dynamic
+
+custom-setup
+  setup-depends:
+      base
+    , Cabal
