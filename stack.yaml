@@ -8,6 +8,8 @@ packages:
 # Our packages
 - ./ariadne/core
 - ./ariadne/cardano
+- ./ui/cli-app
+- ./ui/cli-lib
 - ./ui/qt-app
 - ./ui/qt-lib
 - ./ui/vty-app

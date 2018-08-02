@@ -37,4 +37,4 @@ let
   };
 in
 
-{ inherit (closure) ariadne-vty-app ariadne-qt-app; }
+{ inherit (closure) ariadne-cli-app ariadne-vty-app ariadne-qt-app; }

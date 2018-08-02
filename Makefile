@@ -1,7 +1,8 @@
-.PHONY: dev dev-core dev-cardano dev-vty dev-qt test stylish clean
+.PHONY: dev dev-core dev-cardano dev-cli dev-vty dev-qt test stylish clean
 
 CORE_PACKAGES = ariadne-core
 CARDANO_PACKAGES = ariadne-cardano
+CLI_PACKAGES = ariadne-cli
 VTY_PACKAGES = ariadne-vty
 QT_PACKAGES = ariadne-qt
 
@@ -24,6 +25,10 @@ dev-core:
 dev-cardano:
 	stack build $(CARDANO_PACKAGES) $(STACK_DEV_OPTIONS)
 
+# Build only CLI with development options.
+dev-cli:
+	stack build $(CLI_PACKAGES) $(STACK_DEV_OPTIONS)
+
 # Build only TUI with development options.
 dev-vty:
 	stack build $(VTY_PACKAGES) $(STACK_DEV_OPTIONS)
@@ -33,7 +38,7 @@ dev-qt:
 	stack build $(QT_PACKAGES) $(STACK_DEV_OPTIONS)
 
 test:
-	stack test ii-extras knit ariadne-vty ariadne-qt ariadne-core ariadne-cardano
+	stack test ii-extras knit ariadne-cli ariadne-vty ariadne-qt ariadne-core ariadne-cardano
 
 stylish:
 	stylish-haskell -i `find ariadne knit util ui -iname '*.hs'`
