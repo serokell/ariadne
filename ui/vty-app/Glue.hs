@@ -149,6 +149,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.renameCommandName $
             optString "name" uraName
           )
+      _ -> Left "Not implemented"
 
     resultToUI result = \case
       UiSend{} ->
@@ -323,7 +324,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
-    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
+    balance n = let (amount, unit) = Knit.showCoin n in Just $ amount <> " " <> show unit
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend
