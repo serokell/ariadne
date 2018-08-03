@@ -59,7 +59,7 @@ main = do
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx walletFace :&
       Knit.TaskManagerExecCtx taskManagerFace :&
-      Knit.UiExecCtx uiFace (uiGetSelectedItem walletFace) :&
+      Knit.UiExecCtx uiFace :&
       RNil
       where
         walletFace = mkWalletFace putCommandOutput

@@ -28,7 +28,6 @@ module Ariadne.UI.Vty.Face
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
 
-       , UiSelectedItem (..)
        , UiTreeItem (..)
        , UiTree
        , UiTreeSelection(..)
@@ -229,12 +228,6 @@ data UiRenameCommandResult
 ----------------------------------------------------------------------------
 -- Wallet widget model
 ----------------------------------------------------------------------------
-
--- | Item which is currently selected by the backend.
-data UiSelectedItem
-  = UiNoSelection
-  | UiSelectedWallet { usiWalletName :: !Text }
-  | UiSelectedAccount { usiAccountName :: !Text }
 
 -- | A node in HD-wallet tree.
 data UiTreeItem = UiTreeItem
