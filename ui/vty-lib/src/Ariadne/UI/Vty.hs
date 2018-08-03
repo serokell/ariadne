@@ -18,23 +18,24 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: UiHistoryFace -> IO (UiFace, UiAction)
-createAriadneUI historyFace = do
+createAriadneUI :: UiFeatures -> UiHistoryFace -> IO (UiFace, UiAction)
+createAriadneUI features historyFace = do
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan
 
-  return (uiFace, runUI eventChan uiFace historyFace)
+  return (uiFace, runUI eventChan features uiFace historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
 -- completes.
 runUI
   :: BChan UiEvent
+  -> UiFeatures
   -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI eventChan uiFace historyFace langFace = do
+runUI eventChan features uiFace historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -65,7 +66,7 @@ runUI eventChan uiFace historyFace langFace = do
     app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initApp uiFace langFace historyFace)
+    (initApp features uiFace langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name

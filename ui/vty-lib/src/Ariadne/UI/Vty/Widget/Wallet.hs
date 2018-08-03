@@ -40,6 +40,8 @@ data WalletWidgetState =
     , walletAccounts :: ![WalletAccount]
     , walletNewAccountName :: !Text
     , walletNewAccountResult :: !NewAccountResult
+
+    , walletAccountsEnabled :: !Bool
     }
 
 data RenameResult
@@ -63,8 +65,8 @@ data NewAccountResult
 makeLensesWith postfixLFields ''WalletAccount
 makeLensesWith postfixLFields ''WalletWidgetState
 
-initWalletWidget :: UiLangFace -> Widget p
-initWalletWidget langFace =
+initWalletWidget :: UiLangFace -> UiFeatures -> Widget p
+initWalletWidget langFace features =
   initWidget $ do
     setWidgetDrawWithFocus drawWalletWidget
     setWidgetScrollable
@@ -79,6 +81,8 @@ initWalletWidget langFace =
       , walletAccounts = []
       , walletNewAccountName = ""
       , walletNewAccountResult = NewAccountResultNone
+
+      , walletAccountsEnabled = featureAccounts features
       }
 
     addWidgetChild WidgetNameWalletName $
@@ -154,20 +158,22 @@ drawWalletWidget focus WalletWidgetState{..} = do
           BalanceResultError err -> B.txt err
           BalanceResultSuccess balance -> B.txt balance
       ] ++
-      (if null walletAccounts then [] else
-        [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
+      (if not walletAccountsEnabled then [] else
+        (if null walletAccounts then [] else
+          [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
+          ]
+        ) ++
+        [ padBottom $ label "New account:"
+            B.<+> drawChild WidgetNameWalletNewAccountName
+            B.<+> padLeft (drawChild WidgetNameWalletNewAccountButton)
+        , case walletNewAccountResult of
+            NewAccountResultNone -> B.emptyWidget
+            NewAccountResultWaiting _ -> B.txt "Creating..."
+            NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
+            NewAccountResultSuccess -> B.emptyWidget
         ]
       ) ++
-      [ padBottom $ label "New account:"
-          B.<+> drawChild WidgetNameWalletNewAccountName
-          B.<+> padLeft (drawChild WidgetNameWalletNewAccountButton)
-      , case walletNewAccountResult of
-          NewAccountResultNone -> B.emptyWidget
-          NewAccountResultWaiting _ -> B.txt "Creating..."
-          NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
-          NewAccountResultSuccess -> B.emptyWidget
-
-      , drawChild WidgetNameWalletSend
+      [ drawChild WidgetNameWalletSend
       ]
 
 ----------------------------------------------------------------------------

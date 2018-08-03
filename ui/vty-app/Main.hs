@@ -15,6 +15,7 @@ import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
 import Ariadne.UI.Vty
+import Ariadne.UI.Vty.Face
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Backend
@@ -40,7 +41,14 @@ main = do
   history <- openCommandHistory $ hcPath historyConfig
   let historyFace = historyToUI history
 
-  (uiFace, mkUiAction) <- createAriadneUI historyFace
+  let
+    features = UiFeatures
+      { featureStatus = True
+      , featureAccounts = True
+      , featureFullRestore = True
+      , featureSecretKeyName = "Mnemonic"
+      }
+  (uiFace, mkUiAction) <- createAriadneUI features historyFace
   (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode

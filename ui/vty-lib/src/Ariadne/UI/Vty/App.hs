@@ -63,8 +63,8 @@ data AppState =
 makeLensesWith postfixLFields ''AppWidgetState
 makeLensesWith postfixLFields ''AppState
 
-initApp :: UiFace -> UiLangFace -> UiHistoryFace -> AppState
-initApp uiFace langFace historyFace =
+initApp :: UiFeatures -> UiFace -> UiLangFace -> UiHistoryFace -> AppState
+initApp features uiFace langFace historyFace =
   AppState
     { appWidget = appWidget
     , appFocusRing = getFocusRing appWidget
@@ -79,10 +79,11 @@ initApp uiFace langFace historyFace =
       setWidgetHandleEvent handleAppWidgetEvent
 
       addWidgetChild WidgetNameMenu $ initMenuWidget menuItems (widgetParentLens appScreenL)
-      addWidgetChild WidgetNameStatus $ initStatusWidget
+      when (featureStatus features) $
+        addWidgetChild WidgetNameStatus $ initStatusWidget
       addWidgetChild WidgetNameTree $ initTreeWidget langFace
-      addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace
-      addWidgetChild WidgetNameWallet $ initWalletWidget langFace
+      addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace features
+      addWidgetChild WidgetNameWallet $ initWalletWidget langFace features
       addWidgetChild WidgetNameAccount $ initAccountWidget langFace
       addWidgetChild WidgetNameRepl $ initReplWidget uiFace langFace historyFace
         (widgetParentGetter $ (== AppScreenWallet) . appScreen)

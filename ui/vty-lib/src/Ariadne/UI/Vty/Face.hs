@@ -1,5 +1,7 @@
 module Ariadne.UI.Vty.Face
-       ( UiFace (..)
+       ( UiFeatures (..)
+
+       , UiFace (..)
        , UiLangFace (..)
        , UiHistoryFace (..)
 
@@ -45,6 +47,15 @@ import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+-- | UI library settings for a particular currency implementation
+-- Mostly boolean flags for enabled widgets
+data UiFeatures = UiFeatures
+  { featureStatus :: !Bool
+  , featureAccounts :: !Bool
+  , featureFullRestore :: !Bool
+  , featureSecretKeyName :: !Text  -- ^ "Secret key"/"Mnemonic"/etc
+  }
 
 ----------------------------------------------------------------------------
 -- Faces
