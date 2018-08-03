@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 -- | Wallet state as mandated by the wallet specification
 module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
     -- * Wallet state as mandated by the spec
@@ -18,16 +19,15 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , pendingTransactions
   , accCheckpointUtxo
   , accCheckpointUtxoBalance
-  , accCheckpointExpected
   , accCheckpointPending
   , accCheckpointBlockMeta
+  , accCheckpointAddressMeta
   , addrCheckpointUtxo
   , addrCheckpointUtxoBalance
     -- ** Lenses into the current checkpoint
   , currentAccCheckpoint
   , currentAccUtxo
   , currentAccUtxoBalance
-  , currentAccExpected
   , currentAccPending
   , currentAccPendingTxs
   , currentAccBlockMeta
@@ -36,18 +36,19 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , currentAddrUtxoBalance
   ) where
 
-import Universum
+import Universum hiding (elems)
 
-import Control.Lens (to)
+import Control.Lens (at, lens, non, to, (?~))
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as M
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import Data.Text.Buildable (build)
-import Formatting (bprint, (%))
-import Serokell.Util.Text (listJsonIndent)
+import qualified Data.Text.Buildable
+import Formatting (bprint, build, (%))
+import Serokell.Util.Text (listJsonIndent, mapJson)
 
 import qualified Pos.Core as Core
-import qualified Pos.Txp as Core
+import qualified Pos.Core.Txp as Txp
+import qualified Pos.Txp as Core (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
@@ -62,7 +63,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 
 type Balance = Integer
 
-type PendingTxs = Map Core.TxId Core.TxAux
+type PendingTxs = Map Txp.TxId Txp.TxAux
 
 -- | Pending transactions
 data Pending = Pending {
@@ -75,7 +76,7 @@ emptyPending :: Pending
 emptyPending = Pending . InDb $ mempty
 
 -- | Returns a new, empty 'Pending' set.
-singletonPending :: Core.TxId -> Core.TxAux -> Pending
+singletonPending :: Txp.TxId -> Txp.TxAux -> Pending
 singletonPending txId txAux = Pending . InDb $ M.singleton txId txAux
 
 -- | Computes the union between two 'Pending' sets.
@@ -84,13 +85,26 @@ unionPending (Pending new) (Pending old) =
     Pending (M.union <$> new <*> old)
 
 -- | Computes the difference between two 'Pending' sets.
-removePending :: Set Core.TxId -> Pending -> Pending
+removePending :: Set Txp.TxId -> Pending -> Pending
 removePending ids (Pending (InDb old)) = Pending (InDb $ old `withoutKeys` ids)
     where
         withoutKeys :: Ord k => Map k a -> Set k -> Map k a
         m `withoutKeys` s = m `M.difference` M.fromSet (const ()) s
 
 -- | Per-account state
+--
+-- NOTE: At the moment this does not included the expected UTxO. The expected
+-- UTxO is used for two things:
+--
+-- * Block resolution (translating tx inputs to their corresponding outputs, so
+--   that we know the corresponding addresses, needed for prefilering)
+-- * Minimum balance computation
+--
+-- Fortunately however we can rely on a full node as backing, so we don't need
+-- to use the expected UTxO for block resolution (this is explained in the
+-- formal spec in section "Prefiltering -- Consequences", under "possible
+-- alternatives"), and minimum balance computation is a new feature that we
+-- haven't implemented yet.
 data AccCheckpoint = AccCheckpoint {
       -- Invariant: this must match the union of utxos of all
       -- addresses in this account.
@@ -98,7 +112,6 @@ data AccCheckpoint = AccCheckpoint {
       -- Invariant: this must match the sum of balances of all
       -- addresses in this account.
     , _accCheckpointUtxoBalance :: !(InDb Core.Coin)
-    , _accCheckpointExpected    :: !(InDb Core.Utxo)
     , _accCheckpointPending     :: !Pending
     , _accCheckpointBlockMeta   :: !BlockMeta
     }
@@ -107,9 +120,8 @@ emptyAccCheckpoint :: AccCheckpoint
 emptyAccCheckpoint = AccCheckpoint {
     _accCheckpointUtxo = InDb M.empty
   , _accCheckpointUtxoBalance = InDb $ Core.Coin 0
-  , _accCheckpointExpected = InDb M.empty
   , _accCheckpointPending = emptyPending
-  , _accCheckpointBlockMeta = emptyBlockMeta
+  , _accCheckpointBlockMeta = mempty
   }
 
 -- | List of account checkpoints
@@ -151,6 +163,14 @@ deriveSafeCopySimple 1 'base ''Pending
 deriveSafeCopySimple 1 'base ''AccCheckpoint
 deriveSafeCopySimple 1 'base ''AddrCheckpoint
 
+accCheckpointAddressMeta :: Core.Address -> Lens' AccCheckpoint AddressMeta
+accCheckpointAddressMeta addr =
+    let getMeta = accCheckpointBlockMeta . blockMetaAddressMeta . fromDb
+    in lens (\c      -> c ^. getMeta . at addr . non mempty)
+            (\c meta -> over ( accCheckpointBlockMeta
+                             . blockMetaAddressMeta
+                             . fromDb) (at addr ?~ meta) c)
+
 {-------------------------------------------------------------------------------
   Lenses for accessing current checkpoint
 -------------------------------------------------------------------------------}
@@ -160,14 +180,12 @@ currentAccCheckpoint = neHead
 
 currentAccUtxo        :: Lens' AccCheckpoints Core.Utxo
 currentAccUtxoBalance :: Lens' AccCheckpoints Core.Coin
-currentAccExpected    :: Lens' AccCheckpoints Core.Utxo
 currentAccPending     :: Lens' AccCheckpoints Pending
 currentAccBlockMeta   :: Lens' AccCheckpoints BlockMeta
 currentAccPendingTxs  :: Lens' AccCheckpoints PendingTxs
 
 currentAccUtxo        = currentAccCheckpoint . accCheckpointUtxo        . fromDb
 currentAccUtxoBalance = currentAccCheckpoint . accCheckpointUtxoBalance . fromDb
-currentAccExpected    = currentAccCheckpoint . accCheckpointExpected    . fromDb
 currentAccBlockMeta   = currentAccCheckpoint . accCheckpointBlockMeta
 currentAccPending     = currentAccCheckpoint . accCheckpointPending
 currentAccPendingTxs  = currentAccPending . pendingTransactions . fromDb
@@ -194,5 +212,19 @@ neHead f (x :| xs) = (:| xs) <$> f x
 
 instance Buildable Pending where
     build (Pending p) =
-      let elements = p ^. fromDb . to M.toList
-      in bprint ("Pending " % listJsonIndent 4) (map fst elements)
+      let elems = p ^. fromDb . to M.toList
+      in bprint ("Pending " % listJsonIndent 4) (map fst elems)
+
+instance Buildable AccCheckpoint where
+    build AccCheckpoint{..} = bprint
+        ( "AccCheckpoint"
+        % "{ utxo:        " % mapJson
+        % ", utxoBalance: " % build
+        % ", pending:     " % build
+        % ", blockMeta:   " % build
+        % "}"
+        )
+      (_fromDb _accCheckpointUtxo)
+      (_fromDb _accCheckpointUtxoBalance)
+      _accCheckpointPending
+      _accCheckpointBlockMeta

@@ -4,20 +4,31 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update (
   NewPendingFailed(..)
     -- * Updates
   , newPending
+  , cancelPending
   , applyBlock
   , switchToFork
+    -- * Testing
+  , observableRollbackUseInTestsOnly
   ) where
 
 import Universum
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
+import Test.QuickCheck (Arbitrary(..))
+
+import qualified Data.Text.Buildable
+import Formatting (bprint, (%))
+import Serokell.Util (listJsonIndent)
+
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import Control.Lens (each)
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
+import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (hash)
 import Pos.Txp (Utxo)
 
@@ -37,9 +48,19 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 -- | Errors thrown by 'newPending'
 data NewPendingFailed =
     -- | Some inputs are not in the wallet utxo
-    NewPendingInputsUnavailable (Set (InDb Core.TxIn))
+    NewPendingInputsUnavailable (Set (InDb Txp.TxIn))
 
 deriveSafeCopySimple 1 'base ''NewPendingFailed
+
+instance Buildable NewPendingFailed where
+    build (NewPendingInputsUnavailable inputs) =
+        let curatedInputs = map (view fromDb) (Set.toList inputs)
+        in bprint ("NewPendingInputsUnavailable { inputs = " % listJsonIndent 4 % " }") curatedInputs
+
+-- NOTE(adn) Short-circuiting the rabbit-hole with this instance by generating
+-- an empty set, thus avoiding the extra dependency on @cardano-sl-core-test@.
+instance Arbitrary NewPendingFailed where
+    arbitrary = pure . NewPendingInputsUnavailable $ mempty
 
 {-------------------------------------------------------------------------------
   Wallet spec mandated updates
@@ -63,24 +84,37 @@ class UpdatableWalletState state where
     --   a specialized hardware device).
     -- * We do not actually have access to the key storage inside the DB layer
     --   (and do not store private keys) so we cannot actually sign transactions.
-    newPending :: InDb Core.TxAux -> Update' state NewPendingFailed ()
+    newPending :: InDb Txp.TxAux -> Update' state NewPendingFailed ()
+
+    -- | Cancel the input set of cancelled transactions from @all@ the 'Checkpoints'
+    -- of an 'Account'.
+    cancelPending :: Set Txp.TxId -> state -> state
 
     -- | Apply the prefiltered block to the specified wallet
-    applyBlock :: (PrefilteredBlock, BlockMeta) -> state -> state
+    applyBlock :: PrefilteredBlock -> state -> state
 
     -- | Rollback
+    --
+    -- For the base case, see section "Rollback -- Omitting checkpoints" in the
+    -- formal specification.
     --
     -- This is an internal function only, and not exported. See 'switchToFork'.
     rollback :: state -> state
 
+    -- | Observable rollback, used in testing only
+    --
+    -- See 'switchToFork' for production use.
+    observableRollbackUseInTestsOnly :: state -> state
+    observableRollbackUseInTestsOnly = rollback
+
     -- | Switch to a fork
     switchToFork
         :: Int  -- ^ Number of blocks to rollback
-        -> OldestFirst [] (PrefilteredBlock, BlockMeta)  -- ^ Blocks to apply
+        -> OldestFirst [] PrefilteredBlock  -- ^ Blocks to apply
         -> state -> state
     switchToFork = \n bs -> applyBlocks (getOldestFirst bs) . rollbacks n
       where
-        applyBlocks :: [(PrefilteredBlock, BlockMeta)] -> state -> state
+        applyBlocks :: [PrefilteredBlock] -> state -> state
         applyBlocks []     = identity
         applyBlocks (b:bs) = applyBlocks bs . applyBlock b
 
@@ -88,14 +122,18 @@ class UpdatableWalletState state where
         rollbacks 0 = identity
         rollbacks n = rollbacks (n - 1) . rollback
 
+updateBlockMeta :: PrefilteredBlock -> BlockMeta -> BlockMeta
+updateBlockMeta PrefilteredBlock{..} meta
+    = meta `mappend` pfbMeta
+
 -- | Update (utxo,balance) with the given prefiltered block
 updateUtxo :: PrefilteredBlock -> (Utxo, Core.Coin) -> (Utxo, Core.Coin)
-updateUtxo pfb (currentAccUtxo', currentBalance')
+updateUtxo pfb (currentUtxo', currentBalance')
     = (utxo', balance')
     where
         inputs               = pfbInputs pfb
         outputs              = pfbOutputs pfb
-        unionUtxo            = Map.union outputs currentAccUtxo'
+        unionUtxo            = Map.union outputs currentUtxo'
         utxo'                = utxoRemoveInputs unionUtxo inputs
 
         unionUtxoRestricted  = utxoRestrictToInputs unionUtxo inputs
@@ -123,38 +161,48 @@ instance UpdatableWalletState AccCheckpoints where
 
             insertPending :: AccCheckpoints -> AccCheckpoints
             insertPending cs = cs & currentAccPendingTxs %~ Map.insert txId tx'
-                where txId = hash $ Core.taTx tx'
+                where txId = hash $ Txp.taTx tx'
 
             inputUnavailableErr available_ = do
                 let unavailableInputs = txAuxInputSet tx' `Set.difference` utxoInputs available_
                 throwError $ NewPendingInputsUnavailable (Set.map InDb unavailableInputs)
 
-    applyBlock (prefBlock, _bMeta) checkpoints
+    cancelPending txids checkpoints =
+        checkpoints & over each
+                    (\ckpoint ->
+                        ckpoint & over accCheckpointPending
+                                (removePending txids)
+                    )
+
+    applyBlock prefBlock checkpoints
         = AccCheckpoint {
               _accCheckpointUtxo           = InDb utxo''
             , _accCheckpointUtxoBalance    = InDb balance''
             , _accCheckpointPending        = Pending . InDb $ pending''
-            , _accCheckpointExpected       = InDb expected''
             , _accCheckpointBlockMeta      = blockMeta''
             } NE.<| checkpoints
         where
             utxo'        = checkpoints ^. currentAccUtxo
             utxoBalance' = checkpoints ^. currentAccUtxoBalance
-            pending'     = checkpoints ^. currentAccPendingTxs
 
-            (utxo'', balance'') = updateUtxo prefBlock (utxo', utxoBalance')
-            pending''           = updatePending prefBlock pending'
-            -- TODO(@uroboros/ryan) applyBlock.updateExpected/updateBlockMeta
-            -- (as part of CBR-150 Extend pure data layer to support rollback)
-            expected''          = checkpoints ^. currentAccExpected
-            blockMeta''         = checkpoints ^. currentAccBlockMeta
+            (utxo'', balance'') = updateUtxo      prefBlock (utxo', utxoBalance')
+            pending''           = updatePending   prefBlock (checkpoints ^. currentAccPendingTxs)
+            blockMeta''         = updateBlockMeta prefBlock (checkpoints ^. currentAccBlockMeta)
 
-    rollback = error "AccCheckpoints: rollback"
+    rollback (c :| [])      = c :| []
+    rollback (c :| c' : cs) = AccCheckpoint {
+          _accCheckpointUtxo        = c' ^. accCheckpointUtxo
+        , _accCheckpointUtxoBalance = c' ^. accCheckpointUtxoBalance
+        , _accCheckpointBlockMeta   = c' ^. accCheckpointBlockMeta
+        , _accCheckpointPending     = unionPending (c  ^. accCheckpointPending)
+                                                   (c' ^. accCheckpointPending)
+        } :| cs
 
 instance UpdatableWalletState AddrCheckpoints where
     newPending _tx = pass
+    cancelPending _txids checkpoints = checkpoints
 
-    applyBlock (prefBlock, _bMeta) checkpoints
+    applyBlock prefBlock checkpoints
         = AddrCheckpoint {
               _addrCheckpointUtxo = InDb utxo''
             , _addrCheckpointUtxoBalance = InDb balance''
@@ -165,4 +213,8 @@ instance UpdatableWalletState AddrCheckpoints where
 
             (utxo'', balance'') = updateUtxo prefBlock (utxo', utxoBalance')
 
-    rollback = error "AddrCheckpoints: rollback"
+    rollback (c :| []) = c :| []
+    rollback (_ :| c' : cs) = AddrCheckpoint {
+          _addrCheckpointUtxo        = c' ^. addrCheckpointUtxo
+        , _addrCheckpointUtxoBalance = c' ^. addrCheckpointUtxoBalance
+        } :| cs

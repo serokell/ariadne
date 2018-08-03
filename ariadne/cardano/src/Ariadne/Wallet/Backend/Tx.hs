@@ -129,7 +129,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
         -> CardanoMode TxId
     sendTxDo wallets walletRootId accountsToUse diffusion = do
         us <- getSecretDefault
-        let pubAddrHash = _fromDb (unHdRootId walletRootId)
+        let pubAddrHash = _fromDb (getHdRootId walletRootId)
             -- Wallets creation and deletion organized in a such way that
             -- an absence of a key is not possible.
             esk = findWithDefault

@@ -10,7 +10,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * HD wallet types proper
   , HdWallets(..)
   , HdRootId(..)
-  , mkHdRootId
   , HdAccountId(..)
   , HdAddressChain(..)
   , HdAddressId(..)
@@ -62,16 +61,21 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , zoomOrCreateHdAddress
   , assumeHdRootExists
   , assumeHdAccountExists
+    -- * General-utility functions
+  , eskToHdRootId
   ) where
 
 import Universum
 
-import qualified Data.IxSet.Typed as IxSet hiding (toAscList)
-import qualified Data.Text.Buildable
-
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
+import qualified Data.ByteString as BS
+import qualified Data.IxSet.Typed as IxSet
 import Data.SafeCopy (base, deriveSafeCopySimple)
+
+import Test.QuickCheck (Arbitrary(..), elements, oneof, vectorOf)
+
+import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
@@ -87,37 +91,68 @@ import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
   Supporting types
 -------------------------------------------------------------------------------}
 
--- | Name of a wallet.
+-- | Wallet name
 newtype WalletName = WalletName
     { unWalletName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
+
+instance Buildable WalletName where
+    build (WalletName wName) = bprint build wName
+
+instance Arbitrary WalletName where
+    arbitrary = pure "New wallet"
 
 -- | Account name
 newtype AccountName = AccountName
     { unAccountName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
 
+instance Buildable AccountName where
+    build (AccountName txt) = bprint build txt
+
+instance Arbitrary AccountName where
+    arbitrary = pure "New account"
+
 -- | Account index
 newtype HdAccountIx = HdAccountIx
-    { unHdAccountIx :: Word31
+    { getHdAccountIx :: Word31
     } deriving (Eq, Show, Ord, Bounded)
+
+-- NOTE(adn) if we need to generate only @hardened@ account indexes, we
+-- need to extend this arbitrary instance accordingly.
+instance Arbitrary HdAccountIx where
+    arbitrary = HdAccountIx <$> arbitrary
 
 -- | Whether the chain is an external or an internal one
 data HdAddressChain = HdChainExternal | HdChainInternal
   deriving (Eq, Ord, Show)
 
+instance Arbitrary HdAddressChain where
+    arbitrary = elements [HdChainExternal, HdChainInternal]
+
 -- | Address index
 newtype HdAddressIx = HdAddressIx
-    { unHdAddressIx :: Word31
+    { getHdAddressIx :: Word31
     } deriving (Eq, Show, Ord, Bounded)
+
+instance Arbitrary HdAddressIx where
+    arbitrary = HdAddressIx <$> arbitrary
 
 -- | Wallet assurance level
 --
 -- TODO: document what these levels mean (in particular, how it does translate
 -- to the depth required before a transaction is marked as Persisted?)
 data AssuranceLevel =
-    AssuranceLevelNormal
-  | AssuranceLevelStrict
+     AssuranceLevelNormal
+   | AssuranceLevelStrict
+   deriving (Eq, Show, Ord, Enum, Bounded)
+
+instance Buildable AssuranceLevel where
+    build AssuranceLevelNormal = "normal"
+    build AssuranceLevelStrict = "strict"
+
+instance Arbitrary AssuranceLevel where
+    arbitrary = elements [minBound..maxBound]
 
 -- | Does this wallet have a spending password
 data HasSpendingPassword =
@@ -126,6 +161,11 @@ data HasSpendingPassword =
 
     -- | If there is a spending password, we record when it was last updated.
   | HasSpendingPassword (InDb Core.Timestamp)
+
+instance Buildable HasSpendingPassword where
+    build NoSpendingPassword = "no"
+    build (HasSpendingPassword (InDb lastUpdate)) =
+        bprint ("updated " % build) lastUpdate
 
 deriveSafeCopySimple 1 'base ''WalletName
 deriveSafeCopySimple 1 'base ''AccountName
@@ -139,13 +179,14 @@ deriveSafeCopySimple 1 'base ''HasSpendingPassword
   HD wallets
 -------------------------------------------------------------------------------}
 
--- | HD wallet root ID
-data HdRootId = HdRootId
-    { unHdRootId :: InDb (Core.AddressHash Core.PublicKey)
-    } deriving (Eq, Show, Ord)
+data HdRootId = HdRootId { getHdRootId :: InDb (Core.AddressHash Core.PublicKey) }
+  deriving (Eq, Show, Ord)
 
-mkHdRootId :: Core.EncryptedSecretKey -> HdRootId
-mkHdRootId = HdRootId . InDb . Core.addressHash . Core.encToPublic
+instance Arbitrary HdRootId where
+  arbitrary = do
+      (_, esk) <- Core.safeDeterministicKeyGen <$> (BS.pack <$> vectorOf 12 arbitrary)
+                                               <*> pure mempty
+      pure (eskToHdRootId esk)
 
 -- | HD wallet account ID
 data HdAccountId = HdAccountId {
@@ -154,6 +195,9 @@ data HdAccountId = HdAccountId {
     }
   deriving (Eq, Show, Ord)
 
+instance Arbitrary HdAccountId where
+  arbitrary = HdAccountId <$> arbitrary <*> arbitrary
+
 -- | HD wallet address ID
 data HdAddressId = HdAddressId {
       _hdAddressIdParent :: HdAccountId
@@ -161,6 +205,9 @@ data HdAddressId = HdAddressId {
     , _hdAddressIdIx     :: HdAddressIx
     }
   deriving (Eq, Show, Ord)
+
+instance Arbitrary HdAddressId where
+  arbitrary = HdAddressId <$> arbitrary <*> arbitrary <*> arbitrary
 
 -- | Root of a HD wallet
 --
@@ -191,6 +238,20 @@ data HdRoot = HdRoot {
     , _hdRootCreatedAt   :: InDb Core.Timestamp
     }
 
+instance Buildable HdRoot where
+    build HdRoot{..} =
+        bprint (
+            "HdRoot { id = " % build %
+                 ", name = " % build %
+          ", hasPassword = " % build %
+       ", assuranceLevel = " % build %
+            ", createdAt = " % build
+        ) (_fromDb . getHdRootId $ _hdRootId)
+          _hdRootName
+          _hdRootHasPassword
+          _hdRootAssurance
+          (_fromDb _hdRootCreatedAt)
+
 -- | Account in a HD wallet
 --
 -- Key derivation is cheap
@@ -206,24 +267,44 @@ data HdAccount = HdAccount {
     , _hdAccountCheckpoints :: NonEmpty AccCheckpoint
     }
 
+instance Buildable HdAccount where
+    build HdAccount{..} =
+        bprint ("HdAccount { id = "   % build
+                         % " name = " % build
+                         % " checkpoints = <checkpoints> "
+                         % " }"
+               ) _hdAccountId _hdAccountName
+
 -- | Address in an account of a HD wallet
 data HdAddress = HdAddress {
       -- | Address ID
-      _hdAddressId      :: HdAddressId
+      _hdAddressId       :: HdAddressId
 
       -- | The actual address
-    , _hdAddressAddress :: InDb Core.Address
+    , _hdAddressAddress  :: InDb Core.Address
 
       -- | Has this address been involved in a transaction?
       --
       -- TODO: How is this determined? What is the definition? How is it set?
       -- TODO: This will likely move to the 'BlockMeta' instead.
-    , _hdAddressIsUsed  :: Bool
+    , _hdAddressIsUsed   :: Bool
 
       -- | Part of the wallet state pertaining to this address,
       -- as stipulated by the wallet specification
     , _hdAddressCheckpoints :: NonEmpty AddrCheckpoint
     }
+
+{-------------------------------------------------------------------------------
+  General-utility functions
+-------------------------------------------------------------------------------}
+
+-- | Computes the 'HdRootId' from the given 'EncryptedSecretKey'.
+eskToHdRootId :: Core.EncryptedSecretKey -> HdRootId
+eskToHdRootId = HdRootId . InDb . Core.addressHash . Core.encToPublic
+
+{-------------------------------------------------------------------------------
+  Template Haskell splices
+-------------------------------------------------------------------------------}
 
 makeLenses ''HdAccountId
 makeLenses ''HdAddressId
@@ -273,6 +354,10 @@ data UnknownHdRoot =
     UnknownHdRoot HdRootId
     deriving (Eq, Show)
 
+instance Arbitrary UnknownHdRoot where
+    arbitrary = oneof [ UnknownHdRoot <$> arbitrary
+                      ]
+
 -- | Unknown account
 data UnknownHdAccount =
     -- | Unknown root ID
@@ -281,6 +366,11 @@ data UnknownHdAccount =
     -- | Unknown account (implies the root is known)
   | UnknownHdAccount HdAccountId
   deriving (Eq, Show)
+
+instance Arbitrary UnknownHdAccount where
+    arbitrary = oneof [ UnknownHdAccountRoot <$> arbitrary
+                      , UnknownHdAccount <$> arbitrary
+                      ]
 
 -- | Unknown address
 data UnknownHdAddress =
@@ -292,6 +382,9 @@ data UnknownHdAddress =
 
     -- | Unknown address (implies the account is known)
   | UnknownHdAddress HdAddressId
+
+    -- | Unknown address (implies it was not derived from the given Address)
+  | UnknownHdCardanoAddress Core.Address
   deriving (Eq, Show)
 
 instance Exception UnknownHdRoot where
@@ -311,6 +404,8 @@ instance Exception UnknownHdAddress where
     toString $ "The account '" <> pretty accId <> "' does not exist."
   displayException (UnknownHdAddress addrId) =
     toString $ "The address '" <> pretty addrId <> "' does not exist."
+  displayException (UnknownHdCardanoAddress cardanoAddress) =
+    toString $ "Cardano address '" <> pretty cardanoAddress <> "' is not stored in the DB."
 
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
@@ -343,24 +438,24 @@ instance HasPrimKey HdAddress where
     type PrimKey HdAddress = HdAddressId
     primKey = _hdAddressId
 
-type HdRootIxs    = '[]
-type HdAccountIxs = '[HdRootId]
-type HdAddressIxs = '[HdRootId, HdAccountId, Core.Address]
+type SecondaryHdRootIxs    = '[]
+type SecondaryHdAccountIxs = '[HdRootId]
+type SecondaryHdAddressIxs = '[HdRootId, HdAccountId, Core.Address]
 
-type instance IndicesOf HdRoot    = HdRootIxs
-type instance IndicesOf HdAccount = HdAccountIxs
-type instance IndicesOf HdAddress = HdAddressIxs
+type instance IndicesOf HdRoot    = SecondaryHdRootIxs
+type instance IndicesOf HdAccount = SecondaryHdAccountIxs
+type instance IndicesOf HdAddress = SecondaryHdAddressIxs
 
-instance IxSet.Indexable (HdRootId ': HdRootIxs)
+instance IxSet.Indexable (HdRootId ': SecondaryHdRootIxs)
                          (OrdByPrimKey HdRoot) where
     indices = ixList
 
-instance IxSet.Indexable (HdAccountId ': HdAccountIxs)
+instance IxSet.Indexable (HdAccountId ': SecondaryHdAccountIxs)
                          (OrdByPrimKey HdAccount) where
     indices = ixList
                 (ixFun ((:[]) . view hdAccountRootId))
 
-instance IxSet.Indexable (HdAddressId ': HdAddressIxs)
+instance IxSet.Indexable (HdAddressId ': SecondaryHdAddressIxs)
                          (OrdByPrimKey HdAddress) where
     indices = ixList
                 (ixFun ((:[]) . view hdAddressRootId))
@@ -440,8 +535,8 @@ zoomOrCreateHdRoot :: HdRoot
                    -> HdRootId
                    -> Update' HdRoot    e a
                    -> Update' HdWallets e a
-zoomOrCreateHdRoot newRoot rootId  =
-    zoomCreate newRoot (hdWalletsRoots . at rootId)
+zoomOrCreateHdRoot newRoot rootId upd =
+    zoomCreate newRoot (hdWalletsRoots . at rootId) $ upd
 
 -- | Variation on 'zoomHdAccountId' that creates the 'HdAccount' if it doesn't exist
 --

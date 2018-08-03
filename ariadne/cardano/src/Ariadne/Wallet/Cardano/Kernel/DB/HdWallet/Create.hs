@@ -21,8 +21,8 @@ import Universum
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, sformat, (%))
+import qualified Data.Text.Buildable
 
 import qualified Pos.Core as Core
 
@@ -49,7 +49,7 @@ data CreateHdAccountError =
 
     -- | Account already exists
   | CreateHdAccountExists HdAccountId
-    deriving (Eq, Show)
+  deriving (Eq, Show)
 
 -- | Errors thrown by 'createHdAddress'
 data CreateHdAddressError =
@@ -99,7 +99,7 @@ createHdRoot hdRoot =
 -- | Create a new account
 createHdAccount :: HdAccount -> Update' HdWallets CreateHdAccountError ()
 createHdAccount hdAccount = do
-    -- Check that the root ID exiwests
+    -- Check that the root ID exists
     zoomHdRootId CreateHdAccountUnknownRoot rootId $
       return ()
 

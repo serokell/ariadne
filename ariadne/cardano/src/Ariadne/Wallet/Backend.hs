@@ -6,13 +6,10 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
-import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Component (ComponentM, buildComponent)
 import Data.Acid (closeAcidState, openLocalStateFrom, query)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
-import Pos.Util.Future (newInitFuture)
-import Pos.Util.UserSecret (UserSecret)
 import System.Wlog (logMessage, usingLoggerName)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
@@ -22,14 +19,16 @@ import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
-import Ariadne.Wallet.Cardano.WalletLayer.Kernel (passiveWalletLayerComponent)
+import Ariadne.Wallet.Cardano.Kernel.Keystore
+  (DeletePolicy(..), keystoreComponent)
+import Ariadne.Wallet.Cardano.WalletLayer.Kernel
+  (passiveWalletLayerWithDBComponent)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
 -- | This is what we create initially, before actually creating 'WalletFace'.
 data WalletPreface = WalletPreface
     { wpBListener :: !BListenerHandle
-    , wpAddUserSecret :: !(TVar UserSecret -> IO ())
     , wpMakeWallet :: !(CardanoFace -> ((Doc -> IO ()) -> WalletFace, IO ()))
     }
 
@@ -41,12 +40,16 @@ createWalletBackend walletConfig sendWalletEvent = do
         (openLocalStateFrom walletAcidDbPathPlaceholder defDB)
         closeAcidState
 
-    (us :: TVar UserSecret, addUs :: TVar UserSecret -> IO ()) <- newInitFuture "UserSecret"
-    PassiveWalletLayer{..} <- passiveWalletLayerComponent
-        (usingLoggerName "passive-wallet" ... logMessage) us acidDb
-    let refresh = refreshState acidDb walletSelRef sendWalletEvent
-        applyHook = const refresh <=< _pwlApplyBlocks
-        rollbackHook = const refresh <=< _pwlRollbackBlocks
+    -- TODO: configurable path to keyfile
+    keystore <- keystoreComponent RemoveKeystoreIfEmpty "secret-mainnet.key"
+    pwl <- passiveWalletLayerWithDBComponent
+        (usingLoggerName "passive-wallet" ... logMessage)
+        keystore
+        acidDb
+
+    let refresh = refreshState pwl walletSelRef sendWalletEvent
+        applyHook = const refresh <=< _pwlApplyBlocks pwl
+        rollbackHook = const refresh <=< _pwlRollbackBlocks pwl
 
         bListenerHandle = BListenerHandle
             { bhOnApply = applyHook
@@ -63,29 +66,27 @@ createWalletBackend walletConfig sendWalletEvent = do
                 r
             mkWalletFace putCommandOutput =
                 withDicts $ fix $ \this -> WalletFace
-                { walletNewAddress =
-                    newAddress acidDb this walletSelRef runCardanoMode
-                , walletNewAccount = newAccount acidDb this walletSelRef
-                , walletNewWallet = newWallet acidDb walletConfig this runCardanoMode
-                , walletRestore = restoreWallet acidDb this runCardanoMode
-                , walletRestoreFromFile = restoreFromKeyFile acidDb this runCardanoMode
-                , walletRename = renameSelection acidDb this walletSelRef
-                , walletRemove = removeSelection acidDb this walletSelRef runCardanoMode
+                { walletNewAddress = newAddress pwl this walletSelRef
+                , walletNewAccount = newAccount pwl this walletSelRef
+                , walletNewWallet = newWallet pwl walletConfig this
+                , walletRestore = restoreWallet pwl this runCardanoMode
+                , walletRestoreFromFile = restoreFromKeyFile pwl this runCardanoMode
+                , walletRename = renameSelection pwl this walletSelRef
+                , walletRemove = removeSelection pwl this walletSelRef
                 , walletRefreshState =
-                    refreshState acidDb walletSelRef sendWalletEvent
-                , walletSelect = select acidDb this walletSelRef
+                    refreshState pwl walletSelRef sendWalletEvent
+                , walletSelect = select pwl this walletSelRef
                 , walletSend =
                     sendTx acidDb this cf walletSelRef putCommandOutput
                 , walletGetSelection =
                     (,) <$> readIORef walletSelRef <*> query acidDb Snapshot
-                , walletBalance = getBalance acidDb walletSelRef
+                , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =
-                refreshState acidDb walletSelRef sendWalletEvent
+                refreshState pwl walletSelRef sendWalletEvent
 
         walletPreface = WalletPreface
             { wpBListener = bListenerHandle
-            , wpAddUserSecret = addUs
             , wpMakeWallet = mkWallet
             }
     return walletPreface

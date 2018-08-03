@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Ariadne.Wallet.Cardano.Kernel.DB.InDb (
     InDb(..)
   , fromDb
@@ -7,13 +8,16 @@ module Ariadne.Wallet.Cardano.Kernel.DB.InDb (
 import Universum
 
 import Control.Lens.TH (makeLenses)
+import Data.Coerce (coerce)
 import Data.SafeCopy
   (SafeCopy(..), base, contain, deriveSafeCopySimple, safeGet, safePut)
+import qualified Data.Set as Set
 
 import qualified Pos.Core as Core
+import qualified Pos.Core.Txp as Txp
 import qualified Pos.Crypto as Core
 import Pos.SafeCopy ()
-import qualified Pos.Txp as Core
+import qualified Pos.Txp as Core (Utxo)
 
 {-------------------------------------------------------------------------------
   Wrap core types so that we can make independent serialization decisions
@@ -48,11 +52,7 @@ instance SafeCopy (InDb Core.Utxo) where
   putCopy (InDb a) = contain . safePut $ a
 
 -- TODO: This is really a UTxO again..
-instance SafeCopy (InDb (NonEmpty (Core.TxIn, Core.TxOutAux))) where
-  getCopy = contain $ InDb <$> safeGet
-  putCopy (InDb a) = contain . safePut $ a
-
-instance SafeCopy (InDb Core.Timestamp) where
+instance SafeCopy (InDb (NonEmpty (Txp.TxIn, Core.TxOutAux))) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
@@ -68,18 +68,34 @@ instance SafeCopy (InDb Core.Coin) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
-instance SafeCopy (InDb (Map Core.TxId Core.TxAux)) where
+instance SafeCopy (InDb Core.SlotId) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
-instance SafeCopy (InDb Core.TxAux) where
+instance SafeCopy (InDb Core.Timestamp) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
-instance SafeCopy (InDb Core.TxIn) where
+instance SafeCopy (InDb Txp.TxAux) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
-instance SafeCopy (InDb (Map Core.TxId Core.SlotId)) where
+instance SafeCopy (InDb (Map Txp.TxId Txp.TxAux)) where
+  getCopy = contain $ InDb <$> safeGet
+  putCopy (InDb a) = contain . safePut $ a
+
+instance SafeCopy (InDb Txp.TxId) where
+  getCopy = contain $ InDb <$> safeGet
+  putCopy (InDb a) = contain . safePut $ a
+
+instance SafeCopy (InDb Txp.TxIn) where
+  getCopy = contain $ InDb <$> safeGet
+  putCopy (InDb a) = contain . safePut $ a
+
+instance (Ord a, SafeCopy (InDb a)) => SafeCopy (InDb (Set a)) where
+  getCopy = contain $ (InDb . Set.map _fromDb) <$> safeGet
+  putCopy (InDb a) = contain . safePut $ Set.map InDb $ coerce a
+
+instance SafeCopy (InDb (Map Txp.TxId Core.SlotId)) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a

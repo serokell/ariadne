@@ -16,28 +16,46 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , getEQ
   , member
   , size
+  , null
+  , getOne
+  , toMap
     -- * Modification
   , updateIxManyM
     -- * Construction
   , fromList
+  , singleton
   , omap
   , otraverse
   , emptyIxSet
-    -- * Conversion
+    -- * Destruction
   , toAscList
+  , toList
     -- * Indexing
   , (@+)
   ) where
 
-import Universum
+import qualified Prelude
+import Universum hiding (Foldable, null, toList)
 
 import qualified Control.Lens as Lens
 import Data.Coerce (coerce)
+import Data.Foldable (Foldable)
 import qualified Data.Foldable
 import qualified Data.IxSet.Typed as IxSet
+import qualified Data.Map.Strict as Map
 import Data.SafeCopy (SafeCopy(..))
 import qualified Data.Set as Set
 import qualified Data.Traversable
+
+-- Imports needed for the various instances
+import Formatting (bprint, build)
+import qualified Data.Text.Buildable
+import Pos.Infra.Util.LogSafe
+  (BuildableSafe, SecureLog, buildSafeList, getSecureLog, secure)
+import Serokell.Util (listJsonIndent)
+import Test.QuickCheck (Arbitrary(..))
+
+{-# ANN module ("HLint: ignore Unnecessary hiding" :: Text) #-}
 
 {-------------------------------------------------------------------------------
   Primary keys
@@ -64,6 +82,9 @@ instance HasPrimKey a => Eq (OrdByPrimKey a) where
 instance HasPrimKey a => Ord (OrdByPrimKey a) where
   compare = compare `on` (primKey . unwrapOrdByPrimKey)
 
+instance Buildable a => Buildable (OrdByPrimKey a) where
+    build (WrapOrdByPrimKey o) = bprint build o
+
 {-------------------------------------------------------------------------------
   Wrap IxSet
 -------------------------------------------------------------------------------}
@@ -81,6 +102,9 @@ type family IndicesOf (a :: *) :: [*]
 newtype IxSet a = WrapIxSet {
       unwrapIxSet :: IxSet.IxSet (PrimKey a ': IndicesOf a) (OrdByPrimKey a)
     }
+
+instance Show a => Show (IxSet a) where
+    show = show . map unwrapOrdByPrimKey . IxSet.toList . unwrapIxSet
 
 -- | Evidence that the specified indices are in fact available
 type Indexable a = IxSet.Indexable (PrimKey a ': IndicesOf a) (OrdByPrimKey a)
@@ -157,6 +181,27 @@ member pk = isJust . view (Lens.at pk)
 size :: IxSet a -> Int
 size = IxSet.size . unwrapIxSet
 
+-- | Whether or not this 'IxSet' contains no elements.
+null :: IxSet a -> Bool
+null = IxSet.null . unwrapIxSet
+
+-- | Safely returns the 'head' of this 'IxSet', but only if it is a singleton
+-- one, i.e. only if it has @exactly@ one element in it. Usually this is
+-- used in tandem with 'getEQ' to witness the existence of exactly one element
+-- in the set indexed by a particular index.
+getOne :: HasPrimKey a => IxSet a -> Maybe a
+getOne = fmap coerce . IxSet.getOne . unwrapIxSet
+
+-- | Project out the underlying set
+--
+-- Use with caution! This loses all the indices, potentially losing all the
+-- benefits that 'IxSet' provides.
+toMap :: HasPrimKey a => IxSet a -> Map (PrimKey a) a
+toMap = Map.mapKeysMonotonic (primKey . unwrapOrdByPrimKey)
+      . Map.fromSet unwrapOrdByPrimKey
+      . IxSet.toSet
+      . unwrapIxSet
+
 {-------------------------------------------------------------------------------
   Modification
 -------------------------------------------------------------------------------}
@@ -165,7 +210,7 @@ updateIxManyM
     :: (Indexable a, IsIndexOf ix a, Applicative f)
     => ix -> (a -> f a) -> IxSet a -> f (IxSet a)
 updateIxManyM pk f (WrapIxSet s) = do
-    let originalValues = toList $ IxSet.toSet $ IxSet.getEQ pk s
+    let originalValues = Data.Foldable.toList $ IxSet.toSet $ IxSet.getEQ pk s
     mappedValues <- traverse (Lens.coerced f) originalValues
     pure $ WrapIxSet $
       foldr IxSet.insert (foldr IxSet.delete s originalValues) mappedValues
@@ -177,6 +222,10 @@ updateIxManyM pk f (WrapIxSet s) = do
 -- | Construct 'IxSet' from a list
 fromList :: Indexable a => [a] -> IxSet a
 fromList = WrapIxSet . IxSet.fromList . coerce
+
+-- | Construct 'IxSet' from a single element
+singleton :: Indexable a => a -> IxSet a
+singleton = fromList . (:[])
 
 -- | Monomorphic map over an 'IxSet'
 --
@@ -203,8 +252,16 @@ emptyIxSet :: forall a.
 emptyIxSet = WrapIxSet IxSet.empty
 
 {-------------------------------------------------------------------------------
-  Conversion
+  Destruction
 -------------------------------------------------------------------------------}
+
+-- | Converts the 'IxSet' back into a plain list. You need to use this function
+-- with care as unwrapping the 'IxSet' means losing the performance advantages
+-- of using it in the first place.
+-- You probably want to use this function only at application boundaries, i.e.
+-- before the data gets consumed by the web handlers.
+toList :: IxSet a -> [a]
+toList = coerce . IxSet.toList . unwrapIxSet
 
 -- | Converts an 'IxSet' to its list of elements.
 --
@@ -225,3 +282,22 @@ toAscList = coerce . IxSet.toAscList (Proxy @(PrimKey a)) . unwrapIxSet
 -- | Creates the subset that has an index in the provided list.
 (@+) :: Indexable a => IxSet a -> [PrimKey a] -> IxSet a
 (WrapIxSet ixSet) @+ indices = WrapIxSet (ixSet IxSet.@+ indices)
+
+{-------------------------------------------------------------------------------
+  Other miscellanea instances for IxSet
+-------------------------------------------------------------------------------}
+
+instance (Indexable a, Arbitrary a) => Arbitrary (IxSet a) where
+    arbitrary = fromList <$> arbitrary
+
+instance Buildable a => Buildable (IxSet a) where
+    build = bprint (listJsonIndent 4) . map unwrapOrdByPrimKey
+                                      . IxSet.toList
+                                      . unwrapIxSet
+
+instance BuildableSafe a => Buildable (SecureLog (IxSet a)) where
+    build = bprint (buildSafeList secure) . map unwrapOrdByPrimKey
+                                          . IxSet.toList
+                                          . unwrapIxSet
+                                          . getSecureLog
+

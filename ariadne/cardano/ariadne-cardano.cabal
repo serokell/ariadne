@@ -19,17 +19,19 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , ansi-wl-pprint
     , acid-state
+    , ansi-wl-pprint
     , ariadne-core
     , async
     , beam-core
     , beam-migrate
     , beam-sqlite
     , bytestring
+    , Cabal
+    , cardano-crypto
     , cardano-sl
-    , cardano-sl-block
     , cardano-sl-binary
+    , cardano-sl-block
     , cardano-sl-client
     , cardano-sl-core
     , cardano-sl-crypto
@@ -41,23 +43,23 @@ library
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
-    , Cabal
-    , MissingH
     , componentm
     , conduit
-    , contravariant
     , constraints
     , containers
+    , contravariant
     , cryptonite
     , data-default
-    , directory
     , dhall
+    , directory
+    , Earley
     , exceptions
     , file-embed
     , filepath
     , formatting
     , http-client
     , http-client-tls
+    , ii-extras
     , insert-ordered-containers
     , ixset-typed
     , knit
@@ -66,36 +68,36 @@ library
     , loot-crypto
     , megaparsec
     , memory
+    , MissingH
+    , monad-control
     , mtl
-    , resourcet
     , named
     , optparse-applicative
+    , process
+    , QuickCheck
+    , resourcet
+    , retry
+    , safe
     , safe-exceptions
     , safecopy
     , scientific
-    , spoon
-    , stm
     , serokell-util
+    , spoon
     , sqlite-simple
     , sqlite-simple-errors
+    , stm
+    , template-haskell
     , text
     , text-format
     , time
     , time-units
+    , transformers
+    , transformers-base
     , universum
     , unliftio
-    , vector
-    , transformers
-    , Earley
-    , ii-extras
-    , QuickCheck
-    , unordered-containers
-    , process
-    , template-haskell
-    , safe
     , unliftio-core
-    , monad-control
-    , transformers-base
+    , unordered-containers
+    , vector
     , vinyl
     , yaml
   exposed-modules:
@@ -124,22 +126,26 @@ library
       Ariadne.Wallet.Backend.Mode
       Ariadne.Wallet.Backend.Restore
       Ariadne.Wallet.Backend.Tx
-      Ariadne.Wallet.Backend.Util
       Ariadne.Wallet.Face
       Ariadne.Wallet.UiAdapter
 
       Ariadne.Wallet.Cardano.Kernel
+      Ariadne.Wallet.Cardano.Kernel.Accounts
       Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Addresses
       Ariadne.Wallet.Cardano.Kernel.Bip32
+      Ariadne.Wallet.Cardano.Kernel.Bip39
       Ariadne.Wallet.Cardano.Kernel.Bip44
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update
       Ariadne.Wallet.Cardano.Kernel.DB.InDb
+      Ariadne.Wallet.Cardano.Kernel.DB.Read
       Ariadne.Wallet.Cardano.Kernel.DB.Resolved
       Ariadne.Wallet.Cardano.Kernel.DB.Spec
       Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
@@ -152,10 +158,17 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
       Ariadne.Wallet.Cardano.Kernel.Decrypt
       Ariadne.Wallet.Cardano.Kernel.Diffusion
+      Ariadne.Wallet.Cardano.Kernel.Internal
+      Ariadne.Wallet.Cardano.Kernel.Keystore
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
       Ariadne.Wallet.Cardano.Kernel.Submission
+      Ariadne.Wallet.Cardano.Kernel.Submission.Worker
       Ariadne.Wallet.Cardano.Kernel.Types
+      Ariadne.Wallet.Cardano.Kernel.Util
+      Ariadne.Wallet.Cardano.Kernel.Util.StrictStateT
+      Ariadne.Wallet.Cardano.Kernel.Wallets
       Ariadne.Wallet.Cardano.Kernel.Word31
+      Ariadne.Wallet.Cardano.WalletLayer
       Ariadne.Wallet.Cardano.WalletLayer.Kernel
       Ariadne.Wallet.Cardano.WalletLayer.Types
   default-extensions:
@@ -164,6 +177,7 @@ library
       BangPatterns
       ConstraintKinds
       DataKinds
+      DefaultSignatures
       DeriveGeneric
       DeriveFunctor
       DeriveFoldable

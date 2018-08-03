@@ -20,7 +20,7 @@ packages:
 # Cardano SL itself
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: b7660d6f2184646522c803dda59b67b2ae04b591 # ariadne branch
+    commit: c34b5bcaa670f636f36c6b2ddbc9c07d4e0f1885 # ariadne branch
   extra-dep: true
   subdirs:
   - binary
@@ -91,7 +91,7 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/input-output-hk/cardano-crypto
-    commit: 287cc575fafe86af9d24af9d012c47f9d3f04da0
+    commit: 33c7ecc6e4bd71c3ea0195e9d796eeace7be22cf
   extra-dep: true
 
 # Required for explorer.
@@ -178,6 +178,8 @@ extra-deps:
 # Stackage has hinotify-0.3.9 which requires async < 2.2
 # This older version requires no async.
 - hinotify-0.3.8.1
+# Required by backend test from cardano-sl-wallet-new
+- normaldistribution-1.1.0.3
 
 # Serokell stuff
 - universum-1.1.0
@@ -251,6 +253,9 @@ extra-deps:
 - componentm-0.0.0.2
 - teardown-0.5.0.0
 - unix-compat-0.5.1 # https://github.com/jystic/unix-compat/pull/40
+
+# Required by https://github.com/input-output-hk/cardano-sl/pull/3232
+- micro-recursion-schemes-5.0.2.2
 
 ## Ariadne Qt GUI specific
 - hoppy-runtime-0.5.0
