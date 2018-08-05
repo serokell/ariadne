@@ -53,7 +53,7 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/serokell/time-units.git
-    commit: 6c3747c1ac794f952de996dd7ba8a2f6d63bf132
+    commit: 2468564e0c127196de97a9ba40fa29973acff30a
   extra-dep: true
 - location:
     git: https://github.com/serokell/kademlia.git
