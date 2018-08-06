@@ -159,6 +159,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
                 HdChainInternal pp
         (txAux, _) <-
             prepareMTx
+                cardanoProtocolMagic
                 getSigner
                 mempty
                 isp

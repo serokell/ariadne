@@ -1,4 +1,4 @@
-resolver: lts-11.2
+resolver: lts-11.13
 
 flags:
   ether:
@@ -20,7 +20,7 @@ packages:
 # Cardano SL itself
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: fce6943d4db78429ac599ce17eddc4e83bf7847c # ariadne branch
+    commit: 3d54e135977407e4b32c651e11402faf17d0c979 # ariadne branch
   extra-dep: true
   subdirs:
   - binary

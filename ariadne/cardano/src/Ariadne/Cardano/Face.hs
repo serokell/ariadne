@@ -49,7 +49,7 @@ import Pos.Block.Types (Blund)
 import Pos.Context (HasNodeContext(..), HasPrimaryKey(..), HasSscContext(..))
 import Pos.Core
   (Address, Coin, EpochIndex(..), EpochOrSlot(..), HasConfiguration,
-  HeaderHash, LocalSlotIndex(..), SlotId(..), TxId, TxOut(..),
+  HeaderHash, LocalSlotIndex(..), ProtocolMagic, SlotId(..), TxId, TxOut(..),
   decodeTextAddress)
 import Pos.Core.Chrono (NE, NewestFirst, OldestFirst)
 import Pos.Crypto (PassPhrase)
@@ -241,4 +241,5 @@ data CardanoFace = CardanoFace
     , cardanoConfigurations :: Dict HasConfigurations
     , cardanoCompileInfo :: Dict HasCompileInfo
     , cardanoGetDiffusion :: CardanoMode (Diffusion CardanoMode)
+    , cardanoProtocolMagic :: !ProtocolMagic
     }

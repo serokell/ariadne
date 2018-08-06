@@ -74,6 +74,7 @@ defaultCommonNodeArgs =
     CommonNodeArgs
         { dbPath = Just "db-mainnet"
         , rebuildDB = False
+        , cnaAssetLockPath = Nothing
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
