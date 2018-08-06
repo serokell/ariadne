@@ -10,24 +10,21 @@ import Ariadne.Cardano.Backend
 import Ariadne.Cardano.Face (CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
-import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.Knit.Backend
 import Ariadne.TaskManager.Backend
-import Ariadne.UI.Vty
+import Ariadne.UI.Cli
 import Ariadne.Update.Backend
-import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Backend
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
-import qualified Ariadne.UI.Vty.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
 import Glue
 
-type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager, Knit.UI]
+type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
 
 main :: IO ()
 main = do
@@ -35,12 +32,8 @@ main = do
   let cardanoConfig = acCardano ariadneConfig
       walletConfig = acWallet ariadneConfig
       updateConfig = acUpdate ariadneConfig
-      historyConfig = acHistory ariadneConfig
 
-  history <- openCommandHistory $ hcPath historyConfig
-  let historyFace = historyToUI history
-
-  (uiFace, mkUiAction) <- createAriadneUI historyFace
+  (uiFace, mkUiAction) <- createAriadneUI
   (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
@@ -59,7 +52,6 @@ main = do
       Knit.CardanoExecCtx (runNat runCardanoMode) :&
       Knit.WalletExecCtx walletFace :&
       Knit.TaskManagerExecCtx taskManagerFace :&
-      Knit.UiExecCtx uiFace (uiGetSelectedItem walletFace) :&
       RNil
       where
         walletFace = mkWalletFace putCommandOutput

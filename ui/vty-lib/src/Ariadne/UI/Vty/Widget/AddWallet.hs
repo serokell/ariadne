@@ -33,6 +33,9 @@ data AddWalletWidgetState =
     , addWalletRestorePass :: !Text
     , addWalletRestoreFull :: !Bool
     , addWalletRestoreResult :: !RestoreResult
+
+    , addWalletRestoreFullEnabled :: !Bool
+    , addWalletMnemonicName :: !Text
     }
 
 data NewResult
@@ -49,8 +52,8 @@ data RestoreResult
 
 makeLensesWith postfixLFields ''AddWalletWidgetState
 
-initAddWalletWidget :: UiLangFace -> Widget p
-initAddWalletWidget langFace =
+initAddWalletWidget :: UiLangFace -> UiFeatures -> Widget p
+initAddWalletWidget langFace features =
   initWidget $ do
     setWidgetDrawWithFocus drawAddWalletWidget
     setWidgetScrollable
@@ -67,6 +70,9 @@ initAddWalletWidget langFace =
       , addWalletRestorePass = ""
       , addWalletRestoreFull = True
       , addWalletRestoreResult = RestoreResultNone
+
+      , addWalletRestoreFullEnabled = featureFullRestore features
+      , addWalletMnemonicName = featureSecretKeyName features
       }
 
     addWidgetChild WidgetNameAddWalletNewName $
@@ -133,14 +139,15 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
           NewResultNone -> B.emptyWidget
           NewResultWaiting _ -> B.txt "Creating..."
           NewResultError err -> B.txt $ "Couldn't create a wallet: " <> err
-          NewResultSuccess mnemonic -> B.txt $ "Wallet created, here's your mnemonic:\n\n" <> unwords mnemonic
+          NewResultSuccess mnemonic -> B.txt $ "Wallet created, here's your " <> T.toLower addWalletMnemonicName <> ":\n\n" <> unwords mnemonic
 
-      , B.txt "Restore wallet from a mnemonic"
+      , B.txt $ "Restore wallet from a " <> T.toLower addWalletMnemonicName
       , label       "Name:" B.<+> drawChild WidgetNameAddWalletRestoreName
-      , label   "Mnemonic:" B.<+> drawChild WidgetNameAddWalletRestoreMnemonic
+      , label (addWalletMnemonicName <> ":") B.<+> drawChild WidgetNameAddWalletRestoreMnemonic
       , label "Passphrase:" B.<+> drawChild WidgetNameAddWalletRestorePass
-      , label            "" B.<+> drawChild WidgetNameAddWalletRestoreFull
-      , label            "" B.<+> drawChild WidgetNameAddWalletRestoreButton
+      ] ++
+      (if addWalletRestoreFullEnabled then [label "" B.<+> drawChild WidgetNameAddWalletRestoreFull] else []) ++
+      [ label            "" B.<+> drawChild WidgetNameAddWalletRestoreButton
       , case addWalletRestoreResult of
           RestoreResultNone -> B.emptyWidget
           RestoreResultWaiting _ -> B.txt "Restoring..."

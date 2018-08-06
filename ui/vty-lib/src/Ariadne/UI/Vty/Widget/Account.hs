@@ -27,7 +27,7 @@ import Ariadne.UI.Vty.Widget.Form.Send
 data AccountAddress =
   AccountAddress
     { accountAddressHash :: !Text
-    , accountAddressBalance :: !Text
+    , accountAddressBalance :: !(Maybe Text)
     }
 
 data AccountWidgetState =
@@ -36,7 +36,7 @@ data AccountWidgetState =
 
     , accountName :: !Text
     , accountRenameResult :: !RenameResult
-    , accountBalance :: !Text
+    , accountBalance :: !BalanceResult
 
     , accountAddressResult :: !AddressResult
     , accountAddresses :: ![AccountAddress]
@@ -47,6 +47,12 @@ data RenameResult
   | RenameResultWaiting !UiCommandId
   | RenameResultError !Text
   | RenameResultSuccess
+
+data BalanceResult
+  = BalanceResultNone
+  | BalanceResultWaiting !UiCommandId
+  | BalanceResultError !Text
+  | BalanceResultSuccess !Text  -- ^ Balance
 
 data AddressResult
   = AddressResultNone
@@ -69,7 +75,7 @@ initAccountWidget langFace =
 
       , accountName = ""
       , accountRenameResult = RenameResultNone
-      , accountBalance = ""
+      , accountBalance = BalanceResultNone
 
       , accountAddressResult = AddressResultNone
       , accountAddresses = []
@@ -119,7 +125,8 @@ drawAddressRow focused AccountAddress{..} =
         attr = rdrCtx ^. B.attrL
         width = rdrCtx ^. B.availWidthL
 
-        balance = T.replicate (max 0 (15 - T.length accountAddressBalance)) " " <> accountAddressBalance
+        padBalance b = T.replicate (max 0 (15 - T.length b)) " " <> b
+        balance = maybe "" padBalance accountAddressBalance
 
         addressWidth = width - (T.length balance) - 1
         addressLength = T.length accountAddressHash
@@ -164,7 +171,11 @@ drawAccountWidget focus AccountWidgetState{..} = do
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename the account: " <> err
           RenameResultSuccess -> B.emptyWidget
-      , padBottom $ label "Balance:" B.<+> B.txt accountBalance
+      , padBottom $ label "Balance:" B.<+> case accountBalance of
+          BalanceResultNone -> B.emptyWidget
+          BalanceResultWaiting _ -> B.txt "requesting..."
+          BalanceResultError err -> B.txt err
+          BalanceResultSuccess balance -> B.txt balance
 
       , drawChild WidgetNameAccountSend
 
@@ -192,9 +203,19 @@ handleAccountWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
       UiSelectionAccount UiAccountInfo{..} -> do
+        UiLangFace{..} <- use accountLangFaceL
         accountNameL .= fromMaybe "" uaciLabel
-        accountBalanceL .= uaciBalance
         accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
+        case uaciBalance of
+          Just balance -> accountBalanceL .= BalanceResultSuccess balance
+          Nothing -> do
+            use accountBalanceL >>= \case
+              BalanceResultWaiting commandId
+                | Just taskId <- cmdTaskId commandId ->
+                    void . liftIO . langPutUiCommand $ UiKill taskId
+              _ -> return ()
+            liftIO (langPutUiCommand UiBalance) >>=
+              assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
@@ -203,6 +224,13 @@ handleAccountWidgetEvent = \case
         case result of
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
+      other -> other
+  UiCommandResult commandId (UiBalanceCommandResult result) -> do
+    accountBalanceL %= \case
+      BalanceResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
+          UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
   UiCommandResult commandId (UiNewAddressCommandResult result) -> do
     accountAddressResultL %= \case

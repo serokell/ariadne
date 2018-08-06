@@ -45,17 +45,17 @@ instance ComponentPrinter UI where
   componentPpToken = \case{}
 
 data instance ComponentCommandRepr components UI
-  = CommandAction (UiFace -> IO UiSelectedItem -> IO (Value components))
+  = CommandAction (UiFace -> IO (Value components))
 
 instance ComponentLitToValue components UI where
   componentLitToValue = \case{}
 
 data instance ComponentExecContext _ _ UI =
-  UiExecCtx UiFace (IO UiSelectedItem)
+  UiExecCtx UiFace
 
 instance MonadIO m => ComponentCommandExec m components UI where
-  componentCommandExec (UiExecCtx uiFace uiGetSelected) (CommandAction act) =
-    liftIO $ act uiFace uiGetSelected
+  componentCommandExec (UiExecCtx uiFace) (CommandAction act) =
+    liftIO $ act uiFace
 
 instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs components UI where
   componentCommandProcs =
@@ -64,7 +64,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         { cpName = "help"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
+        , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandHelp
             return $ toValue ValueUnit
         , cpHelp = "Show help screen"
@@ -73,7 +73,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         { cpName = "logs"
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pure ()
-        , cpRepr = \() -> CommandAction $ \UiFace{..} _ -> do
+        , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit
         , cpHelp = "Show logs screen"

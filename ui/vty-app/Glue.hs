@@ -11,7 +11,6 @@ module Glue
          -- * Wallet ↔ Vty
        , walletEventToUI
        , putWalletEventToUI
-       , uiGetSelectedItem
 
          -- * Update ↔ Vty
        , putUpdateEventToUI
@@ -150,6 +149,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.renameCommandName $
             optString "name" uraName
           )
+      _ -> Left "Not implemented"
 
     resultToUI result = \case
       UiSend{} ->
@@ -324,29 +324,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
-    balance n = let (amount, unit) = Knit.showCoin n in amount <> " " <> show unit
-
--- | Get currently selected item from the backend and convert it to
--- 'UiSelectedItem'.
-uiGetSelectedItem :: WalletFace -> IO UiSelectedItem
-uiGetSelectedItem WalletFace {walletGetSelection} =
-    walletGetSelection <&> \case
-        (Nothing, _) -> UiNoSelection
-        (Just sel, walletDb) ->
-          let uiWallets = toUiWalletDatas walletDb
-              uiSel = toUiWalletSelection walletDb sel
-              walletIdx = uwsWalletIdx uiSel
-              walletPath = uwsPath uiSel
-          in
-            getItem (uiWallets ^? ix (fromIntegral walletIdx)) walletPath
-  where
-    getItem :: Maybe UiWalletData -> [Word] -> UiSelectedItem
-    getItem Nothing _ = error "Non-existing wallet is selected"
-    getItem (Just uwd) [] = UiSelectedWallet (_uwdName uwd)
-    getItem (Just uwd) (accIdx:_) =
-      case uwd ^? uwdAccounts . ix (fromIntegral accIdx) of
-        Nothing -> error "Non-existing account is selected"
-        Just uad -> UiSelectedAccount (_uadName uad)
+    balance n = let (amount, unit) = Knit.showCoin n in Just $ amount <> " " <> show unit
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend

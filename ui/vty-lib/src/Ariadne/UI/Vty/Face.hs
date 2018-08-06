@@ -1,5 +1,7 @@
 module Ariadne.UI.Vty.Face
-       ( UiFace (..)
+       ( UiFeatures (..)
+
+       , UiFace (..)
        , UiLangFace (..)
        , UiHistoryFace (..)
 
@@ -21,6 +23,7 @@ module Ariadne.UI.Vty.Face
        , UiRenameArgs (..)
 
        , UiCommandResult (..)
+       , UiBalanceCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -28,7 +31,6 @@ module Ariadne.UI.Vty.Face
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
 
-       , UiSelectedItem (..)
        , UiTreeItem (..)
        , UiTree
        , UiTreeSelection(..)
@@ -45,6 +47,15 @@ import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+-- | UI library settings for a particular currency implementation
+-- Mostly boolean flags for enabled widgets
+data UiFeatures = UiFeatures
+  { featureStatus :: !Bool
+  , featureAccounts :: !Bool
+  , featureFullRestore :: !Bool
+  , featureSecretKeyName :: !Text  -- ^ "Secret key"/"Mnemonic"/etc
+  }
 
 ----------------------------------------------------------------------------
 -- Faces
@@ -150,6 +161,7 @@ data UiNewVersionEvent = UiNewVersion
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
+  | UiBalance
   | UiSend UiSendArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
@@ -195,12 +207,17 @@ data UiRenameArgs = UiRenameArgs
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
-  = UiSendCommandResult UiSendCommandResult
+  = UiBalanceCommandResult UiBalanceCommandResult
+  | UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
+
+data UiBalanceCommandResult
+  = UiBalanceCommandSuccess Text
+  | UiBalanceCommandFailure Text
 
 data UiSendCommandResult
   = UiSendCommandSuccess Text
@@ -229,12 +246,6 @@ data UiRenameCommandResult
 ----------------------------------------------------------------------------
 -- Wallet widget model
 ----------------------------------------------------------------------------
-
--- | Item which is currently selected by the backend.
-data UiSelectedItem
-  = UiNoSelection
-  | UiSelectedWallet { usiWalletName :: !Text }
-  | UiSelectedAccount { usiAccountName :: !Text }
 
 -- | A node in HD-wallet tree.
 data UiTreeItem = UiTreeItem
@@ -265,7 +276,7 @@ data UiTreeSelection = UiTreeSelection
 data UiWalletInfo = UiWalletInfo
   { uwiLabel :: !(Maybe Text)
   , uwiWalletIdx :: !Word
-  , uwiBalance :: !Text
+  , uwiBalance :: !(Maybe Text)
   , uwiAccounts :: ![UiAccountInfo]
   }
 
@@ -273,7 +284,7 @@ data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
   , uaciPath :: !TreePath
-  , uaciBalance :: !Text
+  , uaciBalance :: !(Maybe Text)
   , uaciAddresses :: ![UiAddressInfo]
   }
 
@@ -281,7 +292,7 @@ data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
   , uadiPath :: !TreePath
   , uadiAddress :: !Text
-  , uadiBalance :: !Text
+  , uadiBalance :: !(Maybe Text)
   }
 
 -- | Info for currently selected tree item
