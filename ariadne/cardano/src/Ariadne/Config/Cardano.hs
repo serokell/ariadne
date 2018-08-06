@@ -40,6 +40,7 @@ import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
 
+import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
 
 ----------------------------------------------------------------------------
