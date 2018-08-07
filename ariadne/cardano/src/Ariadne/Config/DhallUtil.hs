@@ -17,7 +17,6 @@ module Ariadne.Config.DhallUtil
 
 import Universum
 
-import Ariadne.Cardano.Orphans ()
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map
 import Data.String (fromString)
