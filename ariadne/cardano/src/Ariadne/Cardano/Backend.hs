@@ -8,24 +8,27 @@ import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import IiExtras
-import Mockable (runProduction)
-import Mockable (Production(..))
+import Mockable (Production(..), runProduction)
 import Pos.Binary ()
 import Pos.Client.CLI (NodeArgs(..))
 import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
-import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
+import Pos.Core
+  (ProtocolMagic, epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
+import Pos.Core.Configuration (epochSlots)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.DB.DB (initNodeDBs)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
+import Pos.Launcher.Configuration (withConfigurations)
 import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
 import Pos.Txp (txpGlobalSettings)
 import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
+import Pos.WorkMode (RealMode)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
   showTimeB, usingLoggerName)
@@ -42,16 +45,20 @@ createCardanoBackend cardanoConfig bHandle addUs = do
   let commonNodeArgs = cardanoConfigToCommonNodeArgs cardanoConfig
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
+  let confOpts = CLI.configurationOptions . CLI.commonArgs $ commonNodeArgs
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
-      withConfigurations (CLI.configurationOptions . CLI.commonArgs $ commonNodeArgs) $ \_ntpConf ->
+      -- We don't use asset lock feature, because we don't create
+      -- blocks, we leave these concerns to core nodes owners.
+      withConfigurations Nothing confOpts $ \_ntpConf protocolMagic ->
       return (CardanoFace
           { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
           , cardanoCompileInfo = Dict
           , cardanoGetDiffusion = getDiffusion diffusionVar
+          , cardanoProtocolMagic = protocolMagic
           }
-          , runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonNodeArgs)
+          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar commonNodeArgs)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -60,14 +67,16 @@ runCardanoMode cardanoContextVar (CardanoMode act) = do
 
 runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
-    => BListenerHandle
+    => ProtocolMagic
+    -> BListenerHandle
     -> (TVar UserSecret -> IO ())
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
     -> CLI.CommonNodeArgs
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonArgs sendCardanoEvent = do
+runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
+    commonArgs sendCardanoEvent = do
   let loggingParams = CLI.loggingParams "ariadne" commonArgs
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
@@ -92,15 +101,26 @@ runCardanoNode bHandle addUs cardanoContextVar diffusionVar commonArgs sendCarda
               , statusPollingWorker sendCardanoEvent
               ]
       let
+        realModeToCardanoMode :: RealMode () a -> CardanoMode a
         realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
+
+        cardanoModeToRealMode :: CardanoMode a -> RealMode () a
         cardanoModeToRealMode (CardanoMode m) = withReaderT (CardanoContext bHandle) m
+
+        convertMode :: (Diffusion CardanoMode -> CardanoMode a) -> Diffusion (RealMode ()) -> RealMode () a
         convertMode f diff =
-            cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode diff)
-        runMode = bracketNodeResources nodeParams sscParams txpGlobalSettings initNodeDBs
-            $ \nr@NodeResources{..} -> Production . runRealMode nr . convertMode $ \diff -> do
-                ctx <- ask
-                liftIO . addUs $ ctx ^. userSecret
-                runNode nr workers diff
+            cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode cardanoModeToRealMode diff)
+
+        txpSettings = txpGlobalSettings protocolMagic
+        initDBs = initNodeDBs protocolMagic epochSlots
+        runMode = bracketNodeResources nodeParams sscParams txpSettings initDBs
+            $ \nr@NodeResources{..} ->
+                Production .
+                runRealMode protocolMagic nr .
+                convertMode $ \diff -> do
+                    ctx <- ask
+                    liftIO . addUs $ ctx ^. userSecret
+                    runNode protocolMagic nr workers diff
       runProduction runMode
 
 statusPollingWorker ::
