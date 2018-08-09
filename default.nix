@@ -1,11 +1,12 @@
 let
-  overlay = import ''${builtins.fetchGit "ssh://git@github.com/serokell/serokell-overlay"}/pkgs'';
-  nixpkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/master.tar.gz") {
-    overlays = [ overlay ];
-  };
+  nixpkgs = fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz";
+  serokell-overlay = fetchGit "ssh://git@github.com/serokell/serokell-overlay";
 in
 
-with nixpkgs;
+with import nixpkgs {
+  config.allowUnfree = true;
+  overlays = [ (import "${serokell-overlay}/pkgs") ];
+};
 
 let
   closure = (stackClosure haskell.compiler.ghc822 ./.).override {
