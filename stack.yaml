@@ -163,6 +163,12 @@ packages:
   - code/crypto
   - code/prelude
 
+## https://github.com/jystic/unix-compat/pull/40
+- location:
+    git: https://github.com/QuLogic/unix-compat.git
+    commit: 94ae4ee75d75ea02956288d01c3b2d66d8e2606e
+  extra-dep: true
+
 
 extra-deps:
 
