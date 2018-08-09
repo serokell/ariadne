@@ -10,8 +10,6 @@ import Data.Ratio ((%))
 import IiExtras
 import Mockable (Production(..), runProduction)
 import Pos.Binary ()
-import Pos.Client.CLI (NodeArgs(..))
-import qualified Pos.Client.CLI as CLI
 import Pos.Client.CLI.Util (readLoggerConfig)
 import Pos.Core
   (ProtocolMagic, epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
@@ -31,10 +29,11 @@ import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
 import Pos.WorkMode (RealMode)
 import System.Wlog
   (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
-  showTimeB, usingLoggerName)
+  showTimeB)
 
 import Ariadne.Cardano.Face
-import Ariadne.Config.Cardano (CardanoConfig(..), cardanoConfigToCommonNodeArgs)
+import Ariadne.Config.Cardano
+  (CardanoConfig(..), getNodeParams, gtSscParams, mkLoggingParams)
 
 createCardanoBackend ::
        CardanoConfig
@@ -42,10 +41,9 @@ createCardanoBackend ::
     -> (TVar UserSecret -> IO ())
     -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend cardanoConfig bHandle addUs = do
-  let commonNodeArgs = cardanoConfigToCommonNodeArgs cardanoConfig
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
-  let confOpts = CLI.configurationOptions . CLI.commonArgs $ commonNodeArgs
+  let confOpts = ccConfigurationOptions cardanoConfig
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
       -- We don't use asset lock feature, because we don't create
@@ -58,7 +56,7 @@ createCardanoBackend cardanoConfig bHandle addUs = do
           , cardanoGetDiffusion = getDiffusion diffusionVar
           , cardanoProtocolMagic = protocolMagic
           }
-          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar commonNodeArgs)
+          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar cardanoConfig)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -72,12 +70,12 @@ runCardanoNode ::
     -> (TVar UserSecret -> IO ())
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
-    -> CLI.CommonNodeArgs
+    -> CardanoConfig
     -> (CardanoEvent -> IO ())
     -> IO ()
 runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
-    commonArgs sendCardanoEvent = do
-  let loggingParams = CLI.loggingParams "ariadne" commonArgs
+    cardanoConfig sendCardanoEvent = do
+  let loggingParams = mkLoggingParams cardanoConfig
       setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
           let cfgBuilder = showTidB
@@ -86,15 +84,13 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
                         <> consoleActionB (\_ message -> sendCardanoEvent $ CardanoLogEvent message)
           cfg <- readLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
-      nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
       extractionWorker diffusion = do
           ask >>= putMVar cardanoContextVar
           putMVar diffusionVar diffusion
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
-      nodeParams <- usingLoggerName ("ariadne" <> "cardano" <> "init") $
-          CLI.getNodeParams "ariadne" commonArgs nodeArgs
+      nodeParams <- getNodeParams cardanoConfig
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
-      let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
+      let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
               [ updateTriggerWorker
               , extractionWorker
