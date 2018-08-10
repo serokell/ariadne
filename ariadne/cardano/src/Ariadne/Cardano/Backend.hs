@@ -4,6 +4,7 @@ import Universum
 
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Trans.Reader (withReaderT)
+import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
@@ -18,7 +19,9 @@ import Pos.DB.DB (initNodeDBs)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
-import Pos.Launcher.Configuration (withConfigurations)
+  (ConfigurationOptions(cfoFilePath), LoggingParams(..), NodeParams(..),
+  runNode, runRealMode)
+import qualified Pos.Launcher.Configuration as Launcher.Configuration
 import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
 import Pos.Txp (txpGlobalSettings)
 import Pos.Update.Worker (updateTriggerWorker)
@@ -26,9 +29,11 @@ import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
 import Pos.WorkMode (RealMode)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.FilePath (takeDirectory, (</>))
 import System.Wlog
-  (LoggerConfig, consoleActionB, maybeLogsDirB, parseLoggerConfig, productionB,
-  removeAllHandlers, setupLogging, showTidB, showTimeB)
+  (LoggerConfig, WithLogger, consoleActionB, maybeLogsDirB, parseLoggerConfig,
+  productionB, removeAllHandlers, setupLogging, showTidB, showTimeB)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Cardano
@@ -45,9 +50,7 @@ createCardanoBackend cardanoConfig bHandle addUs = do
   let confOpts = ccConfigurationOptions cardanoConfig
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
-      -- We don't use asset lock feature, because we don't create
-      -- blocks, we leave these concerns to core nodes owners.
-      withConfigurations Nothing confOpts $ \_ntpConf protocolMagic ->
+      withConfigurations confOpts $ \protocolMagic ->
       return (CardanoFace
           { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
@@ -162,3 +165,55 @@ statusPollingWorker sendCardanoEvent _diffusion = do
 getDiffusion ::
        MVar (Diffusion CardanoMode) -> CardanoMode (Diffusion CardanoMode)
 getDiffusion = readMVar
+
+----------------------------------------------------------------------------
+-- Provide default configuration
+----------------------------------------------------------------------------
+
+data GenesisDataFileExists =
+    GenesisDataFileExists !FilePath deriving (Show)
+
+instance Exception GenesisDataFileExists where
+    displayException (GenesisDataFileExists path) =
+        "There already is some file in a path (" <> show path <>
+        ") where we wanted to write genesis data"
+
+-- Version of 'withConfigurations' from 'Pos.Launcher' which omits
+-- stuff we are not interested in (like NTP configuration and asset
+-- lock) and uses default configuration when the one from
+-- 'cfoFilePath' does not exit.
+withConfigurations
+    :: (WithLogger m, MonadThrow m, MonadIO m)
+    => ConfigurationOptions
+    -> (HasConfigurations => ProtocolMagic -> m r)
+    -> m r
+withConfigurations cfo act = do
+    liftIO $ ensureConfigurationExists (cfoFilePath cfo)
+    -- We don't use asset lock feature, because we don't create
+    -- blocks, we leave these concerns to core nodes owners.
+    Launcher.Configuration.withConfigurations Nothing cfo (\_ntpConf -> act)
+  where
+    -- Quite simple, but works in cases we care about. We do not check
+    -- what is in these 'ByteString's, just assume it is what we expect.
+    -- Anyway, if you find it a bit hacky I somewhat agree.
+
+    -- [AD-345] Embed them!
+    staticConfiguration :: ByteString
+    staticConfiguration = error "staticConfiguration is not defined yet"
+    staticGenesisData :: ByteString
+    staticGenesisData = error "staticGenesisData is not defined yet"
+
+    genesisDataPath :: FilePath -> FilePath
+    genesisDataPath confPath = takeDirectory confPath </> "mainnet-genesis.json"
+
+    ensureConfigurationExists :: FilePath -> IO ()
+    ensureConfigurationExists confPath =
+        unlessM (doesFileExist confPath) $ writeStaticConfiguration confPath
+
+    writeStaticConfiguration :: FilePath -> IO ()
+    writeStaticConfiguration confPath = do
+        let gdp = genesisDataPath confPath
+        whenM (doesFileExist gdp) $ throwM $ GenesisDataFileExists gdp
+        createDirectoryIfMissing True (takeDirectory confPath)
+        BS.writeFile confPath staticConfiguration
+        BS.writeFile gdp staticGenesisData
