@@ -9,8 +9,7 @@ import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import IiExtras
 import Mockable (Production(..), runProduction)
-import Pos.Binary ()
-import Pos.Client.CLI.Util (readLoggerConfig)
+import Pos.Context (NodeContext(..))
 import Pos.Core
   (ProtocolMagic, epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
 import Pos.Core.Configuration (epochSlots)
@@ -28,8 +27,8 @@ import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
 import Pos.WorkMode (RealMode)
 import System.Wlog
-  (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
-  showTimeB)
+  (LoggerConfig, consoleActionB, maybeLogsDirB, parseLoggerConfig, productionB,
+  removeAllHandlers, setupLogging, showTidB, showTimeB)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Cardano
@@ -76,17 +75,26 @@ runCardanoNode ::
 runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
     cardanoConfig sendCardanoEvent = do
   let loggingParams = mkLoggingParams cardanoConfig
-      setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
       getLoggerConfig LoggingParams{..} = do
+          let consoleLogAction _ message =
+                  sendCardanoEvent $ CardanoLogEvent message
+
           let cfgBuilder = showTidB
                         <> showTimeB
                         <> maybeLogsDirB lpHandlerPrefix
-                        <> consoleActionB (\_ message -> sendCardanoEvent $ CardanoLogEvent message)
-          cfg <- readLoggerConfig lpConfigPath
+                        <> consoleActionB consoleLogAction
+
+          -- [AD-345] Use embedded config
+          let defaultLoggerConfig :: LoggerConfig
+              defaultLoggerConfig = productionB
+
+          cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
       extractionWorker diffusion = do
           ask >>= putMVar cardanoContextVar
           putMVar diffusionVar diffusion
+  loggerConfig <- getLoggerConfig loggingParams
+  let setupLoggers = setupLogging Nothing loggerConfig
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
       nodeParams <- getNodeParams cardanoConfig
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
@@ -107,10 +115,17 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
         convertMode f diff =
             cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode cardanoModeToRealMode diff)
 
+        -- It's needed because 'bracketNodeResources' uses its own
+        -- logic to create a logging config, which differs from what
+        -- we do above. We want 'ncLoggerConfig' to be the same config
+        -- as the one passed to 'setupLogging'.
+        setProperLogConfig :: NodeResources __ -> NodeResources __
+        setProperLogConfig nr =
+            nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
         txpSettings = txpGlobalSettings protocolMagic
         initDBs = initNodeDBs protocolMagic epochSlots
         runMode = bracketNodeResources nodeParams sscParams txpSettings initDBs
-            $ \nr@NodeResources{..} ->
+            $ \(setProperLogConfig -> nr@NodeResources{..}) ->
                 Production .
                 runRealMode protocolMagic nr .
                 convertMode $ \diff -> do
