@@ -40,8 +40,10 @@ import Pos.Client.CLI.Secrets (prepareUserSecret)
 import Pos.Core.Configuration (HasConfiguration)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (VssKeyPair(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts)
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts')
+import Pos.Infra.Network.DnsDomains (DnsDomains(..), NodeAddr(..))
 import Pos.Infra.Network.Types (NodeName(..))
+import qualified Pos.Infra.Network.Yaml as Y
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
@@ -179,6 +181,17 @@ getNodeParams conf@(CardanoConfig
 
     let defaultCommonArgs = commonArgs defaultCommonNodeArgs
 
+        -- [AD-345] Use embedded topology
+        defaultTopology :: Y.Topology
+        defaultTopology =
+            Y.TopologyBehindNAT
+            { topologyValency = 1
+            , topologyFallbacks = 1
+            , topologyDnsDomains = DnsDomains [
+                [NodeAddrDNS "todo.defaultDnsDomain.com" Nothing]
+                ]
+            }
+
         nco :: NetworkConfigOpts
         nco = (networkConfigOpts defaultCommonNodeArgs)
             { ncoTopology = ccNetworkTopology
@@ -189,7 +202,7 @@ getNodeParams conf@(CardanoConfig
         baseParams :: BaseParams
         baseParams = BaseParams { bpLoggingParams = mkLoggingParams conf }
 
-    networkConfig <- intNetworkConfigOpts nco
+    networkConfig <- intNetworkConfigOpts' defaultTopology nco
     -- 'defaultCommonNodeArgs' is passed to 'prepareUserSecret' because we do
     -- not care what will be put into 'UserSecret'
     -- (it is essential only for core nodes)
