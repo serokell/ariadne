@@ -47,15 +47,18 @@ library
     , contravariant
     , constraints
     , containers
+    , cryptonite
     , data-default
     , directory
     , dhall
     , exceptions
+    , file-embed
     , filepath
     , formatting
     , http-client
     , http-client-tls
     , insert-ordered-containers
+    , ixset-typed
     , knit
     , lens
     , log-warper
@@ -68,8 +71,8 @@ library
     , optparse-applicative
     , safe-exceptions
     , safecopy
-    , ixset-typed
     , scientific
+    , spoon
     , stm
     , serokell-util
     , sqlite-simple
@@ -92,7 +95,7 @@ library
     , unliftio-core
     , monad-control
     , transformers-base
-    , cryptonite
+    , yaml
   exposed-modules:
       Ariadne.Update.Backend
       Ariadne.Cardano.Knit
@@ -205,6 +208,7 @@ test-suite ariadne-cardano-test
     , ariadne-core
     , base >=4.7 && <5
     , bytestring
+    , canonical-json
     , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
@@ -216,9 +220,11 @@ test-suite ariadne-cardano-test
     , QuickCheck
     , scientific
     , serokell-util
+    , spoon
     , text
     , time-units
     , universum
+    , yaml
   other-modules:
       Paths_ariadne_cardano
       Test.Ariadne.Cardano.Arbitrary

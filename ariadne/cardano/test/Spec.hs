@@ -3,12 +3,15 @@
 import Universum
 
 import Control.Lens (makeLensesWith)
+import Control.Spoon (teaspoon)
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.Yaml as Yaml
 import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
-import Pos.Launcher (ConfigurationOptions(..))
+import Pos.Launcher (Configuration, ConfigurationOptions(..))
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
@@ -17,10 +20,13 @@ import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Property)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
+import qualified Text.JSON.Canonical as Canonical
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
-import Ariadne.Config.Cardano (CardanoConfig(..))
+import Ariadne.Config.Cardano
+  (CardanoConfig(..), defaultConfigurationYaml, defaultGenesisJson,
+  defaultLoggerConfig, defaultTopology)
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.Wallet (WalletConfig(..))
@@ -37,6 +43,7 @@ main = hspec $ do
 configSpec :: Spec
 configSpec = describe "Ariadne.Config" $ do
   it "CLI can override a certain set of fields" overrideConfigUnitTest
+  it "Embedded values are correct" embeddedValuesUnitTest
   prop "handles any CardanoConfig" propHandleCardanoConfig
 
 propHandleCardanoConfig :: CardanoConfig -> Property
@@ -57,6 +64,20 @@ overrideConfigUnitTest =
   where
     opts' = opts "doesNotMatter"
     parserResult = Opt.execParserPure Opt.defaultPrefs opts' cliArgs
+
+type MultiConfiguration = Map Text Configuration
+
+embeddedValuesUnitTest :: Expectation
+embeddedValuesUnitTest = do
+    whenNothing_ (teaspoon defaultLoggerConfig) $
+        expectationFailure "defaultLoggerConfig is broken"
+    whenNothing_ (teaspoon defaultTopology) $
+        expectationFailure "defaultLoggerConfig is broken"
+    whenLeft (Yaml.decodeEither @MultiConfiguration defaultConfigurationYaml) $
+        expectationFailure . mappend "defaultConfigurationYaml is broken: "
+    whenLeft (Canonical.parseCanonicalJSON (BSL.fromStrict defaultGenesisJson)) $
+        expectationFailure . mappend "defaultGenesisJson is broken: "
+
 
 cliArgs :: [String]
 cliArgs =

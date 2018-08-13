@@ -51,7 +51,7 @@ and `stack build ariadne-qt` for Qt-based GUI. Or just `stack build` for both.
 If you have Homebrew, run:
 
 ```sh
-brew install bash coreutils icu4c rocksdb openssl qt xz 
+brew install bash coreutils icu4c rocksdb openssl qt xz
 ```
 
 If you haven't had `bash` previously installed, close terminal session
@@ -93,6 +93,9 @@ data (`~/.local/share` on Linux or MacOS, `%APPDATA%` on
 Windows) suffixed with `/ariadne`.
 * `@PWD` is the directory from which Ariadne executable is launched.
 
+If configuration file is not found, default configuration will be used
+which is compatible with Cardano Mainnet.
+
 Each option from the configuration can be overridden from the command
 like. Use `--help` flag for more details.
 
@@ -101,8 +104,7 @@ like. Use `--help` flag for more details.
 Launch `ariadne` executable to use TUI. If you [used
 Stack](#build-using-stack) to build Ariadne, type `stack exec --
 ariadne` to launch the executable. In order to use GUI launch
-`ariadne-qt`. Make sure to copy [configuration](#Configuration) into
-the default location or pass its location explicitly.
+`ariadne-qt`.
 
 For complete usage guide visit [TUI](docs/usage-tui.md) page.
 
