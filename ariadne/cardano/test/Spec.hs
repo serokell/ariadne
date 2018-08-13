@@ -35,6 +35,9 @@ makeLensesWith postfixLFields ''CommonNodeArgs
 makeLensesWith postfixLFields ''AriadneConfig
 makeLensesWith postfixLFields ''CardanoConfig
 
+defaultAriadneCfg :: AriadneConfig
+defaultAriadneCfg = defaultAriadneConfig "/data/"
+
 main :: IO ()
 main = hspec $ do
     configSpec
@@ -55,7 +58,7 @@ overrideConfigUnitTest :: Expectation
 overrideConfigUnitTest =
     case parserResult of
         Opt.Success (_, _, cliConfig) ->
-            (cliConfig `mergeConfigs` defaultAriadneConfig) `shouldBe`
+            (cliConfig `mergeConfigs` defaultAriadneCfg) `shouldBe`
             expectedAriadneConfig
         Opt.Failure failure ->
             let (failureMsg, _) = Opt.renderFailure failure "test"
@@ -101,7 +104,7 @@ cliArgs =
 
 
 expectedAriadneConfig :: AriadneConfig
-expectedAriadneConfig = defaultAriadneConfig
+expectedAriadneConfig = defaultAriadneCfg
   { acCardano = defaultCardanoConfig
       { ccDbPath = Just "new-db-path"
       , ccRebuildDB = True
@@ -126,5 +129,5 @@ expectedAriadneConfig = defaultAriadneConfig
     }
   }
   where
-    defaultCardanoConfig = acCardano defaultAriadneConfig
-    defaultWalletConfig = acWallet defaultAriadneConfig
+    defaultCardanoConfig = acCardano defaultAriadneCfg
+    defaultWalletConfig = acWallet defaultAriadneCfg

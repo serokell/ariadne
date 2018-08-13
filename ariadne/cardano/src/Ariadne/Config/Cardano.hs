@@ -67,6 +67,7 @@ import Pos.Launcher
 import Pos.Ssc (SscParams(..))
 import Pos.Update (UpdateParams(..))
 import Pos.Util.UserSecret (peekUserSecret)
+import System.FilePath ((</>))
 import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
@@ -164,17 +165,17 @@ defaultCommonNodeArgs =
         , cnaDumpConfiguration = False
         }
 
-defaultCardanoConfig :: CardanoConfig
-defaultCardanoConfig =
+defaultCardanoConfig :: FilePath -> CardanoConfig
+defaultCardanoConfig dataDir =
     CardanoConfig
-        { ccDbPath = dbPath defaultCommonNodeArgs
+        { ccDbPath = (dataDir </> ) <$> dbPath defaultCommonNodeArgs
         , ccRebuildDB = rebuildDB defaultCommonNodeArgs
-        , ccKeyfilePath = keyfilePath defaultCommonNodeArgs
+        , ccKeyfilePath = dataDir </> keyfilePath defaultCommonNodeArgs
         , ccNetworkTopology = ncoTopology nco
         , ccNetworkNodeId = ncoSelf nco
         , ccNetworkPort = ncoPort nco
         , ccLogConfig = logConfig ca
-        , ccLogPrefix = logPrefix ca
+        , ccLogPrefix = (dataDir </>) <$> logPrefix ca
         , ccConfigurationOptions = configurationOptions ca
         , ccEnableMetrics = enableMetrics defaultCommonNodeArgs
         , ccEkgParams = ekgParams defaultCommonNodeArgs
