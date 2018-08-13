@@ -2,7 +2,9 @@ module Ariadne.Config.Cardano
        ( defaultCardanoConfig
        , cardanoFieldModifier
        , CardanoConfig (..)
-       , cardanoConfigToCommonNodeArgs
+       , mkLoggingParams
+       , getNodeParams
+       , gtSscParams
 
        -- * Lenses
        , ccDbPathL
@@ -31,14 +33,25 @@ import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import IiExtras (postfixLFields)
+import Pos.Behavior (BehaviorConfig(..))
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
+import Pos.Client.CLI.Secrets (prepareUserSecret)
+import Pos.Core.Configuration (HasConfiguration)
 import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Crypto (VssKeyPair(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts')
+import Pos.Infra.Network.DnsDomains (DnsDomains(..), NodeAddr(..))
 import Pos.Infra.Network.Types (NodeName(..))
+import qualified Pos.Infra.Network.Yaml as Y
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
+  (BaseParams(..), ConfigurationOptions(..), LoggingParams(..), NodeParams(..))
+import Pos.Ssc (SscParams(..))
+import Pos.Update (UpdateParams(..))
+import Pos.Util.UserSecret (peekUserSecret)
+import System.Wlog (usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
@@ -66,7 +79,7 @@ data CardanoConfig = CardanoConfig
 makeLensesWith postfixLFields ''CardanoConfig
 
 ----------------------------------------------------------------------------
--- Default values and conversion
+-- Default values
 ----------------------------------------------------------------------------
 
 defaultCommonNodeArgs :: CommonNodeArgs
@@ -108,39 +121,6 @@ defaultCommonNodeArgs =
         , cnaDumpConfiguration = False
         }
 
-cardanoConfigToCommonNodeArgs :: CardanoConfig -> CommonNodeArgs
--- Vanilla pattern-matching is used to be sure nothing is forgotten.
-cardanoConfigToCommonNodeArgs (CardanoConfig
-    ccDbPath
-    ccRebuildDB
-    ccKeyfilePath
-    ccNetworkTopology
-    ccNetworkNodeId
-    ccNetworkPort
-    ccLogConfig
-    ccLogPrefix
-    ccConfigurationOptions
-    ccEnableMetrics
-    ccEkgParams
-                              ) =
-    defaultCommonNodeArgs
-        { dbPath = ccDbPath
-        , rebuildDB = ccRebuildDB
-        , keyfilePath = ccKeyfilePath
-        , networkConfigOpts = (networkConfigOpts defaultCommonNodeArgs)
-            { ncoTopology = ccNetworkTopology
-            , ncoSelf = ccNetworkNodeId
-            , ncoPort = ccNetworkPort
-            }
-        , commonArgs = (commonArgs defaultCommonNodeArgs)
-            { logConfig = ccLogConfig
-            , logPrefix = ccLogPrefix
-            , configurationOptions = ccConfigurationOptions
-            }
-        , enableMetrics = ccEnableMetrics
-        , ekgParams = ccEkgParams
-        }
-
 defaultCardanoConfig :: CardanoConfig
 defaultCardanoConfig =
     CardanoConfig
@@ -162,6 +142,93 @@ defaultCardanoConfig =
     ca :: CommonArgs
     ca = commonArgs defaultCommonNodeArgs
 
+----------------------------------------------------------------------------
+-- Getting NodeParams and SscParams
+----------------------------------------------------------------------------
+
+mkLoggingParams :: CardanoConfig -> LoggingParams
+mkLoggingParams CardanoConfig{..} =
+    LoggingParams
+    { lpHandlerPrefix = ccLogPrefix
+    , lpConfigPath    = ccLogConfig
+    , lpDefaultName   = "ariadne"
+    , lpConsoleLog    = Nothing -- overridden in Backend.hs
+    }
+
+gtSscParams :: VssKeyPair -> BehaviorConfig -> SscParams
+gtSscParams vssSK BehaviorConfig{..} =
+    SscParams
+    { spSscEnabled = True
+    , spVssKeyPair = vssSK
+    , spBehavior = bcSscBehavior
+    }
+
+getNodeParams :: HasConfiguration => CardanoConfig -> IO NodeParams
+-- Vanilla pattern-matching is used to be sure nothing is forgotten.
+getNodeParams conf@(CardanoConfig
+    ccDbPath
+    ccRebuildDB
+    ccKeyfilePath
+    ccNetworkTopology
+    ccNetworkNodeId
+    ccNetworkPort
+    _ccLogConfig  -- is used by mkLoggingParams
+    _ccLogPrefix  -- is used by mkLoggingParams
+    _ccConfigurationOptions  -- should not be used
+    ccEnableMetrics
+    ccEkgParams
+    ) = usingLoggerName ("ariadne" <> "cardano" <> "init") $ do
+
+    let defaultCommonArgs = commonArgs defaultCommonNodeArgs
+
+        -- [AD-345] Use embedded topology
+        defaultTopology :: Y.Topology
+        defaultTopology =
+            Y.TopologyBehindNAT
+            { topologyValency = 1
+            , topologyFallbacks = 1
+            , topologyDnsDomains = DnsDomains [
+                [NodeAddrDNS "todo.defaultDnsDomain.com" Nothing]
+                ]
+            }
+
+        nco :: NetworkConfigOpts
+        nco = (networkConfigOpts defaultCommonNodeArgs)
+            { ncoTopology = ccNetworkTopology
+            , ncoSelf = ccNetworkNodeId
+            , ncoPort = ccNetworkPort
+            }
+
+        baseParams :: BaseParams
+        baseParams = BaseParams { bpLoggingParams = mkLoggingParams conf }
+
+    networkConfig <- intNetworkConfigOpts' defaultTopology nco
+    -- 'defaultCommonNodeArgs' is passed to 'prepareUserSecret' because we do
+    -- not care what will be put into 'UserSecret'
+    -- (it is essential only for core nodes)
+    (primarySK, userSecret) <-
+        prepareUserSecret defaultCommonNodeArgs =<< peekUserSecret ccKeyfilePath
+    pure NodeParams
+        { npDbPathM = ccDbPath
+        , npRebuildDb = ccRebuildDB
+        , npSecretKey = primarySK
+        , npUserSecret = userSecret
+        , npBaseParams = baseParams
+        , npJLFile = jlPath defaultCommonNodeArgs
+        , npReportServers = reportServers defaultCommonArgs
+        , npUpdateParams = UpdateParams
+            { upUpdatePath    = updateLatestPath defaultCommonNodeArgs
+            , upUpdateWithPkg = updateWithPackage defaultCommonNodeArgs
+            , upUpdateServers = updateServers defaultCommonArgs
+            }
+        , npRoute53Params = route53Params defaultCommonNodeArgs
+        , npEnableMetrics = ccEnableMetrics
+        , npEkgParams = ccEkgParams
+        , npStatsdParams = statsdParams defaultCommonNodeArgs
+        , npAssetLockPath = cnaAssetLockPath defaultCommonNodeArgs
+        , npBehaviorConfig = def
+        , npNetworkConfig = networkConfig
+        }
 
 ----------------------------------------------------------------------------
 -- Dhall

@@ -4,15 +4,13 @@ import Universum
 
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Trans.Reader (withReaderT)
+import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import IiExtras
 import Mockable (Production(..), runProduction)
-import Pos.Binary ()
-import Pos.Client.CLI (NodeArgs(..))
-import qualified Pos.Client.CLI as CLI
-import Pos.Client.CLI.Util (readLoggerConfig)
+import Pos.Context (NodeContext(..))
 import Pos.Core
   (ProtocolMagic, epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
 import Pos.Core.Configuration (epochSlots)
@@ -21,7 +19,9 @@ import Pos.DB.DB (initNodeDBs)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
-import Pos.Launcher.Configuration (withConfigurations)
+  (ConfigurationOptions(cfoFilePath), LoggingParams(..), NodeParams(..),
+  runNode, runRealMode)
+import qualified Pos.Launcher.Configuration as Launcher.Configuration
 import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
 import Pos.Txp (txpGlobalSettings)
 import Pos.Update.Worker (updateTriggerWorker)
@@ -29,12 +29,15 @@ import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
 import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
 import Pos.WorkMode (RealMode)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.FilePath (takeDirectory, (</>))
 import System.Wlog
-  (consoleActionB, maybeLogsDirB, removeAllHandlers, setupLogging, showTidB,
-  showTimeB, usingLoggerName)
+  (LoggerConfig, WithLogger, consoleActionB, maybeLogsDirB, parseLoggerConfig,
+  productionB, removeAllHandlers, setupLogging, showTidB, showTimeB)
 
 import Ariadne.Cardano.Face
-import Ariadne.Config.Cardano (CardanoConfig(..), cardanoConfigToCommonNodeArgs)
+import Ariadne.Config.Cardano
+  (CardanoConfig(..), getNodeParams, gtSscParams, mkLoggingParams)
 
 createCardanoBackend ::
        CardanoConfig
@@ -42,15 +45,12 @@ createCardanoBackend ::
     -> (TVar UserSecret -> IO ())
     -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
 createCardanoBackend cardanoConfig bHandle addUs = do
-  let commonNodeArgs = cardanoConfigToCommonNodeArgs cardanoConfig
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
-  let confOpts = CLI.configurationOptions . CLI.commonArgs $ commonNodeArgs
+  let confOpts = ccConfigurationOptions cardanoConfig
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
-      -- We don't use asset lock feature, because we don't create
-      -- blocks, we leave these concerns to core nodes owners.
-      withConfigurations Nothing confOpts $ \_ntpConf protocolMagic ->
+      withConfigurations confOpts $ \protocolMagic ->
       return (CardanoFace
           { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
@@ -58,7 +58,7 @@ createCardanoBackend cardanoConfig bHandle addUs = do
           , cardanoGetDiffusion = getDiffusion diffusionVar
           , cardanoProtocolMagic = protocolMagic
           }
-          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar commonNodeArgs)
+          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar cardanoConfig)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -72,29 +72,36 @@ runCardanoNode ::
     -> (TVar UserSecret -> IO ())
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
-    -> CLI.CommonNodeArgs
+    -> CardanoConfig
     -> (CardanoEvent -> IO ())
     -> IO ()
 runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
-    commonArgs sendCardanoEvent = do
-  let loggingParams = CLI.loggingParams "ariadne" commonArgs
-      setupLoggers = setupLogging Nothing =<< getLoggerConfig loggingParams
+    cardanoConfig sendCardanoEvent = do
+  let loggingParams = mkLoggingParams cardanoConfig
       getLoggerConfig LoggingParams{..} = do
+          let consoleLogAction _ message =
+                  sendCardanoEvent $ CardanoLogEvent message
+
           let cfgBuilder = showTidB
                         <> showTimeB
                         <> maybeLogsDirB lpHandlerPrefix
-                        <> consoleActionB (\_ message -> sendCardanoEvent $ CardanoLogEvent message)
-          cfg <- readLoggerConfig lpConfigPath
+                        <> consoleActionB consoleLogAction
+
+          -- [AD-345] Use embedded config
+          let defaultLoggerConfig :: LoggerConfig
+              defaultLoggerConfig = productionB
+
+          cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
-      nodeArgs = CLI.NodeArgs { behaviorConfigPath = Nothing }
       extractionWorker diffusion = do
           ask >>= putMVar cardanoContextVar
           putMVar diffusionVar diffusion
+  loggerConfig <- getLoggerConfig loggingParams
+  let setupLoggers = setupLogging Nothing loggerConfig
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
-      nodeParams <- usingLoggerName ("ariadne" <> "cardano" <> "init") $
-          CLI.getNodeParams "ariadne" commonArgs nodeArgs
+      nodeParams <- getNodeParams cardanoConfig
       let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
-      let sscParams = CLI.gtSscParams commonArgs vssSK (npBehaviorConfig nodeParams)
+      let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
               [ updateTriggerWorker
               , extractionWorker
@@ -111,10 +118,17 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
         convertMode f diff =
             cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode cardanoModeToRealMode diff)
 
+        -- It's needed because 'bracketNodeResources' uses its own
+        -- logic to create a logging config, which differs from what
+        -- we do above. We want 'ncLoggerConfig' to be the same config
+        -- as the one passed to 'setupLogging'.
+        setProperLogConfig :: NodeResources __ -> NodeResources __
+        setProperLogConfig nr =
+            nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
         txpSettings = txpGlobalSettings protocolMagic
         initDBs = initNodeDBs protocolMagic epochSlots
         runMode = bracketNodeResources nodeParams sscParams txpSettings initDBs
-            $ \nr@NodeResources{..} ->
+            $ \(setProperLogConfig -> nr@NodeResources{..}) ->
                 Production .
                 runRealMode protocolMagic nr .
                 convertMode $ \diff -> do
@@ -151,3 +165,55 @@ statusPollingWorker sendCardanoEvent _diffusion = do
 getDiffusion ::
        MVar (Diffusion CardanoMode) -> CardanoMode (Diffusion CardanoMode)
 getDiffusion = readMVar
+
+----------------------------------------------------------------------------
+-- Provide default configuration
+----------------------------------------------------------------------------
+
+data GenesisDataFileExists =
+    GenesisDataFileExists !FilePath deriving (Show)
+
+instance Exception GenesisDataFileExists where
+    displayException (GenesisDataFileExists path) =
+        "There already is some file in a path (" <> show path <>
+        ") where we wanted to write genesis data"
+
+-- Version of 'withConfigurations' from 'Pos.Launcher' which omits
+-- stuff we are not interested in (like NTP configuration and asset
+-- lock) and uses default configuration when the one from
+-- 'cfoFilePath' does not exit.
+withConfigurations
+    :: (WithLogger m, MonadThrow m, MonadIO m)
+    => ConfigurationOptions
+    -> (HasConfigurations => ProtocolMagic -> m r)
+    -> m r
+withConfigurations cfo act = do
+    liftIO $ ensureConfigurationExists (cfoFilePath cfo)
+    -- We don't use asset lock feature, because we don't create
+    -- blocks, we leave these concerns to core nodes owners.
+    Launcher.Configuration.withConfigurations Nothing cfo (\_ntpConf -> act)
+  where
+    -- Quite simple, but works in cases we care about. We do not check
+    -- what is in these 'ByteString's, just assume it is what we expect.
+    -- Anyway, if you find it a bit hacky I somewhat agree.
+
+    -- [AD-345] Embed them!
+    staticConfiguration :: ByteString
+    staticConfiguration = error "staticConfiguration is not defined yet"
+    staticGenesisData :: ByteString
+    staticGenesisData = error "staticGenesisData is not defined yet"
+
+    genesisDataPath :: FilePath -> FilePath
+    genesisDataPath confPath = takeDirectory confPath </> "mainnet-genesis.json"
+
+    ensureConfigurationExists :: FilePath -> IO ()
+    ensureConfigurationExists confPath =
+        unlessM (doesFileExist confPath) $ writeStaticConfiguration confPath
+
+    writeStaticConfiguration :: FilePath -> IO ()
+    writeStaticConfiguration confPath = do
+        let gdp = genesisDataPath confPath
+        whenM (doesFileExist gdp) $ throwM $ GenesisDataFileExists gdp
+        createDirectoryIfMissing True (takeDirectory confPath)
+        BS.writeFile confPath staticConfiguration
+        BS.writeFile gdp staticGenesisData
