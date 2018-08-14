@@ -3,8 +3,8 @@
 CORE_PACKAGES = ariadne-core
 CARDANO_PACKAGES = ariadne-cardano
 CLI_PACKAGES = ariadne-cli
-VTY_PACKAGES = ariadne-vty
-QT_PACKAGES = ariadne-qt
+VTY_PACKAGES = ariadne-vty-app
+QT_PACKAGES = ariadne-qt-app
 
 # Options for development
 STACK_DEV_OPTIONS = --fast --ghc-options -Wwarn --file-watch
@@ -37,8 +37,9 @@ dev-vty:
 dev-qt:
 	stack build $(QT_PACKAGES) $(STACK_DEV_OPTIONS)
 
+# Run tests in all packages which have them.
 test:
-	stack test ii-extras knit ariadne-cli ariadne-vty ariadne-qt ariadne-core ariadne-cardano
+	stack test ii-extras knit ariadne-cardano
 
 stylish:
 	stylish-haskell -i `find ariadne knit util ui -iname '*.hs'`
