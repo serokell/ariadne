@@ -5,14 +5,15 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
+import Control.Concurrent.STM.TVar (TVar)
+import Control.Monad.Component (ComponentM, buildComponent_)
 import Data.Acid (openLocalStateFrom, query)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
-import Text.PrettyPrint.ANSI.Leijen (Doc)
-import System.Wlog (logMessage, usingLoggerName)
-import Control.Concurrent.STM.TVar (TVar)
 import Pos.Util.Future (newInitFuture)
 import Pos.Util.UserSecret (UserSecret)
+import System.Wlog (logMessage, usingLoggerName)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
@@ -21,17 +22,17 @@ import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
 import Ariadne.Wallet.Cardano.WalletLayer.Kernel (bracketPassiveWallet)
-import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer (..))
+import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
 
-createWalletBackend :: WalletConfig -> (WalletEvent -> IO ()) -> IO
+createWalletBackend :: WalletConfig -> (WalletEvent -> IO ()) -> ComponentM
   ( BListenerHandle
   , TVar UserSecret -> IO ()
   , CardanoFace ->
     ((Doc -> IO ()) -> WalletFace, IO ())
   )
-createWalletBackend walletConfig sendWalletEvent = do
+createWalletBackend walletConfig sendWalletEvent = buildComponent_ "Wallet" $ do
   walletSelRef <- newIORef Nothing
   -- TODO: Do I need to close session on exit?
   acidDb <- openLocalStateFrom walletAcidDbPathPlaceholder defDB

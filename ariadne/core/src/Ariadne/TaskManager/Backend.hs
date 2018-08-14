@@ -4,6 +4,7 @@ import Universum
 
 import Control.Concurrent.Async
 import Control.Lens as L
+import Control.Monad.Component (ComponentM, buildComponent_)
 import Data.Map as Map
 import IiExtras
 
@@ -22,8 +23,8 @@ data TaskMap v = TaskMap
   }
 makeLenses 'TaskMap
 
-createTaskManagerFace :: forall v. IO (TaskManagerFace v)
-createTaskManagerFace = do
+createTaskManagerFace :: forall v. ComponentM (TaskManagerFace v)
+createTaskManagerFace = buildComponent_ "TaskManager" $ do
   idGen <- newTaskIdGenerator
   taskMapVar <- newIORef (TaskMap Map.empty Map.empty)
   let

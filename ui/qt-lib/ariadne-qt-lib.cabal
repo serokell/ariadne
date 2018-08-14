@@ -31,6 +31,7 @@ library
     , text
     , ansi-wl-pprint
     , containers
+    , componentm
     , hoppy-runtime
     , loc
     , qtah

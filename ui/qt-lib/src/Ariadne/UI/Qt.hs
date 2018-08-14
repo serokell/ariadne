@@ -6,6 +6,7 @@ module Ariadne.UI.Qt
 import Universum
 
 import Control.Concurrent
+import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
 import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace)
@@ -29,11 +30,13 @@ type UiAction = UiLangFace -> IO ()
 
 type UiEventBQueue = TBQueue UiEvent
 
-createAriadneUI :: UiHistoryFace -> IO (UiFace, UiAction)
-createAriadneUI historyFace = do
+createAriadneUI :: UiHistoryFace -> ComponentM (UiFace, UiAction)
+createAriadneUI historyFace = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
-  return (mkUiFace eventQueue dispatcherIORef, runUIEventLoop eventQueue dispatcherIORef historyFace)
+  return
+    ( mkUiFace eventQueue dispatcherIORef
+    , runUIEventLoop eventQueue dispatcherIORef historyFace)
 
 fonts :: [Text]
 fonts =

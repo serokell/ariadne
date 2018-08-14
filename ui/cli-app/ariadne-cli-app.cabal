@@ -25,6 +25,7 @@ executable ariadne-cli
     , ariadne-core
     , async
     , base >=4.7 && <5
+    , componentm
     , ii-extras
     , knit
     , text

@@ -25,6 +25,7 @@ executable ariadne
     , ariadne-vty-lib
     , async
     , base >=4.7 && <5
+    , componentm
     , containers
     , double-conversion
     , ii-extras

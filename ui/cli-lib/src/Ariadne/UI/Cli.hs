@@ -5,6 +5,7 @@ module Ariadne.UI.Cli
 
 import Universum
 
+import Control.Monad.Component (ComponentM, buildComponent_)
 import Data.Text (strip, unlines)
 
 import qualified System.Console.Haskeline as Haskeline
@@ -16,8 +17,8 @@ type Repl = Haskeline.InputT IO
 type UiAction = UiLangFace -> IO ()
 type PrintAction = Text -> IO ()
 
-createAriadneUI :: IO (UiFace, UiAction)
-createAriadneUI = do
+createAriadneUI :: ComponentM (UiFace, UiAction)
+createAriadneUI = buildComponent_ "UI-CLI" $ do
     printActionVar :: MVar PrintAction <- newEmptyMVar
     let uiFace = mkUiFace printActionVar
     return (uiFace, runUI printActionVar uiFace)

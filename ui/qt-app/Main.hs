@@ -2,72 +2,34 @@ module Main where
 
 import Universum
 
-import Control.Concurrent.Async
+import Control.Monad.Component (ComponentM)
 import IiExtras
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-import Ariadne.Cardano.Backend
-import Ariadne.Cardano.Face (CardanoFace(..))
-import Ariadne.Config.Ariadne (AriadneConfig(..))
-import Ariadne.Config.History (HistoryConfig(..))
-import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.TH (getCommitHash)
-import Ariadne.Knit.Backend
-import Ariadne.TaskManager.Backend
+import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Qt
+import Ariadne.UI.Qt.Face (UiLangFace)
 import Ariadne.UX.CommandHistory
-import Ariadne.Wallet.Backend
-
-import qualified Ariadne.Cardano.Knit as Knit
-import qualified Ariadne.TaskManager.Knit as Knit
-import qualified Ariadne.Wallet.Knit as Knit
-import qualified Knit
 
 import Glue
 
-type Components = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
+type UiComponents = '[]
 
 main :: IO ()
-main = do
-  ariadneConfig <- getConfig $(getCommitHash)
-  let cardanoConfig = acCardano ariadneConfig
-      walletConfig = acWallet ariadneConfig
-      historyConfig = acHistory ariadneConfig
+main = defaultMain mainSettings
+  where
+    mainSettings :: MainSettings UiComponents UiFace UiLangFace
+    mainSettings = MainSettings
+        { msCommitHash = $(getCommitHash)
+        , msCreateUI = createUI
+        , msPutWalletEventToUI = putWalletEventToUI
+        , msPutCardanoEventToUI = putCardanoEventToUI
+        , msPutUpdateEventToUI = Nothing
+        , msKnitFaceToUI = knitFaceToUI
+        , msUiExecContext = const RNil
+        }
 
-  history <- openCommandHistory $ hcPath historyConfig
-  let historyFace = historyToUI history
-
-  (uiFace, mkUiAction) <- createAriadneUI historyFace
-  (bHandle, addUs, mkWallet) <- createWalletBackend walletConfig (putWalletEventToUI uiFace)
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
-  let CardanoFace { cardanoRunCardanoMode = runCardanoMode
-                  } = cardanoFace
-  taskManagerFace <- createTaskManagerFace
-
-  let
-    mkWalletFace :: (Doc -> IO ()) -> WalletFace
-    walletInitAction :: IO ()
-    (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace
-
-    knitExecContext :: (Doc -> IO ()) -> Knit.ExecContext IO Components
-    knitExecContext putCommandOutput =
-      Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
-      Knit.CardanoExecCtx (runNat runCardanoMode) :&
-      Knit.WalletExecCtx (mkWalletFace putCommandOutput) :&
-      Knit.TaskManagerExecCtx taskManagerFace :&
-      RNil
-
-    knitFace = createKnitBackend knitExecContext taskManagerFace
-
-    uiAction, cardanoAction :: IO ()
-    uiAction = mkUiAction (knitFaceToUI uiFace knitFace)
-    cardanoAction = mkCardanoAction (putCardanoEventToUI uiFace)
-
-    initAction :: IO ()
-    initAction = walletInitAction
-
-    serviceAction :: IO ()
-    serviceAction = uiAction `race_` cardanoAction
-
-  withAsync initAction $ \_ -> serviceAction
+    createUI :: CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
+    createUI history =
+        let historyFace = historyToUI history
+        in createAriadneUI historyFace

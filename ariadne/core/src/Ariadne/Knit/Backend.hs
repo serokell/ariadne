@@ -1,5 +1,6 @@
 module Ariadne.Knit.Backend
-  ( KnitFace(..)
+  ( Components
+  , KnitFace(..)
   , createKnitBackend
   ) where
 
