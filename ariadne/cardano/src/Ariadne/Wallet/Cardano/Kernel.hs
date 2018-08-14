@@ -14,7 +14,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , accountTotalBalance
   , applyBlock
   , applyBlocks
-  , bracketPassiveWallet
+  , passiveWalletComponent
   , initPassiveWallet
   , createWalletHdRnd
   , init
@@ -23,7 +23,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , wallets
     -- * Active wallet
   , ActiveWallet -- opaque
-  , bracketActiveWallet
+  , activeWalletComponent
   , newPending
   ) where
 
@@ -31,6 +31,7 @@ import Universum hiding (State, init)
 
 import Control.Concurrent.STM.TVar (readTVar)
 import Control.Lens.TH
+import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Map.Strict as Map
 import Data.Time.Clock.POSIX (getPOSIXTime)
 
@@ -89,22 +90,14 @@ makeLenses ''PassiveWallet
 -------------------------------------------------------------------------------}
 
 -- | Allocate wallet resources
---
--- Here and elsewhere we'll want some constraints on this monad here, but
--- it shouldn't be too specific.
-bracketPassiveWallet :: (MonadMask m, MonadIO m)
-                     => (Severity -> Text -> IO ())
-                     -> TVar UserSecret
-                     -> AcidState DB
-                     -> (PassiveWallet -> m a) -> m a
-bracketPassiveWallet _walletLogMessage us db f =
-    bracket (return ())
-            (\_ -> return ())
-            (\_ ->
-                bracket
-                  (liftIO $ initPassiveWallet _walletLogMessage us db)
-                  (\_ -> return ())
-                  f)
+passiveWalletComponent ::
+       (Severity -> Text -> IO ())
+    -> TVar UserSecret
+    -> AcidState DB
+    -> ComponentM PassiveWallet
+passiveWalletComponent _walletLogMessage us db =
+    buildComponent_ "PassiveWallet" $ initPassiveWallet _walletLogMessage us db
+
 {-------------------------------------------------------------------------------
   Manage the WalletESKs Map
 -------------------------------------------------------------------------------}
@@ -239,14 +232,10 @@ data ActiveWallet = ActiveWallet {
     }
 
 -- | Initialize the active wallet
-bracketActiveWallet :: MonadMask m
-                    => PassiveWallet
-                    -> WalletDiffusion
-                    -> (ActiveWallet -> m a) -> m a
-bracketActiveWallet walletPassive walletDiffusion =
-    bracket
-      (return ActiveWallet{..})
-      (\_ -> return ())
+activeWalletComponent ::
+       PassiveWallet -> WalletDiffusion -> ComponentM ActiveWallet
+activeWalletComponent walletPassive walletDiffusion =
+    return ActiveWallet{..}
 
 -- | Submit a new pending transaction
 --

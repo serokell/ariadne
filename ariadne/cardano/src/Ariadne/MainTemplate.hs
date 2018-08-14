@@ -80,8 +80,11 @@ initializeEverything MainSettings {..}
   history <- openCommandHistory $ hcPath historyConfig
 
   (uiFace, mkUiAction) <- msCreateUI history
-  (bHandle, addUs, mkWallet) <-
-      createWalletBackend walletConfig (msPutWalletEventToUI uiFace)
+  WalletPreface
+    { wpBListener = bHandle
+    , wpAddUserSecret = addUs
+    , wpMakeWallet = mkWallet
+    } <- createWalletBackend walletConfig (msPutWalletEventToUI uiFace)
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
