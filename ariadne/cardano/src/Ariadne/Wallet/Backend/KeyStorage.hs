@@ -57,7 +57,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Cardano.Kernel.Word31
 import Ariadne.Wallet.Face
@@ -208,7 +207,8 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
       checkParentRoot accId
       return accId
     AccountRefByUIindex accIdx walRef -> do
-      accounts <- getAccList walRef
+      accounts <- toList . snd <$>
+        resolveWalletRefThenRead walletSelRef walRef walletDb readAccountsByRootId
       acc <- maybeThrow
         (AccountIndexOutOfRange (fromIntegral accIdx))
         (accounts ^? ix (fromIntegral accIdx))
@@ -217,9 +217,6 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
       return accId
   where
     hdWallets = walletDb ^. dbHdWallets
-    getAccList walRef = do
-      rootId <- resolveWalletRef walletSelRef walRef walletDb
-      toList <$> (eitherToThrow $ readAccountsByRootId rootId hdWallets)
 
     checkAccId :: HdAccountId -> IO ()
     checkAccId accId =
@@ -228,6 +225,19 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
     checkParentRoot :: HdAccountId -> IO ()
     checkParentRoot accId =
       eitherToThrow $ readHdRoot (accId ^. hdAccountIdParent) hdWallets >> return ()
+
+resolveAccountRefThenRead
+  :: IORef (Maybe WalletSelection)
+  -> AccountReference
+  -> DB
+  -> (HdAccountId -> HdQueryErr UnknownHdAccount a)
+  -> IO (HdAccountId, a)
+resolveAccountRefThenRead walletSelRef accRef db q = do
+    accId <- resolveAccountRef walletSelRef accRef db
+    (accId,) <$> case q accId (db ^. dbHdWallets) of
+        -- This function's assumption is that it must not happen.
+        Left err -> error $ "resolveAccountRefThenRead: " <> pretty err
+        Right res -> return res
 
 refreshState
   :: AcidState DB
@@ -250,7 +260,8 @@ newAddress ::
     -> IO Address
 newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = do
   walletDb <- query acidDb Snapshot
-  accountId <- resolveAccountRef walletSelRef accRef walletDb
+  (accountId, addrList) <- second toList <$>
+    resolveAccountRefThenRead walletSelRef accRef walletDb readAddressesByAccountId
   keysMap <- (^. usWallets) <$> runCardanoMode getSecretDefault
 
   let
@@ -259,7 +270,7 @@ newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = 
     addressId = HdAddressId
       { _hdAddressIdParent = accountId
       , _hdAddressIdChain = chain
-      , _hdAddressIdIx = mkAddrIdx accountId walletDb
+      , _hdAddressIdIx = mkAddrIdx addrList
       }
     -- Wallets creation and deletion organized in a such way that
     -- an absence of a key is not possible.
@@ -294,24 +305,18 @@ newAddress acidDb WalletFace {..} walletSelRef runCardanoMode accRef chain pp = 
       -- Using the sequential indexation as in accounts.
       -- TODO:
       -- * get random index with gap less than 20 (BIP-44)
-      mkAddrIdx :: HdAccountId -> DB -> HdAddressIx
-      mkAddrIdx accId walletDb = HdAddressIx $
+      mkAddrIdx :: [HdAddress] -> HdAddressIx
+      mkAddrIdx addrList = HdAddressIx $
         findFirstUnique
           (unsafeMkWord31 0)
-          (addrIndexes accId (walletDb ^. dbHdWallets))
+          (addrIndexes addrList)
 
-      addrIndexes :: HdAccountId -> HdWallets -> Vector Word31
-      addrIndexes accId wallets =
+      addrIndexes :: [HdAddress] -> Vector Word31
+      addrIndexes addrList =
         V.fromList (
           ( unHdAddressIx
           . _hdAddressIdIx
-          . _hdAddressId) <$> (toList (getAddresses accId wallets)))
-
-      getAddresses :: HdAccountId -> HdWallets -> IxSet HdAddress
-      getAddresses accId wallets = fromRight
-        (error "Bug: UnknownHdAccount")
-        (readAddressesByAccountId accId wallets)
-
+          . _hdAddressId) <$> addrList)
 
 mkUntitled :: Text -> Vector Text -> Text
 mkUntitled untitled namesVec =
@@ -332,41 +337,30 @@ newAccount
   -> IO ()
 newAccount acidDb WalletFace{..} walletSelRef walletRef mbAccountName = do
   walletDb <- query acidDb Snapshot
-  rootId <- resolveWalletRef walletSelRef walletRef walletDb
-
-  let
-    wallets = walletDb ^. dbHdWallets
-    namesVec = V.fromList
-      (map (unAccountName . (^. hdAccountName)) $ toList $ getAccounts (walletDb ^. dbHdWallets) rootId)
-
+  (rootId,accList)  <- second toList <$>
+        resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
+  
+  let namesVec = V.fromList (map (unAccountName . (^. hdAccountName)) accList)
+  
   accountName <- case (unAccountName <$> mbAccountName) of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
     Just accountName_ -> return accountName_
 
-  let hdAccId = HdAccountId rootId (HdAccountIx $ accountIdx rootId wallets)
+  let hdAccId = HdAccountId rootId (HdAccountIx $ accountIdx accList)
   throwLeftIO $ update acidDb (CreateHdAccount hdAccId mempty (Just (AccountName accountName)))
 
   walletRefreshState
   where
-    accIndexes :: HdRootId -> HdWallets -> Vector Word31
-    accIndexes rootId wallets =
+    accIndexes :: [HdAccount] -> Vector Word31
+    accIndexes accList =
       V.fromList (
         ( unHdAccountIx
         . _hdAccountIdIx
-        . _hdAccountId) <$> (toList (getAccounts wallets rootId)))
+        . _hdAccountId) <$> accList)
 
     -- AFAIU account indexation should be sequential
-    accountIdx rootId wallets = findFirstUnique (unsafeMkWord31 0) (accIndexes rootId wallets)
-
-        -- TODO: make it global
-    -- The same function as in `select`. It is unsafe -> not global.
-    -- It is assumed that hdRootId is a valid one.
-    -- It is, because resolveWalletRef always returns a valid HdRootId.
-    getAccounts :: HdWallets -> HdRootId -> IxSet HdAccount
-    getAccounts wallets rootId = fromRight
-      (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId rootId wallets)
+    accountIdx accList = findFirstUnique (unsafeMkWord31 0) (accIndexes accList)
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -467,34 +461,25 @@ select
   -> IO ()
 select acidDb WalletFace{..} walletSelRef mWalletRef uiPath = do
   walletDb <- query acidDb Snapshot
-  let wallets = walletDb ^. dbHdWallets
   mbSelection <- case mWalletRef of
     Nothing -> return Nothing
     Just walletRef -> do
       -- Throw an exception if walletRef is invalid
-      rootId <- resolveWalletRef walletSelRef walletRef walletDb
+      (rootId,accList) <- second toList <$>
+        resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
       case nonEmpty uiPath of
         Nothing -> return $ Just $ WSRoot rootId
         Just (accIdx :| acPath) -> do
           -- validate account
           hdAccount <- maybeThrow
             (AccountIndexOutOfRange accIdx)
-            ((accList wallets rootId) ^? ix (fromIntegral accIdx))
+            (accList ^? ix (fromIntegral accIdx))
 
           unless (null acPath) $ throwM SelectIsTooDeep
           return $ Just $ WSAccount $ hdAccount ^. hdAccountId
 
   atomicWriteIORef walletSelRef mbSelection
   walletRefreshState
-  where
-    -- TODO: make it global
-    accList :: HdWallets -> HdRootId -> [HdAccount]
-    accList wallets rootId = toList $ getAccounts wallets rootId
-
-    getAccounts :: HdWallets -> HdRootId -> IxSet HdAccount
-    getAccounts wallets rootId = fromRight
-      (error "Bug: UnknownHdRoot")
-      (readAccountsByRootId rootId wallets)
 
 getBalance
   :: AcidState DB
