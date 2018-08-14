@@ -152,6 +152,7 @@ getConfig commitHash = do
     putTextLn $ sformat ("Ariadne v"%string%" commit:"%string) (showVersion version) commitHash
     exitSuccess
 
+  xdgDataPath <- getXdgDirectory XdgData "ariadne"
   config <- ifM (doesFileExist configPath)
     (do
       -- Dhall will throw well formatted colourful error message
@@ -160,11 +161,11 @@ getConfig commitHash = do
       -- Passing path as dhall import is needed for relative import paths
       -- to be relative to the config path.
       unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
-      configDirs <- ConfigDirectories <$> getXdgDirectory XdgData "ariadne" <*> getCurrentDirectory
+      configDirs <- ConfigDirectories xdgDataPath <$> getCurrentDirectory
       return (resolvePaths unresolved configPath configDirs))
     (do
       putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
-      return defaultAriadneConfig)
+      return (defaultAriadneConfig xdgDataPath))
 
   return $ mergeConfigs cli_config config
     where

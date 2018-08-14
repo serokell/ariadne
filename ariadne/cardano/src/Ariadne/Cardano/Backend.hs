@@ -32,12 +32,13 @@ import Pos.WorkMode (RealMode)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, (</>))
 import System.Wlog
-  (LoggerConfig, WithLogger, consoleActionB, maybeLogsDirB, parseLoggerConfig,
-  productionB, removeAllHandlers, setupLogging, showTidB, showTimeB)
+  (WithLogger, consoleActionB, maybeLogsDirB, parseLoggerConfig,
+  removeAllHandlers, setupLogging, showTidB, showTimeB)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Cardano
-  (CardanoConfig(..), getNodeParams, gtSscParams, mkLoggingParams)
+  (CardanoConfig(..), defaultConfigurationYaml, defaultGenesisJson,
+  defaultLoggerConfig, getNodeParams, gtSscParams, mkLoggingParams)
 
 createCardanoBackend ::
        CardanoConfig
@@ -86,10 +87,6 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
                         <> showTimeB
                         <> maybeLogsDirB lpHandlerPrefix
                         <> consoleActionB consoleLogAction
-
-          -- [AD-345] Use embedded config
-          let defaultLoggerConfig :: LoggerConfig
-              defaultLoggerConfig = productionB
 
           cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
@@ -194,14 +191,8 @@ withConfigurations cfo act = do
     Launcher.Configuration.withConfigurations Nothing cfo (\_ntpConf -> act)
   where
     -- Quite simple, but works in cases we care about. We do not check
-    -- what is in these 'ByteString's, just assume it is what we expect.
+    -- what is in embedded 'ByteString's, just assume it is what we expect.
     -- Anyway, if you find it a bit hacky I somewhat agree.
-
-    -- [AD-345] Embed them!
-    staticConfiguration :: ByteString
-    staticConfiguration = error "staticConfiguration is not defined yet"
-    staticGenesisData :: ByteString
-    staticGenesisData = error "staticGenesisData is not defined yet"
 
     genesisDataPath :: FilePath -> FilePath
     genesisDataPath confPath = takeDirectory confPath </> "mainnet-genesis.json"
@@ -215,5 +206,5 @@ withConfigurations cfo act = do
         let gdp = genesisDataPath confPath
         whenM (doesFileExist gdp) $ throwM $ GenesisDataFileExists gdp
         createDirectoryIfMissing True (takeDirectory confPath)
-        BS.writeFile confPath staticConfiguration
-        BS.writeFile gdp staticGenesisData
+        BS.writeFile confPath defaultConfigurationYaml
+        BS.writeFile gdp defaultGenesisJson

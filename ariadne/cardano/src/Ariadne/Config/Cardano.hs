@@ -1,7 +1,18 @@
 module Ariadne.Config.Cardano
-       ( defaultCardanoConfig
+       (
+         -- * Config type
+         CardanoConfig (..)
+
+       -- * Defaults
+       , defaultLoggerConfig
+       , defaultConfigurationYaml
+       , defaultGenesisJson
+       , defaultCardanoConfig
+
+       -- * Helpers
        , cardanoFieldModifier
-       , CardanoConfig (..)
+
+       -- * Construction of various stuff
        , mkLoggingParams
        , getNodeParams
        , gtSscParams
@@ -18,15 +29,21 @@ module Ariadne.Config.Cardano
        , ccConfigurationOptionsL
        , ccEnableMetricsL
        , ccEkgParamsL
+
+
+       -- * Exports for tests
+       , defaultTopology
        ) where
 
 import Universum
 
 import Control.Lens (makeLensesWith)
 import Data.Default (def)
+import Data.FileEmbed (embedFile, makeRelativeToProject)
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map
 import Data.Time.Units (Microsecond, Second, convertUnit, fromMicroseconds)
+import qualified Data.Yaml as Yaml
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
@@ -41,9 +58,8 @@ import Pos.Core.Configuration (HasConfiguration)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (VssKeyPair(..))
 import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts')
-import Pos.Infra.Network.DnsDomains (DnsDomains(..), NodeAddr(..))
 import Pos.Infra.Network.Types (NodeName(..))
-import qualified Pos.Infra.Network.Yaml as Y
+import qualified Pos.Infra.Network.Yaml as Network.Yaml
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
@@ -51,7 +67,8 @@ import Pos.Launcher
 import Pos.Ssc (SscParams(..))
 import Pos.Update (UpdateParams(..))
 import Pos.Util.UserSecret (peekUserSecret)
-import System.Wlog (usingLoggerName)
+import System.FilePath ((</>))
+import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
@@ -82,6 +99,32 @@ makeLensesWith postfixLFields ''CardanoConfig
 -- Default values
 ----------------------------------------------------------------------------
 
+parseStaticValue :: Yaml.FromJSON a => Text -> ByteString -> a
+parseStaticValue name bs =
+    case Yaml.decodeEither bs of
+        Left err -> error $ "Static " <> name <> " is broken: " <> toText err
+        Right x -> x
+
+defaultTopology :: Network.Yaml.Topology
+defaultTopology = parseStaticValue "topology" defBS
+  where
+    defBS =
+        $(makeRelativeToProject "config/topology.yaml" >>= embedFile)
+
+defaultLoggerConfig :: LoggerConfig
+defaultLoggerConfig = parseStaticValue "logging config" defBS
+  where
+    defBS =
+      $(makeRelativeToProject "config/log-config.yaml" >>= embedFile)
+
+defaultConfigurationYaml :: ByteString
+defaultConfigurationYaml =
+    $(makeRelativeToProject "config/configuration.yaml" >>= embedFile)
+
+defaultGenesisJson :: ByteString
+defaultGenesisJson =
+    $(makeRelativeToProject "config/mainnet-genesis.json" >>= embedFile)
+
 defaultCommonNodeArgs :: CommonNodeArgs
 defaultCommonNodeArgs =
     CommonNodeArgs
@@ -91,21 +134,22 @@ defaultCommonNodeArgs =
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = Just "config/cardano/topology.yaml"
+            { ncoTopology = Nothing
             , ncoKademlia = Nothing
             , ncoSelf = Just (NodeName "node0")
-            , ncoPort = 3000, ncoPolicies = Nothing
+            , ncoPort = 3000,
+              ncoPolicies = Nothing
             , ncoBindAddress = Nothing
             , ncoExternalAddress = Nothing
             }
         , jlPath = Nothing
         , commonArgs = CommonArgs
-            { logConfig = Just "config/cardano/log-config.yaml"
+            { logConfig = Nothing
             , logPrefix = Just "logs/mainnet"
             , reportServers = []
             , updateServers = []
             , configurationOptions = ConfigurationOptions
-                { cfoFilePath = "config/cardano/cardano-config.yaml"
+                { cfoFilePath = "cardano-configuration.yaml"
                 , cfoKey = "mainnet_full"
                 , cfoSystemStart = Nothing
                 , cfoSeed = Nothing
@@ -121,17 +165,17 @@ defaultCommonNodeArgs =
         , cnaDumpConfiguration = False
         }
 
-defaultCardanoConfig :: CardanoConfig
-defaultCardanoConfig =
+defaultCardanoConfig :: FilePath -> CardanoConfig
+defaultCardanoConfig dataDir =
     CardanoConfig
-        { ccDbPath = dbPath defaultCommonNodeArgs
+        { ccDbPath = (dataDir </> ) <$> dbPath defaultCommonNodeArgs
         , ccRebuildDB = rebuildDB defaultCommonNodeArgs
-        , ccKeyfilePath = keyfilePath defaultCommonNodeArgs
+        , ccKeyfilePath = dataDir </> keyfilePath defaultCommonNodeArgs
         , ccNetworkTopology = ncoTopology nco
         , ccNetworkNodeId = ncoSelf nco
         , ccNetworkPort = ncoPort nco
         , ccLogConfig = logConfig ca
-        , ccLogPrefix = logPrefix ca
+        , ccLogPrefix = (dataDir </>) <$> logPrefix ca
         , ccConfigurationOptions = configurationOptions ca
         , ccEnableMetrics = enableMetrics defaultCommonNodeArgs
         , ccEkgParams = ekgParams defaultCommonNodeArgs
@@ -180,17 +224,6 @@ getNodeParams conf@(CardanoConfig
     ) = usingLoggerName ("ariadne" <> "cardano" <> "init") $ do
 
     let defaultCommonArgs = commonArgs defaultCommonNodeArgs
-
-        -- [AD-345] Use embedded topology
-        defaultTopology :: Y.Topology
-        defaultTopology =
-            Y.TopologyBehindNAT
-            { topologyValency = 1
-            , topologyFallbacks = 1
-            , topologyDnsDomains = DnsDomains [
-                [NodeAddrDNS "todo.defaultDnsDomain.com" Nothing]
-                ]
-            }
 
         nco :: NetworkConfigOpts
         nco = (networkConfigOpts defaultCommonNodeArgs)

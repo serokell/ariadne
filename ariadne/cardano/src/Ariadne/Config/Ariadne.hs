@@ -23,8 +23,14 @@ import Dhall.TypeCheck (X)
 import IiExtras (postfixLFields)
 
 -- default Ariadne config with Cardano mainnet config
-defaultAriadneConfig :: AriadneConfig
-defaultAriadneConfig = AriadneConfig defaultCardanoConfig defaultWalletConfig defaultUpdateConfig defaultHistoryConfig
+defaultAriadneConfig :: FilePath -> AriadneConfig
+defaultAriadneConfig dataDir =
+    AriadneConfig
+        { acCardano = defaultCardanoConfig dataDir
+        , acWallet = defaultWalletConfig
+        , acUpdate = defaultUpdateConfig
+        , acHistory = defaultHistoryConfig
+        }
 
 parseFieldAriadne ::
        Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a
