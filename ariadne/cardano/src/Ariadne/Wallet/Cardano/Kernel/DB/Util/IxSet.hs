@@ -10,6 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , IxSet
   , Indexable
     -- * Building 'Indexable' instances
+  , deleteIxAll  
   , ixFun
   , ixList
     -- * Queries
@@ -169,6 +170,12 @@ updateIxManyM pk f (WrapIxSet s) = do
     mappedValues <- traverse (Lens.coerced f) originalValues
     pure $ WrapIxSet $
       foldr IxSet.insert (foldr IxSet.delete s originalValues) mappedValues
+
+-- | Delete all values with the given key. 
+
+deleteIxAll :: (Indexable a, IsIndexOf ix a) => ix -> IxSet a -> IxSet a
+deleteIxAll ix (WrapIxSet ixSet) =
+    WrapIxSet (IxSet.getGT ix ixSet `IxSet.union` IxSet.getLT ix ixSet)
 
 {-------------------------------------------------------------------------------
   Construction
