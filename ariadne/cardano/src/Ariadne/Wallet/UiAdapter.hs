@@ -42,7 +42,7 @@ import Control.Lens (makeLenses)
 -- 'WalletData' like data type, used only in UI glue
 data UiWalletData = UiWalletData
   { _uwdName     :: !Text
-  , _uwdId       :: !Text
+  , _uwdId       :: !HdRootId
   , _uwdAccounts :: !(Vector UiAccountData)
   , _uwdBalance  :: !Coin
   } deriving (Show, Generic)
@@ -98,7 +98,7 @@ toUiWalletDatas db = toUiWalletData <$> walletList
     toUiWalletData :: HdRoot -> UiWalletData
     toUiWalletData HdRoot{..} = UiWalletData
       { _uwdName = unWalletName _hdRootName
-      , _uwdId = let (AbstractHash x) = _fromDb $ unHdRootId $ _hdRootId in show x
+      , _uwdId = _hdRootId
       , _uwdAccounts =
         let
           indexedAccounts :: Vector (Word32, HdAccount)
