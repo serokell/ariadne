@@ -34,6 +34,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 
 import Pos.Core (unsafeIntegerToCoin)
+import Pos.Crypto.Hashing (AbstractHash(..))
 import Serokell.Util (enumerate)
 
 import Control.Lens (makeLenses)
@@ -41,7 +42,7 @@ import Control.Lens (makeLenses)
 -- 'WalletData' like data type, used only in UI glue
 data UiWalletData = UiWalletData
   { _uwdName     :: !Text
-  , _uwdId       :: !HdRootId
+  , _uwdId       :: !Text
   , _uwdAccounts :: !(Vector UiAccountData)
   , _uwdBalance  :: !Coin
   } deriving (Show, Generic)
@@ -97,7 +98,7 @@ toUiWalletDatas db = toUiWalletData <$> walletList
     toUiWalletData :: HdRoot -> UiWalletData
     toUiWalletData HdRoot{..} = UiWalletData
       { _uwdName = unWalletName _hdRootName
-      , _uwdId = _hdRootId
+      , _uwdId = let (AbstractHash x) = _fromDb $ unHdRootId $ _hdRootId in show x
       , _uwdAccounts =
         let
           indexedAccounts :: Vector (Word32, HdAccount)
