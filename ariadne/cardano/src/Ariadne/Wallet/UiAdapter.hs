@@ -34,7 +34,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 
 import Pos.Core (unsafeIntegerToCoin)
-import Pos.Crypto.Hashing (AbstractHash(..))
 import Serokell.Util (enumerate)
 
 import Control.Lens (makeLenses)
