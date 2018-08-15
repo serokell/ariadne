@@ -32,9 +32,6 @@ import Data.Version (Version)
 import IiExtras
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (unHdRootId)
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb (_fromDb)
-
 import Ariadne.Cardano.Face
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
@@ -308,7 +305,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
     wallet UiWalletData{..} =
       UiWalletInfo
         { uwiLabel = Just _uwdName
-        , uwiId = Knit.componentTokenRender $ Knit.TokenAddressHash $ _fromDb $ unHdRootId _uwdId
+        , uwiId = formatHdRootId _uwdId
         , uwiWalletIdx = uwsWalletIdx
         , uwiBalance = balance _uwdBalance
         , uwiAccounts = account <$> V.toList _uwdAccounts

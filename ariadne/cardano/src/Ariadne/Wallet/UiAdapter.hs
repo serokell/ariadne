@@ -20,11 +20,14 @@ module Ariadne.Wallet.UiAdapter
   --
   , toUiWalletDatas
   , toUiWalletSelection
+  , formatAddressHash
+  , formatHdRootId
   ) where
 
 import Universum
 
 import qualified Data.Vector as V
+import Formatting (sformat, (%))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -33,7 +36,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 import Ariadne.Wallet.Face
 
-import Pos.Core (unsafeIntegerToCoin)
+import Pos.Core (AddressHash, unsafeIntegerToCoin)
+import Pos.Crypto.Hashing (hashHexF)
 import Serokell.Util (enumerate)
 
 import Control.Lens (makeLenses)
@@ -156,3 +160,9 @@ toUiWalletSelection db selection = case selection of
     getAccountIdx accountId parentRootId = fst $ fromMaybe
       (error "Bug: selected Account does not exist.")
       (find (\(_, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
+
+formatAddressHash :: AddressHash a -> Text
+formatAddressHash = sformat ("#" % hashHexF)
+
+formatHdRootId :: HdRootId -> Text
+formatHdRootId = formatAddressHash . _fromDb . unHdRootId

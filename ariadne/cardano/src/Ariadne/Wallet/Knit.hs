@@ -22,6 +22,7 @@ import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
+import Ariadne.Wallet.UiAdapter (formatAddressHash)
 import IiExtras
 
 import Knit
@@ -76,7 +77,7 @@ instance Elem components Wallet => ComponentTokenizer components Wallet where
 
 instance ComponentDetokenizer Wallet where
   componentTokenRender = \case
-    TokenAddressHash h -> sformat ("#"%hashHexF) h
+    TokenAddressHash h -> formatAddressHash h
 
 instance Elem components Wallet => ComponentLitGrammar components Wallet where
   componentLitGrammar = rule $ asum
