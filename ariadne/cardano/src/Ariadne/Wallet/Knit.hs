@@ -5,7 +5,6 @@ import Universum hiding (preview)
 import qualified Data.ByteArray as ByteArray
 
 import Control.Lens hiding (parts, (<&>))
-import Formatting (sformat, (%))
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 
@@ -13,7 +12,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
 import Pos.Core (AddressHash)
 import Pos.Crypto (PassPhrase, PublicKey, decodeAbstractHash)
-import Pos.Crypto.Hashing (hashHexF, hashRaw, unsafeCheatingHashCoerce)
+import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
 import Pos.Crypto.Signing (emptyPassphrase)
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec.Char as P
