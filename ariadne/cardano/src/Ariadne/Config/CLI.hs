@@ -17,7 +17,7 @@ import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import Options.Applicative
-  (auto, help, long, metavar, option, strOption, switch, value)
+  (auto, help, long, metavar, option, showDefault, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne_cardano (version)
 import Pos.Core.Slotting (Timestamp(..))
@@ -33,11 +33,11 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, acHistoryL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, acWalletL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.History (hcPathL)
-import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier, wcAcidDBPathL)
 import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
@@ -68,7 +68,8 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     } deriving (Eq, Show, Generic)
 
 data CLI_WalletConfig = CLI_WalletConfig
-    { cli_wcEntropySize :: Maybe Byte
+    { cli_wcEntropySize :: !(Maybe Byte)
+    , cli_wcAcidDBPath  :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
@@ -97,6 +98,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     mergedWalletConfig = WalletConfig
         { wcEntropySize =
             cli_wcEntropySize overrideWc `merge` wcEntropySize defaultWc
+        , wcAcidDBPath = cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
         }
 
     -- Merge Cardano config
@@ -182,6 +184,9 @@ getConfig commitHash = do
           ccConfigurationOptionsL.cfoFilePathL %= resolve_
         zoom acHistoryL $ do
           hcPathL %= resolve_
+        zoom acWalletL $ do 
+          wcAcidDBPathL %= resolve_ 
+
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
@@ -214,6 +219,7 @@ parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
   configPath <- strOption $ mconcat
     [ long "config"
+    , showDefault
     , metavar "FILEPATH"
     , value (xdgConfigPath </> "ariadne-config.dhall")
     , help "Path to ariadne .dhall configuration file"
@@ -237,6 +243,11 @@ cliWalletParser = do
      [ long $ toOptionNameWallet "wcEntropySize"
      , metavar "BYTE"
      , help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
+     ]
+  cli_wcAcidDBPath <- optional $ strOption $ mconcat 
+     [ long $ toOptionNameWallet "wcAcidDBPath"
+     , metavar "FilePath"
+     , help "Wallets database path"
      ]
   pure CLI_WalletConfig {..}
   where

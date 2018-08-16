@@ -37,9 +37,9 @@ createWalletBackend ::
     WalletConfig -> (WalletEvent -> IO ()) -> ComponentM WalletPreface
 createWalletBackend walletConfig sendWalletEvent = do
     walletSelRef <- newIORef Nothing
-    acidDb <- buildComponent "Wallet DB"
-        (openLocalStateFrom walletAcidDbPathPlaceholder defDB)
-        closeAcidState
+    acidDb <- buildComponent "Wallet DB" 
+      (openLocalStateFrom (wcAcidDBPath walletConfig) defDB) $
+      closeAcidState
 
     (us :: TVar UserSecret, addUs :: TVar UserSecret -> IO ()) <- newInitFuture "UserSecret"
     PassiveWalletLayer{..} <- passiveWalletLayerComponent
@@ -89,10 +89,6 @@ createWalletBackend walletConfig sendWalletEvent = do
             , wpMakeWallet = mkWallet
             }
     return walletPreface
-
--- TODO: Make it configurable
-walletAcidDbPathPlaceholder :: FilePath
-walletAcidDbPathPlaceholder = ".wallet-db"
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be
