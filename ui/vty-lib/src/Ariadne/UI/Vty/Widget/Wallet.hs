@@ -34,6 +34,7 @@ data WalletWidgetState =
     { walletLangFace :: !UiLangFace
 
     , walletName :: !Text
+    , walletId :: !Text
     , walletRenameResult :: !RenameResult
     , walletBalance :: !BalanceResult
 
@@ -75,6 +76,7 @@ initWalletWidget langFace features =
       { walletLangFace = langFace
 
       , walletName = ""
+      , walletId = ""
       , walletRenameResult = RenameResultNone
       , walletBalance = BalanceResultNone
 
@@ -147,6 +149,8 @@ drawWalletWidget focus WalletWidgetState{..} = do
       [ label "Wallet name:"
           B.<+> drawChild WidgetNameWalletName
           B.<+> padLeft (drawChild WidgetNameWalletRenameButton)
+      , label "Wallet id:"
+          B.<+> B.txt walletId
       , case walletRenameResult of
           RenameResultNone -> B.emptyWidget
           RenameResultWaiting _ -> B.txt "Renaming..."
@@ -189,6 +193,7 @@ handleWalletWidgetEvent = \case
       UiSelectionWallet UiWalletInfo{..} -> do
         UiLangFace{..} <- use walletLangFaceL
         walletNameL .= fromMaybe "" uwiLabel
+        walletIdL .= uwiId
         walletAccountsL .= map
           (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
           (zip [0..] uwiAccounts)

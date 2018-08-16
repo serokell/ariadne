@@ -275,6 +275,7 @@ data UiTreeSelection = UiTreeSelection
 -- Display info for entities on all HD-wallet tree levels
 data UiWalletInfo = UiWalletInfo
   { uwiLabel :: !(Maybe Text)
+  , uwiId :: !Text
   , uwiWalletIdx :: !Word
   , uwiBalance :: !(Maybe Text)
   , uwiAccounts :: ![UiAccountInfo]
