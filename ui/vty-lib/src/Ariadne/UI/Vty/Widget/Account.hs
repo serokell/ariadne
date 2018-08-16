@@ -33,6 +33,7 @@ data AccountAddress =
 data AccountWidgetState =
   AccountWidgetState
     { accountLangFace :: !UiLangFace
+    , accountInfo :: !(Maybe UiAccountInfo)
 
     , accountName :: !Text
     , accountRenameResult :: !RenameResult
@@ -72,6 +73,7 @@ initAccountWidget langFace =
     setWidgetHandleEvent handleAccountWidgetEvent
     setWidgetState AccountWidgetState
       { accountLangFace = langFace
+      , accountInfo = Nothing
 
       , accountName = ""
       , accountRenameResult = RenameResultNone
@@ -202,8 +204,15 @@ handleAccountWidgetEvent
 handleAccountWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
-      UiSelectionAccount UiAccountInfo{..} -> do
+      UiSelectionAccount newInfo@UiAccountInfo{..} -> do
         UiLangFace{..} <- use accountLangFaceL
+
+        curInfo <- use accountInfoL
+        when (curInfo /= Just newInfo) $ do
+          accountRenameResultL .= RenameResultNone
+          accountAddressResultL .= AddressResultNone
+        accountInfoL .= Just newInfo
+
         accountNameL .= fromMaybe "" uaciLabel
         accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
         case uaciBalance of
