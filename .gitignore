@@ -35,3 +35,5 @@ ariadne_history
 ariadne_history.db
 db-mainnet
 .wallet-db/
+config/cardano-configuration.yaml
+config/mainnet-genesis.json

@@ -29,10 +29,10 @@ module Ariadne.Wallet.Cardano.Kernel (
 
 import Universum hiding (State, init)
 
+import Control.Concurrent.STM.TVar (readTVar)
 import Control.Lens.TH
 import qualified Data.Map.Strict as Map
 import Data.Time.Clock.POSIX (getPOSIXTime)
-import Control.Concurrent.STM.TVar (readTVar)
 
 import Formatting (build, sformat)
 
@@ -63,8 +63,8 @@ import Pos.Core (AddressHash, Coin, Timestamp(..), TxAux(..))
 
 import Pos.Core.Chrono (OldestFirst(..))
 import Pos.Crypto (EncryptedSecretKey, PublicKey)
-import Pos.Util.UserSecret (UserSecret, usWallets)
 import Pos.Txp (Utxo)
+import Pos.Util.UserSecret (UserSecret, usWallets)
 
 {-------------------------------------------------------------------------------
   Passive wallet
@@ -211,7 +211,8 @@ applyBlock pw@PassiveWallet{..} b
         let blockMeta = BlockMeta . InDb $ Map.empty
 
         -- apply block to all Accounts in all Wallets
-        void $ update' _wallets $ ApplyBlock (blocksByAccount, blockMeta)
+        unless (null blocksByAccount) $
+            update' _wallets $ ApplyBlock (blocksByAccount, blockMeta)
 
 -- | Apply multiple blocks, one at a time, to all wallets in the PassiveWallet
 --

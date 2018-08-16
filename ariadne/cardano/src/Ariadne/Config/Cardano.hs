@@ -1,8 +1,21 @@
 module Ariadne.Config.Cardano
-       ( defaultCardanoConfig
+       (
+         -- * Config type
+         CardanoConfig (..)
+
+       -- * Defaults
+       , defaultLoggerConfig
+       , defaultConfigurationYaml
+       , defaultGenesisJson
+       , defaultCardanoConfig
+
+       -- * Helpers
        , cardanoFieldModifier
-       , CardanoConfig (..)
-       , cardanoConfigToCommonNodeArgs
+
+       -- * Construction of various stuff
+       , mkLoggingParams
+       , getNodeParams
+       , gtSscParams
 
        -- * Lenses
        , ccDbPathL
@@ -16,29 +29,46 @@ module Ariadne.Config.Cardano
        , ccConfigurationOptionsL
        , ccEnableMetricsL
        , ccEkgParamsL
+
+
+       -- * Exports for tests
+       , defaultTopology
        ) where
 
 import Universum
 
 import Control.Lens (makeLensesWith)
 import Data.Default (def)
+import Data.FileEmbed (embedFile, makeRelativeToProject)
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map
 import Data.Time.Units (Microsecond, Second, convertUnit, fromMicroseconds)
+import qualified Data.Yaml as Yaml
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import IiExtras (postfixLFields)
+import Pos.Behavior (BehaviorConfig(..))
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
+import Pos.Client.CLI.Secrets (prepareUserSecret)
+import Pos.Core.Configuration (HasConfiguration)
 import Pos.Core.Slotting (Timestamp(..))
-import Pos.Infra.Network.CLI (NetworkConfigOpts(..))
+import Pos.Crypto (VssKeyPair(..))
+import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts')
 import Pos.Infra.Network.Types (NodeName(..))
+import qualified Pos.Infra.Network.Yaml as Network.Yaml
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
+  (BaseParams(..), ConfigurationOptions(..), LoggingParams(..), NodeParams(..))
+import Pos.Ssc (SscParams(..))
+import Pos.Update (UpdateParams(..))
+import Pos.Util.UserSecret (peekUserSecret)
+import System.FilePath ((</>))
+import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
@@ -66,8 +96,34 @@ data CardanoConfig = CardanoConfig
 makeLensesWith postfixLFields ''CardanoConfig
 
 ----------------------------------------------------------------------------
--- Default values and conversion
+-- Default values
 ----------------------------------------------------------------------------
+
+parseStaticValue :: Yaml.FromJSON a => Text -> ByteString -> a
+parseStaticValue name bs =
+    case Yaml.decodeEither bs of
+        Left err -> error $ "Static " <> name <> " is broken: " <> toText err
+        Right x -> x
+
+defaultTopology :: Network.Yaml.Topology
+defaultTopology = parseStaticValue "topology" defBS
+  where
+    defBS =
+        $(makeRelativeToProject "config/topology.yaml" >>= embedFile)
+
+defaultLoggerConfig :: LoggerConfig
+defaultLoggerConfig = parseStaticValue "logging config" defBS
+  where
+    defBS =
+      $(makeRelativeToProject "config/log-config.yaml" >>= embedFile)
+
+defaultConfigurationYaml :: ByteString
+defaultConfigurationYaml =
+    $(makeRelativeToProject "config/configuration.yaml" >>= embedFile)
+
+defaultGenesisJson :: ByteString
+defaultGenesisJson =
+    $(makeRelativeToProject "config/mainnet-genesis.json" >>= embedFile)
 
 defaultCommonNodeArgs :: CommonNodeArgs
 defaultCommonNodeArgs =
@@ -78,21 +134,22 @@ defaultCommonNodeArgs =
         , devGenesisSecretI = Nothing
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
-            { ncoTopology = Just "config/cardano/topology.yaml"
+            { ncoTopology = Nothing
             , ncoKademlia = Nothing
             , ncoSelf = Just (NodeName "node0")
-            , ncoPort = 3000, ncoPolicies = Nothing
+            , ncoPort = 3000,
+              ncoPolicies = Nothing
             , ncoBindAddress = Nothing
             , ncoExternalAddress = Nothing
             }
         , jlPath = Nothing
         , commonArgs = CommonArgs
-            { logConfig = Just "config/cardano/log-config.yaml"
+            { logConfig = Nothing
             , logPrefix = Just "logs/mainnet"
             , reportServers = []
             , updateServers = []
             , configurationOptions = ConfigurationOptions
-                { cfoFilePath = "config/cardano/cardano-config.yaml"
+                { cfoFilePath = "cardano-configuration.yaml"
                 , cfoKey = "mainnet_full"
                 , cfoSystemStart = Nothing
                 , cfoSeed = Nothing
@@ -108,50 +165,17 @@ defaultCommonNodeArgs =
         , cnaDumpConfiguration = False
         }
 
-cardanoConfigToCommonNodeArgs :: CardanoConfig -> CommonNodeArgs
--- Vanilla pattern-matching is used to be sure nothing is forgotten.
-cardanoConfigToCommonNodeArgs (CardanoConfig
-    ccDbPath
-    ccRebuildDB
-    ccKeyfilePath
-    ccNetworkTopology
-    ccNetworkNodeId
-    ccNetworkPort
-    ccLogConfig
-    ccLogPrefix
-    ccConfigurationOptions
-    ccEnableMetrics
-    ccEkgParams
-                              ) =
-    defaultCommonNodeArgs
-        { dbPath = ccDbPath
-        , rebuildDB = ccRebuildDB
-        , keyfilePath = ccKeyfilePath
-        , networkConfigOpts = (networkConfigOpts defaultCommonNodeArgs)
-            { ncoTopology = ccNetworkTopology
-            , ncoSelf = ccNetworkNodeId
-            , ncoPort = ccNetworkPort
-            }
-        , commonArgs = (commonArgs defaultCommonNodeArgs)
-            { logConfig = ccLogConfig
-            , logPrefix = ccLogPrefix
-            , configurationOptions = ccConfigurationOptions
-            }
-        , enableMetrics = ccEnableMetrics
-        , ekgParams = ccEkgParams
-        }
-
-defaultCardanoConfig :: CardanoConfig
-defaultCardanoConfig =
+defaultCardanoConfig :: FilePath -> CardanoConfig
+defaultCardanoConfig dataDir =
     CardanoConfig
-        { ccDbPath = dbPath defaultCommonNodeArgs
+        { ccDbPath = (dataDir </> ) <$> dbPath defaultCommonNodeArgs
         , ccRebuildDB = rebuildDB defaultCommonNodeArgs
-        , ccKeyfilePath = keyfilePath defaultCommonNodeArgs
+        , ccKeyfilePath = dataDir </> keyfilePath defaultCommonNodeArgs
         , ccNetworkTopology = ncoTopology nco
         , ccNetworkNodeId = ncoSelf nco
         , ccNetworkPort = ncoPort nco
         , ccLogConfig = logConfig ca
-        , ccLogPrefix = logPrefix ca
+        , ccLogPrefix = (dataDir </>) <$> logPrefix ca
         , ccConfigurationOptions = configurationOptions ca
         , ccEnableMetrics = enableMetrics defaultCommonNodeArgs
         , ccEkgParams = ekgParams defaultCommonNodeArgs
@@ -162,6 +186,82 @@ defaultCardanoConfig =
     ca :: CommonArgs
     ca = commonArgs defaultCommonNodeArgs
 
+----------------------------------------------------------------------------
+-- Getting NodeParams and SscParams
+----------------------------------------------------------------------------
+
+mkLoggingParams :: CardanoConfig -> LoggingParams
+mkLoggingParams CardanoConfig{..} =
+    LoggingParams
+    { lpHandlerPrefix = ccLogPrefix
+    , lpConfigPath    = ccLogConfig
+    , lpDefaultName   = "ariadne"
+    , lpConsoleLog    = Nothing -- overridden in Backend.hs
+    }
+
+gtSscParams :: VssKeyPair -> BehaviorConfig -> SscParams
+gtSscParams vssSK BehaviorConfig{..} =
+    SscParams
+    { spSscEnabled = True
+    , spVssKeyPair = vssSK
+    , spBehavior = bcSscBehavior
+    }
+
+getNodeParams :: HasConfiguration => CardanoConfig -> IO NodeParams
+-- Vanilla pattern-matching is used to be sure nothing is forgotten.
+getNodeParams conf@(CardanoConfig
+    ccDbPath
+    ccRebuildDB
+    ccKeyfilePath
+    ccNetworkTopology
+    ccNetworkNodeId
+    ccNetworkPort
+    _ccLogConfig  -- is used by mkLoggingParams
+    _ccLogPrefix  -- is used by mkLoggingParams
+    _ccConfigurationOptions  -- should not be used
+    ccEnableMetrics
+    ccEkgParams
+    ) = usingLoggerName ("ariadne" <> "cardano" <> "init") $ do
+
+    let defaultCommonArgs = commonArgs defaultCommonNodeArgs
+
+        nco :: NetworkConfigOpts
+        nco = (networkConfigOpts defaultCommonNodeArgs)
+            { ncoTopology = ccNetworkTopology
+            , ncoSelf = ccNetworkNodeId
+            , ncoPort = ccNetworkPort
+            }
+
+        baseParams :: BaseParams
+        baseParams = BaseParams { bpLoggingParams = mkLoggingParams conf }
+
+    networkConfig <- intNetworkConfigOpts' defaultTopology nco
+    -- 'defaultCommonNodeArgs' is passed to 'prepareUserSecret' because we do
+    -- not care what will be put into 'UserSecret'
+    -- (it is essential only for core nodes)
+    (primarySK, userSecret) <-
+        prepareUserSecret defaultCommonNodeArgs =<< peekUserSecret ccKeyfilePath
+    pure NodeParams
+        { npDbPathM = ccDbPath
+        , npRebuildDb = ccRebuildDB
+        , npSecretKey = primarySK
+        , npUserSecret = userSecret
+        , npBaseParams = baseParams
+        , npJLFile = jlPath defaultCommonNodeArgs
+        , npReportServers = reportServers defaultCommonArgs
+        , npUpdateParams = UpdateParams
+            { upUpdatePath    = updateLatestPath defaultCommonNodeArgs
+            , upUpdateWithPkg = updateWithPackage defaultCommonNodeArgs
+            , upUpdateServers = updateServers defaultCommonArgs
+            }
+        , npRoute53Params = route53Params defaultCommonNodeArgs
+        , npEnableMetrics = ccEnableMetrics
+        , npEkgParams = ccEkgParams
+        , npStatsdParams = statsdParams defaultCommonNodeArgs
+        , npAssetLockPath = cnaAssetLockPath defaultCommonNodeArgs
+        , npBehaviorConfig = def
+        , npNetworkConfig = networkConfig
+        }
 
 ----------------------------------------------------------------------------
 -- Dhall
