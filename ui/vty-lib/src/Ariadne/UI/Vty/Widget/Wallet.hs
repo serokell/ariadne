@@ -4,8 +4,10 @@ module Ariadne.UI.Vty.Widget.Wallet
 
 import Universum
 
+import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import IiExtras
+import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -38,11 +40,13 @@ data WalletWidgetState =
     , walletId :: !Text
     , walletRenameResult :: !RenameResult
     , walletBalance :: !BalanceResult
+    , walletExportResult :: !ExportResult
 
     , walletAccounts :: ![WalletAccount]
     , walletNewAccountName :: !Text
     , walletNewAccountResult :: !NewAccountResult
 
+    , walletExportEnabled :: !Bool
     , walletAccountsEnabled :: !Bool
     }
 
@@ -57,6 +61,13 @@ data BalanceResult
   | BalanceResultWaiting !UiCommandId
   | BalanceResultError !Text
   | BalanceResultSuccess !Text  -- ^ Balance
+
+data ExportResult
+  = ExportResultNone
+  | ExportResultWaiting !UiCommandId
+  | ExportResultError !Text
+  | ExportResultSuccess !Text  -- ^ Key
+  | ExportResultCopied !Text  -- ^ Key
 
 data NewAccountResult
   = NewAccountResultNone
@@ -81,11 +92,13 @@ initWalletWidget langFace features =
       , walletId = ""
       , walletRenameResult = RenameResultNone
       , walletBalance = BalanceResultNone
+      , walletExportResult = ExportResultNone
 
       , walletAccounts = []
       , walletNewAccountName = ""
       , walletNewAccountResult = NewAccountResultNone
 
+      , walletExportEnabled = featureExport features
       , walletAccountsEnabled = featureAccounts features
       }
 
@@ -95,6 +108,12 @@ initWalletWidget langFace features =
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
       WidgetEventButtonPressed -> performRename
+      _ -> return ()
+
+    addWidgetChild WidgetNameWalletExportButton $
+      initButtonWidget "Export"
+    addWidgetEventHandler WidgetNameWalletExportButton $ \case
+      WidgetEventButtonPressed -> performExport
       _ -> return ()
 
     addWidgetChild WidgetNameWalletAccountList $
@@ -164,6 +183,18 @@ drawWalletWidget focus WalletWidgetState{..} = do
           BalanceResultError err -> B.txt err
           BalanceResultSuccess balance -> B.txt balance
       ] ++
+      (if not walletExportEnabled then [] else
+        [ B.padLeft (B.Pad labelWidth) $ B.hBox
+          [ padLeft $ drawChild WidgetNameWalletExportButton
+          , padLeft $ case walletExportResult of
+              ExportResultNone -> B.emptyWidget
+              ExportResultWaiting _ -> B.txt "Exporting..."
+              ExportResultError err -> B.txt err
+              ExportResultSuccess key -> B.txt $ "Secret key: " <> key
+              ExportResultCopied key -> B.txt $ "Copied to clipboard: " <> key
+          ]
+        ]
+      ) ++
       (if not walletAccountsEnabled then [] else
         (if null walletAccounts then [] else
           [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
@@ -198,6 +229,7 @@ handleWalletWidgetEvent = \case
         curInfo <- use walletInfoL
         when (curInfo /= Just newInfo) $ do
           walletRenameResultL .= RenameResultNone
+          walletExportResultL .= ExportResultNone
           walletNewAccountResultL .= NewAccountResultNone
         walletInfoL .= Just newInfo
 
@@ -232,6 +264,19 @@ handleWalletWidgetEvent = \case
           UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
           UiBalanceCommandFailure err -> BalanceResultError err
       other -> other
+  UiCommandResult commandId (UiExportCommandResult result) -> do
+    use walletExportResultL >>= \case
+      ExportResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiExportCommandSuccess key -> do
+            dispResult <- liftIO . handle (\(_ :: ClipboardException) -> return $ ExportResultSuccess key) $ do
+              setClipboard . toString $ key
+              return $ ExportResultCopied key
+            walletExportResultL .= dispResult
+          UiExportCommandFailure err -> do
+            walletExportResultL .= ExportResultError err
+      _ ->
+        return ()
   UiCommandResult commandId (UiNewAccountCommandResult result) -> do
     use walletNewAccountResultL >>= \case
       NewAccountResultWaiting commandId' | commandId == commandId' ->
@@ -253,14 +298,20 @@ handleWalletWidgetEvent = \case
 updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
 updateFocusList = do
   accounts <- use walletAccountsL
+  accountsEnabled <- use walletAccountsEnabledL
+  exportEnabled <- use walletExportEnabledL
   lift $ setWidgetFocusList $
     [ WidgetNameWalletName
     , WidgetNameWalletRenameButton
     ] ++
-    (if null accounts then [] else [WidgetNameWalletAccountList]) ++
-    [ WidgetNameWalletNewAccountName
-    , WidgetNameWalletNewAccountButton
-    , WidgetNameWalletSend
+    (if not exportEnabled then [] else [WidgetNameWalletExportButton]) ++
+    (if not accountsEnabled then [] else
+      (if null accounts then [] else [WidgetNameWalletAccountList]) ++
+      [ WidgetNameWalletNewAccountName
+      , WidgetNameWalletNewAccountButton
+      ]
+    ) ++
+    [ WidgetNameWalletSend
     ]
 
 performRename :: WidgetEventM WalletWidgetState p ()
@@ -271,6 +322,14 @@ performRename = do
     RenameResultWaiting _ -> return ()
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
+
+performExport :: WidgetEventM WalletWidgetState p ()
+performExport = do
+  UiLangFace{..} <- use walletLangFaceL
+  use walletExportResultL >>= \case
+    ExportResultWaiting _ -> return ()
+    _ -> liftIO (langPutUiCommand $ UiExport) >>=
+      assign walletExportResultL . either ExportResultError ExportResultWaiting
 
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
 toggleAccount idx = do
