@@ -281,6 +281,9 @@ data UiWalletInfo = UiWalletInfo
   , uwiAccounts :: ![UiAccountInfo]
   }
 
+instance Eq UiWalletInfo where
+  a == b = uwiWalletIdx a == uwiWalletIdx b
+
 data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
@@ -289,12 +292,22 @@ data UiAccountInfo = UiAccountInfo
   , uaciAddresses :: ![UiAddressInfo]
   }
 
+instance Eq UiAccountInfo where
+  a == b =
+    uaciWalletIdx a == uaciWalletIdx b &&
+    uaciPath a == uaciPath b
+
 data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
   , uadiPath :: !TreePath
   , uadiAddress :: !Text
   , uadiBalance :: !(Maybe Text)
   }
+
+instance Eq UiAddressInfo where
+  a == b =
+    uadiWalletIdx a == uadiWalletIdx b &&
+    uadiPath a == uadiPath b
 
 -- | Info for currently selected tree item
 data UiSelectionInfo

@@ -32,6 +32,7 @@ data WalletAccount =
 data WalletWidgetState =
   WalletWidgetState
     { walletLangFace :: !UiLangFace
+    , walletInfo :: !(Maybe UiWalletInfo)
 
     , walletName :: !Text
     , walletId :: !Text
@@ -74,6 +75,7 @@ initWalletWidget langFace features =
     setWidgetHandleEvent handleWalletWidgetEvent
     setWidgetState WalletWidgetState
       { walletLangFace = langFace
+      , walletInfo = Nothing
 
       , walletName = ""
       , walletId = ""
@@ -167,10 +169,10 @@ drawWalletWidget focus WalletWidgetState{..} = do
           [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
           ]
         ) ++
-        [ padBottom $ label "New account:"
+        [ label "New account:"
             B.<+> drawChild WidgetNameWalletNewAccountName
             B.<+> padLeft (drawChild WidgetNameWalletNewAccountButton)
-        , case walletNewAccountResult of
+        , padBottom $ case walletNewAccountResult of
             NewAccountResultNone -> B.emptyWidget
             NewAccountResultWaiting _ -> B.txt "Creating..."
             NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
@@ -190,8 +192,15 @@ handleWalletWidgetEvent
 handleWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
-      UiSelectionWallet UiWalletInfo{..} -> do
+      UiSelectionWallet newInfo@UiWalletInfo{..} -> do
         UiLangFace{..} <- use walletLangFaceL
+
+        curInfo <- use walletInfoL
+        when (curInfo /= Just newInfo) $ do
+          walletRenameResultL .= RenameResultNone
+          walletNewAccountResultL .= NewAccountResultNone
+        walletInfoL .= Just newInfo
+
         walletNameL .= fromMaybe "" uwiLabel
         walletIdL .= uwiId
         walletAccountsL .= map
