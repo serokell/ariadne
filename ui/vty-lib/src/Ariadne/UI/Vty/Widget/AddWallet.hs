@@ -4,7 +4,7 @@ module Ariadne.UI.Vty.Widget.AddWallet
 
 import Universum
 
-import Control.Lens (assign, makeLensesWith, (%=))
+import Control.Lens (assign, makeLensesWith, (.=))
 import IiExtras
 
 import qualified Brick as B
@@ -164,19 +164,30 @@ handleAddWalletWidgetEvent
   -> WidgetEventM AddWalletWidgetState p ()
 handleAddWalletWidgetEvent = \case
   UiCommandResult commandId (UiNewWalletCommandResult result) -> do
-    addWalletNewResultL %= \case
+    use addWalletNewResultL >>= \case
       NewResultWaiting commandId' | commandId == commandId' ->
         case result of
-          UiNewWalletCommandSuccess mnemonic -> NewResultSuccess mnemonic
-          UiNewWalletCommandFailure err -> NewResultError err
-      other -> other
+          UiNewWalletCommandSuccess mnemonic -> do
+            addWalletNewNameL .= ""
+            addWalletNewPassL .= ""
+            addWalletNewResultL .= NewResultSuccess mnemonic
+          UiNewWalletCommandFailure err -> do
+            addWalletNewResultL .= NewResultError err
+      _ ->
+        return ()
   UiCommandResult commandId (UiRestoreWalletCommandResult result) -> do
-    addWalletRestoreResultL %= \case
+    use addWalletRestoreResultL >>= \case
       RestoreResultWaiting commandId' | commandId == commandId' ->
         case result of
-          UiRestoreWalletCommandSuccess -> RestoreResultSuccess
-          UiRestoreWalletCommandFailure err -> RestoreResultError err
-      other -> other
+          UiRestoreWalletCommandSuccess -> do
+            addWalletRestoreNameL .= ""
+            addWalletRestoreMnemonicL .= ""
+            addWalletRestorePassL .= ""
+            addWalletRestoreResultL .= RestoreResultSuccess
+          UiRestoreWalletCommandFailure err -> do
+            addWalletRestoreResultL .= RestoreResultError err
+      _ ->
+        return ()
   _ ->
     return ()
 
