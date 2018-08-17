@@ -110,6 +110,7 @@ data WidgetNamePart
   | WidgetNameWallet
   | WidgetNameWalletName
   | WidgetNameWalletRenameButton
+  | WidgetNameWalletExportButton
   | WidgetNameWalletAccountList
   | WidgetNameWalletNewAccountName
   | WidgetNameWalletNewAccountButton

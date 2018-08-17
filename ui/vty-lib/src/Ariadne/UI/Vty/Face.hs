@@ -30,6 +30,7 @@ module Ariadne.UI.Vty.Face
        , UiNewAddressCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
+       , UiExportCommandResult (..)
 
        , UiTreeItem (..)
        , UiTree
@@ -52,6 +53,7 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 -- Mostly boolean flags for enabled widgets
 data UiFeatures = UiFeatures
   { featureStatus :: !Bool
+  , featureExport :: !Bool
   , featureAccounts :: !Bool
   , featureFullRestore :: !Bool
   , featureSecretKeyName :: !Text  -- ^ "Secret key"/"Mnemonic"/etc
@@ -168,6 +170,7 @@ data UiCommand
   | UiNewAddress
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
+  | UiExport
   | UiKill Natural
 
 data UiSendOutput = UiSendOutput
@@ -214,6 +217,7 @@ data UiCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
+  | UiExportCommandResult UiExportCommandResult
 
 data UiBalanceCommandResult
   = UiBalanceCommandSuccess Text
@@ -242,6 +246,10 @@ data UiRestoreWalletCommandResult
 data UiRenameCommandResult
   = UiRenameCommandSuccess
   | UiRenameCommandFailure Text
+
+data UiExportCommandResult
+  = UiExportCommandSuccess Text
+  | UiExportCommandFailure Text
 
 ----------------------------------------------------------------------------
 -- Wallet widget model

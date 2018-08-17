@@ -44,6 +44,7 @@ main = do
   let
     features = UiFeatures
       { featureStatus = True
+      , featureExport = False
       , featureAccounts = True
       , featureFullRestore = True
       , featureSecretKeyName = "Mnemonic"
