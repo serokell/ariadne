@@ -24,7 +24,6 @@ import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QAbstractItemView as QAbstractItemView
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
-import qualified Graphics.UI.Qtah.Widgets.QInputDialog as QInputDialog
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
@@ -34,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
 
 data WalletTree =
   WalletTree
@@ -81,9 +81,10 @@ initWalletTree langFace itemModel selectionModel = do
   return (widget, WalletTree{..})
 
 addWalletClicked :: UiLangFace -> WalletTree -> Bool -> IO ()
-addWalletClicked UiLangFace{..} WalletTree{..} _checked = do
-  name <- toText <$> QInputDialog.getText treeView ("New wallet" :: String) ("Wallet name" :: String)
-  unless (null name) $ void $ langPutUiCommand $ UiNewWallet name
+addWalletClicked UiLangFace{..} WalletTree{..} _checked =
+  runNewWallet >>= \case
+    NewWalletCanceled -> return ()
+    NewWalletAccepted NewWalletParameters{..} -> void $ langPutUiCommand $ UiNewWallet nwName nwPassword
 
 data WalletTreeEvent
   = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult

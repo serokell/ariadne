@@ -87,7 +87,7 @@ data UiEvent
 data UiCommand
   = UiSelect [Word]
   | UiSend Text Text  -- ^ Address, amount
-  | UiNewWallet Text  -- ^ Name
+  | UiNewWallet Text (Maybe Text) -- ^ Name, password
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress
   | UiKill Natural

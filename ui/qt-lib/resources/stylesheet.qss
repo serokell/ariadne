@@ -79,6 +79,17 @@ QScrollBar::up-arrow, QScrollBar::down-arrow {
     border: none;
 }
 
+QFrame[styleRole="separator"] {
+    border: none;
+    background: rgba(52, 52, 62, 51);
+}
+QFrame[styleRole="separator"][orientation~="vertical"] {
+    max-width: 1px;
+}
+QFrame[styleRole="separator"][orientation~="horizontal"] {
+    max-height: 1px;
+}
+
 #topBar {
     background: #ffffff;
     border-bottom: 1px solid #7ce1cb;
@@ -104,9 +115,6 @@ QScrollBar::up-arrow, QScrollBar::down-arrow {
     padding: 6px;
 }
 #topBar QFrame[styleRole="separator"] {
-    border: none;
-    background: rgba(52, 52, 62, 51);
-    max-width: 1px;
     margin-top: 9px;
     margin-bottom: 9px;
 }
@@ -227,6 +235,39 @@ QScrollBar::up-arrow, QScrollBar::down-arrow {
     font-family: monospace;
     font-size: 14px;
     font-weight: normal;
+}
+
+#newWalletDialog QLabel {
+    /* Otherwise bold letters look ugly */
+    font-family: "Museo Sans Cyrl 500";
+}
+
+#newWalletDialog #createButton {
+    font-weight: bold;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    padding-left: 80px;
+    padding-right: 80px;
+}
+
+#newWalletDialog QLineEdit, #newWalletDialog QLineEdit:focus {
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(52, 52, 62, 25);
+    background: transparent;
+}
+
+#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"] {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:hover {
+    background: rgba(52, 52, 62, 12);
+}
+#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
+    background: rgba(52, 52, 62, 48);
 }
 
 /* vim: ft=css

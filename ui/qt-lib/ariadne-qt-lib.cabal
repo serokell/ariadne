@@ -52,6 +52,7 @@ library
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.StyleSheet
+      Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
       Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
       Ariadne.UI.Qt.Widgets.Repl
