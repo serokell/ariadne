@@ -1,16 +1,17 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
-    ( bracketPassiveWallet
-    , bracketActiveWallet
+    ( passiveWalletLayerComponent
+    , activeWalletLayerComponent
     ) where
 
 import Universum
 
+import Control.Concurrent.STM.TVar (TVar)
+import Control.Monad.Component (ComponentM)
 import Data.Acid (AcidState)
 import Data.Maybe (fromJust)
 import System.Wlog (Severity(Debug))
-import Control.Concurrent.STM.TVar (TVar)
 
 import Pos.Block.Types (Blund, Undo(..))
 
@@ -30,26 +31,25 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
-bracketPassiveWallet
-    :: forall m n a. (MonadIO n, MonadIO m, MonadMask m)
+passiveWalletLayerComponent
+    :: forall n. (MonadIO n)
     => (Severity -> Text -> IO ())
     -> TVar UserSecret
     -> AcidState DB
-    -> (PassiveWalletLayer n -> m a) -> m a
-bracketPassiveWallet logFunction us db f =
-    Kernel.bracketPassiveWallet logFunction us db $ \w -> do
+    -> ComponentM (PassiveWalletLayer n)
+passiveWalletLayerComponent logFunction us db = do
+    w <- Kernel.passiveWalletComponent logFunction us db
 
-      -- Create the wallet worker and its communication endpoint `invoke`.
-      invoke <- Actions.forkWalletWorker $ Actions.WalletActionInterp
-               { Actions.applyBlocks  =  \blunds ->
-                   Kernel.applyBlocks w $
-                       OldestFirst (mapMaybe blundToResolvedBlock (toList (getOldestFirst blunds)))
-               , Actions.switchToFork = \_ _ -> logFunction Debug "<switchToFork>"
-               , Actions.emit         = logFunction Debug
-               }
+    -- Create the wallet worker and its communication endpoint `invoke`.
+    invoke <- Actions.forkWalletWorker $ Actions.WalletActionInterp
+            { Actions.applyBlocks  =  \blunds ->
+                Kernel.applyBlocks w $
+                    OldestFirst (mapMaybe blundToResolvedBlock (toList (getOldestFirst blunds)))
+            , Actions.switchToFork = \_ _ -> logFunction Debug "<switchToFork>"
+            , Actions.emit         = logFunction Debug
+            }
 
-      f (passiveWalletLayer w invoke)
-
+    return $ passiveWalletLayer w invoke
   where
     -- | TODO(ks): Currently not implemented!
     passiveWalletLayer _wallet invoke =
@@ -71,12 +71,10 @@ bracketPassiveWallet logFunction us db f =
 
 -- | Initialize the active wallet.
 -- The active wallet is allowed all.
-bracketActiveWallet
-    :: forall m n a. (MonadIO m, MonadMask m)
-    => PassiveWalletLayer n
+activeWalletLayerComponent ::
+       forall n.
+       PassiveWalletLayer n
     -> WalletDiffusion
-    -> (ActiveWalletLayer n -> m a) -> m a
-bracketActiveWallet walletPassiveLayer _walletDiffusion =
-    bracket
-      (return ActiveWalletLayer{..})
-      (\_ -> return ())
+    -> ComponentM (ActiveWalletLayer n)
+activeWalletLayerComponent walletPassiveLayer _walletDiffusion =
+    return ActiveWalletLayer{..}
