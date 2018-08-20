@@ -153,20 +153,19 @@ getConfig commitHash = do
     exitSuccess
 
   xdgDataPath <- getXdgDirectory XdgData "ariadne"
-  config <- ifM (doesFileExist configPath)
-    (do
-      -- Dhall will throw well formatted colourful error message
-      -- if something goes wrong
+  configDirs <- ConfigDirectories xdgDataPath <$> getCurrentDirectory
+  unresolvedConfig <- ifM (doesFileExist configPath)
+    -- Dhall will throw well formatted colourful error message
+    -- if something goes wrong
 
-      -- Passing path as dhall import is needed for relative import paths
-      -- to be relative to the config path.
-      unresolved <- fromDhall @AriadneConfig $ toDhallImport configPath
-      configDirs <- ConfigDirectories xdgDataPath <$> getCurrentDirectory
-      return (resolvePaths unresolved configPath configDirs))
+    -- Passing path as dhall import is needed for relative import paths
+    -- to be relative to the config path.
+    (fromDhall @AriadneConfig $ toDhallImport configPath)
     (do
       putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
       return (defaultAriadneConfig xdgDataPath))
 
+  let config = resolvePaths unresolvedConfig configPath configDirs
   return $ mergeConfigs cli_config config
     where
       resolvePaths :: AriadneConfig -> FilePath -> ConfigDirectories -> AriadneConfig
