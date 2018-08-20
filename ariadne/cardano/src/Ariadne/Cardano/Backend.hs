@@ -3,6 +3,7 @@ module Ariadne.Cardano.Backend (createCardanoBackend) where
 import Universum
 
 import Control.Concurrent.STM.TVar (TVar)
+import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Trans.Reader (withReaderT)
 import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
@@ -44,8 +45,8 @@ createCardanoBackend ::
        CardanoConfig
     -> BListenerHandle
     -> (TVar UserSecret -> IO ())
-    -> IO (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
-createCardanoBackend cardanoConfig bHandle addUs = do
+    -> ComponentM (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
+createCardanoBackend cardanoConfig bHandle addUs = buildComponent_ "Cardano" $ do
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
   let confOpts = ccConfigurationOptions cardanoConfig

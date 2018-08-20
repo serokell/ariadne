@@ -20,6 +20,7 @@ library
   build-depends:
       ansi-wl-pprint
     , base >=4.7 && <5
+    , componentm
     , haskeline
     , loc
     , text

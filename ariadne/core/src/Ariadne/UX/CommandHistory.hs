@@ -9,8 +9,9 @@ module Ariadne.UX.CommandHistory
 
 import Universum
 
-import Database.SQLite.Simple
+import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Text as T
+import Database.SQLite.Simple
 
 data Row = Row Int T.Text deriving (Show)
 instance FromRow Row where
@@ -26,8 +27,8 @@ data CommandHistory =
     , currentPrefix :: IORef Text
     }
 
-openCommandHistory :: FilePath -> IO CommandHistory
-openCommandHistory historyFile = do
+openCommandHistory :: FilePath -> ComponentM CommandHistory
+openCommandHistory historyFile = buildComponent_ "Command history" $ do
     currentPrefix <- newIORef ""
     currentCommandId <- newIORef 0
     withConnection historyFile $
@@ -73,7 +74,7 @@ changeCommand ch direction = do
           Next -> do
             resetCurrentCommandId ch
             return $ Just prefix
-    
+
 setPrefix :: CommandHistory -> Text -> IO ()
 setPrefix ch (T.strip -> prefix) = do
     resetCurrentCommandId ch

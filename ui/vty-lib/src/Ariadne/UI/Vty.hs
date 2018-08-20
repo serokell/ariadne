@@ -7,6 +7,7 @@ import Universum
 
 import qualified Brick as B
 import Brick.BChan
+import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.App
@@ -18,8 +19,8 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: UiFeatures -> UiHistoryFace -> IO (UiFace, UiAction)
-createAriadneUI features historyFace = do
+createAriadneUI :: UiFeatures -> UiHistoryFace -> ComponentM (UiFace, UiAction)
+createAriadneUI features historyFace = buildComponent_ "UI-Vty" $ do
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan
 
