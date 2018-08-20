@@ -18,8 +18,8 @@ let
     };
   };
 
-  ghc = nixpkgs.haskell.compiler.ghc802;
-  haskellPackages = nixpkgs.haskell.packages.ghc802;
+  ghc = nixpkgs.haskell.compiler.ghc822;
+  haskellPackages = nixpkgs.haskell.packages.ghc822;
 
 in
 
