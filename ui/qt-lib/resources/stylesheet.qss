@@ -270,5 +270,30 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     background: rgba(52, 52, 62, 48);
 }
 
+#newWalletDialog QComboBox {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Museo Sans Cyrl 500";
+
+    selection-background-color: #f0f0f0;
+    selection-color: #34343e;
+}
+
+#newWalletDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+  }
+
+#newWalletDialog QComboBox::down-arrow {
+    image: url(':/images/branch-open.png');
+}
+
+#newWalletDialog QComboBox QAbstractItemView {
+    border: 1px solid rgba(0, 0, 0, 30);
+    background: #fafafa;
+}
+
 /* vim: ft=css
 */

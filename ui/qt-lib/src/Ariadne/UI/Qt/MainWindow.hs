@@ -88,6 +88,8 @@ handleMainWindowEvent langFace = \case
       magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
     UiNewWalletCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletNewWalletCommandResult commandId result
+    UiRestoreWalletCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace $ WalletRestoreWalletCommandResult commandId result
     UiNewAccountCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletNewAccountCommandResult commandId result
     UiNewAddressCommandResult result ->

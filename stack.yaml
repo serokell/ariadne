@@ -147,7 +147,7 @@ packages:
 ## We are using our fork because we added some stuff there
 - location:
     git: https://github.com/serokell/qtah.git
-    commit: da34829dfa1906f26e5bba7de0fde6ba577951cb
+    commit: 823e9d884996b4873a3c841d8662fc66d2c95168
     # srk-july branch until merged upstream
   extra-dep: true
   subdirs:
