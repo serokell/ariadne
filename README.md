@@ -158,29 +158,11 @@ QTAH_QMAKE=/usr/local/opt/qt/bin/qmake stack build ariadne
 
 ## Configuration [↑](#-ariadne)
 
-Ariadne uses the [Dhall](https://github.com/dhall-lang/dhall-lang)
-language for its configuration files. Example configuration can be
-found in the [config/](config) directory. This configuration is
-compatible with Cardano SL mainnet.
-
-Path to the configuration file can be specified using `--config` option. By
-default `<XdgConfig>/ariadne/ariadne-config.dhall` is used, where
-`<XdgConfig>` is a system-dependent standard directory for local
-configuration files (`~/.config` on Linux or MacOS, `%APPDATA%` on
-Windows). If some value in the configuration is a relative file path,
-it's treated as relative to the directory in which main configuration
-file (e. g. `ariadne-config.dhall`) is located. There are special
-values which can be used in configuration as file paths:
-* `@DATA` is a system-dependent standard directory for local
-data (`~/.local/share` on Linux or MacOS, `%APPDATA%` on
-Windows) suffixed with `/ariadne`.
-* `@PWD` is the directory from which Ariadne executable is launched.
-
-If configuration file is not found, default configuration will be used
-which is compatible with Cardano Mainnet.
-
-Each option from the configuration can be overridden from the command
-like. Use `--help` flag for more details.
+Ariadne is configurable via configuration files and command line
+options. Default configuration is provided out of the box and is
+compatible with Cardano SL mainnet. That should be sufficient in many
+cases. Detailed description of Ariadne configuration can be found in
+[the corresponding document](docs/configuration.md).
 
 ## Usage [↑](#-ariadne)
 
