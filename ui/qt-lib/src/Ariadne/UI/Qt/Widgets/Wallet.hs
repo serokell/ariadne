@@ -84,6 +84,7 @@ data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
+  | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
 
@@ -105,6 +106,9 @@ handleWalletEvent langFace ev = do
     WalletNewWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeNewWalletCommandResult commandId result
+    WalletRestoreWalletCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeRestoreWalletCommandResult commandId result
     WalletNewAccountCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAccountCommandResult commandId result

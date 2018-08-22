@@ -9,6 +9,7 @@ module Ariadne.UI.Qt.Face
        , UiCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
+       , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
        , UiLangFace (..)
@@ -88,6 +89,7 @@ data UiCommand
   = UiSelect [Word]
   | UiSend Text Text  -- ^ Address, amount
   | UiNewWallet Text (Maybe Text) -- ^ Name, password
+  | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress
   | UiKill Natural
@@ -96,6 +98,7 @@ data UiCommand
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
+  | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
 
@@ -106,6 +109,10 @@ data UiSendCommandResult
 data UiNewWalletCommandResult
   = UiNewWalletCommandSuccess [Text]
   | UiNewWalletCommandFailure Text
+
+data UiRestoreWalletCommandResult
+  = UiRestoreWalletCommandSuccess
+  | UiRestoreWalletCommandFailure Text
 
 data UiNewAccountCommandResult
   = UiNewAccountCommandSuccess
