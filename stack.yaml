@@ -164,12 +164,6 @@ packages:
   - code/crypto
   - code/prelude
 
-## https://github.com/jystic/unix-compat/pull/40
-- location:
-    git: https://github.com/QuLogic/unix-compat.git
-    commit: 94ae4ee75d75ea02956288d01c3b2d66d8e2606e
-  extra-dep: true
-
 
 extra-deps:
 
@@ -256,6 +250,7 @@ extra-deps:
 - base-noprelude-4.10.1.0 # due to lootbox
 - componentm-0.0.0.2
 - teardown-0.5.0.0
+- unix-compat-0.5.1 # https://github.com/jystic/unix-compat/pull/40
 
 ## Ariadne Qt GUI specific
 - hoppy-runtime-0.5.0
