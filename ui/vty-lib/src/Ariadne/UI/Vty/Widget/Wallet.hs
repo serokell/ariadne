@@ -11,6 +11,7 @@ import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
 import qualified Data.Text as T
+import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
@@ -46,8 +47,11 @@ data WalletWidgetState =
     , walletNewAccountName :: !Text
     , walletNewAccountResult :: !NewAccountResult
 
+    , walletTxHistory :: !TxHistoryResult
+
     , walletExportEnabled :: !Bool
     , walletAccountsEnabled :: !Bool
+    , walletTxHistoryEnabled :: !Bool
     }
 
 data RenameResult
@@ -75,11 +79,17 @@ data NewAccountResult
   | NewAccountResultError !Text
   | NewAccountResultSuccess
 
+data TxHistoryResult
+  = TxHistoryResultNone
+  | TxHistoryResultWaiting !UiCommandId
+  | TxHistoryResultError !Text
+  | TxHistoryResultSuccess ![UiTxHistoryRow]
+
 makeLensesWith postfixLFields ''WalletAccount
 makeLensesWith postfixLFields ''WalletWidgetState
 
 initWalletWidget :: UiLangFace -> UiFeatures -> Widget p
-initWalletWidget langFace features =
+initWalletWidget langFace UiFeatures{..} =
   initWidget $ do
     setWidgetDrawWithFocus drawWalletWidget
     setWidgetScrollable
@@ -98,8 +108,11 @@ initWalletWidget langFace features =
       , walletNewAccountName = ""
       , walletNewAccountResult = NewAccountResultNone
 
-      , walletExportEnabled = featureExport features
-      , walletAccountsEnabled = featureAccounts features
+      , walletTxHistory = TxHistoryResultNone
+
+      , walletExportEnabled = featureExport
+      , walletAccountsEnabled = featureAccounts
+      , walletTxHistoryEnabled = featureTxHistory
       }
 
     addWidgetChild WidgetNameWalletName $
@@ -146,6 +159,41 @@ drawAccountRow focused WalletAccount{..} =
   (if focused then B.withAttr "selected" else id) $
   B.txt $
   (if walletAccountSelected then "[X] " else "[ ] ") <> walletAccountName
+
+drawTxRow :: UiTxHistoryRow -> B.Widget WidgetName
+drawTxRow UiTxHistoryRow{..} = B.Widget
+    { B.hSize = B.Greedy
+    , B.vSize = B.Fixed
+    , B.render = render
+    }
+  where
+    render = do
+      rdrCtx <- B.getContext
+      let
+        attr = rdrCtx ^. B.attrL
+
+        cut w txt = if w >= T.length txt
+          then txt
+          else
+            T.take ((w - 3) `div` 2) txt <>
+            "..." <>
+            T.takeEnd (w - 3 - (w - 3) `div` 2) txt
+
+        coinColumn = V.pad 2 0 0 0 . V.vertCat $ V.text' attr <$> uthrTotal : (uthrpAmount <$> uthrTo)
+        width = rdrCtx ^. B.availWidthL - V.imageWidth coinColumn
+        addrWidth = (width - 4) `div` 2
+        txIdRow = V.text' attr . cut width $ uthrId
+        txColumn = V.horizCat
+          [ V.vertCat $ V.text' attr . cut addrWidth . uthrpAddress <$> uthrFrom
+          , V.text' attr " -> "
+          , V.vertCat $ V.text' attr . cut addrWidth . uthrpAddress <$> uthrTo
+          ]
+
+        img = V.pad 0 0 0 1 $ (txIdRow V.<-> txColumn) V.<|> coinColumn
+
+      return $
+        B.emptyResult
+          & B.imageL .~ img
 
 drawWalletWidget :: WidgetName -> WalletWidgetState -> WidgetDrawM WalletWidgetState p (B.Widget WidgetName)
 drawWalletWidget focus WalletWidgetState{..} = do
@@ -211,7 +259,16 @@ drawWalletWidget focus WalletWidgetState{..} = do
         ]
       ) ++
       [ drawChild WidgetNameWalletSend
-      ]
+      ] ++
+      (if not walletTxHistoryEnabled then [] else
+        [ B.txt "Transaction history"
+        , padBottom $ case walletTxHistory of
+            TxHistoryResultNone -> B.emptyWidget
+            TxHistoryResultWaiting _ -> B.txt "Loading..."
+            TxHistoryResultError err -> B.txt $ "Couldn't retrieve transaction history: " <> err
+            TxHistoryResultSuccess rows -> B.vBox $ drawTxRow <$> rows
+        ]
+      )
 
 ----------------------------------------------------------------------------
 -- Events
@@ -248,6 +305,15 @@ handleWalletWidgetEvent = \case
               _ -> return ()
             liftIO (langPutUiCommand UiBalance) >>=
               assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+        whenM (use walletTxHistoryEnabledL) $ do
+          use walletTxHistoryL >>= \case
+            TxHistoryResultWaiting commandId
+              | Just taskId <- cmdTaskId commandId ->
+                  void . liftIO . langPutUiCommand $ UiKill taskId
+            _ -> return ()
+          liftIO (langPutUiCommand UiTxHistory) >>=
+            assign walletTxHistoryL . either TxHistoryResultError TxHistoryResultWaiting
+
         updateFocusList
       _ -> return ()
   UiCommandResult commandId (UiRenameCommandResult result) -> do
@@ -263,6 +329,13 @@ handleWalletWidgetEvent = \case
         case result of
           UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
           UiBalanceCommandFailure err -> BalanceResultError err
+      other -> other
+  UiCommandResult commandId (UiTxHistoryCommandResult result) -> do
+    walletTxHistoryL %= \case
+      TxHistoryResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiTxHistoryCommandSuccess history -> TxHistoryResultSuccess history
+          UiTxHistoryCommandFailure err -> TxHistoryResultError err
       other -> other
   UiCommandResult commandId (UiExportCommandResult result) -> do
     use walletExportResultL >>= \case

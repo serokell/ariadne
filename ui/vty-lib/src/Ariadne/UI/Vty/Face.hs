@@ -24,6 +24,9 @@ module Ariadne.UI.Vty.Face
 
        , UiCommandResult (..)
        , UiBalanceCommandResult (..)
+       , UiTxHistoryRowPart (..)
+       , UiTxHistoryRow (..)
+       , UiTxHistoryCommandResult (..)
        , UiSendCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -55,6 +58,7 @@ data UiFeatures = UiFeatures
   { featureStatus :: !Bool
   , featureExport :: !Bool
   , featureAccounts :: !Bool
+  , featureTxHistory :: !Bool
   , featureFullRestore :: !Bool
   , featureSecretKeyName :: !Text  -- ^ "Secret key"/"Mnemonic"/etc
   }
@@ -164,6 +168,7 @@ data UiNewVersionEvent = UiNewVersion
 data UiCommand
   = UiSelect [Word]
   | UiBalance
+  | UiTxHistory
   | UiSend UiSendArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
@@ -211,6 +216,7 @@ data UiRenameArgs = UiRenameArgs
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiBalanceCommandResult UiBalanceCommandResult
+  | UiTxHistoryCommandResult UiTxHistoryCommandResult
   | UiSendCommandResult UiSendCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
@@ -226,6 +232,24 @@ data UiBalanceCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiTxHistoryRowPart = UiTxHistoryRowPart
+  { uthrpAddress :: Text
+  , uthrpAmount :: Text
+  }
+  deriving (Eq, Show)
+
+data UiTxHistoryRow = UiTxHistoryRow
+  { uthrId :: Text
+  , uthrTotal :: Text
+  , uthrFrom :: [UiTxHistoryRowPart]
+  , uthrTo :: [UiTxHistoryRowPart]
+  }
+  deriving (Eq, Show)
+
+data UiTxHistoryCommandResult
+  = UiTxHistoryCommandSuccess [UiTxHistoryRow]
+  | UiTxHistoryCommandFailure Text
 
 data UiNewWalletCommandResult
   = UiNewWalletCommandSuccess [Text]

@@ -38,6 +38,7 @@ main = defaultMain mainSettings
                 { featureStatus = True
                 , featureExport = False
                 , featureAccounts = True
+                , featureTxHistory = False
                 , featureFullRestore = True
                 , featureSecretKeyName = "Mnemonic"
                 }
