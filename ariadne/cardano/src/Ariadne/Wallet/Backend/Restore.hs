@@ -99,7 +99,7 @@ restoreFromKeyFile pwl face runCardanoMode mbWalletName path rType = do
     traverse_
         (\(i,esk) -> do
             let hasPP = HasNonemptyPassphrase $
-                    not $ isJust $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
+                    isNothing $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
             restoreFromSecretKey
                 pwl
                 face
