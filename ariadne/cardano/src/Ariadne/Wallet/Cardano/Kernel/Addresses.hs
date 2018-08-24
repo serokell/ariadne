@@ -123,18 +123,18 @@ createHdRndAddress :: PassPhrase
                    -> HdAddressChain
                    -> PassiveWallet
                    -> IO (Either CreateAddressError HdAddress)
-createHdRndAddress passphrase esk accId chain pw = go 0
+createHdRndAddress passphrase esk accId chain pw = runExceptT $ go 0
   where
-    go :: Word32 -> IO (Either CreateAddressError HdAddress)
+    go :: Word32 -> ExceptT CreateAddressError IO HdAddress
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> return $ Left (CreateAddressHdRndAddressSpaceSaturated accId)
+            True  -> throwM $ CreateAddressHdRndAddressSpaceSaturated accId
             False -> tryGenerateAddress collisions
 
     tryGenerateAddress :: Word32
                        -- ^ The current number of collisions
-                       -> IO (Either CreateAddressError HdAddress)
-    tryGenerateAddress collisions = runExceptT $ do
+                       -> ExceptT CreateAddressError IO HdAddress
+    tryGenerateAddress collisions = do
         snapshot <- liftIO $ query db Snapshot
 
         hdAddresses <- eitherToExceptT $
@@ -166,13 +166,13 @@ createHdRndAddress passphrase esk accId chain pw = go 0
             mbAddr
 
         let hdAddress =
-                initHdAddress hdAddressId (InDb newAddress) firstCheckpoint
+                initHdAddress hdAddressId (InDb newAddress) False firstCheckpoint
 
         res <- liftIO $ update db (CreateHdAddress hdAddress)
 
         case res of
             (Left (CreateHdAddressExists _)) ->
-                ExceptT $ go (succ collisions)
+                go (succ collisions)
             (Left (CreateHdAddressUnknown _)) ->
                 throwM $ CreateAddressUnknownHdAccount accId
             Right () -> pure hdAddress

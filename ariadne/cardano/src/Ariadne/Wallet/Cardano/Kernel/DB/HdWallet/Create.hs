@@ -20,9 +20,8 @@ import Universum
 
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
-
-import Formatting (bprint, build, sformat, (%))
 import qualified Data.Text.Buildable
+import Formatting (bprint, build, sformat, (%))
 
 import qualified Pos.Core as Core
 
@@ -168,7 +167,7 @@ initHdAccount accountId mbAccountName checkpoint = HdAccount {
     , _hdAccountCheckpoints = checkpoint :| []
     }
   where
-    defName = AccountName $ sformat ("Account: " % build)
+    defName = AccountName $ sformat ("Untitled account " % build)
                                     (accountId ^. hdAccountIdIx)
 
 -- | New address in the specified account
@@ -182,12 +181,13 @@ initHdAccount accountId mbAccountName checkpoint = HdAccount {
 -- address index, as we do not have access to a random number generator here.
 initHdAddress :: HdAddressId
               -> InDb Core.Address
+              -> Bool
               -> AddrCheckpoint
               -> HdAddress
-initHdAddress addrId address checkpoint = HdAddress {
+initHdAddress addrId address isUsed checkpoint = HdAddress {
       _hdAddressId          = addrId
     , _hdAddressAddress     = address
-    , _hdAddressIsUsed      = error "TODO: _hdAddressIsUsed"
+    , _hdAddressIsUsed      = isUsed
     , _hdAddressCheckpoints = checkpoint :| []
     }
 

@@ -309,13 +309,13 @@ addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP assurance = d
   walletRefreshState
   where
     genWalletName :: DB -> WalletName
-    genWalletName walletDb = do -- no monad here
+    genWalletName walletDb = do -- no monad
       let hdRoots = toList (walletDb ^. dbHdWallets . hdWalletsRoots)
           namesVec = V.fromList $ map (unWalletName . view hdRootName) hdRoots
       WalletName $ mkUntitled "Untitled wallet " namesVec
 
     mkUntitled :: Text -> Vector Text -> Text
-    mkUntitled untitled namesVec = do
+    mkUntitled untitled namesVec = do -- no monad
       let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
           numbers = V.mapMaybe ((readMaybe @Natural) . T.unpack) untitledSuffixes
       if null untitledSuffixes || null numbers

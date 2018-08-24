@@ -284,7 +284,7 @@ createHdWallet newRoot utxoByAccount accountNames = runUpdate' . zoom dbHdWallet
 createHdAccount :: HdAccountId
                 -> PrefilteredUtxo
                 -> Maybe AccountName
-                -> Update DB (Either HD.CreateHdAccountError ())
+                -> Update DB (Either HD.CreateHdAccountError HdAccount)
 createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWallets $ do
     -- Make sure root exists. An alternative is to check this within
     -- @createAccPrefiltered@ by passing a handler there (instead of
@@ -355,9 +355,10 @@ createPrefiltered :: forall p e.
                   -> Map HdAccountId AccountName
                   -> Update' HdWallets e ()
 createPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP pByAccount accountNames =
-    forM_ (Map.toList pByAccount) $ \(accId, p) ->
-        createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
+    forM_ (Map.toList pByAccount) $ \(accId, p) -> do
+        _ <- createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
             (accountNames ^. at accId)
+        pass
 
 -- | See @createPrefiltered@ for comments on parameters.
 createAccPrefiltered :: forall p e.
@@ -368,7 +369,7 @@ createAccPrefiltered :: forall p e.
                      -> HdAccountId
                      -> p
                      -> Maybe AccountName
-                     -> Update' HdWallets e ()
+                     -> Update' HdWallets e HdAccount
 createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAccountName = do
     let prefilteredUtxo :: PrefilteredUtxo
         prefilteredUtxo = mkPrefilteredUtxo p
@@ -376,9 +377,10 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
         accUtxo = Map.unions $ Map.elems prefilteredUtxo
 
     -- apply the update to the account
+    let newAccount = mkNewAccount accId mbAccountName accUtxo
     zoomOrCreateHdAccount
         assumeHdRootExists
-        (newAccount accId mbAccountName accUtxo)
+        newAccount
         accId
         (accApplyP p)
 
@@ -390,9 +392,10 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
             addressId
             (addrApplyP $ narrowP addrWithId p)
 
+    pure newAccount
     where
-        newAccount :: HdAccountId -> Maybe AccountName -> Utxo -> HdAccount
-        newAccount accId' mbAccountName' utxo' =
+        mkNewAccount :: HdAccountId -> Maybe AccountName -> Utxo -> HdAccount
+        mkNewAccount accId' mbAccountName' utxo' =
             HD.initHdAccount accId' mbAccountName' (firstAccCheckpoint utxo')
 
         firstAccCheckpoint :: Utxo -> AccCheckpoint
@@ -407,7 +410,10 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
 
         newAddress :: HdAddressId -> Core.Address -> Utxo -> HdAddress
         newAddress addressId address addrUtxo =
-            HD.initHdAddress addressId (InDb address) (firstAddrCheckpoint addrUtxo)
+            HD.initHdAddress addressId (InDb address) isUsed (firstAddrCheckpoint addrUtxo)
+          where
+            isUsed :: Bool
+            isUsed = error "TODO: _hdAddressIsUsed"
 
         firstAddrCheckpoint :: Utxo -> AddrCheckpoint
         firstAddrCheckpoint addrUtxo = AddrCheckpoint {

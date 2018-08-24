@@ -25,7 +25,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (AccountName(..), HdAccount(..), HdAccountId(..), HdRootId,
   UnknownHdAccount(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
-  (CreateHdAccountError(..), initHdAccount)
+  (CreateHdAccountError(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (mkHdAccountIx)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (readAccountsByRootId)
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
@@ -92,18 +92,18 @@ createHdRndAccount :: Maybe AccountName
                    -> HdRootId
                    -> PassiveWallet
                    -> IO (Either CreateAccountError HdAccount)
-createHdRndAccount mbAccountName _esk rootId pw = go 0
+createHdRndAccount mbAccountName _esk rootId pw = runExceptT $ go 0
   where
-    go :: Word32 -> IO (Either CreateAccountError HdAccount)
+    go :: Word32 -> ExceptT CreateAccountError IO HdAccount
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> return $ Left (CreateAccountHdRndAccountSpaceSaturated rootId)
+            True  -> throwM $ CreateAccountHdRndAccountSpaceSaturated rootId
             False -> tryGenerateAccount collisions
 
     tryGenerateAccount :: Word32
                        -- ^ The current number of collisions
-                       -> IO (Either CreateAccountError HdAccount)
-    tryGenerateAccount collisions = runExceptT $ do
+                       -> ExceptT CreateAccountError IO HdAccount
+    tryGenerateAccount collisions = do
         snapshot <- liftIO $ query db Snapshot
 
         hdAccounts <- eitherToExceptT $
@@ -119,16 +119,15 @@ createHdRndAccount mbAccountName _esk rootId pw = go 0
             $ mkHdAccountIx hdAccounts
 
         let hdAccountId = HdAccountId rootId newIndex
-            newAccount  = initHdAccount hdAccountId mbAccountName firstCheckpoint
 
         res <- liftIO $ update db (CreateHdAccount hdAccountId mempty mbAccountName)
 
         case res of
             (Left (CreateHdAccountExists _)) ->
-                ExceptT $ go (succ collisions)
+                go (succ collisions)
             (Left (CreateHdAccountUnknownRoot _)) ->
                 throwM $ CreateAccountUnknownHdRoot rootId
-            Right () -> pure newAccount
+            Right newAccount -> pure newAccount
 
     eitherToExceptT :: forall e m a . Monad m => Either e a -> ExceptT e m a
     eitherToExceptT = ExceptT . pure
@@ -145,16 +144,6 @@ createHdRndAccount mbAccountName _esk rootId pw = go 0
     -- this is why it was picked.
     maxAllowedCollisions :: Word32
     maxAllowedCollisions = 42
-
-    -- | The first 'AccCheckpoint' known to this 'Account'.
-    firstCheckpoint :: AccCheckpoint
-    firstCheckpoint = AccCheckpoint {
-          _accCheckpointUtxo        = InDb mempty
-        , _accCheckpointUtxoBalance = InDb (mkCoin 0)
-        , _accCheckpointPending     = emptyPending
-        , _accCheckpointBlockMeta   = mempty
-        }
-
 
 -- | Deletes an HD 'Account' from the data storage.
 deleteAccount :: HdAccountId
