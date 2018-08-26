@@ -10,7 +10,6 @@ import Universum
 import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
-import IiExtras (postfixLFields)
 import Serokell.Util (enumerate)
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
@@ -25,6 +24,7 @@ import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.WalletInfo
 import Ariadne.UI.Qt.Widgets.WalletTree
+import Ariadne.Util
 
 data Wallet =
   Wallet

@@ -6,9 +6,9 @@ import Control.Concurrent.Async
 import Control.Lens as L
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Data.Map as Map
-import IiExtras
 
 import Ariadne.TaskManager.Face
+import Ariadne.Util
 
 newTaskIdGenerator :: IO (IO TaskId)
 newTaskIdGenerator = do

@@ -5,12 +5,12 @@ module Ariadne.UI.Vty.Widget.Form.Checkbox
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras
 
 import qualified Brick as B
 
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 data CheckboxWidgetState p =
   CheckboxWidgetState

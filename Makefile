@@ -39,10 +39,10 @@ dev-qt:
 
 # Run tests in all packages which have them.
 test:
-	stack test ii-extras knit ariadne-cardano
+	stack test knit ariadne-cardano
 
 stylish:
-	stylish-haskell -i `find ariadne knit util ui -iname '*.hs'`
+	stylish-haskell -i `find ariadne knit ui -iname '*.hs'`
 
 clean:
 	stack clean

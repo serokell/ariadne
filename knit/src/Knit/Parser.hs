@@ -12,9 +12,9 @@ import Data.Loc
 import Data.Monoid (First)
 import Data.Proxy
 import Data.Text
-import IiExtras
 import Text.Earley
 
+import Knit.Prelude
 import Knit.Syntax
 import Knit.Tokenizer
 
@@ -42,8 +42,8 @@ gComponentsLit = go (knownSpine @components)
          (AllConstrained (ComponentLitGrammar components) components')
       => Spine components'
       -> Grammar r (Prod r Text (s, Token components) (Lit components))
-    go RNil = rule A.empty
-    go ((Proxy :: Proxy component) :& xs) = do
+    go (Base ()) = rule A.empty
+    go (Step (Proxy :: Proxy component, xs)) = do
       nt1 <- go xs
       nt2 <- componentLitGrammar @_ @component
       rule $ nt1 <|> nt2

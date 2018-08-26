@@ -4,9 +4,10 @@ module Ariadne.Wallet.Backend.Util
 
 import Universum
 
+import Control.Natural (type (~>))
+
 import qualified Pos.Core as Core
 
-import IiExtras (type (~>))
 import Ariadne.Cardano.Face (CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HasSpendingPassword(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))

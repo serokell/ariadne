@@ -22,9 +22,8 @@ import Ariadne.Cardano.Orphans ()
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter (formatAddressHash)
-import IiExtras
 
-import Knit
+import Knit hiding (asum, map, (<&>))
 
 -- Component type for Knit
 data Wallet
@@ -80,7 +79,7 @@ instance ComponentDetokenizer Wallet where
 
 instance Elem components Wallet => ComponentLitGrammar components Wallet where
   componentLitGrammar = rule $ asum
-    [ toLit . LitAddressHash <$> tok (_Token . uprismElem . _TokenAddressHash) ]
+    [ toLit . LitAddressHash <$> tok (_Token . uprism . _TokenAddressHash) ]
 
 instance ComponentPrinter Wallet where
   componentPpLit = \case

@@ -49,7 +49,6 @@ import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
-import IiExtras (postfixLFields)
 import Pos.Behavior (BehaviorConfig(..))
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
@@ -72,6 +71,7 @@ import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Type definition

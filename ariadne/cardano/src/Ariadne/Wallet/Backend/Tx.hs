@@ -11,6 +11,7 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
+import Control.Natural ((:~>)(..))
 import Data.Acid (AcidState, query)
 import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
@@ -38,7 +39,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
 import Ariadne.Wallet.Face
-import IiExtras ((:~>)(..))
 
 data SendTxException
     = SendTxNoAddresses !HdRootId
@@ -80,7 +80,7 @@ sendTx ::
     -> NonEmpty TxOut
     -> IO TxId
 sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
-    let Nat runCardanoMode = cardanoRunCardanoMode
+    let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- query acidDb Snapshot
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-

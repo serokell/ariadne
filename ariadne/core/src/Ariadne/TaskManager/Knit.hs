@@ -6,16 +6,14 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Exception
 import Control.Lens
-import Data.Vinyl.TypeLevel
 import Formatting hiding (text)
 import Text.Earley
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
 
 import Ariadne.TaskManager.Face
-import IiExtras
 
-import Knit
+import Knit hiding (asum)
 
 data TaskManager
 
@@ -66,7 +64,7 @@ instance ComponentDetokenizer TaskManager where
 instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitTaskId <$> tok (_Token . uprismElem . _TokenTaskId)
+      [ toLit . LitTaskId <$> tok (_Token . uprism . _TokenTaskId)
       ]
 
 instance ComponentPrinter TaskManager where

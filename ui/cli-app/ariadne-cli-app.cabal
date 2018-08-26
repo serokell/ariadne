@@ -26,8 +26,8 @@ executable ariadne-cli
     , async
     , base >=4.7 && <5
     , componentm
-    , ii-extras
     , knit
+    , ntype
     , text
     , universum
   other-modules:

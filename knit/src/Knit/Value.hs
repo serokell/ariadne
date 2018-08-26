@@ -5,8 +5,7 @@ Values manipulated by Knit programs during evaluation/execution.
 -}
 module Knit.Value where
 
-import Data.Union
-import IiExtras
+import Knit.Prelude
 
 -- | The 'ComponentValue' data family defines the value type of a particular
 -- component. The first parameter, 'components', provides the ability to
@@ -67,7 +66,7 @@ toValue
      Elem components component
   => ComponentValue components component
   -> Value components
-toValue = Value . uliftElem
+toValue = Value . ulift
 
 -- | Match on a 'Value', expecting it to belong to a particular component.
 -- Returns 'Nothing' if the value belongs to a different component.
@@ -78,4 +77,4 @@ fromValue
      Elem components component
   => Value components
   -> Maybe (ComponentValue components component)
-fromValue = umatchElem . getValueUnion
+fromValue = umatch . getValueUnion

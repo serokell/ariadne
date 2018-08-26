@@ -23,7 +23,7 @@ import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
-import IiExtras
+import NType (AllConstrained, Elem, KnownSpine)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Cardano.Face

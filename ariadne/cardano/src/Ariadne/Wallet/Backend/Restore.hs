@@ -9,6 +9,7 @@ import Universum hiding (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))
+import Control.Natural (type (~>))
 import Data.Acid (AcidState)
 import qualified Data.ByteString as BS
 import Data.List (init)
@@ -35,7 +36,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Face
-import IiExtras
 
 newtype WrongMnemonic = WrongMnemonic Text
  deriving (Eq, Show)

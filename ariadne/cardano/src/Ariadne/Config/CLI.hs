@@ -16,7 +16,6 @@ import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
-import IiExtras (postfixLFields)
 import Options.Applicative
   (auto, help, long, metavar, option, strOption, switch, value)
 import qualified Options.Applicative as Opt
@@ -38,6 +37,7 @@ import Ariadne.Config.Ariadne
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except EkgParams due to its parser

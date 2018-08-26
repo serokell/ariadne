@@ -27,12 +27,12 @@ library
     , knit
     , lens
     , megaparsec
+    , ntype
     , sqlite-simple
     , text
+    , transformers
     , universum
     , Earley
-    , ii-extras
-    , vinyl
   exposed-modules:
       Ariadne.TaskManager.Knit
       Ariadne.TaskManager.Backend
@@ -40,6 +40,7 @@ library
       Ariadne.Knit.Backend
       Ariadne.Knit.Face
       Ariadne.Knit.Help
+      Ariadne.Util
       Ariadne.UX.CommandHistory
   default-extensions:
       ApplicativeDo

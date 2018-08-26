@@ -12,7 +12,6 @@ import Data.Char (isSpace)
 import Data.List ((!!))
 import Data.Text.Zipper (TextZipper)
 import Prelude (until)
-import IiExtras
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -22,6 +21,7 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 data EnterMode
   = EnterIgnore

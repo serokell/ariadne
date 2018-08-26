@@ -9,7 +9,6 @@ import Universum
 import Control.Lens (ix, makeLensesWith, uses, (.=))
 import Data.List (findIndex, intercalate)
 import Data.Tree (Tree(..))
-import IiExtras
 import Serokell.Util (enumerate)
 
 import qualified Brick as B
@@ -21,6 +20,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Model

@@ -15,7 +15,6 @@ packages:
 - ./ui/vty-app
 - ./ui/vty-lib
 - ./knit
-- ./util
 
 # Cardano SL itself
 - location:
@@ -163,6 +162,12 @@ packages:
   subdirs:
   - code/crypto
   - code/prelude
+
+## NType is not on Hackage
+- location:
+    git: https://github.com/int-index/ntype.git
+    commit: 59cb152b477367f1ca9a1f6aefeea2d22a063216
+  extra-dep: true
 
 
 extra-deps:

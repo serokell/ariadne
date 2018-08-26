@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.AddWallet
 import Universum
 
 import Control.Lens (assign, makeLensesWith, (.=))
-import IiExtras
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -15,6 +14,7 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Model

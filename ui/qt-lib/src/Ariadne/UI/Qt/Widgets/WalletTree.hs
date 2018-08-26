@@ -11,7 +11,6 @@ import Universum hiding (intercalate)
 import Control.Lens (makeLensesWith)
 import Data.Text (intercalate)
 import Graphics.UI.Qtah.Signal (connect_)
-import IiExtras (postfixLFields)
 
 import Data.Bits
 
@@ -34,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
+import Ariadne.Util
 
 data WalletTree =
   WalletTree

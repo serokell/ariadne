@@ -1,9 +1,10 @@
 import Universum
 
-import IiExtras
 import Test.Hspec (Expectation, Spec, describe, hspec, it, shouldBe)
 import Text.Megaparsec (Parsec, runParser)
 import Text.Megaparsec.Char as P
+
+import Knit.Tokenizer (longestMatch)
 
 main :: IO ()
 main = do

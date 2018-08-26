@@ -8,7 +8,6 @@ module Knit.DisplayError
     , ppResolveErrors
     ) where
 
-import Prelude hiding (span, (<$>))
 
 import Control.Applicative ((<|>))
 import Control.Lens
@@ -23,7 +22,6 @@ import qualified Data.Set as Set
 import Data.String (fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
-import IiExtras
 import Text.Earley (Report(..))
 import Text.PrettyPrint.ANSI.Leijen
   (Doc, bold, char, comma, empty, hcat, indent, punctuate, red, squotes, vcat,
@@ -32,6 +30,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Knit.Argument
 import Knit.Eval
 import Knit.Parser
+import Knit.Prelude hiding (span, (<$>))
 import Knit.Printer
 import Knit.Syntax
 import Knit.Tokenizer

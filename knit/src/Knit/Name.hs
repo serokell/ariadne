@@ -5,6 +5,8 @@ module Knit.Name
        , unsafeMkName
        ) where
 
+import Prelude
+
 import Data.Char (isAlpha)
 import Data.Coerce (coerce)
 import Data.List.NonEmpty as NonEmpty

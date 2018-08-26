@@ -8,7 +8,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras (postfixLFields)
 
 import Data.Bits
 import qualified Data.Text as T
@@ -34,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data NewWalletMode = CreateWallet | ImportWallet deriving (Show, Eq, Enum, Bounded)
 

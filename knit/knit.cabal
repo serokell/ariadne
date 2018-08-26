@@ -18,28 +18,26 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5,
-      union,
-      vinyl,
-      text,
-      formatting,
-      scientific,
-      split,
-      text-format,
-      generic-arbitrary,
-      QuickCheck,
-      quickcheck-instances,
-      containers,
-      lens,
-      mtl,
-      megaparsec,
-      loc,
-      parser-combinators,
-      Earley,
-      validation,
-      ansi-wl-pprint,
-      ii-extras,
-      autoexporter
+      ansi-wl-pprint
+    , autoexporter
+    , base >=4.7 && <5
+    , containers
+    , Earley
+    , formatting
+    , generic-arbitrary
+    , lens
+    , loc
+    , megaparsec
+    , mtl
+    , ntype
+    , parser-combinators
+    , QuickCheck
+    , quickcheck-instances
+    , scientific
+    , split
+    , text
+    , text-format
+    , validation
   exposed-modules:
       Knit
       Knit.Argument
@@ -49,6 +47,7 @@ library
       Knit.Name
       Knit.Eval
       Knit.Inflate
+      Knit.Prelude
       Knit.Procedure
       Knit.Tokenizer
       Knit.Parser
@@ -74,6 +73,7 @@ library
       MultiParamTypeClasses
       MultiWayIf
       NegativeLiterals
+      NoImplicitPrelude
       OverloadedStrings
       PatternSynonyms
       PolyKinds
@@ -100,7 +100,6 @@ test-suite knit-test
   build-depends:
       base >=4.7 && <5
     , hspec
-    , ii-extras
     , knit
     , loc
     , megaparsec

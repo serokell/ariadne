@@ -25,7 +25,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      ariadne-core
+    , base >=4.7 && <5
     , universum
     , serokell-util
     , text
@@ -40,7 +41,6 @@ library
     , ansi-terminal
     , formatting
     , lens
-    , ii-extras
     , html-entities
     , file-embed
     , bytestring

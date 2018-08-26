@@ -6,7 +6,6 @@ import Control.Lens (makeLensesWith)
 import Control.Spoon (teaspoon)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Yaml as Yaml
-import IiExtras (postfixLFields)
 import qualified Options.Applicative as Opt
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Infra.Network.Types (NodeName(..))
@@ -30,6 +29,7 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Util (postfixLFields)
 
 makeLensesWith postfixLFields ''CommonNodeArgs
 makeLensesWith postfixLFields ''AriadneConfig

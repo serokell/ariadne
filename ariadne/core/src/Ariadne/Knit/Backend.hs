@@ -6,8 +6,7 @@ module Ariadne.Knit.Backend
 
 import Universum hiding (atomically)
 
-import Data.Vinyl.TypeLevel
-import IiExtras
+import NType (AllConstrained, KnownSpine)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Knit.Face
@@ -56,4 +55,4 @@ createKnitBackend mkExecCtxs TaskManagerFace{..} =
   where
     commandProcs = Knit.commandProcs @components
     resolveProcNames =
-      Knit.resolveProcNames (\(Some cp) -> Knit.cpName cp) commandProcs
+      Knit.resolveProcNames (\(Knit.SomeCommandProc cp) -> Knit.cpName cp) commandProcs

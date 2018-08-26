@@ -69,6 +69,8 @@ library
     , mtl
     , resourcet
     , named
+    , natural-transformation
+    , ntype
     , optparse-applicative
     , safe-exceptions
     , safecopy
@@ -87,7 +89,6 @@ library
     , vector
     , transformers
     , Earley
-    , ii-extras
     , QuickCheck
     , unordered-containers
     , process
@@ -219,10 +220,10 @@ test-suite ariadne-cardano-test
     , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
-    , ii-extras
     , hspec
     , knit
     , lens
+    , ntype
     , optparse-applicative
     , QuickCheck
     , scientific
