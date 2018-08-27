@@ -16,8 +16,12 @@ Update/                         @hithroc
 Wallet/                         @Pastafarianist @gromakovsky
 
 # UIs
-ui/qt/                          @goodsoft @maksbotan
-ui/vty/                         @goodsoft
+ui/cli-app                      @goodsoft
+ui/cli-lib                      @goodsoft
+ui/qt-app                       @goodsoft @maksbotan
+ui/qt-lib                       @goodsoft @maksbotan
+ui/vty-app                      @goodsoft
+ui/vty-lib                      @goodsoft
 
 # CI, Nix
 *.nix                           @yegortimoshenko
