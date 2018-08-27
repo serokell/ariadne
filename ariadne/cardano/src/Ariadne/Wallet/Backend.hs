@@ -48,8 +48,8 @@ createWalletBackend walletConfig sendWalletEvent = do
         acidDb
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
-        applyHook = const refresh <=< _pwlApplyBlocks pwl
-        rollbackHook = const refresh <=< _pwlRollbackBlocks pwl
+        applyHook = const refresh <=< pwlApplyBlocks pwl
+        rollbackHook = const refresh <=< pwlRollbackBlocks pwl
 
         bListenerHandle = BListenerHandle
             { bhOnApply = applyHook

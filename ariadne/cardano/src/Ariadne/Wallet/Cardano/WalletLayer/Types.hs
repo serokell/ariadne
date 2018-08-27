@@ -24,40 +24,39 @@ import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 -- | The passive wallet (data) layer. See @PassiveWallet@.
 data PassiveWalletLayer m = PassiveWalletLayer
-    {
-    -- * wallets
-      _pwlCreateWallet   :: EncryptedSecretKey
-                         -> Kernel.HasNonemptyPassphrase
-                         -> Kernel.AssuranceLevel
-                         -> Kernel.WalletName
-                         -> Map Kernel.HdAccountId Kernel.PrefilteredUtxo
-                         -> m (Either Kernel.CreateWalletError Kernel.HdRoot)
-    , _pwlGetWalletIds   :: m (IxSet Kernel.HdRoot)
-    , _pwlGetWallet      :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
-    , _pwlUpdateWallet   :: Kernel.HdRootId
-                         -> Kernel.AssuranceLevel
-                         -> Kernel.WalletName
-                         -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
-    , _pwlDeleteWallet   :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot ())
+    { -- * wallets
+      pwlCreateWallet   :: EncryptedSecretKey
+                        -> Kernel.HasNonemptyPassphrase
+                        -> Kernel.AssuranceLevel
+                        -> Kernel.WalletName
+                        -> Map Kernel.HdAccountId Kernel.PrefilteredUtxo
+                        -> m (Either Kernel.CreateWalletError Kernel.HdRoot)
+    , pwlGetWalletIds   :: m (IxSet Kernel.HdRoot)
+    , pwlGetWallet      :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
+    , pwlUpdateWallet   :: Kernel.HdRootId
+                        -> Kernel.AssuranceLevel
+                        -> Kernel.WalletName
+                        -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
+    , pwlDeleteWallet   :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot ())
     -- * accounts
-    , _pwlCreateAccount  :: Kernel.HdRootId
-                         -> Maybe Kernel.AccountName
-                         -> m (Either Kernel.CreateAccountError Kernel.HdAccount)
-    , _pwlGetAccounts    :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAccount))
-    , _pwlGetAccount     :: Kernel.HdAccountId -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)
-    , _pwlUpdateAccount  :: Kernel.HdAccountId
-                         -> Kernel.AccountName
-                         -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)
-    , _pwlDeleteAccount  :: Kernel.HdAccountId -> m (Either Kernel.UnknownHdAccount ())
+    , pwlCreateAccount  :: Kernel.HdRootId
+                        -> Maybe Kernel.AccountName
+                        -> m (Either Kernel.CreateAccountError Kernel.HdAccount)
+    , pwlGetAccounts    :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAccount))
+    , pwlGetAccount     :: Kernel.HdAccountId -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)
+    , pwlUpdateAccount  :: Kernel.HdAccountId
+                        -> Kernel.AccountName
+                        -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)
+    , pwlDeleteAccount  :: Kernel.HdAccountId -> m (Either Kernel.UnknownHdAccount ())
     -- * addresses
-    , _pwlCreateAddress  :: PassPhrase
-                         -> Kernel.HdAccountId
-                         -> Kernel.HdAddressChain
-                         -> m (Either Kernel.CreateAddressError Kernel.HdAddress)
-    , _pwlGetAddresses   :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAddress))
+    , pwlCreateAddress  :: PassPhrase
+                        -> Kernel.HdAccountId
+                        -> Kernel.HdAddressChain
+                        -> m (Either Kernel.CreateAddressError Kernel.HdAddress)
+    , pwlGetAddresses   :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAddress))
     -- * core API
-    , _pwlApplyBlocks    :: OldestFirst NE Blund -> m ()
-    , _pwlRollbackBlocks :: NewestFirst NE Blund -> m ()
+    , pwlApplyBlocks    :: OldestFirst NE Blund -> m ()
+    , pwlRollbackBlocks :: NewestFirst NE Blund -> m ()
     -- * internal, hopefully it will go in the future
-    , _pwlGetDBSnapshot  :: m Kernel.DB
+    , pwlGetDBSnapshot  :: m Kernel.DB
     }

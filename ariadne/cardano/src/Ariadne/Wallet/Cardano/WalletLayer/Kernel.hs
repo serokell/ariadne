@@ -71,44 +71,44 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
                        -> PassiveWalletLayer n
     passiveWalletLayer wallet invoke =
         PassiveWalletLayer
-            { _pwlCreateWallet   = liftIO ... Kernel.createHdWallet wallet
+            { pwlCreateWallet   = liftIO ... Kernel.createHdWallet wallet
 
-            , _pwlGetWalletIds   = liftIO $ do
+            , pwlGetWalletIds   = liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readAllHdRoots (snapshot ^. dbHdWallets)
-            , _pwlGetWallet      = \hdrId -> liftIO $ do
+            , pwlGetWallet      = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readHdRoot hdrId (snapshot ^. dbHdWallets)
-            , _pwlUpdateWallet   = \hdrId assurance walletName -> liftIO $
+            , pwlUpdateWallet   = \hdrId assurance walletName -> liftIO $
                 Kernel.updateHdWallet wallet hdrId assurance walletName
-            , _pwlDeleteWallet   = \hdrId -> liftIO $
+            , pwlDeleteWallet   = \hdrId -> liftIO $
                 Kernel.deleteHdWallet wallet hdrId
 
-            , _pwlCreateAccount = \hdrId mbAccName -> liftIO $ do
+            , pwlCreateAccount  = \hdrId mbAccName -> liftIO $ do
                 let walletId = WalletIdHdRnd hdrId
                 Kernel.createAccount mbAccName walletId wallet
-            , _pwlGetAccounts   = \hdrId -> liftIO $ do
+            , pwlGetAccounts    = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readAccountsByRootId hdrId (snapshot ^. dbHdWallets)
-            , _pwlGetAccount    = \hdAccId -> liftIO $ do
+            , pwlGetAccount     = \hdAccId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readHdAccount hdAccId (snapshot ^. dbHdWallets)
-            , _pwlUpdateAccount  = \hdAccId accName -> liftIO $
+            , pwlUpdateAccount  = \hdAccId accName -> liftIO $
                 bimap id snd <$> Kernel.updateAccount hdAccId accName wallet
-            , _pwlDeleteAccount  = \hdAccId -> liftIO $
+            , pwlDeleteAccount  = \hdAccId -> liftIO $
                 Kernel.deleteAccount hdAccId wallet
 
-            , _pwlCreateAddress  = \pp hdAccId hdAddrChain -> liftIO $ do
+            , pwlCreateAddress  = \pp hdAccId hdAddrChain -> liftIO $ do
                 let accId = AccountIdHdRnd hdAccId
                 Kernel.createAddress pp accId hdAddrChain wallet
-            , _pwlGetAddresses   = \hdrId -> liftIO $ do
+            , pwlGetAddresses   = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readAddressesByRootId hdrId (snapshot ^. dbHdWallets)
 
-            , _pwlApplyBlocks    = liftIO . invoke . Actions.ApplyBlocks
-            , _pwlRollbackBlocks = liftIO . invoke . Actions.RollbackBlocks
+            , pwlApplyBlocks    = liftIO . invoke . Actions.ApplyBlocks
+            , pwlRollbackBlocks = liftIO . invoke . Actions.RollbackBlocks
 
-            , _pwlGetDBSnapshot  = liftIO $ Kernel.getWalletSnapshot wallet
+            , pwlGetDBSnapshot  = liftIO $ Kernel.getWalletSnapshot wallet
             }
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified

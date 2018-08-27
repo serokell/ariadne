@@ -216,7 +216,7 @@ refreshState
   -> IO ()
 refreshState pwl walletSelRef sendWalletEvent = do
   walletSel <- readIORef walletSelRef
-  walletDb <- _pwlGetDBSnapshot pwl
+  walletDb <- pwlGetDBSnapshot pwl
   sendWalletEvent (WalletStateSetEvent walletDb walletSel)
 
 newAddress ::
@@ -228,11 +228,11 @@ newAddress ::
     -> PassPhrase
     -> IO Address
 newAddress pwl WalletFace {..} walletSelRef accRef hdAddrChain pp = do
-  walletDb <- _pwlGetDBSnapshot pwl
+  walletDb <- pwlGetDBSnapshot pwl
   hdAccId <- resolveAccountRef walletSelRef accRef walletDb
 
   hdAddr <- throwLeftIO $
-    _pwlCreateAddress pwl pp hdAccId hdAddrChain
+    pwlCreateAddress pwl pp hdAccId hdAddrChain
 
   (hdAddr ^. hdAddressAddress . fromDb) <$ walletRefreshState
 
@@ -244,11 +244,11 @@ newAccount
   -> Maybe AccountName
   -> IO ()
 newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
-  walletDb <- _pwlGetDBSnapshot pwl
+  walletDb <- pwlGetDBSnapshot pwl
   hdrId <- resolveWalletRef walletSelRef walletRef walletDb
 
   throwLeftIO $ void <$>
-    _pwlCreateAccount pwl hdrId mbAccountName
+    pwlCreateAccount pwl hdrId mbAccountName
 
   walletRefreshState
 
@@ -300,11 +300,11 @@ addWallet ::
 addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP assurance = do
   walletName <-
       fromMaybe
-      (genWalletName <$> _pwlGetDBSnapshot pwl)
+      (genWalletName <$> pwlGetDBSnapshot pwl)
       (pure <$> mbWalletName)
 
   throwLeftIO $ void <$>
-    _pwlCreateWallet pwl esk hasPP assurance walletName utxoByAccount
+    pwlCreateWallet pwl esk hasPP assurance walletName utxoByAccount
 
   walletRefreshState
   where
@@ -332,7 +332,7 @@ select
   -> [Word]
   -> IO ()
 select pwl WalletFace{..} walletSelRef mWalletRef uiPath = do
-  walletDb <- _pwlGetDBSnapshot pwl
+  walletDb <- pwlGetDBSnapshot pwl
   mbSelection <- case mWalletRef of
     Nothing -> return Nothing
     Just walletRef -> do
@@ -364,14 +364,14 @@ getBalance pwl walletSelRef = do
     Just selection ->
       case selection of
         WSRoot rootId -> do
-          walletDb <- _pwlGetDBSnapshot pwl
+          walletDb <- pwlGetDBSnapshot pwl
           -- Using the unsafe function is OK here, since the case where
           -- the invariant that the balance exceeds @maxCoin@ is broken
           -- is clearly a programmer mistake.
           pure $ unsafeIntegerToCoin $
             hdRootBalance rootId (walletDb ^. dbHdWallets)
         WSAccount accountId -> do
-          walletDb <- _pwlGetDBSnapshot pwl
+          walletDb <- pwlGetDBSnapshot pwl
           account <- either throwM pure $
             readHdAccount accountId (walletDb ^. dbHdWallets)
           pure $ hdAccountBalance account
@@ -388,10 +388,10 @@ removeSelection pwl WalletFace{..} walletSelRef = do
     -- Throw "Nothing selected" here?
     Just selection -> case selection of
       WSRoot hdrId -> do
-        throwLeftIO $ void <$> _pwlDeleteWallet pwl hdrId
+        throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId
         return Nothing
       WSAccount hdAccId -> do
-        throwLeftIO $ void <$> _pwlDeleteAccount pwl hdAccId
+        throwLeftIO $ void <$> pwlDeleteAccount pwl hdAccId
         return $ Just $ WSRoot (hdAccId ^. hdAccountIdParent)
   atomicWriteIORef walletSelRef newSelection
   walletRefreshState
@@ -410,10 +410,10 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
     Just selection -> case selection of
       WSRoot hdrId ->
         -- TODO: do not hardcode assurance level
-        throwLeftIO $ void <$> _pwlUpdateWallet pwl hdrId AssuranceLevelNormal (WalletName name)
+        throwLeftIO $ void <$> pwlUpdateWallet pwl hdrId AssuranceLevelNormal (WalletName name)
 
       WSAccount hdAccId ->
-        throwLeftIO $ void <$> _pwlUpdateAccount pwl hdAccId (AccountName name)
+        throwLeftIO $ void <$> pwlUpdateAccount pwl hdAccId (AccountName name)
 
   walletRefreshState
 
