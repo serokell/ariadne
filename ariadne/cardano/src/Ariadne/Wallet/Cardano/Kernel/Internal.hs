@@ -9,7 +9,6 @@
 module Ariadne.Wallet.Cardano.Kernel.Internal (
     -- * Passive wallet
     PassiveWallet(..)
-  , ActiveWallet(..)
   , walletKeystore
   , wallets
   , walletLogMessage
@@ -24,13 +23,7 @@ import System.Wlog (Severity(..))
 import Data.Acid (AcidState)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB)
-import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
-import Ariadne.Wallet.Cardano.Kernel.Submission (WalletSubmission)
-
--- Handy re-export of the pure getters
-
-import Pos.Core (ProtocolMagic)
 
 {-------------------------------------------------------------------------------
   Passive wallet
@@ -51,23 +44,3 @@ data PassiveWallet = PassiveWallet {
     }
 
 makeLenses ''PassiveWallet
-
-
-{-------------------------------------------------------------------------------
-  Active wallet
--------------------------------------------------------------------------------}
-
--- | Active wallet
---
--- An active wallet can do everything the passive wallet can, but also
--- send new transactions.
-data ActiveWallet = ActiveWallet {
-      -- | The underlying passive wallet
-      walletPassive       :: PassiveWallet
-      -- | The wallet diffusion layer
-    , walletDiffusion     :: WalletDiffusion
-      -- | The wallet submission layer
-    , walletSubmission    :: MVar WalletSubmission
-      -- | The protocol magic used to make transactions.
-    , walletProtocolMagic :: ProtocolMagic
-    }

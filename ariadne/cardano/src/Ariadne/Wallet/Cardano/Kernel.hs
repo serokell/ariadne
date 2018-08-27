@@ -14,7 +14,6 @@ module Ariadne.Wallet.Cardano.Kernel (
   , inMemoryDBComponent
   , init
   , walletLogMessage
-  , walletPassive
     -- ** Respond to block chain events
   , applyBlock
   , applyBlocks
@@ -25,11 +24,6 @@ module Ariadne.Wallet.Cardano.Kernel (
   , getWalletSnapshot
     -- ** Pure getters acting on a DB snapshot
   , module Getters
-    -- * Active wallet
-  , ActiveWallet -- opaque
-  , activeWalletComponent
-  , newPending
-  , NewPendingError
   ) where
 
 import Universum hiding (State, init)
@@ -47,7 +41,6 @@ import Data.Acid.Memory (openMemoryState)
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
 
-import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
@@ -55,16 +48,12 @@ import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
 import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (ApplyBlock(..), CancelPending(..), DB, NewPending(..), NewPendingError,
-  ObservableRollbackUseInTestsOnly(..), Snapshot(..), SwitchToFork(..), defDB)
+  (ApplyBlock(..), DB, ObservableRollbackUseInTestsOnly(..), Snapshot(..),
+  SwitchToFork(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec (singletonPending)
-import Ariadne.Wallet.Cardano.Kernel.Submission
-  (Cancelled, WalletSubmission, addPending, defaultResubmitFunction,
-  exponentialBackoff, newWalletSubmission, tick)
-import Ariadne.Wallet.Cardano.Kernel.Submission.Worker (tickSubmissionLayer)
 
 -- Handy re-export of the pure getters
 
@@ -183,73 +172,6 @@ switchToFork pw@PassiveWallet{..} n bs = do
 observableRollbackUseInTestsOnly :: PassiveWallet -> IO ()
 observableRollbackUseInTestsOnly PassiveWallet{..} =
     update' _wallets $ ObservableRollbackUseInTestsOnly
-
-{-------------------------------------------------------------------------------
-  Active wallet
--------------------------------------------------------------------------------}
-
--- | Initialize the active wallet
-activeWalletComponent
-    :: ProtocolMagic
-    -> PassiveWallet
-    -> WalletDiffusion
-    -> ComponentM ActiveWallet
-activeWalletComponent walletProtocolMagic walletPassive walletDiffusion = do
-    let logMsg = _walletLogMessage walletPassive
-    let rho = defaultResubmitFunction (exponentialBackoff 255 1.25)
-    walletSubmission <- newMVar (newWalletSubmission rho)
-    submissionLayerTicker <-
-        liftIO $ async
-               $ tickSubmissionLayer logMsg (tickFunction walletSubmission)
-    buildComponent
-        "ActiveWallet"
-        (return ActiveWallet{..})
-        (\_ -> liftIO $ do
-                 (_walletLogMessage walletPassive) Error "stopping the wallet submission layer..."
-                 cancel submissionLayerTicker
-        )
-    where
-        -- NOTE(adn) We might want to discuss diffusion layer throttling
-        -- with Alex & Duncan.
-        -- By default the diffusion layer should correctly throttle and debounce
-        -- requests, but we might want in the future to adopt more sophisticated
-        -- strategies.
-        sendTransactions :: [TxAux] -> IO ()
-        sendTransactions [] = return ()
-        sendTransactions (tx:txs) = do
-            void $ (walletSendTx walletDiffusion) tx
-            sendTransactions txs
-
-        tickFunction :: MVar WalletSubmission -> IO ()
-        tickFunction submissionLayer = do
-            (cancelled, toSend) <-
-                modifyMVar submissionLayer $ \layer -> do
-                    let (e, s, state') = tick layer
-                    return (state', (e,s))
-            unless (Map.null cancelled) $
-                cancelPending walletPassive cancelled
-            sendTransactions toSend
-
--- | Submit a new pending transaction
---
--- Will fail if the HdAccountId does not exist or if some inputs of the
--- new transaction are not available for spending.
---
--- If the pending transaction is successfully added to the wallet state, the
--- submission layer is notified accordingly.
-newPending :: ActiveWallet -> HdAccountId -> TxAux -> IO (Either NewPendingError ())
-newPending ActiveWallet{..} accountId tx = do
-    res <- update' (walletPassive ^. wallets) $ NewPending accountId (InDb tx)
-    case res of
-        Left e -> return (Left e)
-        Right () -> do
-            let txId = hash . taTx $ tx
-            modifyMVar_ walletSubmission (return . addPending accountId (singletonPending txId tx))
-            return $ Right ()
-
-cancelPending :: PassiveWallet -> Cancelled -> IO ()
-cancelPending passiveWallet cancelled =
-    update' (passiveWallet ^. wallets) $ CancelPending (fmap InDb cancelled)
 
 -- | The only effectful query on this 'PassiveWallet'.
 getWalletSnapshot :: PassiveWallet -> IO DB

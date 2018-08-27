@@ -15,7 +15,6 @@ import qualified Formatting as F
 
 import Data.Acid (AcidState, query, update)
 
-import Pos.Core (mkCoin)
 import Pos.Crypto (EncryptedSecretKey)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
@@ -28,8 +27,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
   (CreateHdAccountError(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (mkHdAccountIx)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (readAccountsByRootId)
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
-import Ariadne.Wallet.Cardano.Kernel.DB.Spec (AccCheckpoint(..), emptyPending)
 import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore

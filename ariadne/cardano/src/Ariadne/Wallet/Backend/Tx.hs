@@ -80,6 +80,7 @@ sendTx ::
     -> NonEmpty TxOut
     -> IO TxId
 sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
+    -- TODO: call newPending here
     let Nat runCardanoMode = cardanoRunCardanoMode
     walletDb <- query acidDb Snapshot
     let wallets = walletDb ^. dbHdWallets

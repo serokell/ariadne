@@ -157,15 +157,11 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
       Ariadne.Wallet.Cardano.Kernel.Decrypt
-      Ariadne.Wallet.Cardano.Kernel.Diffusion
       Ariadne.Wallet.Cardano.Kernel.Internal
       Ariadne.Wallet.Cardano.Kernel.Keystore
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-      Ariadne.Wallet.Cardano.Kernel.Submission
-      Ariadne.Wallet.Cardano.Kernel.Submission.Worker
       Ariadne.Wallet.Cardano.Kernel.Types
       Ariadne.Wallet.Cardano.Kernel.Util
-      Ariadne.Wallet.Cardano.Kernel.Util.StrictStateT
       Ariadne.Wallet.Cardano.Kernel.Wallets
       Ariadne.Wallet.Cardano.Kernel.Word31
       Ariadne.Wallet.Cardano.WalletLayer

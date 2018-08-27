@@ -1,6 +1,5 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Types
     ( PassiveWalletLayer (..)
-    , ActiveWalletLayer (..)
     ) where
 
 import Universum
@@ -61,23 +60,4 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , _pwlRollbackBlocks :: NewestFirst NE Blund -> m ()
     -- * internal, hopefully it will go in the future
     , _pwlGetDBSnapshot  :: m Kernel.DB
-    }
-
-------------------------------------------------------------
--- Active wallet layer
-------------------------------------------------------------
-
--- An active wallet layer. See @ActiveWallet@.
-data ActiveWalletLayer m = ActiveWalletLayer {
-      -- | The underlying passive wallet layer
-      walletPassiveLayer :: PassiveWalletLayer m
-
-      -- | Performs a payment.
-    , pay :: Kernel.HdAccountId
-          -> NonEmpty TxOut
-          -> InputSelectionPolicy
-          -> PassPhrase
-          -> m TxId
-          -- ^ Return type should be IO (Either SendTxException TxId), but current
-          -- implementation just throws an IO exception.
     }
