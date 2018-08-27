@@ -16,7 +16,7 @@ import qualified Ariadne.TaskManager.Knit as Knit
 import Data.List.NonEmpty (fromList)
 import Data.Scientific
 import qualified Data.Text as T
-import Knit hiding (elements, foldMap, map)
+import Knit
 import NType (N(..))
 import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)

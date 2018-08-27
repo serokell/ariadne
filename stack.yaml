@@ -163,13 +163,6 @@ packages:
   - code/crypto
   - code/prelude
 
-## NType is not on Hackage
-- location:
-    git: https://github.com/int-index/ntype.git
-    commit: 59cb152b477367f1ca9a1f6aefeea2d22a063216
-  extra-dep: true
-
-
 extra-deps:
 
 # From `cardano-sl`:
@@ -256,6 +249,7 @@ extra-deps:
 - componentm-0.0.0.2
 - teardown-0.5.0.0
 - unix-compat-0.5.1 # https://github.com/jystic/unix-compat/pull/40
+- ntype-0.1.0.0
 
 ## Ariadne Qt GUI specific
 - hoppy-runtime-0.5.0

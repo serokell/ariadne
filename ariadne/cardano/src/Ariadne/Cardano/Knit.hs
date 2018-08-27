@@ -18,7 +18,7 @@ import qualified Text.Megaparsec.Char.Lexer as P
 
 import Ariadne.Cardano.Face
 
-import Knit hiding (asum, show)
+import Knit
 
 -- Component type for Knit
 data Cardano

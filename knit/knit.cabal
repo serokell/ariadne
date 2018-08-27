@@ -19,7 +19,6 @@ library
       src
   build-depends:
       ansi-wl-pprint
-    , autoexporter
     , base >=4.7 && <5
     , containers
     , Earley

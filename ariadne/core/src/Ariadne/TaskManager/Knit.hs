@@ -13,7 +13,7 @@ import qualified Text.Megaparsec.Char.Lexer as P
 
 import Ariadne.TaskManager.Face
 
-import Knit hiding (asum)
+import Knit
 
 data TaskManager
 

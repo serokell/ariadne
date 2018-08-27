@@ -23,7 +23,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter (formatAddressHash)
 
-import Knit hiding (asum, map, (<&>))
+import Knit
 
 -- Component type for Knit
 data Wallet
