@@ -35,16 +35,19 @@ import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)
 import Control.Monad.Trans.Identity (IdentityT(..), runIdentityT)
 import qualified Data.List
+import qualified Data.Map as Map
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO (hClose, openTempFile)
 
-import Pos.Crypto (EncryptedSecretKey, hash)
+import Pos.Core (AddressHash, addressHash)
+import Pos.Crypto (EncryptedSecretKey, PublicKey, encToPublic, hash)
 import Pos.Util.UserSecret
-  (UserSecret, getUSPath, isEmptyUserSecret, takeUserSecret, usKeys,
-  writeUserSecretRelease)
+  (UserSecret, getUSPath, isEmptyUserSecret, takeUserSecret, usWallets,
+  writeUserSecret, writeUserSecretRelease)
 import System.Wlog (CanLog(..), HasLoggerName(..), LoggerName(..), logMessage)
 
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (eskToHdRootId)
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdRootId(..), eskToHdRootId)
+import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..), fromDb)
 import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 -- Internal storage necessary to smooth out the legacy 'UserSecret' API.
@@ -74,6 +77,13 @@ data DeletePolicy =
     | KeepKeystoreIfEmpty
       -- ^ Release the 'Keystore' without touching its file on disk, even
       -- if the latter is empty.
+
+data DuplicatedWalletKey = DuplicatedWalletKey
+  deriving (Eq, Show)
+
+instance Exception DuplicatedWalletKey where
+  displayException DuplicatedWalletKey =
+    "The wallet with this root key already exists"
 
 {-------------------------------------------------------------------------------
   Creating a keystore
@@ -179,17 +189,16 @@ insert :: WalletId
        -> EncryptedSecretKey
        -> Keystore
        -> IO ()
-insert _walletId esk (Keystore ks) =
+insert _walletId esk (Keystore ks) = do
     modifyMVar_ ks $ \(InternalStorage us) -> do
-        return . InternalStorage $
-            if view usKeys us `contains` esk
-                     then us
-                     else us & over usKeys (esk :)
+        when (Map.member (eskToKey esk) (view usWallets us)) $
+            throwM DuplicatedWalletKey
+        let us' = us & over usWallets (Map.insert (addressHash $ encToPublic esk) esk)
+        writeUserSecret us'
+        return $ InternalStorage us'
     where
-      -- Comparator taken from the old code which needs to hash
-      -- all the 'EncryptedSecretKey' in order to compare them.
-      contains :: [EncryptedSecretKey] -> EncryptedSecretKey -> Bool
-      contains ls k = hash k `elem` map hash ls
+      eskToKey :: EncryptedSecretKey -> AddressHash PublicKey
+      eskToKey = addressHash . encToPublic
 
 {-------------------------------------------------------------------------------
   Looking up things inside a keystore
@@ -204,8 +213,8 @@ lookup wId (Keystore ks) =
 
 -- | Lookup a key directly inside the 'UserSecret'.
 lookupKey :: UserSecret -> WalletId -> Maybe EncryptedSecretKey
-lookupKey us (WalletIdHdRnd walletId) =
-    Data.List.find (\k -> eskToHdRootId k == walletId) (us ^. usKeys)
+lookupKey us walletId =
+    Map.lookup (walletIdToKey walletId) (us ^. usWallets)
 
 {-------------------------------------------------------------------------------
   Deleting things from the keystore
@@ -216,9 +225,8 @@ lookupKey us (WalletIdHdRnd walletId) =
 delete :: WalletId -> Keystore -> IO ()
 delete walletId (Keystore ks) = do
     modifyMVar_ ks $ \(InternalStorage us) -> do
-        let mbEsk = lookupKey us walletId
-        let erase = Data.List.deleteBy (\a b -> hash a == hash b)
-        let us' = maybe us (\esk -> us & over usKeys (erase esk)) mbEsk
+        let us' = us & over usWallets (Map.delete (walletIdToKey walletId))
+        writeUserSecret us'
         return (InternalStorage us')
 
 {-------------------------------------------------------------------------------
@@ -228,6 +236,15 @@ delete walletId (Keystore ks) = do
 -- | Returns all the 'EncryptedSecretKey' known to this 'Keystore'.
 toList :: Keystore -> IO [(WalletId, EncryptedSecretKey)]
 toList (Keystore ks) =
-    withMVar ks $ \(InternalStorage us) -> do
-        let kss = us ^. usKeys
-        return $ map (\k -> (WalletIdHdRnd (eskToHdRootId k), k)) kss
+    withMVar ks $ \(InternalStorage us) ->
+        pure $ map (first hashPubKeyToWalletId) $ Map.toList $ us ^. usWallets
+  where
+    hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
+    hashPubKeyToWalletId = WalletIdHdRnd . HdRootId . InDb
+
+{-------------------------------------------------------------------------------
+  Utilities
+-------------------------------------------------------------------------------}
+
+walletIdToKey :: WalletId -> AddressHash PublicKey
+walletIdToKey (WalletIdHdRnd hdRootId) = view fromDb $ getHdRootId hdRootId

@@ -102,13 +102,6 @@ instance Exception AddressGenerationFailed where
             AGFailedIncorrectPassPhrase ->
                 "Address generation failed due to incorrect passphrase"
 
-data DuplicatedWalletKey = DuplicatedWalletKey
-  deriving (Eq, Show)
-
-instance Exception DuplicatedWalletKey where
-  displayException DuplicatedWalletKey =
-    "The wallet with this root key already exists"
-
 data WalletIndexOutOfRange = WalletIndexOutOfRange Word
   deriving (Eq, Show)
 
