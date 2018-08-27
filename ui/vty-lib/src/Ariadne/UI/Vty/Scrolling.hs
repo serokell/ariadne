@@ -4,6 +4,7 @@ module Ariadne.UI.Vty.Scrolling
      , handleScrollingEvent
      , scrollToEnd
      , fixedViewport
+     , viewportWithScrollBar
      ) where
 
 import Universum
@@ -11,7 +12,9 @@ import Universum
 import Ariadne.UI.Vty.Keyboard
 
 import qualified Brick as B
+import qualified Brick.Widgets.Border as BR
 import qualified Graphics.Vty as V
+import qualified Control.Monad.Trans.Reader as R
 
 data ScrollingAction
   = ScrollingLineUp
@@ -84,3 +87,85 @@ fixedViewport name vpType p = case vpType of
       B.Vertical -> B.hLimit (result ^. B.imageL & V.imageWidth)
       B.Horizontal -> B.vLimit (result ^. B.imageL & V.imageHeight)
       B.Both -> identity
+
+-- | Creates a viewport with a scrollbar on the right, bottom or both sides.
+-- Note: when there is no need the scrollbar does not get displayed, but
+-- it will still give one column/row less to the sub-widget to use.
+viewportWithScrollBar
+    :: (Ord n, Show n)
+    => n                -- ^ The name of the viewport (must be unique)
+    -> B.ViewportType   -- ^ The type of the viewport (scrolling direction)
+    -> B.Widget n       -- ^ The widget to be rendered in the viewport
+    -> B.Widget n
+viewportWithScrollBar name vpType p = B.Widget B.Greedy B.Greedy $ do
+    c <- B.getContext
+    mvp <- B.unsafeLookupViewport name
+
+    -- Here it renders the sub-rendering with the rendering layout
+    -- constraint released. This is done by Brick's viewport, but since
+    -- we need the widget unrestricted size we have to do this as well. 
+    -- The only real difference is that we remove one line to make space
+    -- for the scrollbar.
+    let unrestricted :: Int
+        unrestricted = 100000
+
+        hRelease :: B.Widget n -> B.Widget n
+        hRelease w = case B.hSize w of
+            B.Fixed -> B.Widget B.Greedy (B.vSize w) $ R.withReaderT 
+                ( set B.availWidthL unrestricted
+                . over B.availHeightL (subtract 1)
+                ) (B.render w)
+            B.Greedy -> error $ "tried to embed an infinite-height widget "
+                <> "in vertical viewport " <> show name
+
+        vRelease :: B.Widget n -> B.Widget n
+        vRelease w = case B.vSize w of
+            B.Fixed -> B.Widget (B.hSize w) B.Greedy $ R.withReaderT
+                ( set B.availHeightL unrestricted
+                . over B.availWidthL (subtract 1)
+                ) (B.render w)
+            B.Greedy -> error $ "tried to embed an infinite-width widget "
+                <> "in horizontal viewport " <> show name
+
+        bRelease :: B.Widget n -> B.Widget n
+        bRelease w = case (B.hSize w, B.vSize w) of
+            (B.Fixed, B.Fixed) -> B.Widget B.Greedy B.Greedy $ R.withReaderT
+                ( over B.availHeightL (subtract 1)
+                . over B.availWidthL (subtract 1)
+                ) (B.render w)
+            _ -> error $ "tried to embed an infinite-width or infinite-height "
+                <> "widget in 'Both' type viewport " <> show name
+
+    result <- B.render $ case vpType of
+        B.Vertical -> vRelease p
+        B.Horizontal -> hRelease p
+        B.Both -> bRelease p
+
+    let vpWidget = B.viewport name vpType $
+            B.Widget (B.hSize p) (B.vSize p) (return result)
+        resultImg = B.image result
+
+        enoughHeight = V.imageHeight resultImg <= B.availHeight c
+        availHeight = fromIntegral $ B.availHeight c
+        resultHeight = fromIntegral $ V.imageHeight resultImg
+        vpPadTop = fromIntegral $ maybe 0 (view B.vpTop) mvp
+        vRatio = availHeight / resultHeight :: Double
+        vPad = round $ vRatio * vpPadTop 
+        vSize = max 1 . round $ vRatio * availHeight
+        vBar = B.vLimit (vPad + vSize) $ B.padTop (B.Pad vPad) BR.vBorder
+        addVBar widg = if enoughHeight then widg else B.hBox [widg, vBar]
+
+        enoughWidth = V.imageWidth resultImg <= B.availWidth c
+        availWidth = fromIntegral $ B.availWidth c
+        resultWidth = fromIntegral $ V.imageWidth resultImg
+        vpPadLeft = fromIntegral $ maybe 0 (view B.vpLeft) mvp
+        hRatio = availWidth / resultWidth :: Double
+        hPad = round $ hRatio * vpPadLeft
+        hSize = max 1 . round $ hRatio * availWidth
+        hBar = B.hLimit (hPad + hSize) $ B.padLeft (B.Pad hPad) BR.hBorder
+        addHBar widg = if enoughWidth then widg else B.vBox [widg, hBar]
+
+    B.render $ case vpType of
+        B.Vertical   -> addVBar vpWidget
+        B.Horizontal -> addHBar vpWidget
+        B.Both       -> addHBar $ addVBar vpWidget

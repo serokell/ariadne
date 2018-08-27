@@ -10,6 +10,7 @@ import qualified Brick as B
 import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Checkbox
@@ -127,7 +128,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
     padBottom = B.padBottom (B.Pad 1)
 
   return $
-    B.viewport widgetName B.Vertical $
+    viewportWithScrollBar widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
     padBottom <$>

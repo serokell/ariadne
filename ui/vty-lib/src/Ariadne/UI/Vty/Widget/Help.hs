@@ -12,6 +12,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.Util
 
@@ -35,7 +36,7 @@ drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p (B.Widget Wid
 drawHelpWidget HelpWidgetState{..} = do
   widgetName <- getWidgetName
   return $
-    B.viewport widgetName B.Vertical $
+    viewportWithScrollBar widgetName B.Vertical $
     B.cached widgetName $
     B.Widget
       { B.hSize = B.Fixed
