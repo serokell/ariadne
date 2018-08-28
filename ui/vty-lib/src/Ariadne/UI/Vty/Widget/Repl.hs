@@ -95,7 +95,7 @@ drawReplWidget focus ReplWidgetState{..} = do
     if fullsize
       then return $ B.vBox
         [ B.padLeft (B.Pad 1) $
-          viewportWithScrollBar widgetName B.Vertical $
+          scrollingViewport widgetName B.Vertical $
           B.cached widgetName $
           B.Widget
             { B.hSize = B.Fixed

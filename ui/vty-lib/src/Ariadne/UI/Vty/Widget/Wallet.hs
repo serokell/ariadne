@@ -212,7 +212,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
   return $
-    viewportWithScrollBar widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
     padBottom <$>

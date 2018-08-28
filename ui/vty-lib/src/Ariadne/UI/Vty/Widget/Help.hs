@@ -36,7 +36,7 @@ drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p (B.Widget Wid
 drawHelpWidget HelpWidgetState{..} = do
   widgetName <- getWidgetName
   return $
-    viewportWithScrollBar widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.cached widgetName $
     B.Widget
       { B.hSize = B.Fixed

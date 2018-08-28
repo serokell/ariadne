@@ -4,7 +4,8 @@ module Ariadne.UI.Vty.Scrolling
      , handleScrollingEvent
      , scrollToEnd
      , fixedViewport
-     , viewportWithScrollBar
+     , scrollingViewport
+     , fixedScrollingViewport
      ) where
 
 import Universum
@@ -77,7 +78,7 @@ fixedViewport name vpType p = case vpType of
   B.Horizontal -> B.Widget B.Greedy (B.vSize p) render
   where
     render = do
-      result <- B.render p
+      result <- renderReleased vpType p
       B.render $
         limit result .
         B.viewport name vpType $
@@ -91,57 +92,85 @@ fixedViewport name vpType p = case vpType of
 -- | Creates a viewport with a scrollbar on the right, bottom or both sides.
 -- Note: when there is no need the scrollbar does not get displayed, but
 -- it will still give one column/row less to the sub-widget to use.
-viewportWithScrollBar
+scrollingViewport
     :: (Ord n, Show n)
     => n                -- ^ The name of the viewport (must be unique)
     -> B.ViewportType   -- ^ The type of the viewport (scrolling direction)
     -> B.Widget n       -- ^ The widget to be rendered in the viewport
     -> B.Widget n
-viewportWithScrollBar name vpType p = B.Widget B.Greedy B.Greedy $ do
-    -- first get the current context
-    c <- B.getContext
-    -- adjust it for the inner widget
-    let unrestricted = 100000
-        releasing = case vpType of
-            B.Vertical   -> set B.availHeightL unrestricted
-                              . over B.availWidthL (subtract 1)
-            B.Horizontal -> set B.availWidthL unrestricted
-                              . over B.availHeightL (subtract 1)
-            B.Both       -> over B.availHeightL (subtract 1)
-                              . over B.availWidthL (subtract 1)
-    -- render the inner widget
-    result <- R.withReaderT releasing $ B.render p
-    -- add the scrollbar to the result
-    mvp <- B.unsafeLookupViewport name
-    let vpWidget = B.viewport name vpType $
-            B.Widget (B.hSize p) (B.vSize p) (return result)
+scrollingViewport = withScrollBar B.viewport
 
-        resultImg = B.image result
-        (availH, availW) = case vpType of
-            B.Both -> (B.availHeight c - 1, B.availWidth c - 1)
-            _ -> (B.availHeight c, B.availWidth c) 
-    
-        enoughHeight = V.imageHeight resultImg <= availH
-        availHeight = fromIntegral availH
-        resultHeight = fromIntegral $ V.imageHeight resultImg
-        vpPadTop = fromIntegral $ maybe 0 (view B.vpTop) mvp
-        vRatio = availHeight / resultHeight :: Double
-        vPad = round $ vRatio * vpPadTop 
-        vSize = max 1 . round $ vRatio * availHeight
-        vBar = B.vLimit (vPad + vSize) $ B.padTop (B.Pad vPad) BR.vBorder
-        addVBar widg = if enoughHeight then widg else B.hBox [widg, vBar]
+-- | Adds a scrollbar just like scrollingViewport, but uses a fixedViewport
+-- instead of a Brick.Widgets.Core viewport
+fixedScrollingViewport
+    :: (Ord n, Show n)
+    => n                -- ^ The name of the viewport (must be unique)
+    -> B.ViewportType   -- ^ The type of the viewport (scrolling direction)
+    -> B.Widget n       -- ^ The widget to be rendered in the viewport
+    -> B.Widget n
+fixedScrollingViewport = withScrollBar fixedViewport
 
-        enoughWidth = V.imageWidth resultImg <= availW
-        availWidth = fromIntegral availW
-        resultWidth = fromIntegral $ V.imageWidth resultImg
-        vpPadLeft = fromIntegral $ maybe 0 (view B.vpLeft) mvp
-        hRatio = availWidth / resultWidth :: Double
-        hPad = round $ hRatio * vpPadLeft
-        hSize = max 1 . round $ hRatio * availWidth
-        hBar = B.hLimit (hPad + hSize) $ B.padLeft (B.Pad hPad) BR.hBorder
-        addHBar widg = if enoughWidth then widg else B.vBox [widg, hBar]
+withScrollBar
+    :: (Ord n, Show n)
+    => (n -> B.ViewportType -> B.Widget n -> B.Widget n)
+    -> n
+    -> B.ViewportType
+    -> B.Widget n
+    -> B.Widget n
+withScrollBar vpFunc name vpType p = case vpType of
+    B.Both       -> B.Widget B.Greedy B.Greedy render
+    B.Vertical   -> B.Widget (B.hSize p) B.Greedy render
+    B.Horizontal -> B.Widget B.Greedy (B.vSize p) render
+  where
+    render = do
+        -- first get the current context
+        c <- B.getContext
+        -- adjust it for the inner widget and render it
+        result <- renderReleased vpType p
+        -- add the scrollbar to the result
+        mvp <- B.unsafeLookupViewport name
+        let vpWidget = vpFunc name vpType $
+                B.Widget (B.hSize p) (B.vSize p) (return result)
 
-    B.render $ case vpType of
-        B.Vertical   -> addVBar vpWidget
-        B.Horizontal -> addHBar vpWidget
-        B.Both       -> addHBar $ addVBar vpWidget
+            resultImg = B.image result
+            (imageH, imageW) = (V.imageHeight resultImg, V.imageWidth resultImg)
+            (availH, availW) = case vpType of
+                B.Both -> (B.availHeight c - 1, B.availWidth c - 1)
+                _ -> (B.availHeight c, B.availWidth c)
+
+            barDims :: Int -> Int -> Maybe Int -> (Int, Int)
+            barDims availDim imgDim vpPad = (barSize, barPad)
+              where
+                availableDim = fromIntegral availDim
+                imageDim = fromIntegral imgDim
+                vpPadding = fromIntegral $ fromMaybe 0 vpPad
+                ratio = availableDim / imageDim :: Double
+                barSize = max 1 . round $ ratio * availableDim
+                tmpPad = round $ ratio * vpPadding
+                barPad = if tmpPad + barSize > availDim then availDim - barSize
+                    else tmpPad
+
+            (vSize, vPad) = barDims availH imageH $ view B.vpTop <$> mvp
+            vBar = B.vLimit (vPad + vSize) $ B.padTop (B.Pad vPad) BR.vBorder
+            addVBar wdg = if imageH <= availH then wdg else B.hBox [wdg, vBar]
+
+            (hSize, hPad) = barDims availW imageW $ view B.vpLeft <$> mvp
+            hBar = B.hLimit (hPad + hSize) $ B.padLeft (B.Pad hPad) BR.hBorder
+            addHBar wdg = if imageW <= availW then wdg else B.vBox [wdg, hBar]
+
+        B.render $ case vpType of
+            B.Vertical   -> addVBar vpWidget
+            B.Horizontal -> addHBar vpWidget
+            B.Both       -> addHBar $ addVBar vpWidget
+
+renderReleased :: B.ViewportType -> B.Widget n -> B.RenderM n (B.Result n)
+renderReleased vpType p = R.withReaderT releasing $ B.render p
+  where
+    unrestricted = 100000
+    releasing = case vpType of
+        B.Vertical   -> set B.availHeightL unrestricted
+                          . over B.availWidthL (subtract 1)
+        B.Horizontal -> set B.availWidthL unrestricted
+                          . over B.availHeightL (subtract 1)
+        B.Both       -> over B.availHeightL (subtract 1)
+                          . over B.availWidthL (subtract 1)

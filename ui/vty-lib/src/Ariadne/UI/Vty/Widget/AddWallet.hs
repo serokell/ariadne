@@ -128,7 +128,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
     padBottom = B.padBottom (B.Pad 1)
 
   return $
-    viewportWithScrollBar widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
     padBottom <$>

@@ -21,7 +21,7 @@ drawAboutWidget :: s -> WidgetDrawM s p (B.Widget WidgetName)
 drawAboutWidget _ = do
   widgetName <- getWidgetName
   return $
-    viewportWithScrollBar widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.hCenter $
     B.cached widgetName $
     B.Widget
