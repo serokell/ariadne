@@ -28,9 +28,7 @@ module Ariadne.Wallet.Cardano.Kernel (
 
 import Universum hiding (State, init)
 
-import Control.Concurrent.Async (async, cancel)
-import Control.Concurrent.MVar (modifyMVar, modifyMVar_)
-import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
+import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Map.Strict as Map
 
 import System.Wlog (Severity(..))
@@ -51,18 +49,13 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (ApplyBlock(..), DB, ObservableRollbackUseInTestsOnly(..), Snapshot(..),
   SwitchToFork(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
-import Ariadne.Wallet.Cardano.Kernel.DB.Spec (singletonPending)
 
 -- Handy re-export of the pure getters
 
 import Ariadne.Wallet.Cardano.Kernel.DB.Read as Getters
 
-import Pos.Core (ProtocolMagic)
 import Pos.Core.Chrono (OldestFirst)
-import Pos.Core.Txp (TxAux(..))
-import Pos.Crypto (hash)
 
 {-------------------------------------------------------------------------------
   Passive Wallet Resource Management

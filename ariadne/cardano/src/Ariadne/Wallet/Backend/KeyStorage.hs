@@ -402,11 +402,10 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
     Nothing -> pure ()
     Just selection -> case selection of
       WSRoot hdrId ->
-        -- TODO: do not hardcode assurance level
-        throwLeftIO $ void <$> pwlUpdateWallet pwl hdrId AssuranceLevelNormal (WalletName name)
+        throwLeftIO $ void <$> pwlUpdateWalletName pwl hdrId (WalletName name)
 
       WSAccount hdAccId ->
-        throwLeftIO $ void <$> pwlUpdateAccount pwl hdAccId (AccountName name)
+        throwLeftIO $ void <$> pwlUpdateAccountName pwl hdAccId (AccountName name)
 
   walletRefreshState
 

@@ -1,6 +1,7 @@
 module Ariadne.Wallet.Cardano.Kernel.Wallets (
       createHdWallet
-    , updateHdWallet
+    , updateHdWalletName
+    , updateHdWalletAssurance
     , deleteHdWallet
     , HasNonemptyPassphrase(..)
     , mkHasPP
@@ -23,7 +24,8 @@ import Pos.Core (Timestamp)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase, emptyPassphrase)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWallet(..))
+  (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
+  UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (AssuranceLevel, HdAccountId, HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
@@ -153,13 +155,18 @@ deleteHdWallet pw rootId = do
   Wallet update
 -------------------------------------------------------------------------------}
 
-updateHdWallet :: PassiveWallet
-               -> HD.HdRootId
-               -> HD.AssuranceLevel
-               -> HD.WalletName
-               -> IO (Either HD.UnknownHdRoot HdRoot)
-updateHdWallet pw hdRootId assuranceLevel walletName = do
-    res <- update' (pw ^. wallets) (UpdateHdWallet hdRootId assuranceLevel walletName)
-    case res of
-         Left e        -> return (Left e)
-         Right newRoot -> return (Right newRoot)
+updateHdWalletName
+    :: PassiveWallet
+    -> HD.HdRootId
+    -> HD.WalletName
+    -> IO (Either HD.UnknownHdRoot HdRoot)
+updateHdWalletName pw hdRootId walletName =
+    update' (pw ^. wallets) (UpdateHdWalletName hdRootId walletName)
+
+updateHdWalletAssurance
+    :: PassiveWallet
+    -> HD.HdRootId
+    -> HD.AssuranceLevel
+    -> IO (Either HD.UnknownHdRoot HdRoot)
+updateHdWalletAssurance pw hdRootId assuranceLevel =
+    update' (pw ^. wallets) (UpdateHdWalletAssurance hdRootId assuranceLevel)

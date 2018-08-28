@@ -20,7 +20,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
   , CreateHdAccount(..)
   , CreateHdAddress(..)
     -- *** UPDATE
-  , UpdateHdWallet(..)
+  , UpdateHdWalletName(..)
+  , UpdateHdWalletAssurance(..)
   , UpdateHdAccountName(..)
     -- *** DELETE
   , DeleteHdRoot(..)
@@ -427,21 +428,21 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
   Wrap HD C(R)UD operations
 -------------------------------------------------------------------------------}
 
-createHdRoot :: HdRoot -> Update DB (Either HD.CreateHdRootError ())
-createHdRoot hdRoot = runUpdate' . zoom dbHdWallets $
-    HD.createHdRoot hdRoot
-
 createHdAddress :: HdAddress -> Update DB (Either HD.CreateHdAddressError ())
 createHdAddress hdAddress = runUpdate' . zoom dbHdWallets $
     HD.createHdAddress hdAddress
 
-updateHdWallet :: HdRootId
-               -> AssuranceLevel
-               -> WalletName
-               -> Update DB (Either UnknownHdRoot HdRoot)
-updateHdWallet rootId assurance name = do
-    runUpdate' . zoom dbHdWallets $ do
-        HD.updateHdRoot rootId assurance name
+updateHdWalletName :: HdRootId
+                   -> WalletName
+                   -> Update DB (Either UnknownHdRoot HdRoot)
+updateHdWalletName rootId name = runUpdate' . zoom dbHdWallets $
+    HD.updateHdRootName rootId name
+
+updateHdWalletAssurance :: HdRootId
+                        -> AssuranceLevel
+                        -> Update DB (Either UnknownHdRoot HdRoot)
+updateHdWalletAssurance rootId assurance = runUpdate' . zoom dbHdWallets $
+    HD.updateHdRootAssurance rootId assurance
 
 updateHdAccountName :: HdAccountId
                     -> AccountName
@@ -494,11 +495,11 @@ makeAcidic ''DB [
     , 'applyBlock
     , 'switchToFork
       -- Updates on HD wallets
-    , 'createHdRoot
     , 'createHdAddress
     , 'createHdAccount
     , 'createHdWallet
-    , 'updateHdWallet
+    , 'updateHdWalletName
+    , 'updateHdWalletAssurance
     , 'updateHdAccountName
     , 'deleteHdRoot
     , 'deleteHdAccount
