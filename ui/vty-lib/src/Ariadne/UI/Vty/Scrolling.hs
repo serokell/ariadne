@@ -117,9 +117,12 @@ viewportWithScrollBar name vpType p = B.Widget B.Greedy B.Greedy $ do
             B.Widget (B.hSize p) (B.vSize p) (return result)
 
         resultImg = B.image result
-
-        enoughHeight = V.imageHeight resultImg <= B.availHeight c
-        availHeight = fromIntegral $ B.availHeight c
+        (availH, availW) = case vpType of
+            B.Both -> (B.availHeight c - 1, B.availWidth c - 1)
+            _ -> (B.availHeight c, B.availWidth c) 
+    
+        enoughHeight = V.imageHeight resultImg <= availH
+        availHeight = fromIntegral availH
         resultHeight = fromIntegral $ V.imageHeight resultImg
         vpPadTop = fromIntegral $ maybe 0 (view B.vpTop) mvp
         vRatio = availHeight / resultHeight :: Double
@@ -128,8 +131,8 @@ viewportWithScrollBar name vpType p = B.Widget B.Greedy B.Greedy $ do
         vBar = B.vLimit (vPad + vSize) $ B.padTop (B.Pad vPad) BR.vBorder
         addVBar widg = if enoughHeight then widg else B.hBox [widg, vBar]
 
-        enoughWidth = V.imageWidth resultImg <= B.availWidth c
-        availWidth = fromIntegral $ B.availWidth c
+        enoughWidth = V.imageWidth resultImg <= availW
+        availWidth = fromIntegral availW
         resultWidth = fromIntegral $ V.imageWidth resultImg
         vpPadLeft = fromIntegral $ maybe 0 (view B.vpLeft) mvp
         hRatio = availWidth / resultWidth :: Double

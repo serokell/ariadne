@@ -129,7 +129,8 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
 
   return $
     viewportWithScrollBar widgetName B.Vertical $
-    B.padAll 1 $
+    B.padTopBottom 1 $
+    B.padLeft (B.Pad 1) $
     B.vBox $
     padBottom <$>
       [ B.txt "Create new wallet"
