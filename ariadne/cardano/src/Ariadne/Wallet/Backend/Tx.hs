@@ -33,7 +33,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
-import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer
+  (ActiveWalletLayer(..), PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
 data SendTxException
@@ -66,9 +67,9 @@ instance Exception SendTxException where
 -- may be used as inputs.  If this list is empty and an account from
 -- the input wallet is selected, this account will be used as input.
 -- Otherwise inputs will be selected from all accounts in the wallet.
-sendTx ::
-       (HasConfigurations)
-    => PassiveWalletLayer IO
+sendTx
+    :: HasConfigurations
+    => ActiveWalletLayer IO
     -> WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
@@ -80,8 +81,7 @@ sendTx ::
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhrase voidWrongPass walletRef accRefs isp outs = do
-    -- TODO: call newPending here
+sendTx awl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhrase voidWrongPass walletRef accRefs isp outs = do
     let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
@@ -98,6 +98,9 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhra
     voidWrongPass walletRef . runCardanoMode $
         sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
   where
+    pwl :: PassiveWalletLayer IO
+    pwl = walletPassiveLayer awl
+
     -- Returns list of accounts which can be used.
     -- 'Nothing' means all accounts can be used.
     getSuitableAccounts ::
@@ -166,6 +169,9 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhra
                 ourAddresses
                 (map TxOutAux outs)
                 newChangeAddress
+        liftIO $ awlNewPending awl ourAccountId txAux >>= \case
+            Left e -> throwM e
+            Right () -> pass
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx

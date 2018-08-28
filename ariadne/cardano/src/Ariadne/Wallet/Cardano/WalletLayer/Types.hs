@@ -1,5 +1,6 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Types
     ( PassiveWalletLayer (..)
+    , ActiveWalletLayer (..)
     ) where
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
@@ -13,6 +14,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Pos.Block.Types (Blund)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
+import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 ------------------------------------------------------------
@@ -90,4 +92,14 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlLookupKeystore
           :: Kernel.HdRootId
           -> m (Maybe EncryptedSecretKey)
+    }
+
+data ActiveWalletLayer m = ActiveWalletLayer
+    { -- | The underlying passive wallet layer
+      walletPassiveLayer :: PassiveWalletLayer m
+
+    , awlNewPending
+          :: Kernel.HdAccountId
+          -> Txp.TxAux
+          -> m (Either Kernel.NewPendingError ())
     }
