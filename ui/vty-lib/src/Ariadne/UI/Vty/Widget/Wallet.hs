@@ -6,7 +6,6 @@ import Universum
 
 import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
-import IiExtras
 import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
@@ -19,6 +18,7 @@ import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.UI.Vty.Widget.Form.List
 import Ariadne.UI.Vty.Widget.Form.Send
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Model

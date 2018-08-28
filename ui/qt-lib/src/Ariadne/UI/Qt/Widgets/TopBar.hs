@@ -10,7 +10,6 @@ module Ariadne.UI.Qt.Widgets.TopBar
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras
 
 import Data.Bits
 
@@ -33,6 +32,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data TopBar =
   TopBar

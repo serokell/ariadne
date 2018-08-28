@@ -3,7 +3,7 @@ module Main where
 import Universum
 
 import Control.Monad.Component (ComponentM)
-import IiExtras
+import NType (N (..))
 
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
@@ -26,7 +26,7 @@ main = defaultMain mainSettings
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Nothing
         , msKnitFaceToUI = knitFaceToUI
-        , msUiExecContext = const RNil
+        , msUiExecContext = const $ Base ()
         }
 
     createUI :: CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())

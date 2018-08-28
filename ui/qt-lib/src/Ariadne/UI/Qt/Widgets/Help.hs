@@ -9,7 +9,6 @@ import Universum
 import qualified Data.Text as T
 
 import Control.Lens (makeLensesWith)
-import IiExtras (postfixLFields)
 
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -22,6 +21,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.AnsiToHTML
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data Help =
   Help

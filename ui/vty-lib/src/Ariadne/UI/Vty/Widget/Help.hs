@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.Help
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -14,6 +13,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 data HelpWidgetState =
   HelpWidgetState

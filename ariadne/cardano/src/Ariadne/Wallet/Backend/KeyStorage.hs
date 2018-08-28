@@ -26,6 +26,7 @@ import Universum
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=))
 import Control.Monad.Catch.Pure (Catch, CatchT, runCatchT)
+import Control.Natural (type (~>))
 import Data.Acid (AcidState, query, update)
 import Data.Map (findWithDefault)
 import qualified Data.Map as Map
@@ -34,7 +35,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Buildable
 import qualified Data.Vector as V (foldr, fromList, mapMaybe)
 import Formatting (bprint, int, (%))
-import IiExtras
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 import Named ((!))
 import Numeric.Natural (Natural)

@@ -28,10 +28,10 @@ executable ariadne
     , componentm
     , containers
     , double-conversion
-    , ii-extras
     , knit
     , lens
     , named
+    , ntype
     , text
     , universum
     , vector

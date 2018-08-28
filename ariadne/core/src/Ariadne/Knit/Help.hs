@@ -2,7 +2,7 @@ module Ariadne.Knit.Help (generateKnitHelp) where
 
 import Universum
 
-import IiExtras
+import NType (AllConstrained, KnownSpine)
 
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -17,7 +17,7 @@ generateKnitHelp :: forall components.
 generateKnitHelp _ =
   let
     procs = Knit.commandProcs @components
-    sortedProcs = sortBy (\(Some p) (Some p') -> compare (Knit.cpName p) (Knit.cpName p')) procs
+    sortedProcs = sortBy (\(Knit.SomeCommandProc p) (Knit.SomeCommandProc p') -> compare (Knit.cpName p) (Knit.cpName p')) procs
   in fmap (PP.text . Text.unpack) $ Text.lines $ mkHelpMessage sortedProcs
 
 commandHelp :: Knit.CommandProc components component -> Text
@@ -64,10 +64,10 @@ withTypeName (Knit.TypeNameEither tn1 tn2) needWrap =
     t' = withTypeName tn1 DontNeedWrap <> " | " <>
          withTypeName tn2 DontNeedWrap
 
-mkHelpMessage :: [Some (Elem components) (Knit.CommandProc components)] -> Text
+mkHelpMessage :: [Knit.SomeCommandProc components] -> Text
 mkHelpMessage cps =
     "Available commands:\n \n" <>
-    mconcat (map (\(Some cp) -> commandHelp cp <> "\n \n") cps)
+    mconcat (map (\(Knit.SomeCommandProc cp) -> commandHelp cp <> "\n \n") cps)
 
 data Line = Line
   { lineWidth :: Int

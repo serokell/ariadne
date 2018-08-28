@@ -56,7 +56,6 @@ module Ariadne.UI.Vty.Widget
 import Universum
 
 import Control.Lens (ReifiedLens', ReifiedLens(..), assign, makeLensesWith, to, (%=), (.=))
-import IiExtras (postfixLFields)
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -65,6 +64,7 @@ import qualified Data.Map.Strict as Map
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Types and instances

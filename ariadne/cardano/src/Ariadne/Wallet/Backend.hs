@@ -8,9 +8,9 @@ import Universum
 
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Component (ComponentM, buildComponent)
+import Control.Natural ((:~>)(..))
 import Data.Acid (closeAcidState, openLocalStateFrom, query)
 import Data.Constraint (withDict)
-import IiExtras ((:~>)(..))
 import Pos.Util.Future (newInitFuture)
 import Pos.Util.UserSecret (UserSecret)
 import System.Wlog (logMessage, usingLoggerName)
@@ -55,7 +55,7 @@ createWalletBackend walletConfig sendWalletEvent = do
 
         mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction)
           where
-            Nat runCardanoMode = cardanoRunCardanoMode
+            NT runCardanoMode = cardanoRunCardanoMode
             withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
             withDicts r =
                 withDict cardanoConfigurations $

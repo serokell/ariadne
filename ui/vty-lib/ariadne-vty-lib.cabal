@@ -20,6 +20,7 @@ library
   build-depends:
       ansi-wl-pprint
     , ansi-terminal
+    , ariadne-core
     , base >=4.7 && <5
     , brick
     , componentm
@@ -34,7 +35,6 @@ library
     , text-zipper
     , serokell-util
     , vector
-    , ii-extras
     , named
     -- UI is independent of Knit, but provides Knit command bindings
     , knit

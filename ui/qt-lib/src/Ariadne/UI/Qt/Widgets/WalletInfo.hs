@@ -12,7 +12,6 @@ import Data.Text (toUpper)
 
 import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
-import IiExtras
 
 import Graphics.UI.Qtah.Core.Types (QtCursorShape(..))
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
@@ -39,6 +38,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data WalletInfo =
   WalletInfo
