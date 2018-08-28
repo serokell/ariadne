@@ -21,18 +21,17 @@ import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
+import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
-import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
-import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
-import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.Util
 
 data NewWalletMode = CreateWallet | ImportWallet deriving (Show, Eq, Enum, Bounded)
@@ -72,39 +71,6 @@ data NewWalletResult = NewWalletCanceled | NewWalletAccepted NewWalletParameters
 makeLensesWith postfixLFields ''NewWallet
 makeLensesWith postfixLFields ''NewWalletParameters
 
-addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
-       => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
-addRow layout label widget = do
-  rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addWidget rowLayout widget
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
-  QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
-
-  QBoxLayout.addLayout layout rowLayout
-
-addRowLayout :: (QWidget.QWidgetPtr lbl, QLayout.QLayoutPtr lay)
-       => QVBoxLayout.QVBoxLayout -> lbl -> lay -> IO ()
-addRowLayout layout label widgetLayout = do
-  rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addLayout rowLayout widgetLayout
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
-  QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
-
-  QBoxLayout.addLayout layout rowLayout
-
-addSeparator :: QVBoxLayout.QVBoxLayout -> IO ()
-addSeparator layout = do
-  separator <- QFrame.new
-  QFrame.setFrameShape separator QFrame.HLine
-  void $ setProperty separator ("styleRole" :: Text) ("separator" :: Text)
-  void $ setProperty separator ("orientation" :: Text) ("horizontal" :: Text)
-
-  QBoxLayout.addWidget layout separator
-
 createPasswordField :: Text -> IO (QHBoxLayout.QHBoxLayout, QLineEdit.QLineEdit)
 createPasswordField placeholder = do
   layout <- QHBoxLayout.new
@@ -135,18 +101,6 @@ createPasswordField placeholder = do
 
   return (layout, field)
 
-createSubWidget :: IO (QWidget.QWidget, QVBoxLayout.QVBoxLayout)
-createSubWidget = do
-  widget <- QWidget.new
-  layout <- QVBoxLayout.new
-  QWidget.setLayout widget layout
-  QLayout.setContentsMarginsRaw layout 0 0 0 0
-  QBoxLayout.setSpacing layout 18
-  QWidget.setSizePolicyRaw widget Preferred Minimum
-  QLayout.setSizeConstraint layout QLayout.SetMinimumSize
-
-  return (widget, layout)
-
 createModeSelector :: IO QComboBox.QComboBox
 createModeSelector = do
   modeSelector <- QComboBox.new
@@ -163,16 +117,13 @@ initNewWallet = do
   QWidget.setWindowTitle newWallet ("Create new wallet" :: String)
   QWidget.adjustSize newWallet
 
-  layout <- QVBoxLayout.new
-  QWidget.setLayout newWallet layout
-  QBoxLayout.setSpacing layout 18
-  QLayout.setContentsMarginsRaw layout 24 24 24 24
+  layout <- createLayout newWallet
 
   modeSelector <- createModeSelector
 
-  QBoxLayout.addWidget layout modeSelector
+  addHeader layout modeSelector
   void $ QLayout.setWidgetAlignment layout modeSelector $ alignHCenter .|. alignVCenter
-  QBoxLayout.addSpacing layout 42
+  void $ setProperty modeSelector ("styleRole" :: Text) ("dialogHeader" :: Text)
 
   walletNameLabel <- QLabel.newWithText ("<b>WALLET NAME</b>" :: String)
   walletName <- QLineEdit.new

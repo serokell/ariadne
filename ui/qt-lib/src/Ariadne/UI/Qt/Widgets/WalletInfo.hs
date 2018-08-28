@@ -38,6 +38,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Delete
 import Ariadne.Util
 
 data WalletInfo =
@@ -86,6 +87,9 @@ initWalletInfo langFace itemModel selectionModel = do
   QWidget.setCursor createAccountButton pointingCursor
   QWidget.hide createAccountButton -- will be shown only if applicable
   QLayout.addWidget headerLayout createAccountButton
+
+  deleteItemButton <- QPushButton.newWithText ("Delete" :: String)
+  QLayout.addWidget headerLayout deleteItemButton
 
   QBoxLayout.addWidget infoLayout header
 
@@ -149,6 +153,8 @@ initWalletInfo langFace itemModel selectionModel = do
     sendClicked langFace WalletInfo{..}
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
+  connect_ deleteItemButton QAbstractButton.clickedSignal $
+    deleteItemClicked langFace WalletInfo{..}
 
   return (walletInfo, WalletInfo{..})
 
@@ -209,3 +215,7 @@ addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
   unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
+
+deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+deleteItemClicked UiLangFace{..} WalletInfo{..} _checked = do
+  void $ runDelete Wallet "test123"
