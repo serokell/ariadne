@@ -87,7 +87,7 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
                 Kernel.deleteHdWallet wallet hdrId
 
             , pwlCreateAccount         = \hdrId accName -> liftIO $ do
-                let walletId = WalletIdHdRnd hdrId
+                let walletId = WalletIdHdSeq hdrId
                 Kernel.createAccount accName walletId wallet
             , pwlGetAccounts           = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
@@ -101,7 +101,7 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
                 Kernel.deleteAccount hdAccId wallet
 
             , pwlCreateAddress         = \pp hdAccId hdAddrChain -> liftIO $ do
-                let accId = AccountIdHdRnd hdAccId
+                let accId = AccountIdHdSeq hdAccId
                 Kernel.createAddress pp accId hdAddrChain wallet
             , pwlGetAddresses          = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)

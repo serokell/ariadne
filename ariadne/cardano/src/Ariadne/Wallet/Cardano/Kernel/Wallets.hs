@@ -8,7 +8,7 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets (
       -- * Errors
     , CreateWalletError(..)
     -- * Internal & testing use only
-    , createWalletHdRnd
+    , createWalletHdSeq
     ) where
 
 import qualified Prelude
@@ -86,7 +86,7 @@ createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAcco
     -- STEP 1: Atomically generate the wallet and the initial internal structure in
     -- an acid-state transaction.
     let newRootId = HD.eskToHdRootId esk
-    res <- createWalletHdRnd pw
+    res <- createWalletHdSeq pw
                              hasNonemptyPassphrase
                              walletName
                              assuranceLevel
@@ -96,7 +96,7 @@ createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAcco
          Left e   -> return . Left $ CreateWalletFailed e
          Right hdRoot -> do
              -- STEP 2: Insert the 'EncryptedSecretKey' into the 'Keystore'
-             Keystore.insert (WalletIdHdRnd newRootId) esk (pw ^. walletKeystore)
+             Keystore.insert (WalletIdHdSeq newRootId) esk (pw ^. walletKeystore)
              return (Right hdRoot)
 
 
@@ -108,7 +108,7 @@ createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAcco
 -- Adds an HdRoot and HdAccounts (which are discovered during prefiltering of utxo).
 -- In the case of empty utxo, no HdAccounts are created.
 -- Fails with CreateHdWalletError if the HdRootId already exists.
-createWalletHdRnd :: PassiveWallet
+createWalletHdSeq :: PassiveWallet
                   -> HasNonemptyPassphrase
                   -- ^ Whether or not this wallet has a spending password set.
                   -> HD.WalletName
@@ -116,7 +116,7 @@ createWalletHdRnd :: PassiveWallet
                   -> EncryptedSecretKey
                   -> Map HdAccountId PrefilteredUtxo
                   -> IO (Either HD.CreateHdRootError HdRoot)
-createWalletHdRnd pw (HasNonemptyPassphrase hasPP) name assuranceLevel esk utxoByAccount = do
+createWalletHdSeq pw (HasNonemptyPassphrase hasPP) name assuranceLevel esk utxoByAccount = do
     created <- InDb <$> getCurrentTimestamp
     let rootId  = HD.eskToHdRootId esk
         newRoot = HD.initHdRoot rootId
@@ -148,7 +148,7 @@ deleteHdWallet pw rootId = do
         Left err -> return (Left err)
         Right () -> do
             -- STEP 2: Purge the key from the keystore.
-            Keystore.delete (WalletIdHdRnd rootId) (pw ^. walletKeystore)
+            Keystore.delete (WalletIdHdSeq rootId) (pw ^. walletKeystore)
             return $ Right ()
 
 {-------------------------------------------------------------------------------

@@ -44,13 +44,13 @@ data CreateAddressError =
       -- ^ When trying to create the 'HdAddress', the 'Keystore' didn't have
       -- any secret associated with this 'AccountId'.
       -- there.
-    | CreateAddressHdRndGenerationFailed HdAccountId
+    | CreateAddressHdSeqGenerationFailed HdAccountId
       -- ^ The crypto-related part of address generation failed. This is
       -- likely to happen if the 'PassPhrase' does not match the one used
       -- to encrypt the 'EncryptedSecretKey'.
-    | CreateAddressHdRndAddressSpaceSaturated HdAccountId
-      -- ^ The available number of HD addresses in use in such that trying
-      -- to find another random index would be too expensive
+    | CreateAddressHdSeqAddressSpaceSaturated HdAccountId
+      -- ^ The space of available HD addresses for this account is
+      -- completely exhausted.
     deriving Eq
 
 -- TODO(adn): This will be done as part of my work on the 'newTransaction'
@@ -63,10 +63,10 @@ instance Buildable CreateAddressError where
         bprint ("CreateAddressUnknownHdAccount " % F.build) uAccount
     build (CreateAddressKeystoreNotFound accId) =
         bprint ("CreateAddressKeystoreNotFound " % F.build) accId
-    build (CreateAddressHdRndGenerationFailed hdAcc) =
-        bprint ("CreateAddressHdRndGenerationFailed " % F.build) hdAcc
-    build (CreateAddressHdRndAddressSpaceSaturated hdAcc) =
-        bprint ("CreateAddressHdRndAddressSpaceSaturated " % F.build) hdAcc
+    build (CreateAddressHdSeqGenerationFailed hdAcc) =
+        bprint ("CreateAddressHdSeqGenerationFailed " % F.build) hdAcc
+    build (CreateAddressHdSeqAddressSpaceSaturated hdAcc) =
+        bprint ("CreateAddressHdSeqAddressSpaceSaturated " % F.build) hdAcc
 
 instance Show CreateAddressError where
     show = formatToString build
@@ -84,7 +84,7 @@ createAddress :: PassPhrase
 createAddress passphrase accId chain pw = do
     let keystore = pw ^. walletKeystore
     case accId of
-         -- \"Standard\" HD random derivation. The strategy is as follows:
+         -- The strategy is as follows:
          --
          -- 1. Generate the HdAddress' @index@ and @HdAddress@ structure outside
          --    of an atomic acid-state transaction. This could lead to data
@@ -93,42 +93,39 @@ createAddress passphrase accId chain pw = do
          -- 2. Perform the actual creation of the 'HdAddress' as an atomic
          --    transaction in acid-state.
          --
-         -- The reason why we do this is because:
-         -- 1. We cannot do IO (thus index derivation) in an acid-state
-         --    transaction
-         -- 2. In order to create an 'HdAddress' we need a proper 'HdAddress',
-         -- but this cannot be derived with having access to the
-         -- 'EncryptedSecretKey' and the 'PassPhrase', and we do not want
-         -- these exposed in the acid-state transaction log.
-         (AccountIdHdRnd hdAccId) -> do
-             mbEsk <- Keystore.lookup (WalletIdHdRnd (hdAccId ^. hdAccountIdParent))
+         -- The reason why we do this is because in order to create an 'HdAddress'
+         --  we need a proper 'HdAddress', but this cannot be derived with having
+         -- access to the 'EncryptedSecretKey' and the 'PassPhrase', and we do not
+         -- want these exposed in the acid-state transaction log.
+         (AccountIdHdSeq hdAccId) -> do
+             mbEsk <- Keystore.lookup (WalletIdHdSeq (hdAccId ^. hdAccountIdParent))
                                       keystore
              case mbEsk of
                   Nothing  -> return (Left $ CreateAddressKeystoreNotFound accId)
-                  Just esk -> createHdRndAddress passphrase esk hdAccId chain pw
+                  Just esk -> createHdSeqAddress passphrase esk hdAccId chain pw
 
--- | Creates a new 'HdAddress' using the random HD derivation under the hood.
--- Being this an operation bound not only by the number of available derivation
--- indexes \"left\" in the account, some form of short-circuiting is necessary.
+-- | Creates a new 'HdAddress' using sequential HD derivation under the hood.
 -- Currently, the algorithm is as follows:
 --
--- 1. Try to generate an 'HdAddress' by picking a random index;
+-- 1. Try to generate an 'HdAddress' by picking the smallest index that is
+--    currently unused;
 -- 2. If the operation succeeds, return the 'HdAddress';
--- 3. If the DB operation fails due to a collision, try again, up to a max of
---    1024 attempts.
--- 4. If after 1024 attempts there is still no result, flag this upstream.
-createHdRndAddress :: PassPhrase
+-- 3. If the DB operation fails due to a collision (because the same index
+--    was claimed by a concurrent operation), try again, up to a max of
+--    32 attempts.
+-- 4. If after 32 attempts there is still no result, flag this upstream.
+createHdSeqAddress :: PassPhrase
                    -> EncryptedSecretKey
                    -> HdAccountId
                    -> HdAddressChain
                    -> PassiveWallet
                    -> IO (Either CreateAddressError HdAddress)
-createHdRndAddress passphrase esk accId chain pw = runExceptT $ go 0
+createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
   where
     go :: Word32 -> ExceptT CreateAddressError IO HdAddress
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> throwM $ CreateAddressHdRndAddressSpaceSaturated accId
+            True  -> throwM $ CreateAddressHdSeqAddressSpaceSaturated accId
             False -> tryGenerateAddress collisions
 
     tryGenerateAddress :: Word32
@@ -145,7 +142,7 @@ createHdRndAddress passphrase esk accId chain pw = runExceptT $ go 0
 
         newIndex <- eitherToExceptT $
             maybe
-            (Left (CreateAddressHdRndAddressSpaceSaturated accId))
+            (Left (CreateAddressHdSeqAddressSpaceSaturated accId))
             Right
             $ mkHdAddressIx hdAddresses
 
@@ -161,7 +158,7 @@ createHdRndAddress passphrase esk accId chain pw = runExceptT $ go 0
                                         bip44derPath
         newAddress <- eitherToExceptT $
             maybe
-            (Left $ CreateAddressHdRndGenerationFailed accId)
+            (Left $ CreateAddressHdSeqGenerationFailed accId)
             (Right . fst)
             mbAddr
 

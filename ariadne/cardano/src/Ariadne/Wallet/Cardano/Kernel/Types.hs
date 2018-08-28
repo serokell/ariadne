@@ -26,11 +26,11 @@ import qualified Data.Map.Strict as Map
 import Data.Text.Buildable (Buildable(..))
 import Data.Word (Word32)
 
-import Pos.Txp (Utxo)
 import Pos.Core.Block (MainBlock, gbBody, mainBlockSlot, mbTxs, mbWitnesses)
 import Pos.Core.Txp
   (Tx, TxAux(..), TxId, TxIn(..), TxOut, TxOutAux(..), txInputs, txOutputs)
 import Pos.Crypto.Hashing (hash)
+import Pos.Txp (Utxo)
 import Serokell.Util (enumerate)
 
 import Formatting (bprint, (%))
@@ -49,12 +49,12 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 -- A Wallet Id can take several forms, the simplest of which is a hash
 -- of the Wallet public key
 data WalletId =
-    -- | HD wallet with randomly generated addresses
-  WalletIdHdRnd HD.HdRootId
+    -- | HD wallet with sequentially generated addresses
+  WalletIdHdSeq HD.HdRootId
 
     {- potential future kinds of wallet IDs:
-    -- | HD wallet with sequentially generated addresses
-    | WalletIdHdSeq ...
+    -- | HD wallet with randomly generated addresses
+    | WalletIdHdRnd ...
 
     -- | External wallet (all crypto done off-site, like hardware wallets)
     | WalletIdExt ...
@@ -63,12 +63,12 @@ data WalletId =
     deriving (Eq, Ord)
 
 instance Buildable WalletId where
-    build (WalletIdHdRnd rootId) =
-        bprint ("WalletIdHdRnd " % F.build) rootId
+    build (WalletIdHdSeq rootId) =
+        bprint ("WalletIdHdSeq " % F.build) rootId
 
 accountToWalletId :: HD.HdAccountId -> WalletId
 accountToWalletId accountId
-    = WalletIdHdRnd $ accountId ^. HD.hdAccountIdParent
+    = WalletIdHdSeq $ accountId ^. HD.hdAccountIdParent
 
 -- | Account Id
 --
@@ -76,12 +76,12 @@ accountToWalletId accountId
 -- random-indexed, hardeded HD Account.
 data AccountId =
     -- | HD wallet with randomly generated (hardened) index.
-    AccountIdHdRnd HD.HdAccountId
+    AccountIdHdSeq HD.HdAccountId
     deriving (Eq, Ord)
 
 instance Buildable AccountId where
-    build (AccountIdHdRnd accountId) =
-        bprint ("AccountIdHdRnd " % F.build) accountId
+    build (AccountIdHdSeq accountId) =
+        bprint ("AccountIdHdSeq " % F.build) accountId
 
 {-------------------------------------------------------------------------------
   Input resolution: raw types

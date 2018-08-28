@@ -163,7 +163,7 @@ prefilterUtxo :: HdRootId -> EncryptedSecretKey -> Utxo -> Map HdAccountId Prefi
 prefilterUtxo rootId esk utxo = map (toPrefilteredUtxo id) prefUtxo
     where
         prefUtxo = prefilterUtxo' wKey utxo
-        wKey     = (WalletIdHdRnd rootId, eskToHDPassphrase esk)
+        wKey     = (WalletIdHdSeq rootId, eskToHDPassphrase esk)
 
 -- | Group Utxo by address
 -- Note: explicit forall is needed because without it it is impossible to write
@@ -212,7 +212,7 @@ prefilter (wid,hdPass) selectAddr rtxs
     where f (addr,meta) = (addr, toAddressId wid meta)
 
           toAddressId :: WalletId -> WAddressMeta -> HdAddressId
-          toAddressId (WalletIdHdRnd rootId) meta' = addressId
+          toAddressId (WalletIdHdSeq rootId) meta' = addressId
               where
                   accountIx = bip44AccountIndex $ _wamDerivationPath meta'
                   accountId = HdAccountId rootId accountIx

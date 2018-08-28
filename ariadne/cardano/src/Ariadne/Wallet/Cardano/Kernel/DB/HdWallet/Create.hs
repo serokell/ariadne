@@ -21,7 +21,7 @@ import Universum
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, sformat, (%))
+import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
 

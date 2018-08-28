@@ -39,9 +39,9 @@ data CreateAccountError =
     | CreateAccountKeystoreNotFound WalletId
       -- ^ When trying to create the 'Account', the 'Keystore' didn't have
       -- any secret associated with the input 'WalletId'.
-    | CreateAccountHdRndAccountSpaceSaturated HdRootId
-      -- ^ The available number of HD accounts in use is such that trying
-      -- to find another random index would be too expensive.
+    | CreateAccountHdSeqAccountSpaceSaturated HdRootId
+      -- ^ The space of available HD accounts for this root is
+      -- completely exhausted.
     deriving Eq
 
 instance Buildable CreateAccountError where
@@ -49,8 +49,8 @@ instance Buildable CreateAccountError where
         bprint ("CreateAccountUnknownHdRoot " % F.build) uRoot
     build (CreateAccountKeystoreNotFound accId) =
         bprint ("CreateAccountKeystoreNotFound " % F.build) accId
-    build (CreateAccountHdRndAccountSpaceSaturated hdAcc) =
-        bprint ("CreateAccountHdRndAccountSpaceSaturated " % F.build) hdAcc
+    build (CreateAccountHdSeqAccountSpaceSaturated hdAcc) =
+        bprint ("CreateAccountHdSeqAccountSpaceSaturated " % F.build) hdAcc
 
 instance Show CreateAccountError where
     show = formatToString build
@@ -69,31 +69,31 @@ createAccount :: AccountName
 createAccount accountName walletId pw = do
     let keystore = pw ^. walletKeystore
     case walletId of
-         WalletIdHdRnd hdRootId -> do
-             mbEsk <- Keystore.lookup (WalletIdHdRnd hdRootId) keystore
+         WalletIdHdSeq hdRootId -> do
+             mbEsk <- Keystore.lookup (WalletIdHdSeq hdRootId) keystore
              case mbEsk of
                   Nothing  -> return (Left $ CreateAccountKeystoreNotFound walletId)
                   Just esk ->
-                      createHdRndAccount accountName
+                      createHdSeqAccount accountName
                                          esk
                                          hdRootId
                                          pw
 
--- | Creates a new 'Account' using the random HD derivation under the hood.
--- This code follows the same pattern of 'createHdRndAddress', but the two
--- functions are "similarly different" enough to not make convenient generalise
+-- | Creates a new 'Account' using sequential HD derivation under the hood.
+-- This code follows the same pattern of 'createHdSeqAddress', but the two
+-- functions are "similarly different" enough to not make it convenient to generalise
 -- the code.
-createHdRndAccount :: AccountName
+createHdSeqAccount :: AccountName
                    -> EncryptedSecretKey
                    -> HdRootId
                    -> PassiveWallet
                    -> IO (Either CreateAccountError HdAccount)
-createHdRndAccount accountName _esk rootId pw = runExceptT $ go 0
+createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
   where
     go :: Word32 -> ExceptT CreateAccountError IO HdAccount
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> throwM $ CreateAccountHdRndAccountSpaceSaturated rootId
+            True  -> throwM $ CreateAccountHdSeqAccountSpaceSaturated rootId
             False -> tryGenerateAccount collisions
 
     tryGenerateAccount :: Word32
@@ -110,7 +110,7 @@ createHdRndAccount accountName _esk rootId pw = runExceptT $ go 0
 
         newIndex <- eitherToExceptT $
             maybe
-            (Left (CreateAccountHdRndAccountSpaceSaturated rootId))
+            (Left (CreateAccountHdSeqAccountSpaceSaturated rootId))
             Right
             $ mkHdAccountIx hdAccounts
 

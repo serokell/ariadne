@@ -34,19 +34,18 @@ import Universum hiding (toList)
 import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)
 import Control.Monad.Trans.Identity (IdentityT(..), runIdentityT)
-import qualified Data.List
 import qualified Data.Map as Map
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO (hClose, openTempFile)
 
 import Pos.Core (AddressHash, addressHash)
-import Pos.Crypto (EncryptedSecretKey, PublicKey, encToPublic, hash)
+import Pos.Crypto (EncryptedSecretKey, PublicKey, encToPublic)
 import Pos.Util.UserSecret
   (UserSecret, getUSPath, isEmptyUserSecret, takeUserSecret, usWallets,
   writeUserSecret, writeUserSecretRelease)
 import System.Wlog (CanLog(..), HasLoggerName(..), LoggerName(..), logMessage)
 
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdRootId(..), eskToHdRootId)
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdRootId(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..), fromDb)
 import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
@@ -240,11 +239,11 @@ toList (Keystore ks) =
         pure $ map (first hashPubKeyToWalletId) $ Map.toList $ us ^. usWallets
   where
     hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
-    hashPubKeyToWalletId = WalletIdHdRnd . HdRootId . InDb
+    hashPubKeyToWalletId = WalletIdHdSeq . HdRootId . InDb
 
 {-------------------------------------------------------------------------------
   Utilities
 -------------------------------------------------------------------------------}
 
 walletIdToKey :: WalletId -> AddressHash PublicKey
-walletIdToKey (WalletIdHdRnd hdRootId) = view fromDb $ getHdRootId hdRootId
+walletIdToKey (WalletIdHdSeq hdRootId) = view fromDb $ getHdRootId hdRootId
