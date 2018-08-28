@@ -44,7 +44,7 @@ import qualified Data.Map.Merge.Strict as Map.Merge
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, (%))
+import Formatting (bprint, build, sformat, (%))
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
@@ -283,9 +283,9 @@ createHdWallet newRoot utxoByAccount accountNames = runUpdate' . zoom dbHdWallet
 
 createHdAccount :: HdAccountId
                 -> PrefilteredUtxo
-                -> Maybe AccountName
+                -> AccountName
                 -> Update DB (Either HD.CreateHdAccountError HdAccount)
-createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWallets $ do
+createHdAccount accId prefilteredUtxo accountName = runUpdate' . zoom dbHdWallets $ do
     -- Make sure root exists. An alternative is to check this within
     -- @createAccPrefiltered@ by passing a handler there (instead of
     -- @assumeHdRootExists@), but it has too many parameters already.
@@ -299,7 +299,7 @@ createHdAccount accId prefilteredUtxo mbAccountName = runUpdate' . zoom dbHdWall
         doNothing
         accId
         prefilteredUtxo
-        mbAccountName
+        (Just accountName)
   where
     rootId :: HdRootId
     rootId = accId ^. hdAccountIdParent
@@ -377,7 +377,7 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
         accUtxo = Map.unions $ Map.elems prefilteredUtxo
 
     -- apply the update to the account
-    let newAccount = mkNewAccount accId mbAccountName accUtxo
+    let newAccount = HD.initHdAccount accId accountName (firstAccCheckpoint accUtxo)
     zoomOrCreateHdAccount
         assumeHdRootExists
         newAccount
@@ -394,9 +394,11 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
 
     pure newAccount
     where
-        mkNewAccount :: HdAccountId -> Maybe AccountName -> Utxo -> HdAccount
-        mkNewAccount accId' mbAccountName' utxo' =
-            HD.initHdAccount accId' mbAccountName' (firstAccCheckpoint utxo')
+        accountName :: AccountName
+        accountName = fromMaybe defName mbAccountName
+          where
+            defName = AccountName $ sformat ("Discovered account " % build)
+                                            (accId ^. hdAccountIdIx)
 
         firstAccCheckpoint :: Utxo -> AccCheckpoint
         firstAccCheckpoint utxo' = AccCheckpoint {

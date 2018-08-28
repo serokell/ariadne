@@ -84,9 +84,9 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
             , pwlDeleteWallet   = \hdrId -> liftIO $
                 Kernel.deleteHdWallet wallet hdrId
 
-            , pwlCreateAccount  = \hdrId mbAccName -> liftIO $ do
+            , pwlCreateAccount  = \hdrId accName -> liftIO $ do
                 let walletId = WalletIdHdRnd hdrId
-                Kernel.createAccount mbAccName walletId wallet
+                Kernel.createAccount accName walletId wallet
             , pwlGetAccounts    = \hdrId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 pure $ HDRead.readAccountsByRootId hdrId (snapshot ^. dbHdWallets)

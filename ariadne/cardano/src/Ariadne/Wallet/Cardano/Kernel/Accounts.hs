@@ -60,14 +60,13 @@ instance Exception CreateAccountError
 -- | Creates a new 'Account' for the input wallet.
 -- Note: @it does not@ generate a new 'Address' to go in tandem with this
 -- 'Account'. This will be responsibility of the wallet layer.
-createAccount :: Maybe AccountName
-              -- ^ The name for this account. If it is Nothing, it is
-              -- generated automatically.
+createAccount :: AccountName
+              -- ^ The name for this account.
               -> WalletId
               -- ^ An abstract notion of a 'Wallet identifier
               -> PassiveWallet
               -> IO (Either CreateAccountError HdAccount)
-createAccount mbAccountName walletId pw = do
+createAccount accountName walletId pw = do
     let keystore = pw ^. walletKeystore
     case walletId of
          WalletIdHdRnd hdRootId -> do
@@ -75,7 +74,7 @@ createAccount mbAccountName walletId pw = do
              case mbEsk of
                   Nothing  -> return (Left $ CreateAccountKeystoreNotFound walletId)
                   Just esk ->
-                      createHdRndAccount mbAccountName
+                      createHdRndAccount accountName
                                          esk
                                          hdRootId
                                          pw
@@ -84,12 +83,12 @@ createAccount mbAccountName walletId pw = do
 -- This code follows the same pattern of 'createHdRndAddress', but the two
 -- functions are "similarly different" enough to not make convenient generalise
 -- the code.
-createHdRndAccount :: Maybe AccountName
+createHdRndAccount :: AccountName
                    -> EncryptedSecretKey
                    -> HdRootId
                    -> PassiveWallet
                    -> IO (Either CreateAccountError HdAccount)
-createHdRndAccount mbAccountName _esk rootId pw = runExceptT $ go 0
+createHdRndAccount accountName _esk rootId pw = runExceptT $ go 0
   where
     go :: Word32 -> ExceptT CreateAccountError IO HdAccount
     go collisions =
@@ -117,7 +116,7 @@ createHdRndAccount mbAccountName _esk rootId pw = runExceptT $ go 0
 
         let hdAccountId = HdAccountId rootId newIndex
 
-        res <- liftIO $ update db (CreateHdAccount hdAccountId mempty mbAccountName)
+        res <- liftIO $ update db (CreateHdAccount hdAccountId mempty accountName)
 
         case res of
             (Left (CreateHdAccountExists _)) ->

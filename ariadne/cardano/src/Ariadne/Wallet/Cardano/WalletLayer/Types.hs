@@ -13,9 +13,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.PrefilterTx as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Pos.Block.Types (Blund)
-import Pos.Client.Txp.Util (InputSelectionPolicy)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
-import Pos.Core.Txp (TxId, TxOut)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 ------------------------------------------------------------
@@ -40,7 +38,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlDeleteWallet   :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot ())
     -- * accounts
     , pwlCreateAccount  :: Kernel.HdRootId
-                        -> Maybe Kernel.AccountName
+                        -> Kernel.AccountName
                         -> m (Either Kernel.CreateAccountError Kernel.HdAccount)
     , pwlGetAccounts    :: Kernel.HdRootId -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAccount))
     , pwlGetAccount     :: Kernel.HdAccountId -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)

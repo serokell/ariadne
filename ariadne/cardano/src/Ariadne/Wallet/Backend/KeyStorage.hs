@@ -238,12 +238,20 @@ newAccount
   -> IO ()
 newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
   walletDb <- pwlGetDBSnapshot pwl
-  hdrId <- resolveWalletRef walletSelRef walletRef walletDb
+  (hdrId, accList) <- second toList <$>
+      resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
+
+  let accountName = fromMaybe (genAccountName accList) mbAccountName
 
   throwLeftIO $ void <$>
-    pwlCreateAccount pwl hdrId mbAccountName
+    pwlCreateAccount pwl hdrId accountName
 
   walletRefreshState
+  where
+    genAccountName :: [HdAccount] -> AccountName
+    genAccountName accList =
+      let namesVec = V.fromList $ map (unAccountName . view hdAccountName) accList
+      in AccountName $ mkUntitled "Untitled account " namesVec
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -306,14 +314,6 @@ addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP assurance = d
       let hdRoots = toList (walletDb ^. dbHdWallets . hdWalletsRoots)
           namesVec = V.fromList $ map (unWalletName . view hdRootName) hdRoots
       WalletName $ mkUntitled "Untitled wallet " namesVec
-
-    mkUntitled :: Text -> Vector Text -> Text
-    mkUntitled untitled namesVec = do -- no monad
-      let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
-          numbers = V.mapMaybe ((readMaybe @Natural) . T.unpack) untitledSuffixes
-      if null untitledSuffixes || null numbers
-          then untitled <> "0"
-          else untitled <> (show $ (Universum.maximum numbers) + 1)
 
 -- | Convert path in index representation and write it to
 -- 'IORef WalletSelection'.
@@ -414,3 +414,11 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
 
 throwLeftIO :: (Exception e) => IO (Either e a) -> IO a
 throwLeftIO ioEith = ioEith >>= eitherToThrow
+
+mkUntitled :: Text -> Vector Text -> Text
+mkUntitled untitled namesVec = do -- no monad
+  let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
+      numbers = V.mapMaybe ((readMaybe @Natural) . T.unpack) untitledSuffixes
+  if null untitledSuffixes || null numbers
+      then untitled <> "0"
+      else untitled <> (show $ (Universum.maximum numbers) + 1)
