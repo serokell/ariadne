@@ -1,11 +1,12 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
        ( passiveWalletLayerComponent
        , passiveWalletLayerCustomDBComponent
+       , activeWalletLayerComponent
        ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
 
-import Control.Monad.Component (ComponentM, buildComponent)
+import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import System.Wlog (Severity(Debug))
 
@@ -28,31 +29,31 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
-import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer.Types
+  (ActiveWalletLayer(..), PassiveWalletLayer(..))
 
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
 passiveWalletLayerComponent
-    :: forall n. (MonadIO n)
+    :: forall m. (MonadIO m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> FilePath
     -> ProtocolMagic
-    -> ComponentM (PassiveWalletLayer n)
+    -> ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
 passiveWalletLayerComponent logFunction keystore dbPath pm = do
     acidDB <- buildComponent "Wallet DB"
         (openLocalStateFrom dbPath defDB)
         closeAcidState
-    (pwl, _pw) <- passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
-    pure pwl
+    passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 passiveWalletLayerCustomDBComponent
-    :: forall n. (MonadIO n)
+    :: forall m. (MonadIO m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
     -> ProtocolMagic
-    -> ComponentM (PassiveWalletLayer n, Kernel.PassiveWallet)
+    -> ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
 passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
     w <- Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB pm
 
@@ -68,11 +69,11 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
                 }
             )
             (\invoke -> liftIO (invoke Actions.Shutdown))
-    pure $ (passiveWalletLayer w invoke, w)
+    pure (passiveWalletLayer w invoke, w)
   where
     passiveWalletLayer :: Kernel.PassiveWallet
                        -> (Actions.WalletAction Blund -> IO ())
-                       -> PassiveWalletLayer n
+                       -> PassiveWalletLayer m
     passiveWalletLayer wallet invoke =
         PassiveWalletLayer
             { pwlCreateWallet          = liftIO ... Kernel.createHdWallet wallet
@@ -148,3 +149,24 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
             $ UnsafeRawResolvedBlock mainBlock spentOutputs'
         where
             spentOutputs' = map (map Unsafe.fromJust) $ undoTx u
+
+-- | Initialize the active wallet.
+-- The active wallet is allowed to send transactions.
+activeWalletLayerComponent
+    :: forall m. (MonadIO m)
+    => PassiveWalletLayer m
+    -> Kernel.PassiveWallet
+    -> ComponentM (ActiveWalletLayer m, Kernel.ActiveWallet)
+activeWalletLayerComponent pwl pw = do
+    aw <- Kernel.activeWalletComponent pw
+    awl <- buildComponent_
+        "ActiveWalletLayer"
+        (pure $ activeWalletLayer aw)
+    pure (awl, aw)
+  where
+    activeWalletLayer aw = ActiveWalletLayer
+        { walletPassiveLayer = pwl
+
+        , awlNewPending      = \hdAccId tx ->
+            liftIO $ Kernel.newPending aw hdAccId tx
+        }

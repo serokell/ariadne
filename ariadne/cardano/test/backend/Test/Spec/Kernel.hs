@@ -42,15 +42,15 @@ specBody :: ProtocolMagic -> Spec
 specBody pm = do
     describe "Compare wallet kernel to pure model" $ do
       describe "Using hand-written inductive wallets" $ do
-        xit "computes identical results in presence of dependent pending transactions" $
-          bracketPassiveWallet pm $ \passiveWallet -> do
-            checkEquivalent passiveWallet (dependentPending genesis)
+        it "computes identical results in presence of dependent pending transactions" $
+          bracketActiveWallet pm $ \activeWallet -> do
+            checkEquivalent activeWallet (dependentPending genesis)
       xit "computes identical results using generated inductive wallets" $
         forAll (genInductiveUsingModel model) $ \ind -> do
           conjoin [
               shouldBeValidated $ void (inductiveIsValid ind)
-            , bracketPassiveWallet pm $ \passiveWallet -> do
-                checkEquivalent passiveWallet ind
+            , bracketActiveWallet pm $ \activeWallet -> do
+                checkEquivalent activeWallet ind
             ]
   where
     transCtxt = runTranslateNoErrors ask
@@ -68,12 +68,12 @@ specBody pm = do
     genesis = genesisValues linearFeePolicy boot
 
     checkEquivalent :: forall h. Hash h Addr
-                    => Kernel.PassiveWallet
+                    => Kernel.ActiveWallet
                     -> Inductive h Addr
                     -> Expectation
-    checkEquivalent passiveWallet ind = do
+    checkEquivalent activeWallet ind = do
        shouldReturnValidated $ runTranslateTNoErrors $ do
-         equivalentT passiveWallet (encKpEnc ekp) (mkWallet (== addr)) ind
+         equivalentT activeWallet (encKpEnc ekp) (mkWallet (== addr)) ind
       where
         [addr]       = Set.toList $ inductiveOurs ind
         AddrInfo{..} = resolveAddr addr transCtxt
@@ -148,3 +148,10 @@ bracketPassiveWallet pm postHook = do
    -- the test runner, but in the future we could store them into a mutable
    -- reference or a TBQueue and perform assertions on them.
     logMessage _ _  = pass
+
+-- | Initialize active wallet in a manner suitable for generator-based testing
+bracketActiveWallet :: (Kernel.ActiveWallet -> IO a) -> IO a
+bracketActiveWallet test =
+    bracketPassiveWallet $ \passive ->
+        Kernel.bracketActiveWallet passive $ \active ->
+            test active

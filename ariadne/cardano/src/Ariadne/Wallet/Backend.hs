@@ -20,8 +20,9 @@ import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
-import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
-import Ariadne.Wallet.Cardano.WalletLayer.Kernel (passiveWalletLayerComponent)
+import Ariadne.Wallet.Cardano.WalletLayer
+  (PassiveWalletLayer(..), activeWalletLayerComponent,
+  passiveWalletLayerComponent)
 import Ariadne.Wallet.Face
 
 -- | This is what we create initially, before actually creating 'WalletFace'.
@@ -43,11 +44,12 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = 
     keystore <- keystoreComponent
         RemoveKeystoreIfEmpty
         (wcKeyfilePath walletConfig)
-    pwl <- passiveWalletLayerComponent
+    (pwl, pw) <- passiveWalletLayerComponent
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore
         (wcAcidDBPath walletConfig)
         (cardanoProtocolMagic cardanoFace)
+    (awl, _) <- activeWalletLayerComponent pwl pw
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
         applyHook = const refresh <=< pwlApplyBlocks pwl
@@ -109,8 +111,8 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = 
                     refreshState pwl walletSelRef sendWalletEvent
                 , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
-                    sendTx pwl this cardanoFace walletSelRef putCommandOutput
-                    getPassPhrase voidWrongPass waitUiConfirm
+                    sendTx awl this cardanoFace walletSelRef putCommandOutput
+                        getPassPhrase voidWrongPass waitUiConfirm
                 , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =

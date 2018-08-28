@@ -9,6 +9,7 @@
 module Ariadne.Wallet.Cardano.Kernel.Internal
        ( -- * Passive wallet
          PassiveWallet(..)
+       , ActiveWallet(..)
        , walletKeystore
        , wallets
        , walletLogMessage
@@ -46,3 +47,16 @@ data PassiveWallet = PassiveWallet {
     }
 
 makeLenses ''PassiveWallet
+
+{-------------------------------------------------------------------------------
+  Active wallet
+-------------------------------------------------------------------------------}
+
+-- | Active wallet
+--
+-- An active wallet can do everything the passive wallet can, but also
+-- send new transactions.
+data ActiveWallet = ActiveWallet {
+      -- | The underlying passive wallet
+      walletPassive       :: PassiveWallet
+    }

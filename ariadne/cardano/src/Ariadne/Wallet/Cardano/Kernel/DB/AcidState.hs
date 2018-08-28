@@ -44,7 +44,8 @@ import qualified Data.Map.Merge.Strict as Map.Merge
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, sformat, (%))
+import Formatting (bprint, build, formatToString, sformat, (%))
+import qualified GHC.Show (Show(show))
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
@@ -128,6 +129,11 @@ instance Buildable NewPendingError where
         bprint ("NewPendingUnknown " % build) unknownAccount
     build (NewPendingFailed npf) =
         bprint ("NewPendingFailed " % build) npf
+
+instance Show NewPendingError where
+    show = formatToString build
+
+instance Exception NewPendingError
 
 newPending :: HdAccountId
            -> InDb Txp.TxAux
