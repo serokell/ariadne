@@ -13,6 +13,7 @@ import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Edit
@@ -211,7 +212,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
   return $
-    B.viewport widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
     padBottom <$>

@@ -123,7 +123,7 @@ drawTreeWidget TreeWidgetState{..} = do
   widgetName <- getWidgetName
   ignoreVisibility <- getIgnoreVisibility
   return $
-    fixedViewport widgetName B.Vertical $
+    fixedScrollingViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed
       , B.vSize = B.Fixed

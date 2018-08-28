@@ -8,6 +8,7 @@ import qualified Brick as B
 import qualified Brick.Widgets.Center as B
 import qualified Graphics.Vty as V
 
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 
 initAboutWidget :: Widget p
@@ -20,7 +21,7 @@ drawAboutWidget :: s -> WidgetDrawM s p (B.Widget WidgetName)
 drawAboutWidget _ = do
   widgetName <- getWidgetName
   return $
-    B.viewport widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.hCenter $
     B.cached widgetName $
     B.Widget
