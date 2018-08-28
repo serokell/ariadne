@@ -78,7 +78,7 @@ fixedViewport name vpType p = case vpType of
   B.Horizontal -> B.Widget B.Greedy (B.vSize p) render
   where
     render = do
-      result <- renderReleased vpType p
+      result <- B.render p
       B.render $
         limit result .
         B.viewport name vpType $
