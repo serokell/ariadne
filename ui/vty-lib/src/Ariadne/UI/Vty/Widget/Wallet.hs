@@ -213,8 +213,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
 
   return $
     viewportWithScrollBar widgetName B.Vertical $
-    B.padTopBottom 1 $
-    padLeft $
+    B.padAll 1 $
     B.vBox $
     padBottom <$>
       [ label "Wallet name:"
