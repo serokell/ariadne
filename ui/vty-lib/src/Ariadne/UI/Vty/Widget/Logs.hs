@@ -45,7 +45,7 @@ drawLogsWidget :: LogsWidgetState -> WidgetDrawM LogsWidgetState p (B.Widget Wid
 drawLogsWidget LogsWidgetState{..} = do
   widgetName <- getWidgetName
   return $
-    (if logsWidgetFollow then id else B.hBox . (: [B.padTop B.Max $ B.str " v"])) $
+    (if logsWidgetFollow then id else (B.<+> B.padTop B.Max (B.str " v"))) $
     fixedViewport widgetName B.Both $
     B.cached widgetName $
     B.Widget
