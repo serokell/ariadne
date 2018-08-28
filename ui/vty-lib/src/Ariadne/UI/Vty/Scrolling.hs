@@ -98,51 +98,24 @@ viewportWithScrollBar
     -> B.Widget n       -- ^ The widget to be rendered in the viewport
     -> B.Widget n
 viewportWithScrollBar name vpType p = B.Widget B.Greedy B.Greedy $ do
+    -- first get the current context
     c <- B.getContext
+    -- adjust it for the inner widget
+    let unrestricted = 100000
+        releasing = case vpType of
+            B.Vertical   -> set B.availHeightL unrestricted
+                              . over B.availWidthL (subtract 1)
+            B.Horizontal -> set B.availWidthL unrestricted
+                              . over B.availHeightL (subtract 1)
+            B.Both       -> over B.availHeightL (subtract 1)
+                              . over B.availWidthL (subtract 1)
+    -- render the inner widget
+    result <- R.withReaderT releasing $ B.render p
+    -- add the scrollbar to the result
     mvp <- B.unsafeLookupViewport name
-
-    -- Here it renders the sub-rendering with the rendering layout
-    -- constraint released. This is done by Brick's viewport, but since
-    -- we need the widget unrestricted size we have to do this as well. 
-    -- The only real difference is that we remove one line to make space
-    -- for the scrollbar.
-    let unrestricted :: Int
-        unrestricted = 100000
-
-        hRelease :: B.Widget n -> B.Widget n
-        hRelease w = case B.hSize w of
-            B.Fixed -> B.Widget B.Greedy (B.vSize w) $ R.withReaderT 
-                ( set B.availWidthL unrestricted
-                . over B.availHeightL (subtract 1)
-                ) (B.render w)
-            B.Greedy -> error $ "tried to embed an infinite-height widget "
-                <> "in vertical viewport " <> show name
-
-        vRelease :: B.Widget n -> B.Widget n
-        vRelease w = case B.vSize w of
-            B.Fixed -> B.Widget (B.hSize w) B.Greedy $ R.withReaderT
-                ( set B.availHeightL unrestricted
-                . over B.availWidthL (subtract 1)
-                ) (B.render w)
-            B.Greedy -> error $ "tried to embed an infinite-width widget "
-                <> "in horizontal viewport " <> show name
-
-        bRelease :: B.Widget n -> B.Widget n
-        bRelease w = case (B.hSize w, B.vSize w) of
-            (B.Fixed, B.Fixed) -> B.Widget B.Greedy B.Greedy $ R.withReaderT
-                ( over B.availHeightL (subtract 1)
-                . over B.availWidthL (subtract 1)
-                ) (B.render w)
-            _ -> error $ "tried to embed an infinite-width or infinite-height "
-                <> "widget in 'Both' type viewport " <> show name
-
-    result <- B.render $ case vpType of
-        B.Vertical -> vRelease p
-        B.Horizontal -> hRelease p
-        B.Both -> bRelease p
-
     let vpWidget = B.viewport name vpType $
             B.Widget (B.hSize p) (B.vSize p) (return result)
+
         resultImg = B.image result
 
         enoughHeight = V.imageHeight resultImg <= B.availHeight c
