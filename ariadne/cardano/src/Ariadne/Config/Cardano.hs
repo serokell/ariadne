@@ -27,7 +27,6 @@ module Ariadne.Config.Cardano
        , ccLogConfigL
        , ccLogPrefixL
        , ccConfigurationOptionsL
-       , ccEnableMetricsL
        , ccEkgParamsL
 
 
@@ -89,7 +88,6 @@ data CardanoConfig = CardanoConfig
     , ccLogConfig :: !(Maybe FilePath)
     , ccLogPrefix :: !(Maybe FilePath)
     , ccConfigurationOptions :: !ConfigurationOptions
-    , ccEnableMetrics :: !Bool
     , ccEkgParams :: !(Maybe EkgParams)
     } deriving (Eq, Show)
 
@@ -177,7 +175,6 @@ defaultCardanoConfig dataDir =
         , ccLogConfig = logConfig ca
         , ccLogPrefix = (dataDir </>) <$> logPrefix ca
         , ccConfigurationOptions = configurationOptions ca
-        , ccEnableMetrics = enableMetrics defaultCommonNodeArgs
         , ccEkgParams = ekgParams defaultCommonNodeArgs
         }
   where
@@ -219,7 +216,6 @@ getNodeParams conf@(CardanoConfig
     _ccLogConfig  -- is used by mkLoggingParams
     _ccLogPrefix  -- is used by mkLoggingParams
     _ccConfigurationOptions  -- should not be used
-    ccEnableMetrics
     ccEkgParams
     ) = usingLoggerName ("ariadne" <> "cardano" <> "init") $ do
 
@@ -255,7 +251,7 @@ getNodeParams conf@(CardanoConfig
             , upUpdateServers = updateServers defaultCommonArgs
             }
         , npRoute53Params = route53Params defaultCommonNodeArgs
-        , npEnableMetrics = ccEnableMetrics
+        , npEnableMetrics = isJust ccEkgParams
         , npEkgParams = ccEkgParams
         , npStatsdParams = statsdParams defaultCommonNodeArgs
         , npAssetLockPath = cnaAssetLockPath defaultCommonNodeArgs
@@ -297,7 +293,6 @@ cardanoFieldModifier = f
     f "ccLogConfig" = "log-config"
     f "ccLogPrefix" = "log-prefix"
     f "ccConfigurationOptions" = "configuration-options"
-    f "ccEnableMetrics" = "metrics"
     f "ccEkgParams" = "ekg-params"
     f x = x
 
@@ -332,18 +327,16 @@ interpretConfigurationOptions :: D.Type ConfigurationOptions
 interpretConfigurationOptions = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
-      cfoFilePath    <- defalultIfNothing (cfoFilePath def)
-          ((parseFieldCardano fields "cfoFilePath") (D.maybe interpretFilePath))
-      cfoKey         <- defalultIfNothing (cfoKey def)
-          ((parseFieldCardano fields "cfoKey") (D.maybe D.strictText))
+      cfoFilePath    <- parseFieldCardano fields "cfoFilePath" interpretFilePath
+      cfoKey         <- parseFieldCardano fields "cfoKey" D.strictText
       cfoSystemStart <- parseFieldCardano fields "cfoSystemStart" (D.maybe interpretTimestampSec)
       cfoSeed        <- parseFieldCardano fields "cfoSeed" D.auto
       return ConfigurationOptions{..}
     extractOut _ = Nothing
 
     expectedOut = Record $ Map.fromList
-        [ (cardanoFieldModifier "cfoFilePath", D.expected (D.maybe interpretFilePath))
-        , (cardanoFieldModifier "cfoKey", D.expected (D.auto :: D.Type (Maybe Text)))
+        [ (cardanoFieldModifier "cfoFilePath", D.expected interpretFilePath)
+        , (cardanoFieldModifier "cfoKey", D.expected (D.auto @Text))
         , (cardanoFieldModifier "cfoSystemStart", D.expected (D.maybe interpretTimestampSec))
         , (cardanoFieldModifier "cfoSeed", D.expected (D.auto :: D.Type (Maybe Integer)))
         ]
@@ -372,7 +365,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
       ccLogPrefix <- parseFieldCardano fields "ccLogPrefix" (D.maybe interpretFilePath)
       ccConfigurationOptions <-
           parseFieldCardano fields "ccConfigurationOptions" interpretConfigurationOptions
-      ccEnableMetrics <- parseFieldCardano fields "ccEnableMetrics" D.auto
       ccEkgParams <- parseFieldCardano fields "ccEkgParams" (D.maybe interpretEkgParams)
       return CardanoConfig {..}
     extractOut _ = Nothing
@@ -387,7 +379,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
         , (cardanoFieldModifier "ccLogConfig", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccLogPrefix", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccConfigurationOptions", D.expected interpretConfigurationOptions)
-        , (cardanoFieldModifier "ccEnableMetrics", D.expected (D.auto :: D.Type Bool))
         , (cardanoFieldModifier "ccEkgParams", D.expected (D.maybe interpretEkgParams))
         ]
 
@@ -425,8 +416,8 @@ injectConfigurationOptions = D.InputType {..}
   where
       embed ConfigurationOptions {..} = RecordLit
         (Map.fromList
-          [ (cardanoFieldModifier "cfoFilePath", D.embed (injectMaybe injectFilePath) (Just cfoFilePath))
-          , (cardanoFieldModifier "cfoKey", D.embed D.inject (Just cfoKey))
+          [ (cardanoFieldModifier "cfoFilePath", D.embed injectFilePath cfoFilePath)
+          , (cardanoFieldModifier "cfoKey", D.embed D.inject cfoKey)
           , (cardanoFieldModifier "cfoSystemStart", D.embed (injectMaybe injectTimestampSec) cfoSystemStart)
           , (cardanoFieldModifier "cfoSeed", D.embed D.inject cfoSeed)
           ])
@@ -434,7 +425,7 @@ injectConfigurationOptions = D.InputType {..}
       declared = Record
         (Map.fromList
           [ (cardanoFieldModifier "cfoFilePath", D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "cfoKey", D.declared (D.inject :: D.InputType (Maybe Text)))
+          , (cardanoFieldModifier "cfoKey", D.declared (D.inject @Text))
           , (cardanoFieldModifier "cfoSystemStart", D.declared (injectMaybe injectTimestampSec))
           , (cardanoFieldModifier "cfoSeed", D.declared (D.inject :: D.InputType (Maybe Integer)))
           ])
@@ -470,8 +461,6 @@ injectCardanoConfig = D.InputType {..}
                 D.embed (injectMaybe injectFilePath) ccLogPrefix)
               , (cardanoFieldModifier "ccConfigurationOptions",
                 D.embed injectConfigurationOptions ccConfigurationOptions)
-              , (cardanoFieldModifier "ccEnableMetrics",
-                D.embed D.inject ccEnableMetrics)
               , (cardanoFieldModifier "ccEkgParams",
                 D.embed (injectMaybe injectEkgParams) ccEkgParams)
               ])
@@ -487,6 +476,5 @@ injectCardanoConfig = D.InputType {..}
           , (cardanoFieldModifier "ccLogConfig", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccLogPrefix", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccConfigurationOptions", D.declared injectConfigurationOptions)
-          , (cardanoFieldModifier "ccEnableMetrics", D.declared (D.inject :: D.InputType Bool))
           , (cardanoFieldModifier "ccEkgParams", D.declared (injectMaybe injectEkgParams))
           ])

@@ -33,9 +33,10 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.History (hcPathL)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Util
 
@@ -56,7 +57,6 @@ data CLI_CardanoConfig = CLI_CardanoConfig
     , cli_logConfig :: !(Maybe FilePath)
     , cli_logPrefix :: !(Maybe FilePath)
     , cli_configurationOptions :: !CLI_ConfigurationOptions
-    , cli_enableMetrics :: !(Maybe Bool)
     , cli_ekgParams :: !(Maybe EkgParams)
     } deriving (Eq, Show, Generic)
 
@@ -127,8 +127,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , ccLogPrefix =
             (overrideCC ^. cli_logPrefixL) <|> ccLogPrefix defaultCC
         , ccConfigurationOptions = mergedConfigurationOptions
-        , ccEnableMetrics =
-            merge (overrideCC ^. cli_enableMetricsL) (ccEnableMetrics defaultCC)
         , ccEkgParams =
             (overrideCC ^. cli_ekgParamsL) <|> ccEkgParams defaultCC
         }
@@ -173,14 +171,17 @@ getConfig commitHash = do
         execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
       resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
-      resolveState ariadneConfigDir configDirs = zoom acCardanoL $ do
+      resolveState ariadneConfigDir configDirs = do
         let resolve_ = resolve ariadneConfigDir configDirs
-        ccDbPathL %= fmap resolve_
-        ccKeyfilePathL %= resolve_
-        ccNetworkTopologyL %= fmap resolve_
-        ccLogConfigL %= fmap resolve_
-        ccLogPrefixL %= fmap resolve_
-        ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acCardanoL $ do
+          ccDbPathL %= fmap resolve_
+          ccKeyfilePathL %= resolve_
+          ccNetworkTopologyL %= fmap resolve_
+          ccLogConfigL %= fmap resolve_
+          ccLogPrefixL %= fmap resolve_
+          ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acHistoryL $ do
+          hcPathL %= resolve_
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
@@ -291,11 +292,6 @@ cliCardanoConfigParser = do
 
   cli_configurationOptions <- cliConfigurationOptionsParser
 
-  cli_enableMetrics <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "ccEnableMetrics"
-    , metavar "BOOL"
-    , help "Enable metrics (EKG)."
-    ]
   cli_ekgParams <- optional cliEkgParamsOption
 
   pure CLI_CardanoConfig{..}
