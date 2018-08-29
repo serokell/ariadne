@@ -86,6 +86,11 @@ initDelete itemType itemName = do
   QBoxLayout.addWidget buttonsLayout deleteButton
   QBoxLayout.addLayout layout buttonsLayout
 
+  void $ setProperty cancelButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  void $ setProperty deleteButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  void $ setProperty cancelButton ("styleRole" :: Text) ("secondaryButton" :: Text)
+  void $ setProperty deleteButton ("styleRole" :: Text) ("dangerButton" :: Text)
+
   let del = Delete{..}
 
   connect_ isSure QAbstractButton.toggledSignal $ isSureToggled del

@@ -178,6 +178,7 @@ initNewWallet = do
   QWidget.setSizePolicyRaw createButton Maximum Preferred
   QBoxLayout.addWidget layout createButton
   void $ QLayout.setWidgetAlignment layout createButton $ alignHCenter .|. alignVCenter
+  void $ setProperty createButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
 
   QBoxLayout.addStretch layout
 

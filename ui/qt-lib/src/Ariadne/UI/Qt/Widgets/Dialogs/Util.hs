@@ -32,6 +32,8 @@ addHeader layout header = do
   void $ QLayout.setWidgetAlignment layout header $ alignHCenter .|. alignVCenter
   QBoxLayout.addSpacing layout 24
 
+  void $ setProperty header ("styleRole" :: Text) ("dialogHeader" :: Text)
+
 addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
        => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
 addRow layout label widget = do
