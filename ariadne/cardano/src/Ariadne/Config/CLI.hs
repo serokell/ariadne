@@ -56,7 +56,6 @@ data CLI_CardanoConfig = CLI_CardanoConfig
     , cli_logConfig :: !(Maybe FilePath)
     , cli_logPrefix :: !(Maybe FilePath)
     , cli_configurationOptions :: !CLI_ConfigurationOptions
-    , cli_enableMetrics :: !(Maybe Bool)
     , cli_ekgParams :: !(Maybe EkgParams)
     } deriving (Eq, Show, Generic)
 
@@ -127,8 +126,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , ccLogPrefix =
             (overrideCC ^. cli_logPrefixL) <|> ccLogPrefix defaultCC
         , ccConfigurationOptions = mergedConfigurationOptions
-        , ccEnableMetrics =
-            merge (overrideCC ^. cli_enableMetricsL) (ccEnableMetrics defaultCC)
         , ccEkgParams =
             (overrideCC ^. cli_ekgParamsL) <|> ccEkgParams defaultCC
         }
@@ -291,11 +288,6 @@ cliCardanoConfigParser = do
 
   cli_configurationOptions <- cliConfigurationOptionsParser
 
-  cli_enableMetrics <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "ccEnableMetrics"
-    , metavar "BOOL"
-    , help "Enable metrics (EKG)."
-    ]
   cli_ekgParams <- optional cliEkgParamsOption
 
   pure CLI_CardanoConfig{..}

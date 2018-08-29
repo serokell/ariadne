@@ -97,7 +97,6 @@ cliArgs =
   , "--cardano:configuration-key", "new-configuration-key"
   , "--cardano:system-start", "89"
   , "--cardano:configuration-seed", "9"
-  , "--cardano:metrics", "True"
   , "--cardano:ekg-params", "255.255.255.252:8888"
   , "--wallet:entropy-size", "32"
   ]
@@ -120,7 +119,6 @@ expectedAriadneConfig = defaultAriadneCfg
           , cfoSystemStart = Just 89000000
           , cfoSeed = Just 9
           }
-      , ccEnableMetrics = True
       , ccEkgParams = Just
         (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
       }

@@ -27,7 +27,6 @@ module Ariadne.Config.Cardano
        , ccLogConfigL
        , ccLogPrefixL
        , ccConfigurationOptionsL
-       , ccEnableMetricsL
        , ccEkgParamsL
 
 
@@ -89,7 +88,6 @@ data CardanoConfig = CardanoConfig
     , ccLogConfig :: !(Maybe FilePath)
     , ccLogPrefix :: !(Maybe FilePath)
     , ccConfigurationOptions :: !ConfigurationOptions
-    , ccEnableMetrics :: !Bool
     , ccEkgParams :: !(Maybe EkgParams)
     } deriving (Eq, Show)
 
@@ -177,7 +175,6 @@ defaultCardanoConfig dataDir =
         , ccLogConfig = logConfig ca
         , ccLogPrefix = (dataDir </>) <$> logPrefix ca
         , ccConfigurationOptions = configurationOptions ca
-        , ccEnableMetrics = enableMetrics defaultCommonNodeArgs
         , ccEkgParams = ekgParams defaultCommonNodeArgs
         }
   where
@@ -219,7 +216,6 @@ getNodeParams conf@(CardanoConfig
     _ccLogConfig  -- is used by mkLoggingParams
     _ccLogPrefix  -- is used by mkLoggingParams
     _ccConfigurationOptions  -- should not be used
-    ccEnableMetrics
     ccEkgParams
     ) = usingLoggerName ("ariadne" <> "cardano" <> "init") $ do
 
@@ -255,7 +251,7 @@ getNodeParams conf@(CardanoConfig
             , upUpdateServers = updateServers defaultCommonArgs
             }
         , npRoute53Params = route53Params defaultCommonNodeArgs
-        , npEnableMetrics = ccEnableMetrics
+        , npEnableMetrics = isJust ccEkgParams
         , npEkgParams = ccEkgParams
         , npStatsdParams = statsdParams defaultCommonNodeArgs
         , npAssetLockPath = cnaAssetLockPath defaultCommonNodeArgs
@@ -297,7 +293,6 @@ cardanoFieldModifier = f
     f "ccLogConfig" = "log-config"
     f "ccLogPrefix" = "log-prefix"
     f "ccConfigurationOptions" = "configuration-options"
-    f "ccEnableMetrics" = "metrics"
     f "ccEkgParams" = "ekg-params"
     f x = x
 
@@ -372,7 +367,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
       ccLogPrefix <- parseFieldCardano fields "ccLogPrefix" (D.maybe interpretFilePath)
       ccConfigurationOptions <-
           parseFieldCardano fields "ccConfigurationOptions" interpretConfigurationOptions
-      ccEnableMetrics <- parseFieldCardano fields "ccEnableMetrics" D.auto
       ccEkgParams <- parseFieldCardano fields "ccEkgParams" (D.maybe interpretEkgParams)
       return CardanoConfig {..}
     extractOut _ = Nothing
@@ -387,7 +381,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
         , (cardanoFieldModifier "ccLogConfig", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccLogPrefix", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccConfigurationOptions", D.expected interpretConfigurationOptions)
-        , (cardanoFieldModifier "ccEnableMetrics", D.expected (D.auto :: D.Type Bool))
         , (cardanoFieldModifier "ccEkgParams", D.expected (D.maybe interpretEkgParams))
         ]
 
@@ -470,8 +463,6 @@ injectCardanoConfig = D.InputType {..}
                 D.embed (injectMaybe injectFilePath) ccLogPrefix)
               , (cardanoFieldModifier "ccConfigurationOptions",
                 D.embed injectConfigurationOptions ccConfigurationOptions)
-              , (cardanoFieldModifier "ccEnableMetrics",
-                D.embed D.inject ccEnableMetrics)
               , (cardanoFieldModifier "ccEkgParams",
                 D.embed (injectMaybe injectEkgParams) ccEkgParams)
               ])
@@ -487,6 +478,5 @@ injectCardanoConfig = D.InputType {..}
           , (cardanoFieldModifier "ccLogConfig", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccLogPrefix", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccConfigurationOptions", D.declared injectConfigurationOptions)
-          , (cardanoFieldModifier "ccEnableMetrics", D.declared (D.inject :: D.InputType Bool))
           , (cardanoFieldModifier "ccEkgParams", D.declared (injectMaybe injectEkgParams))
           ])
