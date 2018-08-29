@@ -106,7 +106,7 @@ drawSendWidget focus SendWidgetState{..} = do
     drawOutputsHeader = B.hBox
       [ label ""
       , B.padRight B.Max $ B.txt "Address"
-      , padLeft $ B.txt $ fillRight amountWidth $ "Amount, ADA"
+      , padLeft $ B.txt $ fillRight amountWidth $ "Amount"
       , padLeft $ B.txt "     "
       ]
     drawOutput idx = B.hBox
