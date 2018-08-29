@@ -327,18 +327,16 @@ interpretConfigurationOptions :: D.Type ConfigurationOptions
 interpretConfigurationOptions = D.Type extractOut expectedOut
   where
     extractOut (RecordLit fields) = do
-      cfoFilePath    <- defalultIfNothing (cfoFilePath def)
-          ((parseFieldCardano fields "cfoFilePath") (D.maybe interpretFilePath))
-      cfoKey         <- defalultIfNothing (cfoKey def)
-          ((parseFieldCardano fields "cfoKey") (D.maybe D.strictText))
+      cfoFilePath    <- parseFieldCardano fields "cfoFilePath" interpretFilePath
+      cfoKey         <- parseFieldCardano fields "cfoKey" D.strictText
       cfoSystemStart <- parseFieldCardano fields "cfoSystemStart" (D.maybe interpretTimestampSec)
       cfoSeed        <- parseFieldCardano fields "cfoSeed" D.auto
       return ConfigurationOptions{..}
     extractOut _ = Nothing
 
     expectedOut = Record $ Map.fromList
-        [ (cardanoFieldModifier "cfoFilePath", D.expected (D.maybe interpretFilePath))
-        , (cardanoFieldModifier "cfoKey", D.expected (D.auto :: D.Type (Maybe Text)))
+        [ (cardanoFieldModifier "cfoFilePath", D.expected interpretFilePath)
+        , (cardanoFieldModifier "cfoKey", D.expected (D.auto @Text))
         , (cardanoFieldModifier "cfoSystemStart", D.expected (D.maybe interpretTimestampSec))
         , (cardanoFieldModifier "cfoSeed", D.expected (D.auto :: D.Type (Maybe Integer)))
         ]
@@ -418,8 +416,8 @@ injectConfigurationOptions = D.InputType {..}
   where
       embed ConfigurationOptions {..} = RecordLit
         (Map.fromList
-          [ (cardanoFieldModifier "cfoFilePath", D.embed (injectMaybe injectFilePath) (Just cfoFilePath))
-          , (cardanoFieldModifier "cfoKey", D.embed D.inject (Just cfoKey))
+          [ (cardanoFieldModifier "cfoFilePath", D.embed injectFilePath cfoFilePath)
+          , (cardanoFieldModifier "cfoKey", D.embed D.inject cfoKey)
           , (cardanoFieldModifier "cfoSystemStart", D.embed (injectMaybe injectTimestampSec) cfoSystemStart)
           , (cardanoFieldModifier "cfoSeed", D.embed D.inject cfoSeed)
           ])
@@ -427,7 +425,7 @@ injectConfigurationOptions = D.InputType {..}
       declared = Record
         (Map.fromList
           [ (cardanoFieldModifier "cfoFilePath", D.declared (injectMaybe injectFilePath))
-          , (cardanoFieldModifier "cfoKey", D.declared (D.inject :: D.InputType (Maybe Text)))
+          , (cardanoFieldModifier "cfoKey", D.declared (D.inject @Text))
           , (cardanoFieldModifier "cfoSystemStart", D.declared (injectMaybe injectTimestampSec))
           , (cardanoFieldModifier "cfoSeed", D.declared (D.inject :: D.InputType (Maybe Integer)))
           ])

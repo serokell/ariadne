@@ -1,6 +1,6 @@
 { configuration-options =
-    { configuration-file = ["cardano-configuration.yaml"] : Optional Text
-    , configuration-key = ["mainnet_full"] : Optional Text
+    { configuration-file = "cardano-configuration.yaml"
+    , configuration-key = "mainnet_full"
     , configuration-seed = [] : Optional Integer
     , system-start = [] : Optional Natural
     }
