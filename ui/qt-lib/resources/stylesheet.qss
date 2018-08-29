@@ -42,6 +42,24 @@ QPushButton[styleRole="secondaryButton"]:hover:pressed {
 QPushButton[styleRole="secondaryButton"]:hover {
     background: rgba(52, 52, 62, 51);
 }
+QPushButton[styleRole="secondaryButton"]:disabled {
+    background: rgba(52, 52, 62, 12);
+}
+
+QPushButton[styleRole="dangerButton"] {
+    background: #ca5000;
+    color: #ffffff;
+}
+QPushButton[styleRole="dangerButton"]:hover:pressed {
+    background: #b04600;
+    color: #ffffff;
+}
+QPushButton[styleRole="dangerButton"]:hover {
+    background: #e35b00;
+}
+QPushButton[styleRole="dangerButton"]:disabled {
+    background: rgba(202, 80, 0, 77);
+}
 
 QScrollBar {
     border: none;
@@ -237,12 +255,18 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     font-weight: normal;
 }
 
-#newWalletDialog QLabel {
+QDialog QWidget[styleRole="dialogHeader"] {
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Museo Sans Cyrl 500";
+}
+
+QDialog QLabel {
     /* Otherwise bold letters look ugly */
     font-family: "Museo Sans Cyrl 500";
 }
 
-#newWalletDialog #createButton {
+QDialog QPushButton[dialogButtonRole="dialogAction"] {
     font-weight: bold;
     padding-top: 14px;
     padding-bottom: 14px;
@@ -250,7 +274,7 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     padding-right: 80px;
 }
 
-#newWalletDialog QLineEdit, #newWalletDialog QLineEdit:focus {
+QDialog QLineEdit, QDialog QLineEdit:focus {
     border-top: none;
     border-left: none;
     border-right: none;
@@ -273,9 +297,6 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
 #newWalletDialog QComboBox {
     border: none;
     background: transparent;
-    font-size: 14px;
-    font-weight: bold;
-    font-family: "Museo Sans Cyrl 500";
 
     selection-background-color: #f0f0f0;
     selection-color: #34343e;
