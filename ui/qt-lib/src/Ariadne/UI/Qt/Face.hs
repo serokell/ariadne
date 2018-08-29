@@ -93,6 +93,7 @@ data UiCommand
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress
   | UiKill Natural
+  | UiRemoveCurrentItem
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult

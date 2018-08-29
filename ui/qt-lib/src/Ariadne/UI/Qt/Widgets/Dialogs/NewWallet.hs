@@ -198,7 +198,7 @@ initNewWallet = do
 runNewWallet:: IO NewWalletResult
 runNewWallet = do
   nw@NewWallet{..} <- initNewWallet
-  result <- fmap toEnum . liftIO . QDialog.exec $ newWallet
+  result <- toEnum <$> QDialog.exec newWallet
 
   case result of
     QDialog.Accepted -> maybe NewWalletCanceled NewWalletAccepted <$> fillWaletParameters nw

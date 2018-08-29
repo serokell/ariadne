@@ -136,6 +136,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewAddress -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAddressCommandName [])
+      UiRemoveCurrentItem -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.removeCommandName [])
 
     resultToUI result = \case
       UiSend _ _ ->
