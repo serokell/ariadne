@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 module Ariadne.Wallet.Cardano.Kernel.Actions
     ( WalletAction(..)
     , WalletActionInterp(..)
