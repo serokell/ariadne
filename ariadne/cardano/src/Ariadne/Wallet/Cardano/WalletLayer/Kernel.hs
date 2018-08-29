@@ -8,7 +8,7 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
 import Universum
 
 import Control.Monad.Component (ComponentM, buildComponent)
-import Data.Acid (AcidState)
+import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import Data.Maybe (fromJust)
 import System.Wlog (Severity(Debug))
 
@@ -19,7 +19,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
@@ -37,9 +37,12 @@ passiveWalletLayerComponent
     :: forall n. (MonadIO n)
     => (Severity -> Text -> IO ())
     -> Keystore
+    -> FilePath
     -> ComponentM (PassiveWalletLayer n)
-passiveWalletLayerComponent logFunction keystore = do
-    acidDB <- Kernel.inMemoryDBComponent
+passiveWalletLayerComponent logFunction keystore dbPath = do
+    acidDB <- buildComponent "Wallet DB"
+        (openLocalStateFrom dbPath defDB)
+        closeAcidState
     passiveWalletLayerWithDBComponent logFunction keystore acidDB
 
 passiveWalletLayerWithDBComponent

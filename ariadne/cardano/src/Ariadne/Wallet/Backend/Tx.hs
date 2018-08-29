@@ -11,7 +11,6 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
-import Data.Acid (AcidState, query)
 import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
@@ -37,6 +36,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
+import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 import IiExtras ((:~>)(..))
 
@@ -68,7 +68,7 @@ instance Exception SendTxException where
 -- Otherwise inputs will be selected from all accounts in the wallet.
 sendTx ::
        (HasConfigurations)
-    => AcidState DB
+    => PassiveWalletLayer IO
     -> WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
@@ -79,10 +79,10 @@ sendTx ::
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
+sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
     -- TODO: call newPending here
     let Nat runCardanoMode = cardanoRunCardanoMode
-    walletDb <- query acidDb Snapshot
+    walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-
         resolveWalletRefThenRead walletSelRef walletRef

@@ -6,8 +6,7 @@ module Ariadne.Wallet.Backend
 
 import Universum
 
-import Control.Monad.Component (ComponentM, buildComponent)
-import Data.Acid (closeAcidState, openLocalStateFrom, query)
+import Control.Monad.Component (ComponentM)
 import Data.Constraint (withDict)
 import IiExtras ((:~>)(..))
 import System.Wlog (logMessage, usingLoggerName)
@@ -18,12 +17,10 @@ import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (Snapshot(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
-import Ariadne.Wallet.Cardano.WalletLayer.Kernel
-  (passiveWalletLayerWithDBComponent)
-import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer.Kernel (passiveWalletLayerComponent)
 import Ariadne.Wallet.Face
 
 -- | This is what we create initially, before actually creating 'WalletFace'.
@@ -36,16 +33,13 @@ createWalletBackend ::
     WalletConfig -> (WalletEvent -> IO ()) -> ComponentM WalletPreface
 createWalletBackend walletConfig sendWalletEvent = do
     walletSelRef <- newIORef Nothing
-    acidDb <- buildComponent "Wallet DB"
-        (openLocalStateFrom walletAcidDbPathPlaceholder defDB)
-        closeAcidState
 
     -- TODO: configurable path to keyfile
     keystore <- keystoreComponent RemoveKeystoreIfEmpty "secret-mainnet.key"
-    pwl <- passiveWalletLayerWithDBComponent
+    pwl <- passiveWalletLayerComponent
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore
-        acidDb
+        walletAcidDbPathPlaceholder
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
         applyHook = const refresh <=< pwlApplyBlocks pwl
@@ -77,9 +71,9 @@ createWalletBackend walletConfig sendWalletEvent = do
                     refreshState pwl walletSelRef sendWalletEvent
                 , walletSelect = select pwl this walletSelRef
                 , walletSend =
-                    sendTx acidDb this cf walletSelRef putCommandOutput
+                    sendTx pwl this cf walletSelRef putCommandOutput
                 , walletGetSelection =
-                    (,) <$> readIORef walletSelRef <*> query acidDb Snapshot
+                    (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =
