@@ -1,17 +1,22 @@
 module Ariadne.Config.History
   ( defaultHistoryConfig
   , historyFieldModifier
-  , HistoryConfig (..)) where
+  , HistoryConfig (..)
+  , hcPathL
+  ) where
 
 import Universum
 
-import Ariadne.Config.DhallUtil (parseField)
+import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import System.FilePath ((</>))
+
+import Ariadne.Config.DhallUtil (parseField)
+import Ariadne.Util (postfixLFields)
 
 defaultHistoryConfig :: FilePath -> HistoryConfig
 defaultHistoryConfig dataDir =
@@ -30,6 +35,8 @@ historyFieldModifier = f
 data HistoryConfig = HistoryConfig
   { hcPath :: FilePath
   } deriving (Eq, Show)
+
+makeLensesWith postfixLFields ''HistoryConfig
 
 instance D.Interpret HistoryConfig where
   autoWith _ = D.Type extractOut expectedOut

@@ -33,9 +33,10 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.History (hcPathL)
 import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
 import Ariadne.Util
 
@@ -170,14 +171,17 @@ getConfig commitHash = do
         execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
       resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
-      resolveState ariadneConfigDir configDirs = zoom acCardanoL $ do
+      resolveState ariadneConfigDir configDirs = do
         let resolve_ = resolve ariadneConfigDir configDirs
-        ccDbPathL %= fmap resolve_
-        ccKeyfilePathL %= resolve_
-        ccNetworkTopologyL %= fmap resolve_
-        ccLogConfigL %= fmap resolve_
-        ccLogPrefixL %= fmap resolve_
-        ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acCardanoL $ do
+          ccDbPathL %= fmap resolve_
+          ccKeyfilePathL %= resolve_
+          ccNetworkTopologyL %= fmap resolve_
+          ccLogConfigL %= fmap resolve_
+          ccLogPrefixL %= fmap resolve_
+          ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acHistoryL $ do
+          hcPathL %= resolve_
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
