@@ -30,7 +30,7 @@ addHeader :: (QWidget.QWidgetPtr hdr)
 addHeader layout header = do
   QBoxLayout.addWidget layout header
   void $ QLayout.setWidgetAlignment layout header $ alignHCenter .|. alignVCenter
-  QBoxLayout.addSpacing layout 42
+  QBoxLayout.addSpacing layout 24
 
 addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
        => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
