@@ -11,9 +11,11 @@ import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
+import System.FilePath ((</>))
 
-defaultHistoryConfig :: HistoryConfig
-defaultHistoryConfig = HistoryConfig "ariadne_history.db"
+defaultHistoryConfig :: FilePath -> HistoryConfig
+defaultHistoryConfig dataDir =
+    HistoryConfig {hcPath = dataDir </> "ariadne_history.db"}
 
 parseFieldHistory ::
        Map.InsOrdHashMap D.Text (Expr Src X) -> D.Text -> D.Type a -> Maybe a

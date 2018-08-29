@@ -30,7 +30,7 @@ defaultAriadneConfig dataDir =
         { acCardano = defaultCardanoConfig dataDir
         , acWallet = defaultWalletConfig
         , acUpdate = defaultUpdateConfig
-        , acHistory = defaultHistoryConfig
+        , acHistory = defaultHistoryConfig dataDir
         }
 
 parseFieldAriadne ::
