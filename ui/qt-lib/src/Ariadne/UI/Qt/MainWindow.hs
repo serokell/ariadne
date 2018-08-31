@@ -37,13 +37,13 @@ data MainWindow =
 
 makeLensesWith postfixLFields ''MainWindow
 
-initMainWindow :: UiLangFace -> UiHistoryFace -> IO MainWindow
-initMainWindow langFace historyFace = do
+initMainWindow :: UiLangFace -> UiWalletFace -> UiHistoryFace -> IO MainWindow
+initMainWindow langFace uiWalletFace historyFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
   QWidget.resizeRaw mainWindow 960 640
 
-  (qWallet, wallet) <- initWallet langFace
+  (qWallet, wallet) <- initWallet langFace uiWalletFace
   (qRepl, repl) <- initRepl langFace historyFace
   (qTopBar, topBar) <- initTopBar
   (qLogs, logs) <- initLogs
@@ -85,8 +85,6 @@ handleMainWindowEvent langFace = \case
   UiCommandResult commandId commandResult -> case commandResult of
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
-    UiNewWalletCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletNewWalletCommandResult commandId result
     UiRestoreWalletCommandResult result ->
       magnify walletL $ handleWalletEvent langFace $ WalletRestoreWalletCommandResult commandId result
     UiNewAccountCommandResult result ->

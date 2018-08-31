@@ -53,6 +53,7 @@ library
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.StyleSheet
+      Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
       Ariadne.UI.Qt.Widgets.Dialogs.Delete
       Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
       Ariadne.UI.Qt.Widgets.Dialogs.Util

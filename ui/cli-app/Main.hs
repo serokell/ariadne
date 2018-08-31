@@ -19,7 +19,7 @@ main = defaultMain mainSettings
     mainSettings :: MainSettings UiComponents UiFace UiLangFace
     mainSettings = MainSettings
         { msCommitHash = $(getCommitHash)
-        , msCreateUI = const createAriadneUI
+        , msCreateUI = const $ const createAriadneUI
         , msPutWalletEventToUI = putWalletEventToUI
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI

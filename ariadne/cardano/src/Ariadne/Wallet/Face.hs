@@ -11,6 +11,7 @@ module Ariadne.Wallet.Face
   , WalletName(..)
   , Mnemonic(..)
   , WalletRestoreType (..)
+  , WalletUIFace(..)
   ) where
 
 import Universum
@@ -87,3 +88,9 @@ data WalletFace =
 -- handle.
 data WalletEvent =
   WalletStateSetEvent DB (Maybe WalletSelection)
+
+data WalletUIFace =
+  WalletUIFace
+    { walletGenerateMnemonic :: Byte -> IO [Text]
+    , walletDefaultEntropySize :: Byte
+    }

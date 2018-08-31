@@ -19,9 +19,13 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Exceptions
        , NoWalletSelection (..)
        , NoAccountSelection (..)
+
+         -- * Util
+       , generateMnemonic
        ) where
 
 import Universum
+import qualified Universum.Unsafe as Unsafe
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix, (%=))
@@ -339,9 +343,9 @@ newAccount acidDb WalletFace{..} walletSelRef walletRef mbAccountName = do
   walletDb <- query acidDb Snapshot
   (rootId,accList)  <- second toList <$>
         resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
-  
+
   let namesVec = V.fromList (map (unAccountName . (^. hdAccountName)) accList)
-  
+
   accountName <- case (unAccountName <$> mbAccountName) of
     Nothing ->
       return (mkUntitled "Untitled account " namesVec)
@@ -373,6 +377,13 @@ instance Buildable InvalidEntropySize where
 instance Exception InvalidEntropySize where
     displayException = toString . pretty
 
+generateMnemonic :: Byte -> IO [Text]
+generateMnemonic entropySize = do
+  unless (entropySize `elem` [16, 20, 24, 28, 32]) $
+      throwM $ InvalidEntropySize entropySize
+  mnemonic <- entropyToMnemonic <$> secureRandomBS (fromIntegral entropySize)
+  return $ mnemonic ++ ["ariadne-v0"]
+
 -- | Generate a mnemonic and a wallet from this mnemonic and add the
 -- wallet to the storage.
 newWallet ::
@@ -386,17 +397,15 @@ newWallet ::
     -> IO [Text]
 newWallet acidDb walletConfig face runCardanoMode pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
-  unless (entropySize `elem` [16, 20, 24, 28, 32]) $
-      throwM $ InvalidEntropySize entropySize
-  entropy <- secureRandomBS (fromIntegral entropySize)
-  let mnemonic = entropyToMnemonic entropy
+  mnemonic <- generateMnemonic entropySize
   -- The empty string below is called a passphrase in BIP-39, but
   -- it's essentially an extra mnemonic word. We consider it an
   -- advanced feature and do not provide it for now.
-  let seed = mnemonicToSeed (unwords mnemonic) ""
+  -- generateMnemonic function guarantees that mnemonic is a non-empty list
+  let seed = mnemonicToSeed (unwords $ Unsafe.init mnemonic) ""
   let (_, esk) = safeDeterministicKeyGen seed pp
   hasPass <- mkHasPass runCardanoMode (pp == emptyPassphrase)
-  mnemonic ++ ["ariadne-v0"] <$
+  mnemonic <$
     addWallet acidDb face runCardanoMode esk mbWalletName mempty hasPass assurance
   where
     -- TODO(AD-251): allow selecting assurance.

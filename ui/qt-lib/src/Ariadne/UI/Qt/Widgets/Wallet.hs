@@ -37,12 +37,12 @@ data Wallet =
 
 makeLensesWith postfixLFields ''Wallet
 
-initWallet :: UiLangFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
-initWallet langFace = do
+initWallet :: UiLangFace -> UiWalletFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
+initWallet langFace uiWalletFace = do
   itemModel <- initItemModel
   selectionModel <- QItemSelectionModel.newWithModel itemModel
 
-  (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
+  (qWalletTree, walletTree) <- initWalletTree langFace uiWalletFace itemModel selectionModel
   (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
 
   layout <- QHBoxLayout.new
@@ -83,7 +83,6 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
-  | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
@@ -103,9 +102,6 @@ handleWalletEvent langFace ev = do
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
-    WalletNewWalletCommandResult commandId result ->
-      magnify walletTreeL $ handleWalletTreeEvent langFace $
-        WalletTreeNewWalletCommandResult commandId result
     WalletRestoreWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeRestoreWalletCommandResult commandId result

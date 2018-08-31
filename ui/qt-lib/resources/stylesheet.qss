@@ -316,5 +316,15 @@ QDialog QLineEdit, QDialog QLineEdit:focus {
     background: #fafafa;
 }
 
+QDialog QLabel[styleRole="mnemonicDisplay"] {
+    background-color: rgba(13, 23, 23, 10);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
+
+    font-weight: bold;
+    qproperty-alignment: "AlignCenter";
+}
+
 /* vim: ft=css
 */
