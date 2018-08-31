@@ -16,7 +16,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , getEQ
   , member
   , size
-  , null
   , getOne
   , toMap
     -- * Modification
@@ -35,11 +34,10 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   ) where
 
 import qualified Prelude
-import Universum hiding (Foldable, null, toList)
+import Universum hiding (toList)
 
 import qualified Control.Lens as Lens
 import Data.Coerce (coerce)
-import Data.Foldable (Foldable)
 import qualified Data.Foldable
 import qualified Data.IxSet.Typed as IxSet
 import qualified Data.Map.Strict as Map
@@ -48,8 +46,8 @@ import qualified Data.Set as Set
 import qualified Data.Traversable
 
 -- Imports needed for the various instances
-import Formatting (bprint, build)
 import qualified Data.Text.Buildable
+import Formatting (bprint, build)
 import Pos.Infra.Util.LogSafe
   (BuildableSafe, SecureLog, buildSafeList, getSecureLog, secure)
 import Serokell.Util (listJsonIndent)
@@ -166,7 +164,7 @@ instance Container (IxSet a)
 instance Foldable IxSet where
     null = IxSet.null . unwrapIxSet
     toList = coerce . IxSet.toList . unwrapIxSet
-    foldr f e = foldr f e . Data.Foldable.toList
+    foldr f e = Data.Foldable.foldr (f . unwrapOrdByPrimKey) e . unwrapIxSet
 
 {-------------------------------------------------------------------------------
   Queries
@@ -180,10 +178,6 @@ member pk = isJust . view (Lens.at pk)
 
 size :: IxSet a -> Int
 size = IxSet.size . unwrapIxSet
-
--- | Whether or not this 'IxSet' contains no elements.
-null :: IxSet a -> Bool
-null = IxSet.null . unwrapIxSet
 
 -- | Safely returns the 'head' of this 'IxSet', but only if it is a singleton
 -- one, i.e. only if it has @exactly@ one element in it. Usually this is
@@ -207,13 +201,18 @@ toMap = Map.mapKeysMonotonic (primKey . unwrapOrdByPrimKey)
 -------------------------------------------------------------------------------}
 
 updateIxManyM
-    :: (Indexable a, IsIndexOf ix a, Applicative f)
+    :: forall a ix f. (Indexable a, IsIndexOf ix a, Applicative f)
     => ix -> (a -> f a) -> IxSet a -> f (IxSet a)
-updateIxManyM pk f (WrapIxSet s) = do
-    let originalValues = Data.Foldable.toList $ IxSet.toSet $ IxSet.getEQ pk s
-    mappedValues <- traverse (Lens.coerced f) originalValues
-    pure $ WrapIxSet $
-      foldr IxSet.insert (foldr IxSet.delete s originalValues) mappedValues
+updateIxManyM pk f ws = do
+    let originalValues = toList $ getEQ pk ws
+    mappedValues <- traverse f originalValues
+    pure $ coerce $
+        foldr insert (foldr delete ws originalValues) mappedValues
+  where
+    insert :: a -> IxSet a -> IxSet a
+    insert a = coerce . (IxSet.insert $ WrapOrdByPrimKey a) . coerce
+    delete :: a -> IxSet a -> IxSet a
+    delete a = coerce . (IxSet.delete $ WrapOrdByPrimKey a) . coerce
 
 {-------------------------------------------------------------------------------
   Construction

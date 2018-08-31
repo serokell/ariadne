@@ -356,10 +356,9 @@ createPrefiltered :: forall p e.
                   -> Map HdAccountId AccountName
                   -> Update' HdWallets e ()
 createPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP pByAccount accountNames =
-    forM_ (Map.toList pByAccount) $ \(accId, p) -> do
-        _ <- createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
+    forM_ (Map.toList pByAccount) $ \(accId, p) ->
+        createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
             (accountNames ^. at accId)
-        pass
 
 -- | See @createPrefiltered@ for comments on parameters.
 createAccPrefiltered :: forall p e.

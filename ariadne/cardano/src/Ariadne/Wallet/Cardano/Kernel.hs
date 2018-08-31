@@ -22,8 +22,6 @@ module Ariadne.Wallet.Cardano.Kernel (
   , observableRollbackUseInTestsOnly
     -- ** The only effectful getter you will ever need
   , getWalletSnapshot
-    -- ** Pure getters acting on a DB snapshot
-  , module Getters
   ) where
 
 import Universum hiding (State, init)
@@ -50,10 +48,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   SwitchToFork(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
-
--- Handy re-export of the pure getters
-
-import Ariadne.Wallet.Cardano.Kernel.DB.Read as Getters
 
 import Pos.Core.Chrono (OldestFirst)
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+
 -- | HD wallets
 module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * Supporting types
@@ -95,9 +97,7 @@ import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
 newtype WalletName = WalletName
     { unWalletName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
-
-instance Buildable WalletName where
-    build (WalletName wName) = bprint build wName
+      deriving newtype (Buildable)
 
 instance Arbitrary WalletName where
     arbitrary = pure "New wallet"
@@ -106,9 +106,7 @@ instance Arbitrary WalletName where
 newtype AccountName = AccountName
     { unAccountName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
-
-instance Buildable AccountName where
-    build (AccountName txt) = bprint build txt
+      deriving newtype (Buildable)
 
 instance Arbitrary AccountName where
     arbitrary = pure "New account"

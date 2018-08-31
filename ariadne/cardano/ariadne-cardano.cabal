@@ -145,7 +145,6 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update
       Ariadne.Wallet.Cardano.Kernel.DB.InDb
-      Ariadne.Wallet.Cardano.Kernel.DB.Read
       Ariadne.Wallet.Cardano.Kernel.DB.Resolved
       Ariadne.Wallet.Cardano.Kernel.DB.Spec
       Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
