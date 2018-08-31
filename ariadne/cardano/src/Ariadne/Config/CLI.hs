@@ -34,22 +34,22 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acWalletL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Config.Wallet
+  (WalletConfig(..), walletFieldModifier, wcKeyfilePathL)
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except EkgParams due to its parser
 data CLI_AriadneConfig = CLI_AriadneConfig
-    { cli_acCardano :: CLI_CardanoConfig
-    , cli_acWallet :: CLI_WalletConfig
+    { cli_acCardano :: !CLI_CardanoConfig
+    , cli_acWallet :: !CLI_WalletConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
     { cli_dbPath :: !(Maybe FilePath)
     , cli_rebuildDB :: !(Maybe Bool)
-    , cli_keyfilePath :: !(Maybe FilePath)
     , cli_networkTopology :: !(Maybe FilePath)
     , cli_networkNodeId :: !(Maybe NodeName)
     , cli_networkPort :: !(Maybe Word16)
@@ -68,7 +68,8 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     } deriving (Eq, Show, Generic)
 
 data CLI_WalletConfig = CLI_WalletConfig
-    { cli_wcEntropySize :: Maybe Byte
+    { cli_wcEntropySize :: !(Maybe Byte)
+    , cli_wcKeyfilePath :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
@@ -97,6 +98,8 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     mergedWalletConfig = WalletConfig
         { wcEntropySize =
             cli_wcEntropySize overrideWc `merge` wcEntropySize defaultWc
+        , wcKeyfilePath =
+            cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
         }
 
     -- Merge Cardano config
@@ -114,8 +117,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         { ccDbPath = (overrideCC ^. cli_dbPathL) <|> ccDbPath defaultCC
         , ccRebuildDB =
             merge (overrideCC ^. cli_rebuildDBL) (ccRebuildDB defaultCC)
-        , ccKeyfilePath =
-            merge (overrideCC ^. cli_keyfilePathL) (ccKeyfilePath defaultCC)
         , ccNetworkTopology  =
             (overrideCC ^. cli_networkTopologyL) <|> ccNetworkTopology defaultCC
         , ccNetworkNodeId =
@@ -173,14 +174,16 @@ getConfig commitHash = do
         execState (resolveState (takeDirectory ariadneConfigPath) configDirs) unresolved
 
       resolveState :: FilePath -> ConfigDirectories -> State AriadneConfig ()
-      resolveState ariadneConfigDir configDirs = zoom acCardanoL $ do
+      resolveState ariadneConfigDir configDirs = do
         let resolve_ = resolve ariadneConfigDir configDirs
-        ccDbPathL %= fmap resolve_
-        ccKeyfilePathL %= resolve_
-        ccNetworkTopologyL %= fmap resolve_
-        ccLogConfigL %= fmap resolve_
-        ccLogPrefixL %= fmap resolve_
-        ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acCardanoL $ do
+          ccDbPathL %= fmap resolve_
+          ccNetworkTopologyL %= fmap resolve_
+          ccLogConfigL %= fmap resolve_
+          ccLogPrefixL %= fmap resolve_
+          ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acWalletL $ do
+          wcKeyfilePathL %= resolve_
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
@@ -237,6 +240,11 @@ cliWalletParser = do
      , metavar "BYTE"
      , help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
      ]
+  cli_wcKeyfilePath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameWallet "wcKeyfilePath"
+    , metavar "FILEPATH"
+    , help "Path to file with secret key."
+    ]
   pure CLI_WalletConfig {..}
   where
   parseEntropy = fromParsec byte >>= \b -> if b `elem` [16, 20, 24, 28, 32]
@@ -257,11 +265,6 @@ cliCardanoConfigParser = do
     , metavar "BOOL"
     , help "If node's database already exists, discard its contents \
     \and create a new one from scratch."
-    ]
-  cli_keyfilePath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ccKeyfilePath"
-    , metavar "FILEPATH"
-    , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkTopology <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ccNetworkTopology"

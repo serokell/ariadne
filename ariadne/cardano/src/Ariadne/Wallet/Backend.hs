@@ -34,8 +34,9 @@ createWalletBackend ::
 createWalletBackend walletConfig sendWalletEvent = do
     walletSelRef <- newIORef Nothing
 
-    -- TODO: configurable path to keyfile
-    keystore <- keystoreComponent RemoveKeystoreIfEmpty "secret-mainnet.key"
+    keystore <- keystoreComponent
+        RemoveKeystoreIfEmpty
+        (wcKeyfilePath walletConfig)
     pwl <- passiveWalletLayerComponent
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore

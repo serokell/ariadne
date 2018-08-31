@@ -10,6 +10,7 @@ module Ariadne.Config.DhallUtil
     , injectFilePath
     , injectByteStringUTF8
     , injectWord16
+    , injectByte
     , injectMaybe
     , toDhall
     , fromDhall)
@@ -76,6 +77,9 @@ injectByteStringUTF8 = contramap decodeUtf8 (D.inject :: D.InputType D.Text)
 
 injectWord16 :: D.InputType Word16
 injectWord16 = contramap (fromIntegral . toInteger) (D.inject :: D.InputType Numeric.Natural)
+
+injectByte :: D.InputType Byte
+injectByte = contramap (fromIntegral . toInteger) (D.inject :: D.InputType Numeric.Natural)
 
 injectMaybe :: D.InputType a -> D.InputType (Maybe a)
 injectMaybe innerInpType = D.InputType embedOut declaredOut

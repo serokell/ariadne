@@ -21,7 +21,6 @@ instance Arbitrary CardanoConfig where
     arbitrary = do
         ccDbPath <- genMaybe genValidString
         ccRebuildDB <- arbitrary
-        ccKeyfilePath <- genValidString
         ccNetworkTopology <- genMaybe genValidString
         ccNetworkNodeId <- genMaybe $ NodeName <$> genValidText
         ccNetworkPort <- arbitrary

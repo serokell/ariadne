@@ -244,6 +244,7 @@ test-suite ariadne-cardano-test
   other-modules:
       Paths_ariadne_cardano
       Test.Ariadne.Cardano.Arbitrary
+      Test.Ariadne.Wallet.Arbitrary
       Test.Ariadne.Knit
   default-language: Haskell2010
   default-extensions:
