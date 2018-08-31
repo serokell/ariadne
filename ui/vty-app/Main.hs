@@ -31,8 +31,8 @@ main = defaultMain mainSettings
         , msUiExecContext = \uiFace -> Step (Knit.UiExecCtx uiFace, Base ())
         }
 
-    createUI :: CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI history =
+    createUI :: walletUIFace -> CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
+    createUI _walletUIFace history =
         let historyFace = historyToUI history
             features = UiFeatures
                 { featureStatus = True

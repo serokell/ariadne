@@ -9,7 +9,7 @@ import Control.Concurrent
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
-import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace)
+import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiWalletFace, UiLangFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -30,13 +30,13 @@ type UiAction = UiLangFace -> IO ()
 
 type UiEventBQueue = TBQueue UiEvent
 
-createAriadneUI :: UiHistoryFace -> ComponentM (UiFace, UiAction)
-createAriadneUI historyFace = buildComponent_ "UI-Qt" $ do
+createAriadneUI :: UiWalletFace -> UiHistoryFace -> ComponentM (UiFace, UiAction)
+createAriadneUI uiWalletFace historyFace = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
   return
     ( mkUiFace eventQueue dispatcherIORef
-    , runUIEventLoop eventQueue dispatcherIORef historyFace)
+    , runUIEventLoop eventQueue dispatcherIORef uiWalletFace historyFace)
 
 fonts :: [Text]
 fonts =
@@ -49,8 +49,13 @@ fonts =
   , "MuseoSansCyrl_italic_300.ttf"
   ]
 
-runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFace -> UiAction
-runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
+runUIEventLoop
+  :: UiEventBQueue
+  -> IORef (Maybe QObject.QObject)
+  -> UiWalletFace
+  -> UiHistoryFace
+  -> UiAction
+runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
     QApplication.setStyleSheet app $ toString styleSheet
     QApplication.setWindowIcon app =<< QIcon.newWithFile (":/images/yarn-ic.png" :: String)
@@ -59,7 +64,7 @@ runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
 
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
-    mainWindow <- initMainWindow langFace historyFace
+    mainWindow <- initMainWindow langFace uiWalletFace historyFace
     void $ Event.onEvent eventDispatcher $
       \(_ :: QEvent.QEvent) -> handleAppEvent langFace eventIORef mainWindow >> return True
 

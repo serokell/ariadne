@@ -31,6 +31,7 @@ executable ariadne-qt
     , knit
     , lens
     , ntype
+    , serokell-util
     , text
     , universum
     , vector

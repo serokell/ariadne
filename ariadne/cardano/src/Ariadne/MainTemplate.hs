@@ -20,12 +20,14 @@ import Ariadne.Cardano.Face (CardanoEvent, CardanoFace(..))
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.History (HistoryConfig(..))
+import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
 import Ariadne.TaskManager.Backend
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
 import Ariadne.Wallet.Backend
-import Ariadne.Wallet.Face (WalletEvent)
+import Ariadne.Wallet.Backend.KeyStorage (generateMnemonic)
+import Ariadne.Wallet.Face (WalletEvent, WalletUIFace(..))
 
 import qualified Ariadne.Cardano.Knit as Knit
 import qualified Ariadne.TaskManager.Knit as Knit
@@ -44,7 +46,7 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
     -- 'defaultMain' instead of being obtained there, because it
     -- involves TH and we want to run it only when we build
     -- executables, not when we build the library.
-    , msCreateUI :: !(CommandHistory -> ComponentM (uiFace, uiLangFace -> IO ()))
+    , msCreateUI :: !(WalletUIFace -> CommandHistory -> ComponentM (uiFace, uiLangFace -> IO ()))
     , msPutWalletEventToUI :: !(uiFace -> WalletEvent -> IO ())
     , msPutCardanoEventToUI :: !(uiFace -> CardanoEvent -> IO ())
     , msPutUpdateEventToUI :: !(Maybe (uiFace -> Version -> Text -> IO ()))
@@ -78,8 +80,13 @@ initializeEverything MainSettings {..}
                                    , acHistory = historyConfig
                                    } = do
   history <- openCommandHistory $ hcPath historyConfig
+  let
+    walletUIFace = WalletUIFace
+      { walletGenerateMnemonic = generateMnemonic
+      , walletDefaultEntropySize = wcEntropySize walletConfig
+      }
 
-  (uiFace, mkUiAction) <- msCreateUI history
+  (uiFace, mkUiAction) <- msCreateUI walletUIFace history
   WalletPreface
     { wpBListener = bHandle
     , wpAddUserSecret = addUs
