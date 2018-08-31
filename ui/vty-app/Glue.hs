@@ -96,6 +96,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       }
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
+    justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])
 
     opToExpr = \case
       UiSelect ws ->
@@ -113,6 +114,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
+            justOptNumber "wallet" usaWalletIdx ++
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs ++
             optString "pass" usaPassphrase
@@ -131,11 +133,15 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAccountCommandName $
+            justOptNumber "wallet" unaaWalletIdx ++
             optString "name" unaaName
           )
-      UiNewAddress -> do
+      UiNewAddress UiNewAddressArgs{..} -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAddressCommandName [])
+          (Knit.ProcCall Knit.newAddressCommandName $
+            justOptNumber "wallet" unadaWalletIdx ++
+            justOptNumber "account" unadaAccountIdx
+          )
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $

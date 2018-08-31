@@ -93,7 +93,11 @@ initAccountWidget langFace =
       _ -> return ()
 
     addWidgetChild WidgetNameAccountSend $
-      initSendWidget langFace Nothing
+      initSendWidget langFace 
+        (Just $ widgetParentGetter (\AccountWidgetState{..} ->
+          uaciWalletIdx <$> accountInfo))
+        (Just $ widgetParentGetter (\AccountWidgetState{..} ->
+          maybe [] (take 1 . map fromIntegral . uaciPath) accountInfo))
 
     addWidgetChild WidgetNameAccountAddressGenerateButton $
       initButtonWidget "Generate"
@@ -279,9 +283,14 @@ performRename = do
 performNewAddress :: WidgetEventM AccountWidgetState p ()
 performNewAddress = do
   UiLangFace{..} <- use accountLangFaceL
+  mUiAccountInfo <- use accountInfoL
+  let wIdx = uaciWalletIdx <$> mUiAccountInfo
+      aIdx = case uaciPath <$> mUiAccountInfo of
+        Just (x:_) -> Just x
+        _ -> Nothing
   use accountAddressResultL >>= \case
     AddressResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiNewAddress) >>=
+    _ -> liftIO (langPutUiCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
       assign accountAddressResultL . either AddressResultError AddressResultWaiting
 
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()

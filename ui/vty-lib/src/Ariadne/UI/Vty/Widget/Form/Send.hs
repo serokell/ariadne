@@ -31,6 +31,7 @@ data SendOutput =
 data SendWidgetState p =
   SendWidgetState
     { sendLangFace :: !UiLangFace
+    , sendWalletIdxGetter :: !(Maybe (p -> Maybe Word))
     , sendAccountsGetter :: !(Maybe (p -> [Word32]))
 
     , sendOutputs :: !(Map Int SendOutput)
@@ -50,14 +51,16 @@ makeLensesWith postfixLFields ''SendWidgetState
 
 initSendWidget
   :: UiLangFace
+  -> Maybe (p -> Maybe Word)
   -> Maybe (p -> [Word32])
   -> Widget p
-initSendWidget langFace accountsGetter =
+initSendWidget langFace walletIdxGetter accountsGetter =
   initWidget $ do
     setWidgetDrawWithFocus drawSendWidget
     setWidgetHandleEvent handleSendWidgetEvent
     setWidgetState SendWidgetState
       { sendLangFace = langFace
+      , sendWalletIdxGetter = walletIdxGetter
       , sendAccountsGetter = accountsGetter
 
       , sendOutputs = Map.empty
@@ -208,12 +211,13 @@ performSendTransaction :: WidgetEventM (SendWidgetState p) p ()
 performSendTransaction = do
   UiLangFace{..} <- use sendLangFaceL
   parentState <- lift $ lift get
+  walletIdx <- uses sendWalletIdxGetterL $ maybe Nothing (\getter -> getter parentState)
   accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
   outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
   passphrase <- use sendPassL
   use sendResultL >>= \case
     SendResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs accounts outputs passphrase) >>=
+    _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs walletIdx accounts outputs passphrase) >>=
       assign sendResultL . either SendResultError SendResultWaiting
 
 unsafeFromJust :: Lens' (Maybe a) a
