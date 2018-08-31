@@ -65,7 +65,7 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = putCommand commandHandle
+    { langPutCommand = putCommand
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
@@ -74,24 +74,25 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand handle expr = do
+    putCommand expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (handle cid) $ expr
-    commandHandle commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
-      , putCommandOutput = \tid doc ->
-          putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
-      }
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle Nothing cid) $ expr
 
     putUiCommand op = case opToExpr op of
       Left err -> return $ Left err
-      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
-    uiCommandHandle op commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \_ _ ->
-          return ()
+      Right expr -> do
+        cid <- newUnique
+        mTaskId <- putKnitCommand (commandHandle (Just op) cid) expr
+        let comId = commandIdToUI cid mTaskId
+        putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        return $ Right comId
+
+    commandHandle mOp commandId = KnitCommandHandle
+      { putCommandResult = \mtid result -> do
+          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+          whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
+      , putCommandOutput = \tid doc ->
+          putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]

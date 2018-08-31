@@ -130,6 +130,7 @@ data UiCommandEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
+  | UiCommandWidget Doc
 
 -- UI event triggered by REPL command
 data UiCommandAction
