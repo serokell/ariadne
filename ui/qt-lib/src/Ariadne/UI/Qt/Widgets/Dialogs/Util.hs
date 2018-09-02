@@ -7,6 +7,10 @@ import Data.Bits
 import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
+import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
+import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
+import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
@@ -94,5 +98,12 @@ createCheckBox layout labelText = do
   QBoxLayout.addWidget checkBoxLayout checkBoxLabel
 
   QBoxLayout.addLayout layout checkBoxLayout
+
+  void $ Event.onEvent checkBoxLabel $
+    \(ev :: QMouseEvent.QMouseEvent) -> do
+      eventType <- QEvent.eventType ev
+      if eventType == QEvent.MouseButtonRelease
+        then QAbstractButton.toggle checkBox $> True
+        else return False
 
   return checkBox
