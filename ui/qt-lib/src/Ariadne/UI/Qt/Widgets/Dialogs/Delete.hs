@@ -10,7 +10,6 @@ import qualified Data.Text as T
 import Formatting
 
 import Graphics.UI.Qtah.Signal (connect_)
-import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
@@ -55,18 +54,10 @@ initDelete itemType itemName = do
     ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
   QBoxLayout.addWidget layout warningLabel
 
-  isSure <- QCheckBox.new
-  QWidget.setSizePolicyRaw isSure Maximum Maximum
-  isSureLabel <- QLabel.newWithText . toString $ sformat
+  isSure <- createCheckBox layout $ sformat
     ("Make sure you have access to backup before continuing. \
      \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
     itemType
-  QLabel.setWordWrap isSureLabel True
-  QWidget.setMinimumSizeRaw isSureLabel 600 30
-  isSureLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget isSureLayout isSure
-  QBoxLayout.addWidget isSureLayout isSureLabel
-  QBoxLayout.addLayout layout isSureLayout
 
   (retypeWidget, retypeLayout) <- createSubWidget
   addSeparator retypeLayout
