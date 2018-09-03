@@ -28,8 +28,8 @@ defaultAriadneConfig :: FilePath -> AriadneConfig
 defaultAriadneConfig dataDir =
     AriadneConfig
         { acCardano = defaultCardanoConfig dataDir
-        , acWallet = defaultWalletConfig
-        , acUpdate = defaultUpdateConfig
+        , acWallet  = defaultWalletConfig  dataDir
+        , acUpdate  = defaultUpdateConfig
         , acHistory = defaultHistoryConfig dataDir
         }
 
