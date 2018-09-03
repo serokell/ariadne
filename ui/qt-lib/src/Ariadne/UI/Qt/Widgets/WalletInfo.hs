@@ -12,7 +12,6 @@ import Data.Text (toUpper)
 
 import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
-import IiExtras
 
 import Graphics.UI.Qtah.Core.Types (QtCursorShape(..))
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
@@ -39,6 +38,10 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Delete
+import Ariadne.Util
+
+data CurrentItem = WIWallet | WIAccount
 
 data WalletInfo =
   WalletInfo
@@ -53,6 +56,9 @@ data WalletInfo =
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
     , createAccountButton :: QPushButton.QPushButton
+    , currentItemType :: IORef (Maybe CurrentItem)
+    , currentItemName :: IORef Text
+    , deleteItemButton :: QPushButton.QPushButton
     }
 
 makeLensesWith postfixLFields ''WalletInfo
@@ -86,6 +92,11 @@ initWalletInfo langFace itemModel selectionModel = do
   QWidget.setCursor createAccountButton pointingCursor
   QWidget.hide createAccountButton -- will be shown only if applicable
   QLayout.addWidget headerLayout createAccountButton
+
+  deleteItemButton <- QPushButton.newWithText ("Delete" :: String)
+  QLayout.addWidget headerLayout deleteItemButton
+  QWidget.setCursor deleteItemButton pointingCursor
+  QWidget.hide deleteItemButton -- will be shown once something is selected
 
   QBoxLayout.addWidget infoLayout header
 
@@ -145,10 +156,15 @@ initWalletInfo langFace itemModel selectionModel = do
   walletInfo <- QWidget.new
   QWidget.setLayout walletInfo infoLayout
 
+  currentItemType <- newIORef Nothing
+  currentItemName <- newIORef ""
+
   connect_ sendButton QAbstractButton.clickedSignal $
     sendClicked langFace WalletInfo{..}
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
+  connect_ deleteItemButton QAbstractButton.clickedSignal $
+    deleteItemClicked langFace WalletInfo{..}
 
   return (walletInfo, WalletInfo{..})
 
@@ -180,10 +196,15 @@ handleWalletInfoEvent UiLangFace{..} ev = do
               UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, True)
               UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance, False)
 
-      whenJust itemName $ QLabel.setText itemNameLabel . toString . toUpper
+      QLabel.setText itemNameLabel . toString . toUpper . fromMaybe "" $ itemName
       QLabel.setText balanceLabel $ toString $ balance <> " " <> unitToHtml unit
 
       QWidget.setVisible createAccountButton isWallet
+      QWidget.setVisible deleteItemButton True
+
+      writeIORef currentItemType $ Just $ if isWallet then WIWallet else WIAccount
+      -- `itemNameLabel` stores capitalized text, but we need the original for delete dialog
+      writeIORef currentItemName $ fromMaybe "" itemName
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
@@ -209,3 +230,17 @@ addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
   unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
+
+deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
+  whenJustM (readIORef currentItemType) $ \itemType -> do
+    let
+      delItemType = case itemType of
+        WIWallet -> DelWallet
+        WIAccount -> DelAccount
+
+    itemName <- readIORef currentItemName
+    result <- runDelete delItemType itemName
+
+    when (result == DoDelete) $ do
+      void $ langPutUiCommand UiRemoveCurrentItem

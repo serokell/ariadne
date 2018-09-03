@@ -59,7 +59,6 @@ library
     , formatting
     , http-client
     , http-client-tls
-    , ii-extras
     , insert-ordered-containers
     , ixset-typed
     , knit
@@ -72,6 +71,8 @@ library
     , monad-control
     , mtl
     , named
+    , natural-transformation
+    , ntype
     , optparse-applicative
     , process
     , QuickCheck
@@ -168,15 +169,15 @@ library
       Ariadne.Wallet.Cardano.WalletLayer.Types
   default-extensions:
       ApplicativeDo
-      NoImplicitPrelude
       BangPatterns
       ConstraintKinds
       DataKinds
       DefaultSignatures
-      DeriveGeneric
-      DeriveFunctor
       DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
       DeriveTraversable
+      EmptyCase
       FlexibleContexts
       FlexibleInstances
       GADTs
@@ -185,14 +186,15 @@ library
       MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
+      NamedFieldPuns
       NegativeLiterals
-      OverloadedStrings
+      NoImplicitPrelude
       OverloadedLabels
+      OverloadedStrings
       PatternSynonyms
       PolyKinds
       RankNTypes
       RecordWildCards
-      NamedFieldPuns
       RecursiveDo
       ScopedTypeVariables
       StandaloneDeriving
@@ -203,7 +205,6 @@ library
       TypeOperators
       UndecidableInstances
       ViewPatterns
-      EmptyCase
   other-modules:
       Paths_ariadne_cardano
   default-language: Haskell2010
@@ -220,18 +221,18 @@ test-suite ariadne-cardano-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ariadne-cardano
+      base >=4.7 && <5
+    , ariadne-cardano
     , ariadne-core
-    , base >=4.7 && <5
     , bytestring
     , canonical-json
-    , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
-    , ii-extras
+    , cardano-sl-infra
     , hspec
     , knit
     , lens
+    , ntype
     , optparse-applicative
     , QuickCheck
     , scientific
@@ -249,14 +250,14 @@ test-suite ariadne-cardano-test
   default-language: Haskell2010
   default-extensions:
         ApplicativeDo
-        NoImplicitPrelude
         BangPatterns
         ConstraintKinds
         DataKinds
-        DeriveGeneric
-        DeriveFunctor
         DeriveFoldable
+        DeriveFunctor
+        DeriveGeneric
         DeriveTraversable
+        EmptyCase
         FlexibleContexts
         FlexibleInstances
         GADTs
@@ -265,13 +266,15 @@ test-suite ariadne-cardano-test
         MonadFailDesugaring
         MultiParamTypeClasses
         MultiWayIf
+        NamedFieldPuns
         NegativeLiterals
+        NoImplicitPrelude
         OverloadedStrings
+        PartialTypeSignatures
         PatternSynonyms
         PolyKinds
         RankNTypes
         RecordWildCards
-        NamedFieldPuns
         RecursiveDo
         ScopedTypeVariables
         StandaloneDeriving
@@ -282,8 +285,6 @@ test-suite ariadne-cardano-test
         TypeOperators
         UndecidableInstances
         ViewPatterns
-        EmptyCase
-        PartialTypeSignatures
   ghc-options: -Wall -Wcompat -Werror
                -Wincomplete-uni-patterns -Wincomplete-record-updates
                -Wredundant-constraints

@@ -9,27 +9,28 @@ module Ariadne.Config.Ariadne
 
 import Universum
 
-import Ariadne.Config.Cardano
-import Ariadne.Config.DhallUtil (parseField)
-import Ariadne.Config.History
-import Ariadne.Config.Update
-import Ariadne.Config.Wallet
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
-import IiExtras (postfixLFields)
+
+import Ariadne.Config.Cardano
+import Ariadne.Config.DhallUtil (parseField)
+import Ariadne.Config.History
+import Ariadne.Config.Update
+import Ariadne.Config.Wallet
+import Ariadne.Util
 
 -- default Ariadne config with Cardano mainnet config
 defaultAriadneConfig :: FilePath -> AriadneConfig
 defaultAriadneConfig dataDir =
     AriadneConfig
         { acCardano = defaultCardanoConfig dataDir
-        , acWallet  = defaultWalletConfig dataDir
+        , acWallet  = defaultWalletConfig  dataDir
         , acUpdate  = defaultUpdateConfig
-        , acHistory = defaultHistoryConfig
+        , acHistory = defaultHistoryConfig dataDir
         }
 
 parseFieldAriadne ::

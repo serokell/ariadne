@@ -2,6 +2,7 @@ module Ariadne.Config.Wallet
   ( defaultWalletConfig
   , wcEntropySizeL
   , wcKeyfilePathL
+  , wcAcidDBPathL
   , walletFieldModifier
   , WalletConfig (..)) where
 
@@ -18,12 +19,13 @@ import System.FilePath ((</>))
 
 import Ariadne.Config.DhallUtil
   (injectByte, injectFilePath, interpretByte, interpretFilePath, parseField)
-import IiExtras (postfixLFields)
+import Ariadne.Util (postfixLFields)
 
 defaultWalletConfig :: FilePath -> WalletConfig
 defaultWalletConfig dataDir = WalletConfig
     { wcEntropySize = 16
     , wcKeyfilePath = dataDir </> "secret-mainnet.key"
+    , wcAcidDBPath  = dataDir </> ".wallet-db"
     }
 
 parseFieldWallet ::
@@ -36,11 +38,13 @@ walletFieldModifier = f
     f "wcEntropySize"  = "entropy-size"
     -- name is identical to the one used in Cardano for UserSecret
     f "wcKeyfilePath" = "keyfile"
+    f "wcAcidDBPath"  = "wallet-db-path"
     f x = x
 
 data WalletConfig = WalletConfig
   { wcEntropySize :: !Byte
   , wcKeyfilePath :: !FilePath
+  , wcAcidDBPath  :: !FilePath
   } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''WalletConfig
@@ -51,12 +55,14 @@ instance D.Interpret WalletConfig where
       extractOut (RecordLit fields) = do
         wcEntropySize <- parseFieldWallet fields "wcEntropySize" interpretByte
         wcKeyfilePath <- parseFieldWallet fields "wcKeyfilePath" interpretFilePath
+        wcAcidDBPath  <- parseFieldWallet fields "wcAcidDBPath"  interpretFilePath
         return WalletConfig {..}
       extractOut _ = Nothing
 
       expectedOut = Record $ Map.fromList
         [ (walletFieldModifier "wcEntropySize", D.expected interpretByte)
         , (walletFieldModifier "wcKeyfilePath", D.expected interpretFilePath)
+        , (walletFieldModifier "wcAcidDBPath", D.expected interpretFilePath)
         ]
 
 instance D.Inject WalletConfig where

@@ -11,6 +11,7 @@ import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
+import Control.Natural ((:~>)(..))
 import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
@@ -38,7 +39,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
-import IiExtras ((:~>)(..))
 
 data SendTxException
     = SendTxNoAddresses !HdRootId
@@ -81,7 +81,7 @@ sendTx ::
     -> IO TxId
 sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
     -- TODO: call newPending here
-    let Nat runCardanoMode = cardanoRunCardanoMode
+    let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-

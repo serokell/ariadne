@@ -8,7 +8,6 @@ import Universum
 import Control.Lens (makeLensesWith)
 import Data.Char (toLower)
 import Data.Maybe (fromJust)
-import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -19,6 +18,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 data MenuWidgetElem a =
   MenuWidgetElem

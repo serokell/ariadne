@@ -16,8 +16,8 @@ import qualified Ariadne.TaskManager.Knit as Knit
 import Data.List.NonEmpty (fromList)
 import Data.Scientific
 import qualified Data.Text as T
-import IiExtras
 import Knit
+import NType (N(..))
 import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck
@@ -130,6 +130,6 @@ genTokenComponents = oneof $ componentTokens <> baseTokens
          AllConstrained (ComponentTokenGen components) components'
       => Spine components'
       -> [Gen (Knit.Token components)]
-    go RNil = []
-    go ((Proxy :: Proxy component) :& xs) =
+    go (Base ()) = []
+    go (Step (Proxy :: Proxy component, xs)) =
       (componentTokenGen @components @component) ++ (go xs)

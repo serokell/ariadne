@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.Repl
 import Universum
 
 import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
-import IiExtras
 import Named
 
 import qualified Brick as B
@@ -23,6 +22,7 @@ import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.Util
 
 type AdaptiveImage =
   Named V.Attr "def_attr" -> Named Int "width" -> V.Image
@@ -94,8 +94,8 @@ drawReplWidget focus ReplWidgetState{..} = do
 
     if fullsize
       then return $ B.vBox
-        [ B.padLeftRight 1 $
-          B.viewport widgetName B.Vertical $
+        [ B.padLeft (B.Pad 1) $
+          scrollingViewport widgetName B.Vertical $
           B.cached widgetName $
           B.Widget
             { B.hSize = B.Fixed

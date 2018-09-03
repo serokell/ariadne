@@ -23,7 +23,7 @@ import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
-import IiExtras
+import NType (AllConstrained, Elem, KnownSpine)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Cardano.Face
@@ -83,7 +83,8 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
     uiCommandHandle op commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
-          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
+          whenJust (resultToUI result op) $
+            putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \_ _ ->
           return ()
       }
@@ -114,7 +115,18 @@ knitFaceToUI UiFace{..} KnitFace{..} =
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
             [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
-            ++ maybe [] ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
+            ++ maybe []
+              ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
+          )
+      UiRestoreWallet name password mnemonic full -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.restoreCommandName $
+            [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
+            , Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
+            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+            ]
+            ++ maybe []
+              ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
           )
       UiNewAccount name -> do
         Right $ Knit.ExprProcCall
@@ -124,6 +136,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewAddress -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAddressCommandName [])
+      UiRemoveCurrentItem -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.removeCommandName [])
 
     resultToUI result = \case
       UiSend _ _ ->
@@ -132,15 +147,22 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
       UiNewWallet _ _ ->
-        Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
+        Just . UiNewWalletCommandResult .
+          either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
             _ -> Left "Unrecognized return value"
+      UiRestoreWallet {} ->
+        Just . UiRestoreWalletCommandResult .
+          either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
+          fromResult result
       UiNewAccount _ ->
-        Just . UiNewAccountCommandResult . either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
+        Just . UiNewAccountCommandResult .
+          either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
           fromResult result
       UiNewAddress ->
-        Just . UiNewAddressCommandResult . either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
+        Just . UiNewAddressCommandResult .
+          either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
           fromResult result
       _ -> Nothing
 

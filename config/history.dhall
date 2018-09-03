@@ -1,3 +1,3 @@
 {
-    path = "ariadne_history.db"
+    path = "@DATA/ariadne_history.db"
 }

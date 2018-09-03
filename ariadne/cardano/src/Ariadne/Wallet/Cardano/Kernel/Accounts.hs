@@ -25,6 +25,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   UnknownHdAccount(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
   (CreateHdAccountError(..))
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+  (DeleteHdAccountError(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (mkHdAccountIx)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (readAccountsByRootId)
 import Ariadne.Wallet.Cardano.Kernel.Internal
@@ -144,7 +146,7 @@ createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
 -- | Deletes an HD 'Account' from the data storage.
 deleteAccount :: HdAccountId
               -> PassiveWallet
-              -> IO (Either UnknownHdAccount ())
+              -> IO (Either DeleteHdAccountError ())
 deleteAccount hdAccountId pw = do
     res <- liftIO $ update (pw ^. wallets) (DeleteHdAccount hdAccountId)
     return $ case res of

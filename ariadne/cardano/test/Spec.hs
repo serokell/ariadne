@@ -28,7 +28,8 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.Wallet (WalletConfig(..))
-import IiExtras (postfixLFields)
+import Ariadne.Util (postfixLFields)
+
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
 import Test.Ariadne.Wallet.Arbitrary ()
@@ -104,10 +105,10 @@ cliArgs =
   , "--cardano:configuration-key", "new-configuration-key"
   , "--cardano:system-start", "89"
   , "--cardano:configuration-seed", "9"
-  , "--cardano:metrics", "True"
   , "--cardano:ekg-params", "255.255.255.252:8888"
   , "--wallet:entropy-size", "32"
   , "--wallet:keyfile", "new-secret-mainnet.key"
+  , "--wallet:wallet-db-path", ".new-wallet-db"
   ]
 
 
@@ -127,13 +128,13 @@ expectedAriadneConfig = defaultAriadneCfg
           , cfoSystemStart = Just 89000000
           , cfoSeed = Just 9
           }
-      , ccEnableMetrics = True
       , ccEkgParams = Just
         (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
       }
   , acWallet = defaultWalletConfig
     { wcEntropySize = fromBytes 32
     , wcKeyfilePath = "new-secret-mainnet.key"
+    , wcAcidDBPath  = ".new-wallet-db"
     }
   }
   where

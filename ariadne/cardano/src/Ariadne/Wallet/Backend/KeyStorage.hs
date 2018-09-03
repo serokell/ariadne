@@ -389,7 +389,6 @@ removeSelection pwl WalletFace{..} walletSelRef = do
   atomicWriteIORef walletSelRef newSelection
   walletRefreshState
 
-
 renameSelection
   :: PassiveWalletLayer IO
   -> WalletFace

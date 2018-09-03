@@ -1,13 +1,13 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
   ( runNewWallet
   , NewWalletParameters(..)
+  , NewWalletSpecifier(..)
   , NewWalletResult(..)
   ) where
 
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras (postfixLFields)
 
 import Data.Bits
 import qualified Data.Text as T
@@ -21,17 +21,24 @@ import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
+import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
-import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
-import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Util
+import Ariadne.Util
+
+data NewWalletMode = CreateWallet | ImportWallet deriving (Show, Eq, Enum, Bounded)
+
+newWalletModeName :: NewWalletMode -> Text
+newWalletModeName CreateWallet = "Create new wallet"
+newWalletModeName ImportWallet = "Import wallet"
 
 data NewWallet =
   NewWallet
@@ -42,51 +49,27 @@ data NewWallet =
     , repeatPassword :: QLineEdit.QLineEdit
     , passwordWidget :: QWidget.QWidget
     , createButton :: QPushButton.QPushButton
+    , modeSelector :: QComboBox.QComboBox
+    , walletMnemonicWidget :: QWidget.QWidget
+    , walletMnemonic :: QLineEdit.QLineEdit
+    , fullRestore :: QCheckBox.QCheckBox
     }
+
+data NewWalletSpecifier
+  = NewWalletName
+  | NewWalletMnemonic !Text !Bool
 
 data NewWalletParameters =
   NewWalletParameters
-    { nwName :: Text
-    , nwPassword :: Maybe Text
+    { nwName :: !Text
+    , nwSpecifier :: !NewWalletSpecifier
+    , nwPassword :: !(Maybe Text)
     }
 
 data NewWalletResult = NewWalletCanceled | NewWalletAccepted NewWalletParameters
 
 makeLensesWith postfixLFields ''NewWallet
 makeLensesWith postfixLFields ''NewWalletParameters
-
-addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
-       => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
-addRow layout label widget = do
-  rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addWidget rowLayout widget
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
-  QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
-
-  QBoxLayout.addLayout layout rowLayout
-
-addRowLayout :: (QWidget.QWidgetPtr lbl, QLayout.QLayoutPtr lay)
-       => QVBoxLayout.QVBoxLayout -> lbl -> lay -> IO ()
-addRowLayout layout label widgetLayout = do
-  rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addLayout rowLayout widgetLayout
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
-  QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
-
-  QBoxLayout.addLayout layout rowLayout
-
-addSeparator :: QVBoxLayout.QVBoxLayout -> IO ()
-addSeparator layout = do
-  separator <- QFrame.new
-  QFrame.setFrameShape separator QFrame.HLine
-  void $ setProperty separator ("styleRole" :: Text) ("separator" :: Text)
-  void $ setProperty separator ("orientation" :: Text) ("horizontal" :: Text)
-
-  QBoxLayout.addWidget layout separator
 
 createPasswordField :: Text -> IO (QHBoxLayout.QHBoxLayout, QLineEdit.QLineEdit)
 createPasswordField placeholder = do
@@ -118,6 +101,15 @@ createPasswordField placeholder = do
 
   return (layout, field)
 
+createModeSelector :: IO QComboBox.QComboBox
+createModeSelector = do
+  modeSelector <- QComboBox.new
+
+  for_ [minBound..maxBound] $ \mode ->
+    QComboBox.addItem modeSelector $ toString $ T.toUpper $ newWalletModeName mode
+
+  return modeSelector
+
 initNewWallet :: IO NewWallet
 initNewWallet = do
   newWallet <- QDialog.new
@@ -125,16 +117,36 @@ initNewWallet = do
   QWidget.setWindowTitle newWallet ("Create new wallet" :: String)
   QWidget.adjustSize newWallet
 
-  layout <- QVBoxLayout.new
-  QWidget.setLayout newWallet layout
-  QBoxLayout.setSpacing layout 18
-  QLayout.setContentsMarginsRaw layout 24 42 24 24
+  layout <- createLayout newWallet
+
+  modeSelector <- createModeSelector
+
+  addHeader layout modeSelector
+  void $ QLayout.setWidgetAlignment layout modeSelector $ alignHCenter .|. alignVCenter
+  void $ setProperty modeSelector ("styleRole" :: Text) ("dialogHeader" :: Text)
 
   walletNameLabel <- QLabel.newWithText ("<b>WALLET NAME</b>" :: String)
   walletName <- QLineEdit.new
   QLineEdit.setPlaceholderText walletName ("wallet name" :: String)
 
   addRow layout walletNameLabel walletName
+
+  walletMnemonicLabel <- QLabel.newWithText ("<b>MNEMONIC PHRASE</b>" :: String)
+  walletMnemonic <- QLineEdit.new
+
+  (walletMnemonicWidget, walletMnemonicLayout) <- createSubWidget
+  addRow walletMnemonicLayout walletMnemonicLabel walletMnemonic
+
+  fullRestoreLabel <- QLabel.newWithText ("Perform full restore" :: String)
+  fullRestore <- QCheckBox.new
+  QAbstractButton.setChecked fullRestore True
+  QWidget.setSizePolicyRaw fullRestore Maximum Preferred
+
+  addRow walletMnemonicLayout fullRestoreLabel fullRestore
+
+  QBoxLayout.addWidget layout walletMnemonicWidget
+  QWidget.hide walletMnemonicWidget
+
   addSeparator layout
 
   hasPasswordLabel <- QLabel.newWithText $ toString passwordLabelText
@@ -146,14 +158,7 @@ initNewWallet = do
 
   addRow layout hasPasswordLabel hasPassword
 
-  passwordWidget <- QWidget.new
-  passwordLayout <- QVBoxLayout.new
-  QWidget.setLayout passwordWidget passwordLayout
-  QLayout.setContentsMarginsRaw passwordLayout 0 0 0 0
-  QBoxLayout.setSpacing passwordLayout 18
-  QWidget.setSizePolicyRaw passwordWidget Preferred Minimum
-  QLayout.setSizeConstraint passwordLayout QLayout.SetMinimumSize
-
+  (passwordWidget, passwordLayout) <- createSubWidget
   passwordLabel <- QLabel.newWithText ("<b>PASSWORD</b>" :: String)
   (passwordFieldLayout, password) <- createPasswordField "password"
 
@@ -173,6 +178,7 @@ initNewWallet = do
   QWidget.setSizePolicyRaw createButton Maximum Preferred
   QBoxLayout.addWidget layout createButton
   void $ QLayout.setWidgetAlignment layout createButton $ alignHCenter .|. alignVCenter
+  void $ setProperty createButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
 
   QBoxLayout.addStretch layout
 
@@ -180,9 +186,11 @@ initNewWallet = do
 
   connect_ hasPassword QAbstractButton.toggledSignal $ hasPasswordToggled nw
   connect_ walletName QLineEdit.textChangedSignal $ \_ -> revalidate nw
+  connect_ walletMnemonic QLineEdit.textChangedSignal $ \_ -> revalidate nw
   connect_ password QLineEdit.textChangedSignal $ \_ -> revalidate nw
   connect_ repeatPassword QLineEdit.textChangedSignal $ \_ -> revalidate nw
   connect_ createButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept newWallet
+  connect_ modeSelector QComboBox.activatedSignal $ \ix -> modeChanged nw $ toEnum ix
 
   revalidate nw
 
@@ -191,7 +199,7 @@ initNewWallet = do
 runNewWallet:: IO NewWalletResult
 runNewWallet = do
   nw@NewWallet{..} <- initNewWallet
-  result <- fmap toEnum . liftIO . QDialog.exec $ newWallet
+  result <- toEnum <$> QDialog.exec newWallet
 
   case result of
     QDialog.Accepted -> maybe NewWalletCanceled NewWalletAccepted <$> fillWaletParameters nw
@@ -199,7 +207,7 @@ runNewWallet = do
 
 passwordLabelText :: Text
 passwordLabelText =
-  "Activate to create password. Note that good password should be at least\
+  "Activate to create password. Note that good password should be at least \
   \<b>7 characters long</b>, and have at least <b>1 uppercase character</b>\
   \, <b>1 lowercase character</b> and <b>1 digit</b>."
 
@@ -212,21 +220,37 @@ hasPasswordToggled nw@NewWallet{..} checked = do
 fillWaletParameters :: NewWallet -> IO (Maybe NewWalletParameters)
 fillWaletParameters NewWallet{..} = do
   nwName <- T.strip . fromString <$> QLineEdit.text walletName
+  nwMnemonic <- T.strip . fromString <$> QLineEdit.text walletMnemonic
+  nwFullRestore <- QAbstractButton.isChecked fullRestore
 
   nwHasPassword <- QAbstractButton.isChecked hasPassword
   nwPasswordCandidate <- T.strip . fromString <$> QLineEdit.text password
   nwRepeatPassword <- T.strip . fromString <$> QLineEdit.text repeatPassword
 
+  nwModeIx <- QComboBox.currentIndex modeSelector
   let
-    nameValid = not $ null nwName
-    passwordValid =
-      (not nwHasPassword) || (not (null nwPasswordCandidate) && nwPasswordCandidate == nwRepeatPassword)
-    nwPassword = if nwHasPassword then Just nwPasswordCandidate else Nothing
+    nwMode =
+      if nwModeIx < fromEnum @NewWalletMode minBound || nwModeIx > fromEnum @NewWalletMode maxBound
+         then Nothing
+         else Just $ toEnum nwModeIx
 
-  return $
-    if nameValid && passwordValid
-       then Just $ NewWalletParameters{..}
-       else Nothing
+  return $ do
+    mode <- nwMode
+    guard $ not $ null nwName
+    when nwHasPassword $
+      guard $ not (null nwPasswordCandidate) && nwPasswordCandidate == nwRepeatPassword
+    let nwPassword = if nwHasPassword then Just nwPasswordCandidate else Nothing
+
+    nwSpecifier <- case mode of
+      CreateWallet -> do
+        return $ NewWalletName
+      ImportWallet -> do
+        guard $ not $ null nwMnemonic
+        guard $ length (words nwMnemonic) >= 12
+
+        return $ NewWalletMnemonic nwMnemonic nwFullRestore
+
+    return NewWalletParameters{..}
 
 isValid :: NewWallet -> IO Bool
 isValid = fmap isJust . fillWaletParameters
@@ -235,3 +259,15 @@ revalidate :: NewWallet -> IO ()
 revalidate nw@NewWallet{..} = do
   valid <- isValid nw
   QWidget.setEnabled createButton valid
+
+modeChanged :: NewWallet -> NewWalletMode -> IO ()
+modeChanged nw@NewWallet{..} newMode = do
+  let
+    modeIsRestore = case newMode of
+      CreateWallet -> False
+      ImportWallet -> True
+
+  QWidget.setVisible walletMnemonicWidget modeIsRestore
+  QWidget.adjustSize newWallet
+
+  revalidate nw

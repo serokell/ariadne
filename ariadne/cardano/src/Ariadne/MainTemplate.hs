@@ -9,10 +9,10 @@ import Universum
 
 import Control.Concurrent.Async (race_, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
+import Control.Natural (($$))
 import Data.Version (Version)
-import Data.Vinyl.Core (Rec(..), (<+>))
 import Data.Vinyl.TypeLevel (type (++))
-import IiExtras (runNat)
+import NType (N(..), Rec)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend (createCardanoBackend)
@@ -35,7 +35,7 @@ import qualified Knit
 type NonUiComponents = '[Knit.Core, Knit.Cardano, Knit.Wallet, Knit.TaskManager]
 
 type family AllComponents (uiComponents :: [*]) :: [*] where
-   AllComponents uiComponents = uiComponents ++ NonUiComponents
+   AllComponents uiComponents = NonUiComponents ++ uiComponents
 
 -- | Everything needed for the 'main' function.
 data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
@@ -98,14 +98,15 @@ initializeEverything MainSettings {..}
     knitExecContext ::
         (Doc -> IO ()) -> Knit.ExecContext IO (AllComponents uiComponents)
     knitExecContext putCommandOutput =
-       msUiExecContext uiFace <+>
-       Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) :&
-       Knit.CardanoExecCtx (runNat runCardanoMode) :&
-       Knit.WalletExecCtx walletFace :&
-       Knit.TaskManagerExecCtx taskManagerFace :&
-       RNil
+       Knit.CoreExecCtx (putCommandOutput . Knit.ppValue) &:
+       Knit.CardanoExecCtx (runCardanoMode $$) &:
+       Knit.WalletExecCtx walletFace &:
+       Knit.TaskManagerExecCtx taskManagerFace &:
+       msUiExecContext uiFace
       where
         walletFace = mkWalletFace putCommandOutput
+        a &: b = Step (a, b)
+        infixr &:
 
     knitFace :: KnitFace (AllComponents uiComponents)
     knitFace = createKnitBackend knitExecContext taskManagerFace

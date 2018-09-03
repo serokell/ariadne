@@ -13,16 +13,15 @@ import Data.Loc
 import Data.Maybe
 import Data.Proxy
 import Data.Text as T
-import Data.Union
 import Data.Void
 import Formatting (build, sformat, (%))
-import IiExtras
 
 import Control.Applicative.Combinators.NonEmpty as NonEmpty
 import Text.Megaparsec hiding (Token, many)
 import Text.Megaparsec.Char
 
 import Knit.Name
+import Knit.Prelude
 
 -- | The side of a bracket.
 --
@@ -156,7 +155,7 @@ toToken
      Elem components component
   => ComponentToken component
   -> Token components
-toToken = Token . uliftElem
+toToken = Token . ulift
 
 -- | Match on a 'Token', expecting it to belong to a particular component.
 -- Returns 'Nothing' if the token belongs to a different component.
@@ -167,7 +166,7 @@ fromToken
      Elem components component
   => Token components
   -> Maybe (ComponentToken component)
-fromToken = umatchElem <=< preview _Token
+fromToken = umatch <=< preview _Token
 
 -- | Render (detokenize) an individual token.
 tokenRender
@@ -176,7 +175,7 @@ tokenRender
   => Token components
   -> Text
 tokenRender = \case
-  Token u -> ufold @ComponentDetokenizer componentTokenRender u
+  Token u -> ufoldConstrained @ComponentDetokenizer componentTokenRender u
   TokenSquareBracket bs -> withBracketSide "[" "]" bs
   TokenParenthesis bs -> withBracketSide "(" ")" bs
   TokenEquals -> "="
@@ -283,8 +282,8 @@ pToken' = longestMatch (go (knownSpine @components))
          AllConstrained (ComponentTokenizer components) components'
       => Spine components'
       -> [Tokenizer (Token components)]
-    go RNil = []
-    go ((Proxy :: Proxy component) :& xs) =
+    go (Base ()) = []
+    go (Step (Proxy :: Proxy component, xs)) =
       componentTokenizer @_ @component ++ go xs
 
 -- | Parser for punctuation tokens.
@@ -324,3 +323,22 @@ pLetter = unsafeMkLetter <$> satisfy isAlpha
 -- | Parser for non-empty sequences of alphanumeric characters.
 pSomeAlphaNum :: Tokenizer Text
 pSomeAlphaNum = takeWhile1P (Just "alphanumeric") isAlphaNum
+
+longestMatch :: MonadParsec e s m => [m a] -> m a
+longestMatch ps = do
+  ps' <-
+    for ps $ \p ->
+        optional . try . lookAhead $ do
+            datum <- p
+            position <- getPosition
+            pState <- getParserState
+            return (position, (pState, datum))
+  case nonEmpty (catMaybes ps') of
+    Nothing -> A.empty
+    Just ps'' -> do
+        let tup = snd $ maximumBy (compare `on` fst) ps''
+        applyParser tup
+      where
+        applyParser (pState, datum) = do
+            updateParserState (const pState)
+            return datum

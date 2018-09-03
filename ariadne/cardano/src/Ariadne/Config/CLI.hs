@@ -16,9 +16,8 @@ import Data.Version (showVersion)
 import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
-import IiExtras (postfixLFields)
 import Options.Applicative
-  (auto, help, long, metavar, option, strOption, switch, value)
+  (auto, help, long, metavar, option, showDefault, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne_cardano (version)
 import Pos.Core.Slotting (Timestamp(..))
@@ -34,11 +33,13 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, acWalletL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, acWalletL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
+import Ariadne.Config.History (hcPathL)
 import Ariadne.Config.Wallet
-  (WalletConfig(..), walletFieldModifier, wcKeyfilePathL)
+  (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
+import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except EkgParams due to its parser
@@ -56,7 +57,6 @@ data CLI_CardanoConfig = CLI_CardanoConfig
     , cli_logConfig :: !(Maybe FilePath)
     , cli_logPrefix :: !(Maybe FilePath)
     , cli_configurationOptions :: !CLI_ConfigurationOptions
-    , cli_enableMetrics :: !(Maybe Bool)
     , cli_ekgParams :: !(Maybe EkgParams)
     } deriving (Eq, Show, Generic)
 
@@ -70,6 +70,7 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
 data CLI_WalletConfig = CLI_WalletConfig
     { cli_wcEntropySize :: !(Maybe Byte)
     , cli_wcKeyfilePath :: !(Maybe FilePath)
+    , cli_wcAcidDBPath  :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
@@ -100,6 +101,8 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
             cli_wcEntropySize overrideWc `merge` wcEntropySize defaultWc
         , wcKeyfilePath =
             cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
+        , wcAcidDBPath =
+            cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
         }
 
     -- Merge Cardano config
@@ -128,8 +131,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , ccLogPrefix =
             (overrideCC ^. cli_logPrefixL) <|> ccLogPrefix defaultCC
         , ccConfigurationOptions = mergedConfigurationOptions
-        , ccEnableMetrics =
-            merge (overrideCC ^. cli_enableMetricsL) (ccEnableMetrics defaultCC)
         , ccEkgParams =
             (overrideCC ^. cli_ekgParamsL) <|> ccEkgParams defaultCC
         }
@@ -182,8 +183,12 @@ getConfig commitHash = do
           ccLogConfigL %= fmap resolve_
           ccLogPrefixL %= fmap resolve_
           ccConfigurationOptionsL.cfoFilePathL %= resolve_
+        zoom acHistoryL $ do
+          hcPathL %= resolve_
         zoom acWalletL $ do
+          wcAcidDBPathL %= resolve_
           wcKeyfilePathL %= resolve_
+
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
@@ -216,6 +221,7 @@ parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
   configPath <- strOption $ mconcat
     [ long "config"
+    , showDefault
     , metavar "FILEPATH"
     , value (xdgConfigPath </> "ariadne-config.dhall")
     , help "Path to ariadne .dhall configuration file"
@@ -245,6 +251,11 @@ cliWalletParser = do
     , metavar "FILEPATH"
     , help "Path to file with secret key."
     ]
+  cli_wcAcidDBPath <- optional $ strOption $ mconcat
+     [ long $ toOptionNameWallet "wcAcidDBPath"
+     , metavar "FilePath"
+     , help "Wallets database path"
+     ]
   pure CLI_WalletConfig {..}
   where
   parseEntropy = fromParsec byte >>= \b -> if b `elem` [16, 20, 24, 28, 32]
@@ -294,11 +305,6 @@ cliCardanoConfigParser = do
 
   cli_configurationOptions <- cliConfigurationOptionsParser
 
-  cli_enableMetrics <- optional $ option auto $ mconcat
-    [ long $ toOptionNameCardano "ccEnableMetrics"
-    , metavar "BOOL"
-    , help "Enable metrics (EKG)."
-    ]
   cli_ekgParams <- optional cliEkgParamsOption
 
   pure CLI_CardanoConfig{..}

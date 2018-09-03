@@ -3,10 +3,10 @@ module Ariadne.Cardano.Knit where
 import Universum hiding (preview)
 
 import Control.Lens hiding (parts)
+import Control.Natural (type (~>))
 import Data.List as List
 import Data.Scientific
 import Formatting (sformat, (%))
-import IiExtras
 import Pos.Core
 import Pos.Core.Txp (TxOut)
 import Pos.Crypto
@@ -115,10 +115,10 @@ instance ComponentDetokenizer Cardano where
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitAddress <$> tok (_Token . uprismElem . _TokenAddress)
-      , toLit . LitPublicKey <$> tok (_Token . uprismElem . _TokenPublicKey)
-      , toLit . LitHash <$> tok (_Token . uprismElem . _TokenHash)
-      , toLit . LitCoin <$> tok (_Token . uprismElem . _TokenCoin . adaPrism)
+      [ toLit . LitAddress <$> tok (_Token . uprism . _TokenAddress)
+      , toLit . LitPublicKey <$> tok (_Token . uprism . _TokenPublicKey)
+      , toLit . LitHash <$> tok (_Token . uprism . _TokenHash)
+      , toLit . LitCoin <$> tok (_Token . uprism . _TokenCoin . adaPrism)
       ]
 
     where

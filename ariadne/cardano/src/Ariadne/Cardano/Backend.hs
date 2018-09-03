@@ -4,11 +4,11 @@ import Universum
 
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Trans.Reader (withReaderT)
+import Control.Natural ((:~>)(..), type (~>))
 import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
-import IiExtras
 import Mockable (Production(..), runProduction)
 import Pos.Context (NodeContext(..))
 import Pos.Core
@@ -52,7 +52,7 @@ createCardanoBackend cardanoConfig bHandle = buildComponent_ "Cardano" $ do
       withCompileInfo $(retrieveCompileTimeInfo) $
       withConfigurations confOpts $ \protocolMagic ->
       return (CardanoFace
-          { cardanoRunCardanoMode = Nat (runCardanoMode cardanoContextVar)
+          { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
           , cardanoConfigurations = Dict
           , cardanoCompileInfo = Dict
           , cardanoGetDiffusion = getDiffusion diffusionVar

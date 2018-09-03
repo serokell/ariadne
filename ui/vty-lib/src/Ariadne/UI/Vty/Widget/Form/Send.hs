@@ -7,7 +7,6 @@ import Universum
 import Control.Lens (assign, at, lens, makeLensesWith, uses, (%=), (.=), (<<+=))
 import Data.Map (Map)
 import Data.Maybe (fromJust)
-import IiExtras
 
 import qualified Brick as B
 import qualified Data.Map as Map
@@ -17,6 +16,7 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Model
@@ -106,7 +106,7 @@ drawSendWidget focus SendWidgetState{..} = do
     drawOutputsHeader = B.hBox
       [ label ""
       , B.padRight B.Max $ B.txt "Address"
-      , padLeft $ B.txt $ fillRight amountWidth $ "Amount, ADA"
+      , padLeft $ B.txt $ fillRight amountWidth $ "Amount"
       , padLeft $ B.txt "     "
       ]
     drawOutput idx = B.hBox

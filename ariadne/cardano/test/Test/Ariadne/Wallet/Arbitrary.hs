@@ -14,4 +14,5 @@ instance Arbitrary WalletConfig where
     arbitrary = do
         wcEntropySize <- elements [16, 20, 24, 28, 32]
         wcKeyfilePath <- genValidString
+        wcAcidDBPath <- genValidString
         return WalletConfig {..}

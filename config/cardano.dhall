@@ -1,6 +1,6 @@
 { configuration-options =
-    { configuration-file = ["cardano-configuration.yaml"] : Optional Text
-    , configuration-key = ["mainnet_full"] : Optional Text
+    { configuration-file = "cardano-configuration.yaml"
+    , configuration-key = "mainnet_full"
     , configuration-seed = [] : Optional Integer
     , system-start = [] : Optional Natural
     }
@@ -9,7 +9,6 @@
 , rebuild-db = False
 , db-path = ["@DATA/db-mainnet"] : Optional Text
 , ekg-params = [] : Optional { IP : Text, PORT : Natural }
-, metrics = False
 , default-port = [+3000] : Optional Natural
 , node-id = ["node0"] : Optional Text
 , topology = [] : Optional Text

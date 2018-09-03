@@ -9,7 +9,6 @@ import Universum
 
 import Control.Lens (makeLensesWith)
 import Formatting
-import IiExtras
 
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -37,6 +36,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.AnsiToHTML
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data Repl =
   Repl

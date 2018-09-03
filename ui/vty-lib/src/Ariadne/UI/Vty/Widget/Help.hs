@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.Help
 import Universum
 
 import Control.Lens (makeLensesWith)
-import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -13,7 +12,9 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 data HelpWidgetState =
   HelpWidgetState
@@ -35,7 +36,7 @@ drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p (B.Widget Wid
 drawHelpWidget HelpWidgetState{..} = do
   widgetName <- getWidgetName
   return $
-    B.viewport widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.cached widgetName $
     B.Widget
       { B.hSize = B.Fixed

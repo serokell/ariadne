@@ -30,6 +30,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (AssuranceLevel, HdAccountId, HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as HD
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
@@ -139,7 +140,7 @@ createWalletHdSeq pw (HasNonemptyPassphrase hasPP) name assuranceLevel esk utxoB
 
 deleteHdWallet :: PassiveWallet
                -> HD.HdRootId
-               -> IO (Either HD.UnknownHdRoot ())
+               -> IO (Either HD.DeleteHdRootError ())
 deleteHdWallet pw rootId = do
     -- STEP 1: Remove the HdRoot via an acid-state transaction which will
     --         also delete any associated accounts and addresses.

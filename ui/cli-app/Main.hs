@@ -2,7 +2,7 @@ module Main where
 
 import Universum
 
-import IiExtras
+import NType (N (..))
 
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
@@ -24,5 +24,5 @@ main = defaultMain mainSettings
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI
         , msKnitFaceToUI = knitFaceToUI
-        , msUiExecContext = const RNil
+        , msUiExecContext = const $ Base ()
         }

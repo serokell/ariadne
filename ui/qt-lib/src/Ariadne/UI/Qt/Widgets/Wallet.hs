@@ -10,7 +10,6 @@ import Universum
 import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
-import IiExtras (postfixLFields)
 import Serokell.Util (enumerate)
 
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
@@ -25,6 +24,7 @@ import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.WalletInfo
 import Ariadne.UI.Qt.Widgets.WalletTree
+import Ariadne.Util
 
 data Wallet =
   Wallet
@@ -84,6 +84,7 @@ data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
+  | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
 
@@ -105,6 +106,9 @@ handleWalletEvent langFace ev = do
     WalletNewWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeNewWalletCommandResult commandId result
+    WalletRestoreWalletCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeRestoreWalletCommandResult commandId result
     WalletNewAccountCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAccountCommandResult commandId result

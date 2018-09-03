@@ -6,7 +6,6 @@ import Universum
 
 import Control.Lens (makeLensesWith, zoom, (+=), (.=))
 import qualified Data.Text as Text
-import IiExtras
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -15,6 +14,7 @@ import Ariadne.UI.Vty.AnsiToVty
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Widget
+import Ariadne.Util
 
 newtype LogMessage = LogMessage Text
 
@@ -45,6 +45,7 @@ drawLogsWidget :: LogsWidgetState -> WidgetDrawM LogsWidgetState p (B.Widget Wid
 drawLogsWidget LogsWidgetState{..} = do
   widgetName <- getWidgetName
   return $
+    (if logsWidgetFollow then id else (B.<+> B.padTop B.Max (B.str " v"))) $
     fixedViewport widgetName B.Both $
     B.cached widgetName $
     B.Widget

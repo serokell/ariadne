@@ -5,16 +5,17 @@ module Ariadne.UI.Vty.Widget.AddWallet
 import Universum
 
 import Control.Lens (assign, makeLensesWith, (.=))
-import IiExtras
 
 import qualified Brick as B
 import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
 import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.Util
 
 ----------------------------------------------------------------------------
 -- Model
@@ -127,7 +128,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
     padBottom = B.padBottom (B.Pad 1)
 
   return $
-    B.viewport widgetName B.Vertical $
+    scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
     padBottom <$>

@@ -25,7 +25,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      ariadne-core
+    , base >=4.7 && <5
     , universum
     , serokell-util
     , text
@@ -40,7 +41,6 @@ library
     , ansi-terminal
     , formatting
     , lens
-    , ii-extras
     , html-entities
     , file-embed
     , bytestring
@@ -53,7 +53,9 @@ library
       Ariadne.UI.Qt.UI
       Ariadne.UI.Qt.MainWindow
       Ariadne.UI.Qt.StyleSheet
+      Ariadne.UI.Qt.Widgets.Dialogs.Delete
       Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
+      Ariadne.UI.Qt.Widgets.Dialogs.Util
       Ariadne.UI.Qt.Widgets.Help
       Ariadne.UI.Qt.Widgets.Logs
       Ariadne.UI.Qt.Widgets.Repl

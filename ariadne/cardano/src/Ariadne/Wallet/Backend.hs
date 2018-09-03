@@ -7,8 +7,8 @@ module Ariadne.Wallet.Backend
 import Universum
 
 import Control.Monad.Component (ComponentM)
+import Control.Natural ((:~>)(..))
 import Data.Constraint (withDict)
-import IiExtras ((:~>)(..))
 import System.Wlog (logMessage, usingLoggerName)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
@@ -40,7 +40,7 @@ createWalletBackend walletConfig sendWalletEvent = do
     pwl <- passiveWalletLayerComponent
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore
-        walletAcidDbPathPlaceholder
+        (wcAcidDBPath walletConfig)
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
         applyHook = const refresh <=< pwlApplyBlocks pwl
@@ -53,7 +53,7 @@ createWalletBackend walletConfig sendWalletEvent = do
 
         mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction)
           where
-            Nat runCardanoMode = cardanoRunCardanoMode
+            NT runCardanoMode = cardanoRunCardanoMode
             withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
             withDicts r =
                 withDict cardanoConfigurations $
@@ -85,10 +85,6 @@ createWalletBackend walletConfig sendWalletEvent = do
             , wpMakeWallet = mkWallet
             }
     return walletPreface
-
--- TODO: Make it configurable
-walletAcidDbPathPlaceholder :: FilePath
-walletAcidDbPathPlaceholder = ".wallet-db"
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be

@@ -8,6 +8,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as Kernel
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import qualified Ariadne.Wallet.Cardano.Kernel.PrefilterTx as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
@@ -45,7 +46,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
     , pwlDeleteWallet
           :: Kernel.HdRootId
-          -> m (Either Kernel.UnknownHdRoot ())
+          -> m (Either Kernel.DeleteHdRootError ())
     -- * accounts
     , pwlCreateAccount
           :: Kernel.HdRootId
@@ -63,7 +64,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           -> m (Either Kernel.UnknownHdAccount Kernel.HdAccount)
     , pwlDeleteAccount
           :: Kernel.HdAccountId
-          -> m (Either Kernel.UnknownHdAccount ())
+          -> m (Either Kernel.DeleteHdAccountError ())
     -- * addresses
     , pwlCreateAddress
           :: PassPhrase

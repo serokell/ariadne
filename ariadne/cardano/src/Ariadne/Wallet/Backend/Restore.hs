@@ -9,6 +9,7 @@ import Universum hiding (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))
+import Control.Natural (type (~>))
 import qualified Data.ByteString as BS
 import Data.List (init)
 import qualified Data.List.NonEmpty as NE
@@ -35,7 +36,6 @@ import Ariadne.Wallet.Cardano.Kernel.Wallets
   (HasNonemptyPassphrase(..), mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
-import IiExtras
 
 newtype WrongMnemonic = WrongMnemonic Text
  deriving (Eq, Show)

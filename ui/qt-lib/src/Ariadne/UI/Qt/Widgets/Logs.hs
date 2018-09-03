@@ -10,7 +10,6 @@ import Universum
 import Formatting
 
 import Control.Lens (makeLensesWith)
-import IiExtras (postfixLFields)
 
 import Graphics.UI.Qtah.Signal (connect_)
 
@@ -24,6 +23,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.AnsiToHTML
 import Ariadne.UI.Qt.UI
+import Ariadne.Util
 
 data Logs =
   Logs

@@ -36,10 +36,10 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Trans.Reader (withReaderT)
 import Control.Monad.Trans.Resource (transResourceT)
+import Control.Natural ((:~>))
 import Crypto.Random (MonadRandom)
 import Data.Conduit (transPipe)
 import Data.Constraint (Dict(..))
-import IiExtras
 import Mockable
   (ChannelT, Counter, Distribution, Gauge, MFunctor', Mockable, Production,
   Promise, SharedAtomicT, SharedExclusiveT, ThreadId, hoist', liftMockable)
@@ -71,6 +71,8 @@ import Pos.Util.UserSecret (HasUserSecret(..), UserSecret, usWallets)
 import Pos.Util.Util (HasLens(..))
 import Pos.WorkMode (EmptyMempoolExt, RealMode, RealModeContext(..))
 import System.Wlog (CanLog, HasLoggerName(..))
+
+import Ariadne.Util
 
 data CardanoStatusUpdate = CardanoStatusUpdate
   { tipHeaderHash :: HeaderHash

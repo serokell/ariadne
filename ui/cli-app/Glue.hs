@@ -21,7 +21,7 @@ import Control.Exception (displayException)
 import Data.Text (pack)
 import Data.Unique
 import Data.Version (Version)
-import IiExtras
+import NType (AllConstrained, KnownSpine)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Cardano.Face

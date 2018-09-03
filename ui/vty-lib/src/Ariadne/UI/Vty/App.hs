@@ -7,7 +7,6 @@ import Universum
 
 import Control.Lens (makeLensesWith, uses, (.=), (%=))
 import Data.Char (toLower)
-import IiExtras
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -31,6 +30,7 @@ import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
 import Ariadne.UI.Vty.Widget.Wallet
+import Ariadne.Util
 
 data AppScreen
   = AppScreenWallet

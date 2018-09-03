@@ -27,7 +27,6 @@ instance Arbitrary CardanoConfig where
         ccLogConfig <- genMaybe genValidString
         ccLogPrefix <- genMaybe genValidString
         ccConfigurationOptions <- genConfigurationOptions
-        ccEnableMetrics <- arbitrary
         ccEkgParams <- genMaybe genEkgParams
         return CardanoConfig {..}
 
