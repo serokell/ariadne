@@ -343,11 +343,11 @@ updateHdAccountName :: HdAccountId
 updateHdAccountName accId name = runUpdate' . zoom dbHdWallets $
     HD.updateHdAccountName accId name
 
-deleteHdRoot :: HdRootId -> Update DB ()
-deleteHdRoot rootId = runUpdateNoErrors . zoom dbHdWallets $
+deleteHdRoot :: HdRootId -> Update DB (Either HD.DeleteHdRootError ())
+deleteHdRoot rootId = runUpdate' . zoom dbHdWallets $
     HD.deleteHdRoot rootId
 
-deleteHdAccount :: HdAccountId -> Update DB (Either UnknownHdRoot ())
+deleteHdAccount :: HdAccountId -> Update DB (Either HD.DeleteHdAccountError ())
 deleteHdAccount accId = runUpdate' . zoom dbHdWallets $
     HD.deleteHdAccount accId
 
