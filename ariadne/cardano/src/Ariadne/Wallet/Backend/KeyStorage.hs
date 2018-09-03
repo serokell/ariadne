@@ -517,7 +517,7 @@ removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
     -- Throw "Nothing selected" here?
     Just selection -> case selection of
       WSRoot hdrId -> do
-        update acidDb (DeleteHdRoot hdrId)
+        throwLeftIO $ update acidDb (DeleteHdRoot hdrId)
         runCardanoMode $ modifySecretDefault (usWallets %= Map.delete (fromRootId hdrId))
         return Nothing
       WSAccount accId -> do
@@ -528,7 +528,6 @@ removeSelection acidDb WalletFace{..} walletSelRef runCardanoMode = do
   where
     fromRootId :: HdRootId -> AddressHash PublicKey
     fromRootId (HdRootId (InDb x)) = x
-
 
 renameSelection
   :: AcidState DB
