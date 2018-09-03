@@ -7,6 +7,7 @@ module Ariadne.Wallet.Cardano.Kernel.Addresses (
 import qualified Prelude
 import Universum
 
+import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
@@ -125,7 +126,7 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
     go :: Word32 -> ExceptT CreateAddressError IO HdAddress
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> throwM $ CreateAddressHdSeqAddressSpaceSaturated accId
+            True  -> throwError $ CreateAddressHdSeqAddressSpaceSaturated accId
             False -> tryGenerateAddress collisions
 
     tryGenerateAddress :: Word32
@@ -134,13 +135,13 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
     tryGenerateAddress collisions = do
         snapshot <- liftIO $ query db Snapshot
 
-        hdAddresses <- eitherToExceptT $
+        hdAddresses <- liftEither $
             bimap
             (\_ -> CreateAddressUnknownHdAccount accId)
             toList
             $ readAddressesByAccountId accId $ snapshot ^. dbHdWallets
 
-        newIndex <- eitherToExceptT $
+        newIndex <- liftEither $
             maybe
             (Left (CreateAddressHdSeqAddressSpaceSaturated accId))
             Right
@@ -156,7 +157,7 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
                                         passphrase
                                         esk
                                         bip44derPath
-        newAddress <- eitherToExceptT $
+        newAddress <- liftEither $
             maybe
             (Left $ CreateAddressHdSeqGenerationFailed accId)
             (Right . fst)
@@ -171,11 +172,8 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
             (Left (CreateHdAddressExists _)) ->
                 go (succ collisions)
             (Left (CreateHdAddressUnknown _)) ->
-                throwM $ CreateAddressUnknownHdAccount accId
+                throwError $ CreateAddressUnknownHdAccount accId
             Right () -> pure hdAddress
-
-    eitherToExceptT :: forall e m a . Monad m => Either e a -> ExceptT e m a
-    eitherToExceptT = ExceptT . pure
 
     db :: AcidState DB
     db = pw ^. wallets

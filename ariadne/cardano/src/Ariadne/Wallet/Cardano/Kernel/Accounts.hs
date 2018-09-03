@@ -9,6 +9,7 @@ module Ariadne.Wallet.Cardano.Kernel.Accounts (
 import qualified Prelude
 import Universum
 
+import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
@@ -95,7 +96,7 @@ createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
     go :: Word32 -> ExceptT CreateAccountError IO HdAccount
     go collisions =
         case collisions >= maxAllowedCollisions of
-            True  -> throwM $ CreateAccountHdSeqAccountSpaceSaturated rootId
+            True  -> throwError $ CreateAccountHdSeqAccountSpaceSaturated rootId
             False -> tryGenerateAccount collisions
 
     tryGenerateAccount :: Word32
@@ -104,13 +105,13 @@ createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
     tryGenerateAccount collisions = do
         snapshot <- liftIO $ query db Snapshot
 
-        hdAccounts <- eitherToExceptT $
+        hdAccounts <- liftEither $
             bimap
             (\_ -> CreateAccountUnknownHdRoot rootId)
             toList
             $ readAccountsByRootId rootId $ snapshot ^. dbHdWallets
 
-        newIndex <- eitherToExceptT $
+        newIndex <- liftEither $
             maybe
             (Left (CreateAccountHdSeqAccountSpaceSaturated rootId))
             Right
@@ -124,11 +125,8 @@ createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
             (Left (CreateHdAccountExists _)) ->
                 go (succ collisions)
             (Left (CreateHdAccountUnknownRoot _)) ->
-                throwM $ CreateAccountUnknownHdRoot rootId
+                throwError $ CreateAccountUnknownHdRoot rootId
             Right newAccount -> pure newAccount
-
-    eitherToExceptT :: forall e m a . Monad m => Either e a -> ExceptT e m a
-    eitherToExceptT = ExceptT . pure
 
     db :: AcidState DB
     db = pw ^. wallets
