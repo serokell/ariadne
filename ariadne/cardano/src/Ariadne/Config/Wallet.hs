@@ -77,10 +77,13 @@ injectWalletConfig = D.InputType {..}
                 D.embed injectByte wcEntropySize)
               , (walletFieldModifier "wcKeyfilePath",
                 D.embed injectFilePath wcKeyfilePath)
+              , (walletFieldModifier "wcAcidDBPath",
+                D.embed injectFilePath wcAcidDBPath)
               ])
 
       declared = Record
         (Map.fromList
           [ (walletFieldModifier "wcEntropySize", D.declared injectByte)
           , (walletFieldModifier "wcKeyfilePath", D.declared injectFilePath)
+          , (walletFieldModifier "wcAcidDBPath", D.declared injectFilePath)
           ])

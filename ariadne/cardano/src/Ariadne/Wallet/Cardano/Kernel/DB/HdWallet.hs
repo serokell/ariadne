@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-
 -- | HD wallets
 module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
     -- * Supporting types

@@ -177,6 +177,7 @@ library
       DeriveFunctor
       DeriveGeneric
       DeriveTraversable
+      DerivingStrategies
       EmptyCase
       FlexibleContexts
       FlexibleInstances
