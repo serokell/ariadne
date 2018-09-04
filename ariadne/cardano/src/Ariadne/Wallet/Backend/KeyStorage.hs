@@ -13,6 +13,8 @@ module Ariadne.Wallet.Backend.KeyStorage
        , getBalance
        , renameSelection
        , removeSelection
+       , checkUnknownKeys
+       , checkWalletsWithoutSecretKey
        , deriveBip44KeyPair
 
          -- * Exceptions
@@ -26,8 +28,10 @@ import qualified Universum.Unsafe as Unsafe (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
+
+import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import Formatting (bprint, int, (%))
+import Formatting (bprint, int, sformat, (%))
 import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Core (mkCoin)
@@ -425,6 +429,31 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
         throwLeftIO $ void <$> pwlUpdateAccountName pwl hdAccId (AccountName name)
 
   walletRefreshState
+
+-- | This function removes unknown keys from key file on startup, if user confirms that.
+checkUnknownKeys
+  :: PassiveWalletLayer IO
+  -> (ConfirmationType -> IO Bool)  -- ^ Asks user permission to delete unknown keys
+  -> IO ()
+checkUnknownKeys pwl confirmation = do
+  unknownRootIds <- pwlGetUnknownKeys pwl
+  unless (null unknownRootIds) $ do
+    let unknownRootIdsText =
+          T.dropEnd 1 . unlines $ sformat hashHexF . _fromDb . getHdRootId <$> unknownRootIds
+    whenM (confirmation $ ConfirmDelUnknownKeys unknownRootIdsText) $
+      pwlRemoveUnknownKeys pwl unknownRootIds
+
+-- | This function removes wallets with missed secret keys, if user confirms that.
+checkWalletsWithoutSecretKey
+  :: PassiveWalletLayer IO
+  -> (ConfirmationType -> IO Bool)  -- ^ Asks user permission to delete such wallets
+  -> IO ()
+checkWalletsWithoutSecretKey pwl confirmation = do
+  (walletNamesWithMissedSecretKeys, rootIDsWithMissedSecretKeys) <- pwlGetWalletsWithoutSecretKeys pwl
+  let walletsWithoutKeysText = unlines $ unWalletName <$> walletNamesWithMissedSecretKeys
+  unless (null rootIDsWithMissedSecretKeys) $ do
+    whenM (confirmation $ ConfirmDelBrokenWallets $ T.dropEnd 1 $ walletsWithoutKeysText) $
+      mapM_ (pwlDeleteWallet pwl) rootIDsWithMissedSecretKeys
 
 {-------------------------------------------------------------------------------
   Utilities

@@ -8,9 +8,8 @@ import qualified Brick as B
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
-import Text.Wrap (WrapSettings (..))
+import Text.Wrap (WrapSettings(..))
 
-import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
@@ -19,14 +18,16 @@ import Ariadne.UI.Vty.Widget.Account (cutAddressHash)
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.List
+import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmSendWidgetState = ConfirmSendWidgetState
-    { confirmSendWidgetUiFace     :: !UiFace
-    , confirmSendWidgetOutputList :: ![UiConfirmSendInfo]
-    , confirmSendWidgetResultVar  :: !(Maybe (MVar Bool))
-    , confirmSendWidgetCheck      :: !Bool
-    , confirmSendWidgetDialog     :: !DialogState
+    { confirmSendWidgetUiFace        :: !UiFace
+    , confirmSendWidgetOutputList    :: ![UiConfirmSendInfo]
+    , confirmSendWidgetResultVar     :: !(Maybe (MVar Bool))
+    , confirmSendWidgetCheck         :: !Bool
+    , confirmSendWidgetDialog        :: !DialogState
+    , confirmSendWidgetDefinitiveMsg :: !Text
     }
 
 makeLensesWith postfixLFields ''ConfirmSendWidgetState
@@ -38,15 +39,16 @@ initConfirmSendWidget uiFace = initWidget $ do
     setWidgetHandleEvent handleConfirmSendWidgetEvent
     setWidgetScrollable
     setWidgetState ConfirmSendWidgetState
-        { confirmSendWidgetUiFace     = uiFace
-        , confirmSendWidgetOutputList = []
-        , confirmSendWidgetResultVar  = Nothing
-        , confirmSendWidgetCheck      = False
-        , confirmSendWidgetDialog     = newDialogState sendHeaderMessage
+        { confirmSendWidgetUiFace        = uiFace
+        , confirmSendWidgetOutputList    = []
+        , confirmSendWidgetResultVar     = Nothing
+        , confirmSendWidgetCheck         = False
+        , confirmSendWidgetDialog        = newDialogState sendHeaderMessage
+        , confirmSendWidgetDefinitiveMsg = sendDefinitiveMessage
         }
 
     addWidgetChild WidgetNameConfirmSendCheck
-        $ initCheckboxWidget sendDefinitiveMessage
+        $ initCheckboxWidget Check (widgetParentLens confirmSendWidgetDefinitiveMsgL)
         $ widgetParentLens confirmSendWidgetCheckL
     addWidgetChild WidgetNameConfirmSendList $
         initListWidget (widgetParentGetter confirmSendWidgetOutputList) transactionLine
@@ -86,7 +88,7 @@ transactionLine focused UiConfirmSendInfo{..}
     | focused = B.withAttr "selected" $ wrapped
     | otherwise = B.Widget B.Greedy B.Fixed renderCut
   where
-    fundsTo = csiAmount <> " " <> csiCoin <> " to: " 
+    fundsTo = csiAmount <> " " <> csiCoin <> " to: "
 
     wrapSetting = WrapSettings {preserveIndentation = True, breakLongWords = True}
     wrapped = B.txtWrapWith wrapSetting $ fundsTo <> "\n  " <> csiAddress

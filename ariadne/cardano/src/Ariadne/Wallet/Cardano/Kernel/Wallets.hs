@@ -3,6 +3,7 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets
        , updateHdWalletName
        , updateHdWalletAssurance
        , deleteHdWallet
+       , removeKeysFromKeystore
        , HasNonemptyPassphrase(..)
        , mkHasPP
        , CreateWithAddress(..)
@@ -189,6 +190,13 @@ deleteHdWallet pw rootId = do
             -- STEP 2: Purge the key from the keystore.
             Keystore.delete (WalletIdHdSeq rootId) (pw ^. walletKeystore)
             return $ Right ()
+
+removeKeysFromKeystore :: PassiveWallet
+                       -> [HD.HdRootId]
+                       -> IO ()
+removeKeysFromKeystore pw rootIds =
+  let keystore = pw ^. walletKeystore
+  in mapM_ (\rootId -> Keystore.delete (WalletIdHdSeq rootId) keystore) rootIds
 
 {-------------------------------------------------------------------------------
   Wallet update

@@ -18,6 +18,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
        , member
        , size
        , getOne
+       , getTheOnly
        , toMap
          -- * Modification
        , updateIxManyM
@@ -41,7 +42,7 @@ import Data.Coerce (coerce)
 import qualified Data.Foldable
 import qualified Data.IxSet.Typed as IxSet
 import qualified Data.Map.Strict as Map
-import Data.SafeCopy (SafeCopy(..))
+import Data.SafeCopy (SafeCopy(..), contain, safeGet, safePut)
 import qualified Data.Set as Set
 import qualified Data.Traversable
 
@@ -84,6 +85,10 @@ instance HasPrimKey a => Ord (OrdByPrimKey a) where
 instance Buildable a => Buildable (OrdByPrimKey a) where
     build (WrapOrdByPrimKey o) = bprint build o
 
+instance (SafeCopy a) => SafeCopy (OrdByPrimKey a) where
+  getCopy = contain $ WrapOrdByPrimKey <$> safeGet
+  putCopy (WrapOrdByPrimKey a) = contain . safePut $ a
+
 {-------------------------------------------------------------------------------
   Wrap IxSet
 -------------------------------------------------------------------------------}
@@ -116,9 +121,9 @@ type IsIndexOf ix a = IxSet.IsIndexOf ix (PrimKey a ': IndicesOf a)
   Safecopy
 -------------------------------------------------------------------------------}
 
-instance SafeCopy a => SafeCopy (IxSet a) where
-  getCopy = error "getCopy for IxSet wrapper"
-  putCopy = error "putCopy for IxSet wrapper"
+instance (Indexable a, SafeCopy a) => SafeCopy (IxSet a) where
+  getCopy =  contain $ WrapIxSet <$> safeGet
+  putCopy (WrapIxSet ixset) = contain . safePut $ ixset
 
 {-------------------------------------------------------------------------------
   Building 'Indexable' instances
@@ -174,6 +179,16 @@ instance Foldable IxSet where
 
 getEQ :: (Indexable a, IsIndexOf ix a) => ix -> IxSet a -> IxSet a
 getEQ ix = WrapIxSet . IxSet.getEQ ix . unwrapIxSet
+
+-- | Returns either element by its index or
+-- index to which several (or zero) elements correspond + those elements
+getTheOnly
+    :: (Indexable a, HasPrimKey a, IsIndexOf ix a) => ix -> IxSet a -> Either (ix, IxSet a) a
+getTheOnly ix ixset =
+    let eqElems = getEQ ix ixset
+    in case getOne eqElems of
+         Just a -> Right a
+         Nothing -> Left (ix, eqElems)
 
 member :: (HasPrimKey a, Indexable a) => PrimKey a -> IxSet a -> Bool
 member pk = isJust . view (Lens.at pk)

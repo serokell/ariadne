@@ -98,6 +98,11 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdRootId
           -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAddress))
 
+    -- | keystore
+    , pwlRemoveUnknownKeys
+          :: [Kernel.HdRootId]
+          -> m ()
+
     -- | core API
     , pwlApplyBlocks
           :: OldestFirst NE Blund
@@ -118,6 +123,12 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlLookupKeystore
           :: Kernel.HdRootId
           -> m (Maybe EncryptedSecretKey)
+
+    -- | Check keyfile.
+    , pwlGetUnknownKeys
+          :: m [Kernel.HdRootId]
+    , pwlGetWalletsWithoutSecretKeys
+          :: m ([Kernel.WalletName], [Kernel.HdRootId])
     }
 
 data ActiveWalletLayer m = ActiveWalletLayer

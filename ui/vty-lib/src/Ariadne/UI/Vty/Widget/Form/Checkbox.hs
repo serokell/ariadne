@@ -1,5 +1,6 @@
 module Ariadne.UI.Vty.Widget.Form.Checkbox
-       ( initCheckboxWidget
+       ( TypeOfCheckField(..)
+       , initCheckboxWidget
        ) where
 
 import Control.Lens (makeLensesWith)
@@ -10,36 +11,44 @@ import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.Util
 
+data TypeOfCheckField = Check | Expand
+
 data CheckboxWidgetState p =
   CheckboxWidgetState
-    { checkboxWidgetTitle :: !Text
-    , checkboxWidgetLens :: !(ReifiedLens' p Bool)
+    { checkboxWidgetTitle :: !(ReifiedLens' p Text)
+    , checkboxWidgetLens  :: !(ReifiedLens' p Bool)
+    , checkBoxWidgetType  :: !TypeOfCheckField
     }
 
 makeLensesWith postfixLFields ''CheckboxWidgetState
 
-initCheckboxWidget :: Text -> Lens' p Bool -> Widget p
-initCheckboxWidget title lens =
+initCheckboxWidget :: TypeOfCheckField -> Lens' p Text -> Lens' p Bool -> Widget p
+initCheckboxWidget typeofCheckField lensTitle lensChecked =
   initWidget $ do
     setWidgetDrawWithFocused drawCheckboxWidget
     setWidgetHandleKey handleCheckboxWidgetKey
     setWidgetHandleMouseDown handleCheckboxWidgetMouseDown
     setWidgetState CheckboxWidgetState
-      { checkboxWidgetTitle = title
-      , checkboxWidgetLens = Lens lens
+      { checkboxWidgetTitle = Lens lensTitle
+      , checkboxWidgetLens = Lens lensChecked
+      , checkBoxWidgetType = typeofCheckField
       }
 
 drawCheckboxWidget :: Bool -> CheckboxWidgetState p -> WidgetDrawM (CheckboxWidgetState p) p WidgetDrawing
 drawCheckboxWidget focused CheckboxWidgetState{..} = do
   widgetName <- getWidgetName
+  title <- viewWidgetLens checkboxWidgetTitle
   checked <- viewWidgetLens checkboxWidgetLens
+  let checkField = case checkBoxWidgetType of
+          Check  -> if checked then "[X] " else "[ ] "
+          Expand -> if checked then "[-] " else "[+] "
   return . singleDrawing $
     B.clickable widgetName $
     (if focused then B.withAttr "selected" else id) $
     B.hBox
-      [ B.txt (if checked then "[X] " else "[ ] ")
-      , B.txtWrap $ checkboxWidgetTitle
-      ]  
+      [ B.txt checkField
+      , B.txtWrap title
+      ]
 
 handleCheckboxWidgetKey
   :: KeyboardEvent

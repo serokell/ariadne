@@ -95,6 +95,8 @@ data ConfirmationType
   | ConfrimRemoveWallet WalletName
   | ConfirmRemoveAccount AccountName
   | ConfirmSend [ConfirmSendInfo]    -- ^ lists of outputs' info
+  | ConfirmDelUnknownKeys Text       -- ^ Unknown RootIDs from Keyfile
+  | ConfirmDelBrokenWallets Text     -- ^ Names of wallets with missing secret keys in keyfile
 
 data ConfirmSendInfo =
   ConfirmSendInfo

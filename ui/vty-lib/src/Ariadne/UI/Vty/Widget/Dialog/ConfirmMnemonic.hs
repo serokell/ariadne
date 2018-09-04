@@ -7,18 +7,21 @@ import qualified Data.Text as T
 
 import qualified Brick as B
 
-import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmMnemonicWidgetState = ConfirmMnemonicWidgetState
     { confirmMnemonicWidgetUiFace            :: !UiFace
     , confirmMnemonicWidgetContent           :: !Text
+    , confirmMnemonicWidgetAppMovedMessage   :: !Text
+    , confirmMnemonicWidgetOnDeviceMessage   :: !Text
+    , confirmMnemonicWidgetNoLooksMessage    :: !Text
     , confirmMnemonicWidgetValue             :: ![Text]
     , confirmMnemonicWidgetConfirmationState :: !ConfirmationState
     , confirmMnemonicWidgetResultVar         :: !(Maybe (MVar Bool))
@@ -43,6 +46,9 @@ initConfirmMnemonicWidget uiFace = initWidget $ do
     setWidgetState ConfirmMnemonicWidgetState
         { confirmMnemonicWidgetUiFace            = uiFace
         , confirmMnemonicWidgetContent           = ""
+        , confirmMnemonicWidgetAppMovedMessage   = mnemonicAppMovedMessage
+        , confirmMnemonicWidgetOnDeviceMessage   = mnemonicOnDeviceMessage
+        , confirmMnemonicWidgetNoLooksMessage    = mnemonicNoLooksMessage
         , confirmMnemonicWidgetValue             = []
         , confirmMnemonicWidgetConfirmationState = Before
         , confirmMnemonicWidgetResultVar         = Nothing
@@ -55,13 +61,13 @@ initConfirmMnemonicWidget uiFace = initWidget $ do
     addWidgetChild WidgetNameConfirmMnemonicInput $
         initEditWidget (widgetParentLens confirmMnemonicWidgetContentL)
     addWidgetChild WidgetNameConfirmMnemonicCheckScreen
-        $ initCheckboxWidget mnemonicNoLooksMessage
+        $ initCheckboxWidget Check (widgetParentLens confirmMnemonicWidgetAppMovedMessageL)
         $ widgetParentLens confirmRemoveWidgetCheckScreenL
     addWidgetChild WidgetNameConfirmMnemonicCheckOnDevice
-        $ initCheckboxWidget mnemonicOnDeviceMessage
+        $ initCheckboxWidget Check (widgetParentLens confirmMnemonicWidgetOnDeviceMessageL)
         $ widgetParentLens confirmRemoveWidgetCheckOnDeviceL
     addWidgetChild WidgetNameConfirmMnemonicCheckMoved
-        $ initCheckboxWidget mnemonicAppMovedMessage
+        $ initCheckboxWidget Check (widgetParentLens confirmMnemonicWidgetNoLooksMessageL)
         $ widgetParentLens confirmRemoveWidgetCheckMovedL
 
     addDialogButton confirmMnemonicWidgetDialogL
@@ -105,12 +111,12 @@ drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
                         , B.vBox
                             [ B.padTopBottom 1 $ B.hBox
                                 [ B.padLeftRight 1 $ B.txt $ mnemonicHeaderMessage
-                                , B.padRight (B.Pad 1) $ 
+                                , B.padRight (B.Pad 1) $
                                   drawChild WidgetNameConfirmMnemonicInput
                                 ]
                             ]
                         ] ++ if words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
-                        then map drawChild 
+                        then map drawChild
                             [ WidgetNameConfirmMnemonicCheckOnDevice
                             , WidgetNameConfirmMnemonicCheckMoved
                             ]
@@ -130,7 +136,7 @@ handleConfirmMnemonicWidgetKey = \case
 performContinue :: WidgetEventM ConfirmMnemonicWidgetState p ()
 performContinue = do
     ConfirmMnemonicWidgetState{..} <- get
-    whenJust confirmMnemonicWidgetResultVar $ \resultVar -> 
+    whenJust confirmMnemonicWidgetResultVar $ \resultVar ->
         case confirmMnemonicWidgetConfirmationState of
             Before -> when confirmRemoveWidgetCheckScreen $ do
                 confirmMnemonicWidgetConfirmationStateL .= DisplayConfirmMnemonic
@@ -171,7 +177,7 @@ updateFocusList = do
             confirmContent <- use confirmMnemonicWidgetContentL
             confirmValue <- use confirmMnemonicWidgetValueL
             return $ if words confirmContent == confirmValue
-                then 
+                then
                     [ WidgetNameConfirmMnemonicInput
                     , WidgetNameConfirmMnemonicCheckOnDevice
                     , WidgetNameConfirmMnemonicCheckMoved

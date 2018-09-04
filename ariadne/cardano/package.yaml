@@ -48,6 +48,7 @@ library:
     - file-embed
     - filelock
     - filepath
+    - fmt
     - formatting
     - http-client
     - http-client-tls

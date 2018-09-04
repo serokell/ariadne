@@ -10,6 +10,8 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Util
        , createCheckBoxWithLabel
        , createPasswordField
        , createRowLayout
+       , createToolButton
+       , createToolButtonWithLabel
        , onEventType
        ) where
 
@@ -33,6 +35,7 @@ import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
+import qualified Graphics.UI.Qtah.Widgets.QToolButton as QToolButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
@@ -144,6 +147,34 @@ createCheckBox layout checkBoxPos labelText = do
   QBoxLayout.addLayout layout checkBoxLayout
 
   return checkBox
+
+createToolButtonWithLabel :: Text -> IO (QToolButton.QToolButton, QLabel.QLabel)
+createToolButtonWithLabel labelText = do
+  toolButton <- QToolButton.new
+  QWidget.setSizePolicyRaw toolButton Maximum Maximum
+  toolButtonLabel <- QLabel.newWithText $ toString labelText
+  QLabel.setWordWrap toolButtonLabel True
+
+  void $ Event.onEvent toolButtonLabel $
+    \(ev :: QMouseEvent.QMouseEvent) -> do
+      eventType <- QEvent.eventType ev
+      if eventType == QEvent.MouseButtonRelease
+        then QAbstractButton.toggle toolButton $> True
+        else return False
+  return (toolButton, toolButtonLabel)
+
+createToolButton
+  :: QVBoxLayout.QVBoxLayout
+  -> Text
+  -> IO QToolButton.QToolButton
+createToolButton layout labelText = do
+  (toolButton, toolButtonLabel) <- createToolButtonWithLabel labelText
+  QWidget.setMinimumSizeRaw toolButtonLabel 600 30
+  toolButtonLayout <- QHBoxLayout.new
+  QBoxLayout.addWidget toolButtonLayout toolButton
+  QBoxLayout.addWidget toolButtonLayout toolButtonLabel
+  QBoxLayout.addLayout layout toolButtonLayout
+  return toolButton
 
 createPasswordField :: Text -> IO (QHBoxLayout.QHBoxLayout, QLineEdit.QLineEdit)
 createPasswordField placeholder = do

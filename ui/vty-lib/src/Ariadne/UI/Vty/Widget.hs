@@ -141,6 +141,7 @@ data WidgetNamePart
 
   | WidgetNameConfirmRemove
   | WidgetNameConfirmRemoveCheck
+  | WidgetNameConfirmRemoveKeysExpand
   | WidgetNameConfirmRemoveName
   | WidgetNameConfirmRemoveContinue
   | WidgetNameConfirmRemoveCancel

@@ -27,6 +27,7 @@ data AddWalletWidgetState =
     , addWalletNewResult :: !NewResult
 
     , addWalletRestoreName :: !Text
+    , addWalletRestoreFullFieldName :: !Text
     , addWalletRestoreMnemonic :: !Text
     , addWalletRestorePass :: !Text
     , addWalletRestoreResult :: !RestoreResult
@@ -62,6 +63,7 @@ initAddWalletWidget langFace features =
       , addWalletNewResult = NewResultNone
 
       , addWalletRestoreName = ""
+      , addWalletRestoreFullFieldName = "Full restoration (find all used addresses)"
       , addWalletRestoreMnemonic = ""
       , addWalletRestorePass = ""
       , addWalletRestoreResult = RestoreResultNone

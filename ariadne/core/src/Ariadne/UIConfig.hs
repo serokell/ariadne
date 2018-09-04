@@ -17,12 +17,24 @@ module Ariadne.UIConfig
        , deleteSureMkMessage
        , deleteSureMessage
        , deleteRetypeMkMessage
+       , expandingMessageRemovingKeys
+       , expandingMessageRemovingWallets
        , sendHeaderMessage
        , sendDefinitiveMessage
        , sendListMessage
        , passwordHeaderMessage
        , passwordUseOneMessage
        , passwordLabelMessage
+       , rmUnkownKeysHeaderMessage
+       , rmUnknownKeysIntroMessage
+       , rmUnknownKeysSureMessage
+       , rmUnknownKeysRetypeConfirm
+       , rmUnknownKeysRetypeMkMessage
+       , rmBrokenWalletsHeaderMessage
+       , rmBrokenWalletsIntroMkMessage
+       , rmBrokenWalletDelSureMessage
+       , rmBrokenWltRetypeMkMessage
+       , rmBrokenRetypeConfirm
        ) where
 
 import Formatting
@@ -97,6 +109,47 @@ deleteRetypeMkMessage :: Format Text (delItem -> Text) -> delItem -> Text
 deleteRetypeMkMessage itemTypeFormat itemType = sformat
     ("Type " % itemTypeFormat % " name to confirm deletion") itemType
 
+rmUnkownKeysHeaderMessage :: Text
+rmUnkownKeysHeaderMessage = "Remove unknown keys"
+
+rmUnknownKeysSureMessage :: Text
+rmUnknownKeysSureMessage = "Make sure that you don't need keys from keyfile \
+    \(It is not a backup, for example). Those keys will be deleted."
+
+rmUnknownKeysIntroMessage :: Text
+rmUnknownKeysIntroMessage= "There are keys that don't \
+    \correspond to any known wallet.\nDo you want to delete them?"
+
+rmUnknownKeysRetypeMkMessage :: Text -> Text
+rmUnknownKeysRetypeMkMessage typeMsg = "Please, write " <> typeMsg <> " if you are sure."
+
+rmUnknownKeysRetypeConfirm :: Text
+rmUnknownKeysRetypeConfirm = "\"Yes\""
+
+expandingMessageRemovingKeys :: Text
+expandingMessageRemovingKeys = "List of unknown secret keys"
+
+rmBrokenWalletsHeaderMessage :: Text
+rmBrokenWalletsHeaderMessage = "Remove wallets with missing secret keys"
+
+rmBrokenWalletsIntroMkMessage :: Text
+rmBrokenWalletsIntroMkMessage = "There are wallets without corresponding secret key \
+    \in keyfile. Without secret keys you can do almost nothing with such wallets. \
+    \Do you want to delete them?"
+
+rmBrokenWalletDelSureMessage :: Text
+rmBrokenWalletDelSureMessage = "Make sure that you don't have secret keys or can restore \
+    \wallets from mnemonic."
+
+rmBrokenWltRetypeMkMessage :: Text -> Text
+rmBrokenWltRetypeMkMessage typeMsg = "Please, write " <> typeMsg <> " if you are sure."
+
+rmBrokenRetypeConfirm :: Text
+rmBrokenRetypeConfirm = "\"Yes\""
+
+expandingMessageRemovingWallets :: Text
+expandingMessageRemovingWallets = "List of wallets with missing secret keys"
+
 sendHeaderMessage :: Text
 sendHeaderMessage = "Confirm Transaction"
 
@@ -116,3 +169,4 @@ passwordUseOneMessage = "Activate to use a password."
 
 passwordLabelMessage :: Text
 passwordLabelMessage = "Password"
+

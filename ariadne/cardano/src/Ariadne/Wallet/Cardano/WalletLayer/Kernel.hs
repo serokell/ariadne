@@ -22,13 +22,17 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
+
 import qualified Ariadne.Wallet.Cardano.Kernel.Restore as Kernel
+
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
+import Ariadne.Wallet.Cardano.Kernel.Consistency
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
+
 import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..))
@@ -163,6 +167,11 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $
                 Keystore.lookup (WalletIdHdSeq hdrId) (wallet ^. Kernel.walletKeystore)
+            , pwlRemoveUnknownKeys     = \rootIds -> liftIO $
+                Kernel.removeKeysFromKeystore wallet rootIds
+            , pwlGetUnknownKeys        = getUnknownKeys wallet keystore
+            , pwlGetWalletsWithoutSecretKeys =  getUnknownWallets wallet keystore
+
             }
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified
@@ -195,3 +204,4 @@ activeWalletLayerComponent pwl pw = do
         , awlNewPending      = \hdAccId tx ->
             liftIO $ Kernel.newPending aw hdAccId tx
         }
+

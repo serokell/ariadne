@@ -17,6 +17,7 @@ module Ariadne.Wallet.Cardano.Kernel.Keystore
        , lookup
        -- * Conversions
        , toList
+       , toMap
        -- * Tests handy functions
        , bracketTestKeystore
        ) where
@@ -174,12 +175,15 @@ delete walletId (Keystore mstorage fp) = do
 
 -- | Returns all the 'EncryptedSecretKey' known to this 'Keystore'.
 toList :: Keystore -> IO [(WalletId, EncryptedSecretKey)]
-toList (Keystore mstorage _) =
+toList keystore = Map.toList <$> toMap keystore
+
+toMap :: Keystore -> IO (Map WalletId EncryptedSecretKey)
+toMap (Keystore mstorage _) =
     withMVar mstorage $ \istorage ->
-        pure $ map (first hashPubKeyToWalletId) $ toPairs $ istorage ^. isWallets
-  where
-    hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
-    hashPubKeyToWalletId = WalletIdHdSeq . HdRootId . InDb
+      pure $ Map.mapKeys hashPubKeyToWalletId $ istorage ^. isWallets
+
+hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
+hashPubKeyToWalletId = WalletIdHdSeq . HdRootId . InDb
 
 {-------------------------------------------------------------------------------
   Utilities

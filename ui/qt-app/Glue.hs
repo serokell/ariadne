@@ -302,6 +302,10 @@ walletEventToUI = \case
       ConfirmRemoveAccount accountName ->
           UiConfirmRemove $ UiDelAccount $ Just $ unAccountName accountName
       ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
+      ConfirmDelUnknownKeys unknownKeys -> UiConfirmRemove $ UiDelUnknownKeys unknownKeys
+      ConfirmDelBrokenWallets walletsWithMissingKeys
+        -> UiConfirmRemove $ UiDelBrokenWallets walletsWithMissingKeys
+
 
 toUiConfirmSendInfo :: ConfirmSendInfo -> UiConfirmSendInfo
 toUiConfirmSendInfo ConfirmSendInfo{..} = UiConfirmSendInfo {..}

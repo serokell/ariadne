@@ -3,6 +3,9 @@ module Ariadne.UI.Vty.Widget.Dialog.Utils
        , newDialogState
        , addDialogButton
        , drawInsideDialog
+
+       --- Lenses
+       , dialogLabelL
        ) where
 
 import qualified Brick as B

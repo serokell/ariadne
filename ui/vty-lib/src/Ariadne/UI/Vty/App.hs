@@ -155,9 +155,9 @@ resetAppFocus = do
     NoModal -> appFocusList <$> get
     PasswordMode -> return [WidgetNamePassword]
     ConfirmationMode confirmationType -> case confirmationType of
-      UiConfirmMnemonic _ -> return [WidgetNameConfirmMnemonic]
-      UiConfirmRemove _   -> return [WidgetNameConfirmRemove]
-      UiConfirmSend _     -> return [WidgetNameConfirmSend]
+      UiConfirmMnemonic _   -> return [WidgetNameConfirmMnemonic]
+      UiConfirmRemove _     -> return [WidgetNameConfirmRemove]
+      UiConfirmSend _       -> return [WidgetNameConfirmSend]
 
 setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
 setAppFocus focus = do
@@ -310,7 +310,7 @@ handleAppEvent brickEvent = do
               UiConfirmMnemonic _ -> [WidgetNameConfirmMnemonic]
               UiConfirmRemove _   -> [WidgetNameConfirmRemove]
               UiConfirmSend _     -> [WidgetNameConfirmSend]
-      
+
       when (modalName `isPrefixOf` name) $ case button of
         V.BScrollUp -> void $ runHandler $ handleWidgetScroll ScrollingLineUp name
         V.BScrollDown -> void $ runHandler $ handleWidgetScroll ScrollingLineDown name

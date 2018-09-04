@@ -180,6 +180,8 @@ data UiConfirmSendInfo =
 data UiDeletingItem
   = UiDelWallet (Maybe Text)
   | UiDelAccount (Maybe Text)
+  | UiDelUnknownKeys Text
+  | UiDelBrokenWallets Text
   deriving Eq
 
 -- | Ui event to handle backend exceptions

@@ -3,25 +3,30 @@ module Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
     ) where
 
 import Control.Lens (makeLensesWith, (.=))
+import qualified Data.Text as T
 import Formatting
 
 import qualified Brick as B
 
-import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
+import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
-    { confirmRemoveWidgetUiFace     :: !UiFace
-    , confirmRemoveWidgetDelRequest :: !(Maybe DeleteRequest)
-    , confirmRemoveWidgetCheck      :: !Bool
-    , confirmRemoveWidgetName       :: !Text
-    , confirmRemoveWidgetDialog     :: !DialogState
+    { confirmRemoveWidgetUiFace           :: !UiFace
+    , confirmRemoveWidgetDelRequest       :: !(Maybe DeleteRequest)
+    , confirmRemoveWidgetCheck            :: !Bool
+    , confirmRemoveWidgetShowDeletingObjs :: !Bool
+    , confirmRemoveWidgetName             :: !Text
+    , confirmRemoveWidgetExpandTitle      :: !Text
+    , confirmRemoveWidgetCheckTitle       :: !Text
+    , confirmRemoveWidgetDialog           :: !DialogState
     }
 
 data DeleteRequest = DeleteRequest
@@ -29,26 +34,69 @@ data DeleteRequest = DeleteRequest
     , requestDelItem   :: !UiDeletingItem
     }
 
+data MessagesOnDelWidget =
+  MessagesOnDelWidget
+    { header          :: !Text
+    , intro           :: !Text
+    , isSureMessage   :: !Text
+    , reTypeMessage   :: !Text
+    , expandingMessge :: !Text
+    , confirmMsg      :: !Text
+    }
+
 makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
+
+
+makeMessages :: UiDeletingItem -> MessagesOnDelWidget
+makeMessages (UiDelUnknownKeys _) =
+  let header = rmUnkownKeysHeaderMessage
+      intro = rmUnknownKeysIntroMessage
+      expandingMessge = expandingMessageRemovingKeys
+      isSureMessage = rmUnknownKeysSureMessage
+      reTypeMessage = rmUnknownKeysRetypeMkMessage rmUnknownKeysRetypeConfirm
+      confirmMsg = rmUnknownKeysRetypeConfirm
+  in MessagesOnDelWidget{..}
+makeMessages (UiDelBrokenWallets _) =
+  let header = rmBrokenWalletsHeaderMessage
+      intro = rmBrokenWalletsIntroMkMessage
+      expandingMessge = expandingMessageRemovingWallets
+      isSureMessage = rmBrokenWalletDelSureMessage
+      reTypeMessage = rmBrokenWltRetypeMkMessage rmBrokenRetypeConfirm
+      confirmMsg = rmBrokenRetypeConfirm
+  in MessagesOnDelWidget{..}
+makeMessages itemType =
+  let header = T.toUpper $ deleteHeaderMkMessage itemTypeFormat itemType
+      itemName = delItemName itemType
+      intro = deleteIntroMkMessage itemTypeFormat itemName itemType
+      expandingMessge = ""
+      isSureMessage = deleteSureMkMessage itemTypeFormat itemType
+      reTypeMessage = deleteRetypeMkMessage itemTypeFormat itemType
+      confirmMsg = itemName
+  in MessagesOnDelWidget{..}
 
 initConfirmRemoveWidget :: UiFace -> Widget p
 initConfirmRemoveWidget uiFace = initWidget $ do
     setWidgetDrawWithFocus drawConfirmRemoveWidget
     setWidgetHandleKey handleConfirmRemoveWidgetKey
     setWidgetHandleEvent handleConfirmRemoveWidgetEvent
+    setWidgetScrollable
     setWidgetState ConfirmRemoveWidgetState
-        { confirmRemoveWidgetUiFace     = uiFace
-        , confirmRemoveWidgetDelRequest = Nothing
-        , confirmRemoveWidgetCheck      = False
-        , confirmRemoveWidgetName       = ""
-        , confirmRemoveWidgetDialog     = newDialogState deleteHeaderMessage
+        { confirmRemoveWidgetUiFace           = uiFace
+        , confirmRemoveWidgetDelRequest       = Nothing
+        , confirmRemoveWidgetCheck            = False
+        , confirmRemoveWidgetShowDeletingObjs = False
+        , confirmRemoveWidgetName             = ""
+        , confirmRemoveWidgetExpandTitle      = ""
+        , confirmRemoveWidgetCheckTitle       = ""
+        , confirmRemoveWidgetDialog           = newDialogState deleteHeaderMessage
         }
-    
-    addWidgetChild WidgetNameConfirmRemoveCheck
-        $ initCheckboxWidget deleteSureMessage
-        $ widgetParentLens confirmRemoveWidgetCheckL
+
     addWidgetChild WidgetNameConfirmRemoveName $ initEditWidget $
         widgetParentLens confirmRemoveWidgetNameL
+
+    addWidgetChild WidgetNameConfirmRemoveCheck
+        $ initCheckboxWidget Check (widgetParentLens confirmRemoveWidgetCheckTitleL)
+        $ widgetParentLens confirmRemoveWidgetCheckL
 
     addDialogButton confirmRemoveWidgetDialogL
         WidgetNameConfirmRemoveContinue "Delete" performContinue
@@ -59,11 +107,9 @@ initConfirmRemoveWidget uiFace = initWidget $ do
         WidgetEventCheckboxToggled -> updateFocusList
         _ -> pass
 
-    setWidgetFocusList
-        [ WidgetNameConfirmRemoveCheck
-        , WidgetNameConfirmRemoveCancel
-        , WidgetNameConfirmRemoveContinue
-        ]
+    addWidgetEventHandler WidgetNameConfirmRemoveKeysExpand $ \case
+        WidgetEventCheckboxToggled -> updateFocusList
+        _ -> pass
 
 drawConfirmRemoveWidget
     :: WidgetName
@@ -73,18 +119,32 @@ drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
     case confirmRemoveWidgetDelRequest of
         Nothing -> return $ singleDrawing B.emptyWidget
         Just DeleteRequest {..} -> do
+            let MessagesOnDelWidget{..} = makeMessages requestDelItem
             widget <- ask
+            widgetName <- getWidgetName
             let drawChild = last . drawWidgetChild focus widget
-                itemName = delItemName requestDelItem
                 hasNameToConfirm = isJust $ itemNameToConfirm requestDelItem
+                delOnStartupObjectsWidget = case requestDelItem of
+                    UiDelUnknownKeys unknownRootIDs -> B.vBox $
+                      [ drawChild WidgetNameConfirmRemoveKeysExpand
+                      , showDelOnStartupObjects unknownRootIDs
+                      ]
+                    UiDelBrokenWallets walletsWOSecretKeys -> B.vBox $
+                      [ drawChild WidgetNameConfirmRemoveKeysExpand
+                      , showDelOnStartupObjects walletsWOSecretKeys
+                      ]
+                    _ -> B.emptyWidget
+                showDelOnStartupObjects toDeleteObjectsTxt = B.padLeftRight 4 $
+                      if confirmRemoveWidgetShowDeletingObjs
+                      then scrollingViewport widgetName B.Vertical $ B.txtWrap toDeleteObjectsTxt
+                      else B.emptyWidget
             drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
-                [ B.padTopBottom 1 . B.txtWrap $
-                  deleteIntroMkMessage itemTypeFormat itemName requestDelItem
+                [ B.padTopBottom 1 . B.txtWrap $ intro
+                , delOnStartupObjectsWidget
                 , drawChild WidgetNameConfirmRemoveCheck
                 , if confirmRemoveWidgetCheck && hasNameToConfirm
                   then B.padTopBottom 1 $ B.hBox
-                    [ B.padLeftRight 2 . B.txtWrap $
-                      deleteRetypeMkMessage itemTypeFormat requestDelItem
+                    [ B.padLeftRight 2 . B.txtWrap $ reTypeMessage
                     , drawChild WidgetNameConfirmRemoveName
                     ]
                   else B.emptyWidget
@@ -94,11 +154,15 @@ itemTypeFormat :: Format r (UiDeletingItem -> r)
 itemTypeFormat = later $ \case
     UiDelWallet _  -> "wallet"
     UiDelAccount _ -> "account"
+    UiDelUnknownKeys _ -> "keys"
+    UiDelBrokenWallets _ -> "wallets"
 
 -- no confirm is requested for an account (or something with no name)
 itemNameToConfirm :: UiDeletingItem -> Maybe Text
 itemNameToConfirm = \case
     UiDelWallet maybeName -> maybeName
+    UiDelUnknownKeys _ -> Just "Yes"
+    UiDelBrokenWallets _ -> Just "Yes"
     _ -> Nothing
 
 -- only for rendering, gives back "this" if it doesn't know any better
@@ -106,6 +170,8 @@ delItemName :: UiDeletingItem -> Text
 delItemName delItem = fromMaybe "this" $ case delItem of
     UiDelWallet maybeName -> maybeName
     UiDelAccount maybeName -> maybeName
+    UiDelUnknownKeys _ -> Just "unknown keys"
+    UiDelBrokenWallets _ -> Just "broken wallets"
 
 handleConfirmRemoveWidgetKey
     :: KeyboardEvent
@@ -137,24 +203,33 @@ closeDialog = do
     confirmRemoveWidgetDelRequestL .= Nothing
     confirmRemoveWidgetCheckL .= False
     confirmRemoveWidgetNameL .= ""
+    confirmRemoveWidgetShowDeletingObjsL .= False
 
 updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
 updateFocusList = do
     removeCheck <- use confirmRemoveWidgetCheckL
-    delRequest <- use confirmRemoveWidgetDelRequestL
-    let nameToConfirm = itemNameToConfirm . requestDelItem <$> delRequest
+    deleteRequest <- use confirmRemoveWidgetDelRequestL
+    let deleteItem = requestDelItem <$> deleteRequest
+    let nameToConfirm = itemNameToConfirm =<< deleteItem
     lift . setWidgetFocusList $
-        if removeCheck && isJust nameToConfirm
-        then 
-            [ WidgetNameConfirmRemoveCheck
-            , WidgetNameConfirmRemoveName
-            ] <> dialogButtons
-        else WidgetNameConfirmRemoveCheck : dialogButtons
-  where
-    dialogButtons =
-        [ WidgetNameConfirmRemoveCancel
-        , WidgetNameConfirmRemoveContinue
-        ]
+        focusList deleteItem (removeCheck && isJust nameToConfirm)
+
+focusList :: Maybe UiDeletingItem -> Bool -> [WidgetNamePart]
+focusList deleteItemM removeCheck =
+    let startWidgetsBase = [ WidgetNameConfirmRemoveKeysExpand, WidgetNameConfirmRemoveCheck]
+        mainWidgetPart deleteItem = case deleteItem of
+            (UiDelUnknownKeys _) -> startWidgetsBase
+            (UiDelBrokenWallets _) -> startWidgetsBase
+            _  -> [WidgetNameConfirmRemoveCheck]
+        endWidgetPart =
+            bool dialogButtons (WidgetNameConfirmRemoveName : dialogButtons) removeCheck
+        dialogButtons =
+            [ WidgetNameConfirmRemoveCancel
+            , WidgetNameConfirmRemoveContinue
+            ]
+    in case deleteItemM of
+        Just deleteItem -> mainWidgetPart deleteItem <> endWidgetPart
+        Nothing -> []
 
 handleConfirmRemoveWidgetEvent
     :: UiEvent
@@ -162,5 +237,23 @@ handleConfirmRemoveWidgetEvent
 handleConfirmRemoveWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
         confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
+        let msgs = makeMessages requestDelItem
+        confirmRemoveWidgetDialogL . dialogLabelL .= header msgs
+        confirmRemoveWidgetCheckTitleL .= isSureMessage msgs
+        case requestDelItem of
+            UiDelUnknownKeys _ -> confirmRemoveWidgetExpandTitleL .= expandingMessge msgs
+            UiDelBrokenWallets _ -> confirmRemoveWidgetExpandTitleL .= expandingMessge msgs
+            _ -> pass
+        -- Adding Checkbox widget here to make the label dependent on deleted item.
+        lift $ case requestDelItem of
+                  (UiDelUnknownKeys _) -> do
+                        addWidgetChild WidgetNameConfirmRemoveKeysExpand
+                            $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
+                            $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
+                  (UiDelBrokenWallets _) -> do
+                        addWidgetChild WidgetNameConfirmRemoveKeysExpand
+                            $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
+                            $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
+                  _ -> pass
         updateFocusList
     _ -> pass

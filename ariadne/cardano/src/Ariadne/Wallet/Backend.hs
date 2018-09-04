@@ -30,7 +30,7 @@ import Ariadne.Wallet.Face
 -- | This is what we create initially, before actually creating 'WalletFace'.
 data WalletPreface = WalletPreface
     { wpBListener :: !BListenerHandle
-    , wpMakeWallet :: !((Doc -> IO ()) -> WalletFace, IO ())
+    , wpMakeWallet :: !((Doc -> IO ()) -> WalletFace, IO (), IO ())
     }
 
 createWalletBackend
@@ -92,7 +92,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             sendWalletEvent $ WalletRequireConfirm mVar confirmType
             takeMVar mVar
 
-        mkWallet = (mkWalletFace, initWalletAction)
+        mkWallet = (mkWalletFace, initWalletAction, postInitAction)
           where
             NT runCardanoMode = cardanoRunCardanoMode cardanoFace
             withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
@@ -119,8 +119,11 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 , walletBalance = getBalance pwl walletSelRef
                 , walletSumCoins = \amounts -> return $ unsafeIntegerToCoin $ sumCoins amounts
                 }
-            initWalletAction =
-                refreshState pwl walletSelRef sendWalletEvent
+            initWalletAction = refreshState pwl walletSelRef sendWalletEvent
+
+            postInitAction = do
+                checkUnknownKeys pwl waitUiConfirm
+                checkWalletsWithoutSecretKey pwl waitUiConfirm
 
         walletPreface = WalletPreface
             { wpBListener = bListenerHandle

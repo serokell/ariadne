@@ -92,7 +92,7 @@ addWalletClicked UiLangFace{..} _uiWalletFace WalletTree{..} _checked =
 data WalletTreeEvent
   = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletTreeRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
-  | WalletTreeConfirmMnemonic (MVar Bool) [Text] 
+  | WalletTreeConfirmMnemonic (MVar Bool) [Text]
 
 handleWalletTreeEvent
   :: UiLangFace
@@ -111,7 +111,7 @@ handleWalletTreeEvent UiLangFace{..} ev = do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet restored" :: String)
       UiRestoreWalletCommandFailure err -> do
         void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
-    WalletTreeConfirmMnemonic resultVar mnemonic -> do 
+    WalletTreeConfirmMnemonic resultVar mnemonic -> do
       liftIO $ runConfirmMnemonic mnemonic >>= \case
         ConfirmMnemonicSuccess -> putMVar resultVar True
         ConfirmMnemonicFailure -> do
