@@ -68,6 +68,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     { langPutCommand = putCommand commandHandle
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
+    , langAutocomplete = ([(<> " option A"), (<> " option B")] <*>) . pure
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans

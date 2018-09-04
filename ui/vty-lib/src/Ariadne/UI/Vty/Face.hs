@@ -79,6 +79,7 @@ data UiLangFace = forall err expr. UiLangFace
   { langPutCommand :: expr -> IO UiCommandId
   , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
+  , langAutocomplete :: Text -> [Text]
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]

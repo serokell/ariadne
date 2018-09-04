@@ -2,7 +2,8 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Universum
+import Universum hiding (head, tail)
+import Universum.Unsafe (head, tail)
 
 import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
 import Named
@@ -44,6 +45,7 @@ data ReplWidgetState p =
     , replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
+    , replWidgetCurrentAutocompletion :: !(Maybe [Text])
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
     , replWidgetFullsizeGetter :: !(p -> Bool)
@@ -63,6 +65,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       , replWidgetLangFace = langFace
       , replWidgetHistoryFace = historyFace
       , replWidgetCommand = ""
+      , replWidgetCurrentAutocompletion = Nothing
       , replWidgetParseResult = mkReplParseResult langFace ""
       , replWidgetOut = [OutputInfo ariadneBanner]
       , replWidgetFullsizeGetter = fullsizeGetter
@@ -74,6 +77,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
     addWidgetEventHandler WidgetNameReplInput $ \case
       WidgetEventEditChanged -> do
         reparse
+        replWidgetCurrentAutocompletionL .= Nothing
         historyUpdate
       _ -> return ()
 
@@ -186,6 +190,20 @@ handleReplWidgetKey = \case
           replWidgetCommandL .= ""
           reparse
           return WidgetEventHandled
+    KeyAutocomplete -> do
+      ReplWidgetState{..} <- get
+      options <- case replWidgetCurrentAutocompletion of
+        Nothing -> do
+          let options = tail $ cycle
+                $ replWidgetCommand : langAutocomplete replWidgetLangFace replWidgetCommand
+          zoom replWidgetCurrentAutocompletionL $ put $ Just options
+          pure options
+        Just options -> pure options
+      let nextOption = head options
+      zoom replWidgetCurrentAutocompletionL $ put $ Just $ tail options
+      zoom replWidgetCommandL $ put nextOption
+      reparse
+      return WidgetEventHandled
     KeyEnter -> do
       ReplWidgetState{..} <- get
       if
