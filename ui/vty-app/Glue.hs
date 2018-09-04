@@ -24,7 +24,7 @@ import Universum
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
-import Data.Text (pack)
+import qualified Data.Text as T
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
@@ -55,6 +55,7 @@ knitFaceToUI
      , AllConstrained (Knit.ComponentTokenizer components) components
      , AllConstrained (Knit.ComponentLitGrammar components) components
      , AllConstrained (Knit.ComponentInflate components) components
+     , AllConstrained (Knit.ComponentCommandProcs components) components
      , AllConstrained Knit.ComponentPrinter components
      , Elem components Knit.Core
      , Elem components Knit.Cardano
@@ -68,7 +69,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     { langPutCommand = putCommand commandHandle
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
-    , langAutocomplete = ([(<> " option A"), (<> " option B")] <*>) . pure
+    , langAutocomplete = autocomplete
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
@@ -94,6 +95,19 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       , putCommandOutput = \_ _ ->
           return ()
       }
+
+    commands :: [Text]
+    commands =
+        let
+            names = map (\(Knit.SomeCommandProc p) -> Knit.cpName p) (Knit.commandProcs @components)
+            toCommand = \case
+                Knit.CommandIdName n -> Just $ pretty n
+                Knit.CommandIdOperator _ -> Nothing
+        in
+            mapMaybe toCommand names
+
+    autocomplete :: Text -> [Text]
+    autocomplete c = filter (T.isPrefixOf c) commands
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
 
@@ -193,7 +207,7 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdTaskIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> T.pack $ '<' : show i ++ ">") mi
     , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 
