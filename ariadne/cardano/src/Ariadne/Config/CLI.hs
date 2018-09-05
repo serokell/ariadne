@@ -29,7 +29,8 @@ import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
-  (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
+  (XdgDirectory(..), createDirectoryIfMissing, doesFileExist,
+  getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
@@ -37,7 +38,8 @@ import Ariadne.Config.Ariadne
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.History (hcPathL)
-import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier, wcAcidDBPathL)
+import Ariadne.Config.Wallet
+  (WalletConfig(..), walletFieldModifier, wcAcidDBPathL)
 import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
@@ -163,6 +165,9 @@ getConfig commitHash = do
     (fromDhall @AriadneConfig $ toDhallImport configPath)
     (do
       putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
+      -- If default config is used we create data directory because
+      -- all data is put there.
+      createDirectoryIfMissing True xdgDataPath
       return (defaultAriadneConfig xdgDataPath))
 
   let config = resolvePaths unresolvedConfig configPath configDirs
@@ -184,8 +189,8 @@ getConfig commitHash = do
           ccConfigurationOptionsL.cfoFilePathL %= resolve_
         zoom acHistoryL $ do
           hcPathL %= resolve_
-        zoom acWalletL $ do 
-          wcAcidDBPathL %= resolve_ 
+        zoom acWalletL $ do
+          wcAcidDBPathL %= resolve_
 
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
@@ -244,7 +249,7 @@ cliWalletParser = do
      , metavar "BYTE"
      , help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
      ]
-  cli_wcAcidDBPath <- optional $ strOption $ mconcat 
+  cli_wcAcidDBPath <- optional $ strOption $ mconcat
      [ long $ toOptionNameWallet "wcAcidDBPath"
      , metavar "FilePath"
      , help "Wallets database path"
