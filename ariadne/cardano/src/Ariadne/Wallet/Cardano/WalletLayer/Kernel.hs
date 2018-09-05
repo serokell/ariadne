@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables, TypeApplications #-}
-
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
     ( passiveWalletLayerComponent
     , passiveWalletLayerWithDBComponent

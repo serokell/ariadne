@@ -84,25 +84,30 @@ createHdWallet :: PassiveWallet
              -- ^ Initial utxo for the new wallet.
              -> IO (Either CreateWalletError HdRoot)
 createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAccount = do
-    -- STEP 1: Atomically generate the wallet and the initial internal structure in
-    -- an acid-state transaction.
+    -- STEP 1: Insert the 'EncryptedSecretKey' into the 'Keystore'
     let newRootId = HD.eskToHdRootId esk
-    res <- createWalletHdSeq pw
-                             hasNonemptyPassphrase
-                             walletName
-                             assuranceLevel
-                             esk
-                             utxoByAccount
+        walletId = WalletIdHdSeq newRootId
+    -- This may throw an IO exception.
+    Keystore.insert walletId esk (pw ^. walletKeystore)
+    -- STEP 2: Atomically generate the wallet and the initial internal structure in
+    -- an acid-state transaction.
+    res <- createWalletHdSeq
+        pw
+        hasNonemptyPassphrase
+        walletName
+        assuranceLevel
+        esk
+        utxoByAccount
     case res of
-         Left e   -> return . Left $ CreateWalletFailed e
-         Right hdRoot -> do
-             -- STEP 2: Insert the 'EncryptedSecretKey' into the 'Keystore'
-             Keystore.insert (WalletIdHdSeq newRootId) esk (pw ^. walletKeystore)
-             return (Right hdRoot)
+        Left e -> do
+            Keystore.delete walletId (pw ^. walletKeystore)
+            return . Left $ CreateWalletFailed e
+        Right hdRoot -> do
+            return (Right hdRoot)
 
 
 -- | Creates an HD wallet where new accounts and addresses are generated
--- via random index derivation.
+-- via sequential index derivation.
 --
 -- Prefilters the Utxo before passing it to the Acidstate update.
 --
