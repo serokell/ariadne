@@ -19,7 +19,7 @@ packages:
 # Cardano SL itself
 - location:
     git: https://github.com/serokell/cardano-sl.git
-    commit: c34b5bcaa670f636f36c6b2ddbc9c07d4e0f1885 # ariadne branch
+    commit: 4165caf316f03c820d303abd606a86bceaec276e # ariadne branch
   extra-dep: true
   subdirs:
   - binary

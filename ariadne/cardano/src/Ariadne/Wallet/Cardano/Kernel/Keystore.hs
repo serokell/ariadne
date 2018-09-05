@@ -41,8 +41,8 @@ import System.IO (hClose, openTempFile)
 import Pos.Core (AddressHash, addressHash)
 import Pos.Crypto (EncryptedSecretKey, PublicKey, encToPublic)
 import Pos.Util.UserSecret
-  (UserSecret, getUSPath, isEmptyUserSecret, takeUserSecret, usWallets,
-  writeUserSecret, writeUserSecretRelease)
+  (UserSecret, getUSPath, isEmptyUserSecret, peekUserSecret, usWallets,
+  writeUserSecret)
 import System.Wlog (CanLog(..), HasLoggerName(..), LoggerName(..), logMessage)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdRootId(..))
@@ -116,7 +116,7 @@ bracketKeystore deletePolicy fp withKeystore =
 -- | Creates a new keystore.
 newKeystore :: FilePath -> IO Keystore
 newKeystore fp = runIdentityT $ fromKeystore $ do
-    us <- takeUserSecret fp
+    us <- peekUserSecret fp
     Keystore <$> newMVar (InternalStorage us)
 
 -- | Creates a legacy 'Keystore' by reading the 'UserSecret' from a 'NodeContext'.
@@ -155,7 +155,7 @@ newTestKeystore = liftIO $ runIdentityT $ fromKeystore $ do
     tempDir         <- liftIO getTemporaryDirectory
     (tempFile, hdl) <- liftIO $ openTempFile tempDir "keystore.key"
     liftIO $ hClose hdl
-    us <- takeUserSecret tempFile
+    us <- peekUserSecret tempFile
     Keystore <$> newMVar (InternalStorage us)
 
 -- | Release the resources associated with this 'Keystore'.
@@ -176,7 +176,7 @@ releaseKeystore dp (Keystore ks) =
 release :: InternalStorage -> IO FilePath
 release (InternalStorage us) = do
     let fp = getUSPath us
-    writeUserSecretRelease us
+    writeUserSecret us
     return fp
 
 {-------------------------------------------------------------------------------
