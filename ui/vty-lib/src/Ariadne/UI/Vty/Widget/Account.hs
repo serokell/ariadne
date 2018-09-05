@@ -94,10 +94,9 @@ initAccountWidget langFace =
 
     addWidgetChild WidgetNameAccountSend $
       initSendWidget langFace 
-        (Just $ widgetParentGetter (\AccountWidgetState{..} ->
-          uaciWalletIdx <$> accountInfo))
-        (Just $ widgetParentGetter (\AccountWidgetState{..} ->
-          maybe [] (take 1 . map fromIntegral . uaciPath) accountInfo))
+        (Just $ widgetParentGetter $ map uaciWalletIdx . accountInfo)
+        (Just $ widgetParentGetter $ 
+          maybe [] (take 1 . map fromIntegral . uaciPath) . accountInfo)
 
     addWidgetChild WidgetNameAccountAddressGenerateButton $
       initButtonWidget "Generate"

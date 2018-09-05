@@ -65,7 +65,7 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = putCommand
+    { langPutCommand = putCommand Nothing
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
@@ -74,16 +74,14 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand expr = do
+    putCommand mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (commandHandle Nothing cid) $ expr
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle mOp cid) $ expr
 
     putUiCommand op = case opToExpr op of
       Left err -> return $ Left err
       Right expr -> do
-        cid <- newUnique
-        mTaskId <- putKnitCommand (commandHandle (Just op) cid) expr
-        let comId = commandIdToUI cid mTaskId
+        comId <- putCommand (Just op) expr
         putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
         return $ Right comId
 

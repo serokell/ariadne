@@ -5,7 +5,7 @@ module Ariadne.UI.Vty.Widget.Wallet
 import Universum
 
 import Control.Exception (handle)
-import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
+import Control.Lens (assign, ix, makeLensesWith, (%=), (.=), uses)
 import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
@@ -146,10 +146,9 @@ initWalletWidget langFace UiFeatures{..} =
 
     addWidgetChild WidgetNameWalletSend $
       initSendWidget langFace
-        (Just $ widgetParentGetter (\WalletWidgetState{..} ->
-          uwiWalletIdx <$> walletInfo))
-        (Just $ widgetParentGetter (\WalletWidgetState{..} ->
-          map walletAccountIdx $ filter walletAccountSelected $ walletAccounts))
+        (Just $ widgetParentGetter $ map uwiWalletIdx . walletInfo)
+        (Just $ widgetParentGetter $
+          map walletAccountIdx . filter walletAccountSelected . walletAccounts)
 
     withWidgetState updateFocusList
 
@@ -415,8 +414,7 @@ performNewAccount :: WidgetEventM WalletWidgetState p ()
 performNewAccount = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNewAccountNameL
-  mUiWalletInfo <- use walletInfoL
-  let wIdx = uwiWalletIdx <$> mUiWalletInfo
+  wIdx <- uses walletInfoL $ map uwiWalletIdx
   use walletNewAccountResultL >>= \case
     NewAccountResultWaiting _ -> return ()
     _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs wIdx name) >>=
