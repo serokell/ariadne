@@ -65,7 +65,7 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = putCommand commandHandle
+    { langPutCommand = putCommand Nothing
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
@@ -74,27 +74,27 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand handle expr = do
+    putCommand mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (handle cid) $ expr
-    commandHandle commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle mOp cid) $ expr
+
+    putUiCommand op = case opToExpr op of
+      Left err -> return $ Left err
+      Right expr -> do
+        comId <- putCommand (Just op) expr
+        putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        return $ Right comId
+
+    commandHandle mOp commandId = KnitCommandHandle
+      { putCommandResult = \mtid result -> do
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+          whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \tid doc ->
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
 
-    putUiCommand op = case opToExpr op of
-      Left err -> return $ Left err
-      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
-    uiCommandHandle op commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \_ _ ->
-          return ()
-      }
-
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
+    justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])
 
     opToExpr = \case
       UiSelect ws ->
@@ -112,6 +112,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             ]
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.sendCommandName $
+            justOptNumber "wallet" usaWalletIdx ++
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs ++
             optString "pass" usaPassphrase
@@ -130,11 +131,15 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newAccountCommandName $
+            justOptNumber "wallet" unaaWalletIdx ++
             optString "name" unaaName
           )
-      UiNewAddress -> do
+      UiNewAddress UiNewAddressArgs{..} -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAddressCommandName [])
+          (Knit.ProcCall Knit.newAddressCommandName $
+            justOptNumber "wallet" unadaWalletIdx ++
+            justOptNumber "account" unadaAccountIdx
+          )
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
