@@ -47,6 +47,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlDeleteWallet
           :: Kernel.HdRootId
           -> m (Either Kernel.DeleteHdRootError ())
+
     -- * accounts
     , pwlCreateAccount
           :: Kernel.HdRootId
@@ -65,6 +66,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlDeleteAccount
           :: Kernel.HdAccountId
           -> m (Either Kernel.DeleteHdAccountError ())
+
     -- * addresses
     , pwlCreateAddress
           :: PassPhrase
@@ -74,6 +76,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlGetAddresses
           :: Kernel.HdRootId
           -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAddress))
+
     -- * core API
     , pwlApplyBlocks
           :: OldestFirst NE Blund
@@ -81,7 +84,11 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlRollbackBlocks
           :: NewestFirst NE Blund
           -> m ()
-    -- * internal, hopefully it will go in the future
+
+    -- * internal, hopefully these will go in the future
     , pwlGetDBSnapshot
           :: m Kernel.DB
+    , pwlLookupKeystore
+          :: Kernel.HdRootId
+          -> m (Maybe EncryptedSecretKey)
     }

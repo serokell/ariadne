@@ -21,6 +21,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
+import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
 import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
@@ -112,6 +113,9 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
 
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
+            , pwlLookupKeystore        = \hdrId -> liftIO $
+                Kernel.withKeystore wallet $
+                    Keystore.lookup (WalletIdHdSeq hdrId)
             }
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified

@@ -16,7 +16,6 @@ import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
-import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
@@ -129,14 +128,11 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
         -> Diffusion CardanoMode
         -> CardanoMode TxId
     sendTxDo wallets walletRootId accountsToUse diffusion = do
-        us <- getSecretDefault
-        let pubAddrHash = _fromDb (getHdRootId walletRootId)
-            -- Wallets creation and deletion organized in a such way that
-            -- an absence of a key is not possible.
-            esk = findWithDefault
-                (error "Bug: _usWallets has no such key.")
-                pubAddrHash
-                (us ^. usWallets)
+        -- Wallet creation and deletion is organized in such way that
+        -- the absence of a key is not possible.
+        esk <- liftIO $ fromMaybe
+            (error "Bug: Keystore has no such key.")
+            <$> pwlLookupKeystore pwl walletRootId
 
         maybeThrow SendTxIncorrectPassPhrase $
             checkPassMatches pp esk

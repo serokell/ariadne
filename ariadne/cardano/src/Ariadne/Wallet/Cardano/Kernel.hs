@@ -12,6 +12,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , passiveWalletComponent
   , passiveWalletWithDBComponent
   , inMemoryDBComponent
+  , withKeystore
   , init
   , walletLogMessage
     -- ** Respond to block chain events
