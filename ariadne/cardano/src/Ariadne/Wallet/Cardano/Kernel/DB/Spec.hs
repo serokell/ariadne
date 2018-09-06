@@ -180,8 +180,8 @@ currentAccCheckpoint = neHead
 
 currentAccUtxo        :: Lens' AccCheckpoints Core.Utxo
 currentAccUtxoBalance :: Lens' AccCheckpoints Core.Coin
-currentAccPending     :: Lens' AccCheckpoints Pending
 currentAccBlockMeta   :: Lens' AccCheckpoints BlockMeta
+currentAccPending     :: Lens' AccCheckpoints Pending
 currentAccPendingTxs  :: Lens' AccCheckpoints PendingTxs
 
 currentAccUtxo        = currentAccCheckpoint . accCheckpointUtxo        . fromDb

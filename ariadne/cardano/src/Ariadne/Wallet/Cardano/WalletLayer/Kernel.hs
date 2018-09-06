@@ -114,8 +114,7 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
 
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $
-                Kernel.withKeystore wallet $
-                    Keystore.lookup (WalletIdHdSeq hdrId)
+                Keystore.lookup (WalletIdHdSeq hdrId) (wallet ^. Kernel.walletKeystore)
             }
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified

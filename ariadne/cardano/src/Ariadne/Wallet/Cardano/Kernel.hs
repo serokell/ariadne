@@ -12,9 +12,9 @@ module Ariadne.Wallet.Cardano.Kernel (
   , passiveWalletComponent
   , passiveWalletWithDBComponent
   , inMemoryDBComponent
-  , withKeystore
   , init
   , walletLogMessage
+  , walletKeystore
     -- ** Respond to block chain events
   , applyBlock
   , applyBlocks
