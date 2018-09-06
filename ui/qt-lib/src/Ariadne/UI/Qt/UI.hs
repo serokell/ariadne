@@ -23,8 +23,8 @@ class QVariantCastable a where
   fromQVariant :: (QVariant.QVariantValue v) => v -> IO a
 
 instance QVariantCastable Int where
-  toQVariant = QVariant.newWithInt . fromIntegral
-  fromQVariant = return . fromIntegral <=< QVariant.toInt
+  toQVariant = QVariant.newWithInt
+  fromQVariant = return <=< QVariant.toInt
 
 instance QVariantCastable Word where
   toQVariant = QVariant.newWithUInt . fromIntegral

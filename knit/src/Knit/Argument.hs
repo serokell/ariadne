@@ -28,7 +28,8 @@ import Control.Monad.State
 import Data.List (sortOn)
 import Data.List.NonEmpty
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid (Monoid(..))
+import Data.Semigroup (Semigroup(..))
 import Data.Set as Set
 import Data.String
 import Data.Text
@@ -48,10 +49,13 @@ isEmptyArgumentError :: ArgumentError -> Bool
 isEmptyArgumentError ArgumentError{..} =
     Set.null aeMissingKeys && Set.null aeIrrelevantKeys && aeIrrelevantPos == 0
 
+instance Semigroup ArgumentError where
+    (<>) (ArgumentError m1 i1 p1) (ArgumentError m2 i2 p2) =
+        ArgumentError (Set.union m1 m2) (Set.union i1 i2) (p1 + p2)
+
 instance Monoid ArgumentError where
     mempty = ArgumentError Set.empty Set.empty 0
-    mappend (ArgumentError m1 i1 p1) (ArgumentError m2 i2 p2) =
-        ArgumentError (Set.union m1 m2) (Set.union i1 i2) (p1 + p2)
+    mappend = (<>)
 
 data TypeName = TypeName Text | TypeNameEither TypeName TypeName
     deriving (Eq, Ord, Show)
@@ -81,10 +85,13 @@ isEmptyProcError :: ProcError components -> Bool
 isEmptyProcError ProcError{..} =
     isEmptyArgumentError peArgumentError && Set.null peTypeErrors
 
+instance Ord (Value components) => Semigroup (ProcError components) where
+    (<>) (ProcError a1 t1) (ProcError a2 t2) =
+        ProcError (mappend a1 a2) (Set.union t1 t2)
+
 instance Ord (Value components) => Monoid (ProcError components) where
     mempty = ProcError mempty Set.empty
-    mappend (ProcError a1 t1) (ProcError a2 t2) =
-        ProcError (mappend a1 a2) (Set.union t1 t2)
+    mappend = (<>)
 
 data ArgumentConsumerState components = ACS
     { acsRemaining :: ![Arg (Value components)]
