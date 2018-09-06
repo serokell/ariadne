@@ -8,6 +8,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Resolved (
   , rtxInputs
   , rtxOutputs
   , rbTxs
+  , rbSlot
   ) where
 
 import Universum
@@ -17,10 +18,12 @@ import qualified Data.Map as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
+
 import Serokell.Util (listJson, mapJson)
 
 import qualified Pos.Core as Core
-import qualified Pos.Txp as Core
+import qualified Pos.Core.Txp as Txp
+import qualified Pos.Txp as Core (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 
@@ -42,7 +45,7 @@ type ResolvedInput = Core.TxOutAux
 -- represented here.
 data ResolvedTx = ResolvedTx {
       -- | Transaction inputs
-      _rtxInputs  :: InDb (NonEmpty (Core.TxIn, ResolvedInput))
+      _rtxInputs  :: InDb (NonEmpty (Txp.TxIn, ResolvedInput))
 
       -- | Transaction outputs
     , _rtxOutputs :: InDb Core.Utxo
@@ -56,6 +59,9 @@ data ResolvedTx = ResolvedTx {
 data ResolvedBlock = ResolvedBlock {
       -- | Transactions in the block
       _rbTxs  :: [ResolvedTx]
+
+      -- | The `SlotId` of the slot this block appeared in
+    , _rbSlot :: InDb Core.SlotId
     }
 
 makeLenses ''ResolvedTx

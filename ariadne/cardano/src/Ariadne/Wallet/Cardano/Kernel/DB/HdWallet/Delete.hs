@@ -20,20 +20,20 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
   DELETE
 -------------------------------------------------------------------------------}
 
--- | Delete a wallet with the whole subtree (addresses and accounts). 
+-- | Delete a wallet with the whole subtree (addresses and accounts).
 deleteHdRoot :: HdRootId -> Update' HdWallets DeleteHdRootError ()
-deleteHdRoot rootId = do 
+deleteHdRoot rootId = do
   zoomHdRootId DeleteUnknownHdRoot rootId $ return ()
-  hdWalletsAddresses %= deleteIxAll rootId 
-  hdWalletsAccounts  %= deleteIxAll rootId 
-  hdWalletsRoots     %= deleteIxAll rootId 
+  hdWalletsAddresses %= deleteIxAll rootId
+  hdWalletsAccounts  %= deleteIxAll rootId
+  hdWalletsRoots     %= deleteIxAll rootId
 
 -- | Delete an account with its addresses.
 deleteHdAccount :: HdAccountId -> Update' HdWallets DeleteHdAccountError ()
 deleteHdAccount accId = do
   zoomHdAccountId DeleteUnknownHdAccount accId $ return ()
-  hdWalletsAddresses %= deleteIxAll accId 
-  hdWalletsAccounts  %= deleteIxAll accId 
+  hdWalletsAddresses %= deleteIxAll accId
+  hdWalletsAccounts  %= deleteIxAll accId
 
 
 {-------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ data DeleteHdRootError =
 -- | Errors thrown by 'deleteHdAccount'
 data DeleteHdAccountError =
     -- | The specified account could not be found
-    DeleteUnknownHdAccount UnknownHdAccount 
+    DeleteUnknownHdAccount UnknownHdAccount
     deriving (Eq, Show)
 
 instance Exception DeleteHdRootError where
@@ -59,7 +59,7 @@ instance Exception DeleteHdRootError where
 instance Exception DeleteHdAccountError where
   displayException (DeleteUnknownHdAccount (UnknownHdAccount accountId)) =
     toString $ "The account '" <> pretty accountId <> "' does not exist."
-  displayException (DeleteUnknownHdAccount (UnknownHdAccountRoot rootId)) = 
+  displayException (DeleteUnknownHdAccount (UnknownHdAccountRoot rootId)) =
     toString $ "The corresponding wallet '" <> pretty rootId <> "' does not exist."
 
 deriveSafeCopySimple 1 'base ''DeleteHdRootError

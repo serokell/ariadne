@@ -10,13 +10,11 @@ import Universum hiding (init)
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))
 import Control.Natural (type (~>))
-import Data.Acid (AcidState)
 import qualified Data.ByteString as BS
 import Data.List (init)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
-import Loot.Crypto.Bip39 (mnemonicToSeed)
 import Pos.Binary.Class (decodeFull')
 import Pos.Core.Configuration (HasConfiguration)
 import Pos.Crypto (EncryptedSecretKey)
@@ -29,12 +27,14 @@ import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.AddressDiscovery
   (AddressWithPathToUtxoMap, discoverHDAddressWithUtxo)
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
-import Ariadne.Wallet.Backend.Util (mkHasPass)
+import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), bip44PathToAddressId, decodeBip44DerivationPath)
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
+import Ariadne.Wallet.Cardano.Kernel.Wallets
+  (HasNonemptyPassphrase(..), mkHasPP)
+import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
 newtype WrongMnemonic = WrongMnemonic Text
@@ -53,7 +53,7 @@ instance Exception SecretsDecodingError where
 
 restoreWallet ::
        HasConfiguration
-    => AcidState DB
+    => PassiveWalletLayer IO
     -> WalletFace
     -> (CardanoMode ~> IO)
     -> PassPhrase
@@ -61,36 +61,36 @@ restoreWallet ::
     -> Mnemonic
     -> WalletRestoreType
     -> IO ()
-restoreWallet acidDb face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
+restoreWallet pwl face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
           lastWord <- NE.last <$> nonEmpty mnemonicWords
           pure (lastWord == "ariadne-v0") -- TODO AD-124: version parsing?
     esk <- if
       | isAriadneMnemonic ->
-          let seed = mnemonicToSeed (unwords $ init mnemonicWords) ""
+          let seed = mnemonicToSeedNoPassword (unwords $ init mnemonicWords)
           in pure . snd $ Crypto.safeDeterministicKeyGen seed pp
       | length mnemonicWords == 12 ->
           case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
               Left e        -> throwM $ WrongMnemonic e
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
-    hasPass <- mkHasPass runCardanoMode (pp == Crypto.emptyPassphrase)
-    restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance
+    let hasPP = mkHasPP pp
+    restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assurance
   where
     -- TODO(AD-251): allow selecting assurance.
     assurance = AssuranceLevelNormal
 
 restoreFromKeyFile ::
        HasConfiguration
-    => AcidState DB
+    => PassiveWalletLayer IO
     -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> FilePath
     -> WalletRestoreType
     -> IO ()
-restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
+restoreFromKeyFile pwl face runCardanoMode mbWalletName path rType = do
     keyFile <- BS.readFile path
     us <- case decodeFull' keyFile of
       Left e   -> throwM $ SecretsDecodingError path e
@@ -98,17 +98,16 @@ restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
     let templateName i (WalletName n) = WalletName $ n <> " " <> pretty i
     traverse_
         (\(i,esk) -> do
-            hasPass <-
-                mkHasPass runCardanoMode
-                    <$> isJust $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
+            let hasPP = HasNonemptyPassphrase $
+                    isNothing $ Crypto.checkPassMatches Crypto.emptyPassphrase esk
             restoreFromSecretKey
-                acidDb
+                pwl
                 face
                 runCardanoMode
                 (templateName i <$> mbWalletName)
                 esk
                 rType
-                hasPass
+                hasPP
                 assurance)
         (zip [(0 :: Int)..] $ us ^. usKeys0)
   where
@@ -117,20 +116,20 @@ restoreFromKeyFile acidDb face runCardanoMode mbWalletName path rType = do
 
 restoreFromSecretKey ::
        HasConfiguration
-    => AcidState DB
+    => PassiveWalletLayer IO
     -> WalletFace
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> EncryptedSecretKey
     -> WalletRestoreType
-    -> HasSpendingPassword
+    -> HasNonemptyPassphrase
     -> AssuranceLevel
     -> IO ()
-restoreFromSecretKey acidDb face runCardanoMode mbWalletName esk rType hasPass assurance = do
+restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assurance = do
     utxoByAccount <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull  -> runCardanoMode $ collectUtxo esk
-    addWallet acidDb face runCardanoMode esk mbWalletName utxoByAccount hasPass assurance
+    addWallet pwl face esk mbWalletName utxoByAccount hasPP assurance
 
 collectUtxo ::
        HasConfiguration
@@ -141,10 +140,7 @@ collectUtxo esk = do
     pure $ groupAddresses $ filterAddresses m
   where
     toHdAddressId :: Bip44DerivationPath -> HdAddressId
-    toHdAddressId = bip44PathToAddressId rootId
-      where
-        rootId :: HdRootId
-        rootId = mkHdRootId esk
+    toHdAddressId = bip44PathToAddressId (eskToHdRootId esk)
 
     -- TODO: simply ignoring addresses which are not BIP-44 compliant
     -- is not perfect (though normal users shouldn't have addresses at

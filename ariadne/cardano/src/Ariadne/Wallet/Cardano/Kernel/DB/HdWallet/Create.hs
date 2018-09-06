@@ -20,9 +20,8 @@ import Universum
 
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
-
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, sformat, (%))
+import Formatting (bprint, build, (%))
 
 import qualified Pos.Core as Core
 
@@ -49,7 +48,7 @@ data CreateHdAccountError =
 
     -- | Account already exists
   | CreateHdAccountExists HdAccountId
-    deriving (Eq, Show)
+  deriving (Eq, Show)
 
 -- | Errors thrown by 'createHdAddress'
 data CreateHdAddressError =
@@ -99,7 +98,7 @@ createHdRoot hdRoot =
 -- | Create a new account
 createHdAccount :: HdAccount -> Update' HdWallets CreateHdAccountError ()
 createHdAccount hdAccount = do
-    -- Check that the root ID exiwests
+    -- Check that the root ID exists
     zoomHdRootId CreateHdAccountUnknownRoot rootId $
       return ()
 
@@ -159,17 +158,14 @@ initHdRoot rootId name hasPass assurance created = HdRoot {
 -- TODO: If any key derivation is happening when creating accounts, should we
 -- store a public key or an address or something?
 initHdAccount :: HdAccountId
-              -> Maybe AccountName
+              -> AccountName
               -> AccCheckpoint
               -> HdAccount
-initHdAccount accountId mbAccountName checkpoint = HdAccount {
+initHdAccount accountId accountName checkpoint = HdAccount {
       _hdAccountId          = accountId
-    , _hdAccountName        = maybe defName identity mbAccountName
+    , _hdAccountName        = accountName
     , _hdAccountCheckpoints = checkpoint :| []
     }
-  where
-    defName = AccountName $ sformat ("Account: " % build)
-                                    (accountId ^. hdAccountIdIx)
 
 -- | New address in the specified account
 --
@@ -182,12 +178,13 @@ initHdAccount accountId mbAccountName checkpoint = HdAccount {
 -- address index, as we do not have access to a random number generator here.
 initHdAddress :: HdAddressId
               -> InDb Core.Address
+              -> Bool
               -> AddrCheckpoint
               -> HdAddress
-initHdAddress addrId address checkpoint = HdAddress {
+initHdAddress addrId address isUsed checkpoint = HdAddress {
       _hdAddressId          = addrId
     , _hdAddressAddress     = address
-    , _hdAddressIsUsed      = error "TODO: _hdAddressIsUsed"
+    , _hdAddressIsUsed      = isUsed
     , _hdAddressCheckpoints = checkpoint :| []
     }
 

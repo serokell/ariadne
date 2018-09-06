@@ -80,10 +80,7 @@ buildTHEntryExtra hdPass (WithHash tx txId, NE.toList -> undoL) (mDiff, mTs) =
     THEntryExtra {..}
 
 eskToHDPassphrase :: EncryptedSecretKey -> HDPassphrase
-eskToHDPassphrase encSK = do
-    let pubKey = encToPublic encSK
-    let hdPass = deriveHDPassphrase pubKey
-    hdPass
+eskToHDPassphrase = deriveHDPassphrase . encToPublic
 
 selectOwnAddresses
     :: HDPassphrase

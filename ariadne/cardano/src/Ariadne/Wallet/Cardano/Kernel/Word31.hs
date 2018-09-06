@@ -10,6 +10,7 @@ import Universum
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable (Buildable(..))
 import Formatting (bprint, int)
+import Test.QuickCheck (Arbitrary(..), arbitrarySizedBoundedIntegral)
 
 {-------------------------------------------------------------------------------
   Supporting types
@@ -17,7 +18,7 @@ import Formatting (bprint, int)
 
 newtype Word31 = Word31
     { getWord31 :: Word32
-    } deriving (Show, Ord, Eq)
+    } deriving (Show, Ord, Eq, Num, Real, Integral)
 
 newtype Word31Exception = Word31Overflow Word32
     deriving (Show)
@@ -57,5 +58,8 @@ word31ToWord32 = getWord31
 
 instance Buildable Word31 where
     build (Word31 n) = bprint int n
+
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
 
 deriveSafeCopySimple 1 'base ''Word31

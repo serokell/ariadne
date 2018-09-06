@@ -33,7 +33,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
 
 import Pos.Core (AddressHash, unsafeIntegerToCoin)
@@ -165,4 +165,4 @@ formatAddressHash :: AddressHash a -> Text
 formatAddressHash = sformat ("#" % hashHexF)
 
 formatHdRootId :: HdRootId -> Text
-formatHdRootId = formatAddressHash . _fromDb . unHdRootId
+formatHdRootId = formatAddressHash . _fromDb . getHdRootId

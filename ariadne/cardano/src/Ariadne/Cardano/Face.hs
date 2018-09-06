@@ -23,9 +23,6 @@ module Ariadne.Cardano.Face
        , HasConfigurations
        , HasCompileInfo
        , decodeTextAddress
-
-       , UserSecret
-       , usWallets
        ) where
 
 import Universum
@@ -67,7 +64,6 @@ import Pos.Launcher (HasConfigurations)
 import Pos.Txp (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..))
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.LoggerName (HasLoggerName'(..))
-import Pos.Util.UserSecret (HasUserSecret(..), UserSecret, usWallets)
 import Pos.Util.Util (HasLens(..))
 import Pos.WorkMode (EmptyMempoolExt, RealMode, RealModeContext(..))
 import System.Wlog (CanLog, HasLoggerName(..))
@@ -174,9 +170,6 @@ instance HasPrimaryKey CardanoContext where
 
 instance HasMisbehaviorMetrics CardanoContext where
     misbehaviorMetrics = ccRealModeContextL . misbehaviorMetrics
-
-instance HasUserSecret CardanoContext where
-    userSecret = ccRealModeContextL . userSecret
 
 instance HasShutdownContext CardanoContext where
     shutdownContext = ccRealModeContextL . shutdownContext

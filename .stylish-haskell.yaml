@@ -25,6 +25,10 @@ language_extensions:
   - DefaultSignatures
   - DeriveDataTypeable
   - DeriveGeneric
+  - DerivingStrategies
+  - EmptyCase
+  - ExistentialQuantification
+  - ExplicitNamespaces
   - FlexibleContexts
   - FlexibleInstances
   - FunctionalDependencies
@@ -35,12 +39,10 @@ language_extensions:
   - MultiWayIf
   - NamedFieldPuns
   - NoImplicitPrelude
-  - OverloadedStrings
   - OverloadedLabels
+  - OverloadedStrings
   - RecordWildCards
   - RecursiveDo
-  - ExistentialQuantification
-  - ExplicitNamespaces
   - ScopedTypeVariables
   - StandaloneDeriving
   - TemplateHaskell
@@ -48,4 +50,3 @@ language_extensions:
   - TypeApplications
   - TypeFamilies
   - ViewPatterns
-  - EmptyCase

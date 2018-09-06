@@ -39,20 +39,19 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.History (hcPathL)
 import Ariadne.Config.Wallet
-  (WalletConfig(..), walletFieldModifier, wcAcidDBPathL)
+  (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
 import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except EkgParams due to its parser
 data CLI_AriadneConfig = CLI_AriadneConfig
-    { cli_acCardano :: CLI_CardanoConfig
-    , cli_acWallet :: CLI_WalletConfig
+    { cli_acCardano :: !CLI_CardanoConfig
+    , cli_acWallet :: !CLI_WalletConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
     { cli_dbPath :: !(Maybe FilePath)
     , cli_rebuildDB :: !(Maybe Bool)
-    , cli_keyfilePath :: !(Maybe FilePath)
     , cli_networkTopology :: !(Maybe FilePath)
     , cli_networkNodeId :: !(Maybe NodeName)
     , cli_networkPort :: !(Maybe Word16)
@@ -71,6 +70,7 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
 
 data CLI_WalletConfig = CLI_WalletConfig
     { cli_wcEntropySize :: !(Maybe Byte)
+    , cli_wcKeyfilePath :: !(Maybe FilePath)
     , cli_wcAcidDBPath  :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
@@ -100,7 +100,10 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     mergedWalletConfig = WalletConfig
         { wcEntropySize =
             cli_wcEntropySize overrideWc `merge` wcEntropySize defaultWc
-        , wcAcidDBPath = cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
+        , wcKeyfilePath =
+            cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
+        , wcAcidDBPath =
+            cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
         }
 
     -- Merge Cardano config
@@ -118,8 +121,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         { ccDbPath = (overrideCC ^. cli_dbPathL) <|> ccDbPath defaultCC
         , ccRebuildDB =
             merge (overrideCC ^. cli_rebuildDBL) (ccRebuildDB defaultCC)
-        , ccKeyfilePath =
-            merge (overrideCC ^. cli_keyfilePathL) (ccKeyfilePath defaultCC)
         , ccNetworkTopology  =
             (overrideCC ^. cli_networkTopologyL) <|> ccNetworkTopology defaultCC
         , ccNetworkNodeId =
@@ -182,7 +183,6 @@ getConfig commitHash = do
         let resolve_ = resolve ariadneConfigDir configDirs
         zoom acCardanoL $ do
           ccDbPathL %= fmap resolve_
-          ccKeyfilePathL %= resolve_
           ccNetworkTopologyL %= fmap resolve_
           ccLogConfigL %= fmap resolve_
           ccLogPrefixL %= fmap resolve_
@@ -191,6 +191,7 @@ getConfig commitHash = do
           hcPathL %= resolve_
         zoom acWalletL $ do
           wcAcidDBPathL %= resolve_
+          wcKeyfilePathL %= resolve_
 
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
@@ -249,6 +250,11 @@ cliWalletParser = do
      , metavar "BYTE"
      , help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
      ]
+  cli_wcKeyfilePath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameWallet "wcKeyfilePath"
+    , metavar "FILEPATH"
+    , help "Path to file with secret key."
+    ]
   cli_wcAcidDBPath <- optional $ strOption $ mconcat
      [ long $ toOptionNameWallet "wcAcidDBPath"
      , metavar "FilePath"
@@ -274,11 +280,6 @@ cliCardanoConfigParser = do
     , metavar "BOOL"
     , help "If node's database already exists, discard its contents \
     \and create a new one from scratch."
-    ]
-  cli_keyfilePath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ccKeyfilePath"
-    , metavar "FILEPATH"
-    , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkTopology <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ccNetworkTopology"

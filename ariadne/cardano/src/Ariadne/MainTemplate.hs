@@ -89,10 +89,9 @@ initializeEverything MainSettings {..}
   (uiFace, mkUiAction) <- msCreateUI walletUIFace history
   WalletPreface
     { wpBListener = bHandle
-    , wpAddUserSecret = addUs
     , wpMakeWallet = mkWallet
     } <- createWalletBackend walletConfig (msPutWalletEventToUI uiFace)
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle addUs
+  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace

@@ -19,17 +19,19 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , ansi-wl-pprint
     , acid-state
+    , ansi-wl-pprint
     , ariadne-core
     , async
     , beam-core
     , beam-migrate
     , beam-sqlite
     , bytestring
+    , Cabal
+    , cardano-crypto
     , cardano-sl
-    , cardano-sl-block
     , cardano-sl-binary
+    , cardano-sl-block
     , cardano-sl-client
     , cardano-sl-core
     , cardano-sl-crypto
@@ -41,17 +43,16 @@ library
     , cardano-sl-txp
     , cardano-sl-update
     , cardano-sl-util
-    , Cabal
-    , MissingH
     , componentm
     , conduit
-    , contravariant
     , constraints
     , containers
+    , contravariant
     , cryptonite
     , data-default
-    , directory
     , dhall
+    , directory
+    , Earley
     , exceptions
     , file-embed
     , filepath
@@ -66,37 +67,38 @@ library
     , loot-crypto
     , megaparsec
     , memory
+    , MissingH
+    , monad-control
     , mtl
-    , resourcet
     , named
     , natural-transformation
     , ntype
     , optparse-applicative
+    , process
+    , QuickCheck
+    , resourcet
+    , retry
+    , safe
     , safe-exceptions
     , safecopy
     , scientific
-    , spoon
-    , stm
     , serokell-util
+    , spoon
     , sqlite-simple
     , sqlite-simple-errors
+    , stm
+    , template-haskell
     , text
     , text-format
     , time
     , time-units
+    , transformers
+    , transformers-base
     , universum
     , unliftio
-    , vector
-    , transformers
-    , Earley
-    , QuickCheck
-    , unordered-containers
-    , process
-    , template-haskell
-    , safe
     , unliftio-core
-    , monad-control
-    , transformers-base
+    , unordered-containers
+    , vector
     , vinyl
     , yaml
   exposed-modules:
@@ -125,19 +127,22 @@ library
       Ariadne.Wallet.Backend.Mode
       Ariadne.Wallet.Backend.Restore
       Ariadne.Wallet.Backend.Tx
-      Ariadne.Wallet.Backend.Util
       Ariadne.Wallet.Face
       Ariadne.Wallet.UiAdapter
 
       Ariadne.Wallet.Cardano.Kernel
+      Ariadne.Wallet.Cardano.Kernel.Accounts
       Ariadne.Wallet.Cardano.Kernel.Actions
+      Ariadne.Wallet.Cardano.Kernel.Addresses
       Ariadne.Wallet.Cardano.Kernel.Bip32
+      Ariadne.Wallet.Cardano.Kernel.Bip39
       Ariadne.Wallet.Cardano.Kernel.Bip44
       Ariadne.Wallet.Cardano.Kernel.DB.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+      Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
       Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update
       Ariadne.Wallet.Cardano.Kernel.DB.InDb
@@ -152,23 +157,28 @@ library
       Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
       Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
       Ariadne.Wallet.Cardano.Kernel.Decrypt
-      Ariadne.Wallet.Cardano.Kernel.Diffusion
+      Ariadne.Wallet.Cardano.Kernel.Internal
+      Ariadne.Wallet.Cardano.Kernel.Keystore
       Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-      Ariadne.Wallet.Cardano.Kernel.Submission
       Ariadne.Wallet.Cardano.Kernel.Types
+      Ariadne.Wallet.Cardano.Kernel.Util
+      Ariadne.Wallet.Cardano.Kernel.Wallets
       Ariadne.Wallet.Cardano.Kernel.Word31
+      Ariadne.Wallet.Cardano.WalletLayer
       Ariadne.Wallet.Cardano.WalletLayer.Kernel
       Ariadne.Wallet.Cardano.WalletLayer.Types
   default-extensions:
       ApplicativeDo
-      NoImplicitPrelude
       BangPatterns
       ConstraintKinds
       DataKinds
-      DeriveGeneric
-      DeriveFunctor
+      DefaultSignatures
       DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
       DeriveTraversable
+      DerivingStrategies
+      EmptyCase
       FlexibleContexts
       FlexibleInstances
       GADTs
@@ -177,14 +187,15 @@ library
       MonadFailDesugaring
       MultiParamTypeClasses
       MultiWayIf
+      NamedFieldPuns
       NegativeLiterals
-      OverloadedStrings
+      NoImplicitPrelude
       OverloadedLabels
+      OverloadedStrings
       PatternSynonyms
       PolyKinds
       RankNTypes
       RecordWildCards
-      NamedFieldPuns
       RecursiveDo
       ScopedTypeVariables
       StandaloneDeriving
@@ -195,7 +206,6 @@ library
       TypeOperators
       UndecidableInstances
       ViewPatterns
-      EmptyCase
   other-modules:
       Paths_ariadne_cardano
   default-language: Haskell2010
@@ -212,14 +222,14 @@ test-suite ariadne-cardano-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ariadne-cardano
+      base >=4.7 && <5
+    , ariadne-cardano
     , ariadne-core
-    , base >=4.7 && <5
     , bytestring
     , canonical-json
-    , cardano-sl-infra
     , cardano-sl
     , cardano-sl-core
+    , cardano-sl-infra
     , hspec
     , knit
     , lens
@@ -236,18 +246,19 @@ test-suite ariadne-cardano-test
   other-modules:
       Paths_ariadne_cardano
       Test.Ariadne.Cardano.Arbitrary
+      Test.Ariadne.Wallet.Arbitrary
       Test.Ariadne.Knit
   default-language: Haskell2010
   default-extensions:
         ApplicativeDo
-        NoImplicitPrelude
         BangPatterns
         ConstraintKinds
         DataKinds
-        DeriveGeneric
-        DeriveFunctor
         DeriveFoldable
+        DeriveFunctor
+        DeriveGeneric
         DeriveTraversable
+        EmptyCase
         FlexibleContexts
         FlexibleInstances
         GADTs
@@ -256,13 +267,15 @@ test-suite ariadne-cardano-test
         MonadFailDesugaring
         MultiParamTypeClasses
         MultiWayIf
+        NamedFieldPuns
         NegativeLiterals
+        NoImplicitPrelude
         OverloadedStrings
+        PartialTypeSignatures
         PatternSynonyms
         PolyKinds
         RankNTypes
         RecordWildCards
-        NamedFieldPuns
         RecursiveDo
         ScopedTypeVariables
         StandaloneDeriving
@@ -273,8 +286,6 @@ test-suite ariadne-cardano-test
         TypeOperators
         UndecidableInstances
         ViewPatterns
-        EmptyCase
-        PartialTypeSignatures
   ghc-options: -Wall -Wcompat -Werror
                -Wincomplete-uni-patterns -Wincomplete-record-updates
                -Wredundant-constraints
