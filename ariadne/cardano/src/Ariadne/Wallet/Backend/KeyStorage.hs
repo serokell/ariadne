@@ -290,7 +290,7 @@ newWallet pwl walletConfig face pp mbWalletName mbEntropySize = do
   mnemonic <- generateMnemonic entropySize
   let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
       (_, esk) = safeDeterministicKeyGen seed pp
-  mnemonic ++ ["ariadne-v0"] <$
+  mnemonic <$
     addWallet pwl face esk mbWalletName mempty (mkHasPP pp) assurance
   where
     -- TODO(AD-251): allow selecting assurance.
