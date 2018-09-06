@@ -57,7 +57,7 @@ data CreateAddressError =
 -- TODO(adn): This will be done as part of my work on the 'newTransaction'
 -- endpoint, see [CBR-313].
 instance Arbitrary CreateAddressError where
-    arbitrary = oneof []
+    arbitrary = error "Arbitrary CreateAddressError is not implemented"
 
 instance Buildable CreateAddressError where
     build (CreateAddressUnknownHdAccount uAccount) =

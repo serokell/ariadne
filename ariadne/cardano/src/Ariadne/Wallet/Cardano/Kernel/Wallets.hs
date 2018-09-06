@@ -47,7 +47,7 @@ data CreateWalletError =
       -- ^ When trying to create the 'Wallet', the DB operation failed.
 
 instance Arbitrary CreateWalletError where
-    arbitrary = oneof []
+    arbitrary = error "Arbitrary CreateWalletError is not implemented"
 
 instance Buildable CreateWalletError where
     build (CreateWalletFailed dbOperation) =

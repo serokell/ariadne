@@ -34,7 +34,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
 
 import Universum
 
-import Control.Lens (at, non)
+import Control.Lens (at, non, to)
 import Control.Lens.TH (makeLenses)
 import Control.Monad.Except (MonadError, catchError, runExcept)
 
@@ -398,7 +398,7 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
         accountName = fromMaybe defName mbAccountName
           where
             defName = AccountName $ sformat ("Discovered account " % build)
-                                            (accId ^. hdAccountIdIx)
+                                            (accId ^. hdAccountIdIx . to getHdAccountIx)
 
         firstAccCheckpoint :: Utxo -> AccCheckpoint
         firstAccCheckpoint utxo' = AccCheckpoint {
