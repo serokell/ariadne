@@ -108,7 +108,7 @@ cliArgs =
   , "--cardano:ekg-params", "255.255.255.252:8888"
   , "--wallet:entropy-size", "32"
   , "--wallet:keyfile", "new-secret-mainnet.key"
-  , "--wallet:wallet-db-path", ".new-wallet-db"
+  , "--wallet:wallet-db-path", "new-wallet-db"
   ]
 
 
@@ -134,7 +134,7 @@ expectedAriadneConfig = defaultAriadneCfg
   , acWallet = defaultWalletConfig
     { wcEntropySize = fromBytes 32
     , wcKeyfilePath = "new-secret-mainnet.key"
-    , wcAcidDBPath  = ".new-wallet-db"
+    , wcAcidDBPath  = "new-wallet-db"
     }
   }
   where
