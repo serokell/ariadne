@@ -10,9 +10,10 @@ mkdir -p ${ARIADNE_WALLET_PATH}
 echo "Copying code from cardano-sl"
 rsync -av --delete \
     "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/Kernel* \
+    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/WalletLayer.hs \
     ${ARIADNE_WALLET_PATH}
 rsync -av --delete \
-    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/{WalletLayer.hs,WalletLayer/Kernel.hs,WalletLayer/Types.hs} \
+    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/WalletLayer/{Kernel.hs,Types.hs} \
     ${ARIADNE_WALLET_PATH}/WalletLayer
 
 echo "Renaming modules..."
@@ -23,7 +24,7 @@ find ${ARIADNE_WALLET_PATH} \
 echo "Prettifying with stylish-haskell..."
 find ${ARIADNE_WALLET_PATH}/{Kernel,WalletLayer} \
     -name '*.hs' \
-    -exec stylish-haskell -i -v {} \+
+    -exec stylish-haskell -i -v -c .stylish-haskell.yaml {} \;
 
 echo "Here are all new modules:"
 find ${ARIADNE_WALLET_PATH} \

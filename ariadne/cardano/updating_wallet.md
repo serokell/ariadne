@@ -1,15 +1,12 @@
-How to get latest changes to `wallet-new` from IOHK repo
+How to get latest updates to `wallet-new` from IOHK repo
 ========================================================
 
-1. Get latest `develop` branch from input-output-hk/cardano-sl repo.
+1. Get latest `develop` branch from `input-output-hk/cardano-sl` repo.
 2. Copy the `import_wallet.sh` script to the root of the Ariadne repo.
-3. Checkout `d4057192f4edd60d5f1e872aa452e4a848705e3c` in the Ariadne repo.
-4. Give a name to branch, e.g. `git checkout -b update-wallet-new`.
-5. Run `import_wallet.sh`. The script assumes that `cardano-sl` repo is at
-`../cardano-sl`, however you can override it by passing path to it as first argument.
-
-The script must be run from the root of the Ariadne repo.
-
+3. Checkout `d4057192f4edd60d5f1e872aa452e4a848705e3c` in the Ariadne repo, e.g.
+   `git checkout d4057192f4edd60d5f1e872aa452e4a848705e3c -b update-wallet-new`.
+4. Run `import_wallet.sh`. The script assumes that `cardano-sl` repo is at
+`../cardano-sl`, however you can override it by passing path to it as first argument. The script must be run from the root of the Ariadne repo.
 5. The script will output a list of modules in wallet-new. Replace the old list in `ariadne.cabal` with it.
 6. Commit updates: `git add ariadne/ && git commit -m "Update wallet-new"`.
 7. Rebase this branch on master: `git rebase master`.
