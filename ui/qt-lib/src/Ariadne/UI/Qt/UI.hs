@@ -24,7 +24,7 @@ class QVariantCastable a where
 
 instance QVariantCastable Int where
   toQVariant = QVariant.newWithInt
-  fromQVariant = return <=< QVariant.toInt
+  fromQVariant = QVariant.toInt
 
 instance QVariantCastable Word where
   toQVariant = QVariant.newWithUInt . fromIntegral
