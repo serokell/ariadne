@@ -8,8 +8,9 @@ import NType (N (..))
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Qt
-import Ariadne.UI.Qt.Face (UiLangFace)
+import Ariadne.UI.Qt.Face (UiLangFace, UiWalletFace(..))
 import Ariadne.UX.CommandHistory
+import Ariadne.Wallet.Face (WalletUIFace(..))
 
 import Glue
 
@@ -29,7 +30,12 @@ main = defaultMain mainSettings
         , msUiExecContext = const $ Base ()
         }
 
-    createUI :: CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI history =
-        let historyFace = historyToUI history
-        in createAriadneUI historyFace
+    createUI :: WalletUIFace -> CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
+    createUI WalletUIFace{..} history =
+        let
+          historyFace = historyToUI history
+          uiWalletFace = UiWalletFace
+            { uiGenerateMnemonic = walletGenerateMnemonic
+            , uiDefaultEntropySize = walletDefaultEntropySize
+            }
+        in createAriadneUI uiWalletFace historyFace

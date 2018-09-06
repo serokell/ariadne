@@ -8,11 +8,11 @@ module Ariadne.UI.Qt.Face
        , UiCommand (..)
        , UiCommandResult (..)
        , UiSendCommandResult (..)
-       , UiNewWalletCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
        , UiLangFace (..)
+       , UiWalletFace (..)
        , UiHistoryFace (..)
        , UiFace (..)
 
@@ -32,6 +32,8 @@ import Universum
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+import Serokell.Data.Memory.Units (Byte)
 
 data UiCommandId =
   UiCommandId
@@ -88,7 +90,6 @@ data UiEvent
 data UiCommand
   = UiSelect [Word]
   | UiSend Text Text  -- ^ Address, amount
-  | UiNewWallet Text (Maybe Text) -- ^ Name, password
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress
@@ -98,7 +99,6 @@ data UiCommand
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
-  | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -106,10 +106,6 @@ data UiCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
-
-data UiNewWalletCommandResult
-  = UiNewWalletCommandSuccess [Text]
-  | UiNewWalletCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess
@@ -134,6 +130,13 @@ data UiLangFace =
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
   }
+
+-- Interface for the wallet
+data UiWalletFace =
+  UiWalletFace
+    { uiGenerateMnemonic :: Byte -> IO [Text]
+    , uiDefaultEntropySize :: Byte
+    }
 
 -- Interface for the command history
 data UiHistoryFace =

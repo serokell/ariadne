@@ -19,6 +19,7 @@ module Ariadne.UI.Vty.Face
        , UiSendArgs (..)
        , UiNewWalletArgs (..)
        , UiNewAccountArgs (..)
+       , UiNewAddressArgs (..)
        , UiRestoreWalletArgs (..)
        , UiRenameArgs (..)
 
@@ -130,6 +131,7 @@ data UiCommandEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
+  | UiCommandWidget Doc
 
 -- UI event triggered by REPL command
 data UiCommandAction
@@ -172,7 +174,7 @@ data UiCommand
   | UiSend UiSendArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
-  | UiNewAddress
+  | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
   | UiExport
@@ -184,7 +186,8 @@ data UiSendOutput = UiSendOutput
   }
 
 data UiSendArgs = UiSendArgs
-  { usaAccounts :: ![Word32]
+  { usaWalletIdx :: !(Maybe Word)
+  , usaAccounts :: ![Word32]
   , usaOutputs :: [UiSendOutput]
   , usaPassphrase :: !Text
   }
@@ -195,7 +198,13 @@ data UiNewWalletArgs = UiNewWalletArgs
   }
 
 data UiNewAccountArgs = UiNewAccountArgs
-  { unaaName :: !Text
+  { unaaWalletIdx :: !(Maybe Word)
+  , unaaName :: !Text
+  }
+
+data UiNewAddressArgs = UiNewAddressArgs
+  { unadaWalletIdx :: !(Maybe Word)
+  , unadaAccountIdx :: !(Maybe Word)
   }
 
 data UiRestoreWalletArgs = UiRestoreWalletArgs

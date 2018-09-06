@@ -29,7 +29,8 @@ import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
-  (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
+  (XdgDirectory(..), createDirectoryIfMissing, doesFileExist,
+  getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
@@ -165,6 +166,9 @@ getConfig commitHash = do
     (fromDhall @AriadneConfig $ toDhallImport configPath)
     (do
       putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
+      -- If default config is used we create data directory because
+      -- all data is put there.
+      createDirectoryIfMissing True xdgDataPath
       return (defaultAriadneConfig xdgDataPath))
 
   let config = resolvePaths unresolvedConfig configPath configDirs

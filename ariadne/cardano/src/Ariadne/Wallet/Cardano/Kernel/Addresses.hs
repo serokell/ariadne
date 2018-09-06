@@ -35,7 +35,7 @@ import Ariadne.Wallet.Cardano.Kernel.Internal
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.Types (AccountId(..), WalletId(..))
 
-import Test.QuickCheck (Arbitrary(..), oneof)
+import Test.QuickCheck (Arbitrary(..))
 
 data CreateAddressError =
       CreateAddressUnknownHdAccount HdAccountId

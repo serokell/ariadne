@@ -19,9 +19,13 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Exceptions
        , NoWalletSelection (..)
        , NoAccountSelection (..)
+
+         -- * Util
+       , generateMnemonic
        ) where
 
 import Universum
+import qualified Universum.Unsafe as Unsafe
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
@@ -264,6 +268,13 @@ instance Buildable InvalidEntropySize where
 instance Exception InvalidEntropySize where
     displayException = toString . pretty
 
+generateMnemonic :: Byte -> IO [Text]
+generateMnemonic entropySize = do
+  unless (entropySize `elem` [16, 20, 24, 28, 32]) $
+      throwM $ InvalidEntropySize entropySize
+  mnemonic <- entropyToMnemonic <$> secureRandomBS (fromIntegral entropySize)
+  return $ mnemonic ++ ["ariadne-v0"]
+
 -- | Generate a mnemonic and a wallet from this mnemonic and add the
 -- wallet to the storage.
 newWallet ::
@@ -276,11 +287,8 @@ newWallet ::
     -> IO [Text]
 newWallet pwl walletConfig face pp mbWalletName mbEntropySize = do
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
-  unless (entropySize `elem` [16, 20, 24, 28, 32]) $
-      throwM $ InvalidEntropySize entropySize
-  entropy <- secureRandomBS (fromIntegral entropySize)
-  let mnemonic = entropyToMnemonic entropy
-      seed = mnemonicToSeedNoPassword $ unwords mnemonic
+  mnemonic <- generateMnemonic entropySize
+  let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
       (_, esk) = safeDeterministicKeyGen seed pp
   mnemonic ++ ["ariadne-v0"] <$
     addWallet pwl face esk mbWalletName mempty (mkHasPP pp) assurance

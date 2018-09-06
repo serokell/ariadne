@@ -7,9 +7,15 @@ import Data.Bits
 import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
+import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
+import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
+import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
+import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -78,3 +84,26 @@ createSubWidget = do
   QLayout.setSizeConstraint layout QLayout.SetMinimumSize
 
   return (widget, layout)
+
+createCheckBox :: QVBoxLayout.QVBoxLayout -> Text -> IO QCheckBox.QCheckBox
+createCheckBox layout labelText = do
+  checkBox <- QCheckBox.new
+  QWidget.setSizePolicyRaw checkBox Maximum Maximum
+  checkBoxLabel <- QLabel.newWithText $ toString labelText
+  QLabel.setWordWrap checkBoxLabel True
+  QWidget.setMinimumSizeRaw checkBoxLabel 600 30
+
+  checkBoxLayout <- QHBoxLayout.new
+  QBoxLayout.addWidget checkBoxLayout checkBox
+  QBoxLayout.addWidget checkBoxLayout checkBoxLabel
+
+  QBoxLayout.addLayout layout checkBoxLayout
+
+  void $ Event.onEvent checkBoxLabel $
+    \(ev :: QMouseEvent.QMouseEvent) -> do
+      eventType <- QEvent.eventType ev
+      if eventType == QEvent.MouseButtonRelease
+        then QAbstractButton.toggle checkBox $> True
+        else return False
+
+  return checkBox

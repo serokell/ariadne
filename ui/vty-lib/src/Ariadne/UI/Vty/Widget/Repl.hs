@@ -228,15 +228,21 @@ handleReplWidgetEvent
   :: UiEvent
   -> WidgetEventM (ReplWidgetState p) p ()
 handleReplWidgetEvent = \case
-  UiCommandEvent commandId commandEvent -> do
-    zoom (replWidgetOutL . traversed) $
-      modify (updateCommandResult commandId commandEvent)
-    widgetName <- B.getName <$> lift get
-    liftBrick $ do
-      B.invalidateCacheEntry widgetName
-      scrollToEnd widgetName
-  _ ->
-    return ()
+    UiCommandEvent commandId commandEvent -> case commandEvent of
+        UiCommandWidget doc -> do
+            ReplWidgetState{..} <- get
+            liftIO $ historyAddCommand replWidgetHistoryFace $ show doc
+            let commandSrc (Named defAttr) (Named w) = pprDoc defAttr w doc
+                out = OutputCommand commandId commandSrc [] Nothing
+            zoom replWidgetOutL $ modify (out:)
+        _ -> do
+            zoom (replWidgetOutL . traversed) $
+              modify (updateCommandResult commandId commandEvent)
+            widgetName <- B.getName <$> lift get
+            liftBrick $ do
+              B.invalidateCacheEntry widgetName
+              scrollToEnd widgetName
+    _ -> return ()
 
 reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do
@@ -284,6 +290,7 @@ updateCommandResult
               (V.text' (defAttr `V.withBackColor` V.red) "Error")
               (pprDoc defAttr w doc)
         UiCommandOutput _ -> oldResultImage
+        UiCommandWidget _ -> oldResultImage
     messages =
       case commandEvent of
         UiCommandSuccess _ -> oldMessages
@@ -291,6 +298,7 @@ updateCommandResult
         UiCommandOutput doc ->
           let message (Named defAttr) (Named w) = pprDoc defAttr w doc
           in message:oldMessages
+        UiCommandWidget _ -> oldMessages
 updateCommandResult _ _ outCmd = outCmd
 
 spanAttrs :: ReplWidgetState p -> (Int, Int) -> B.AttrName

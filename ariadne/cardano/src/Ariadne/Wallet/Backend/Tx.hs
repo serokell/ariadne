@@ -12,7 +12,6 @@ import qualified Data.Text.Buildable
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
 import Control.Natural ((:~>)(..))
-import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
@@ -24,7 +23,6 @@ import Pos.Crypto.HD (ShouldCheckPassphrase(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
-import Pos.Util.UserSecret (usWallets)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage

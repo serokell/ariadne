@@ -39,7 +39,7 @@ import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 import Ariadne.Wallet.Cardano.Kernel.Util (getCurrentTimestamp)
 
-import Test.QuickCheck (Arbitrary(..), oneof)
+import Test.QuickCheck (Arbitrary(..))
 
 
 data CreateWalletError =
