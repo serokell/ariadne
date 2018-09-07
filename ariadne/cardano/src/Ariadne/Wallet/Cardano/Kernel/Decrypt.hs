@@ -35,7 +35,7 @@ import Ariadne.Wallet.Cardano.Kernel.Bip44
 data WAddressMeta = WAddressMeta
     { _wamDerivationPath :: Bip44DerivationPath
     , _wamAddress        :: Address
-    } deriving (Eq, Ord, Show, Generic, Typeable)
+    } deriving (Eq, Ord, Show, Generic)
 
 type OwnTxInOuts = [((TxIn, TxOutAux), WAddressMeta)]
 

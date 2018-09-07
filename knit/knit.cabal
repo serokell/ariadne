@@ -88,7 +88,18 @@ library
       TypeOperators
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Werror
+  ghc-options:
+      -- Source: https://medium.com/mercury-bank/enable-all-the-warnings-a0517bc081c3
+      -Weverything
+      -Wno-missing-exported-signatures
+      -Wno-missing-import-lists
+      -Wno-missed-specialisations
+      -Wno-all-missed-specialisations
+      -Wno-unsafe
+      -Wno-safe
+      -Wno-missing-local-signatures
+      -Wno-monomorphism-restriction
+      -Werror
 
 test-suite knit-test
   type: exitcode-stdio-1.0
@@ -141,4 +152,15 @@ test-suite knit-test
       TypeOperators
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Werror
+  ghc-options:
+      -- Source: https://medium.com/mercury-bank/enable-all-the-warnings-a0517bc081c3
+      -Weverything
+      -Wno-missing-exported-signatures
+      -Wno-missing-import-lists
+      -Wno-missed-specialisations
+      -Wno-all-missed-specialisations
+      -Wno-unsafe
+      -Wno-safe
+      -Wno-missing-local-signatures
+      -Wno-monomorphism-restriction
+      -Werror

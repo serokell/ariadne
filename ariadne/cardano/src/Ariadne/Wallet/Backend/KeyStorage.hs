@@ -190,7 +190,7 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
       accounts <- toList . snd <$>
         resolveWalletRefThenRead walletSelRef walRef walletDb readAccountsByRootId
       acc <- maybeThrow
-        (AccountIndexOutOfRange (fromIntegral accIdx))
+        (AccountIndexOutOfRange accIdx)
         (accounts ^? ix (fromIntegral accIdx))
       let accId = acc ^. hdAccountId
       checkParentRoot accId

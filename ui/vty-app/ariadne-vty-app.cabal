@@ -77,6 +77,15 @@ executable ariadne
       ViewPatterns
       EmptyCase
       PartialTypeSignatures
-  ghc-options: -Wall -Wcompat -Werror
-               -Wincomplete-uni-patterns -Wincomplete-record-updates
-               -Wredundant-constraints
+  ghc-options:
+      -- Source: https://medium.com/mercury-bank/enable-all-the-warnings-a0517bc081c3
+      -Weverything
+      -Wno-missing-exported-signatures
+      -Wno-missing-import-lists
+      -Wno-missed-specialisations
+      -Wno-all-missed-specialisations
+      -Wno-unsafe
+      -Wno-safe
+      -Wno-missing-local-signatures
+      -Wno-monomorphism-restriction
+      -Werror
