@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes, TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-deriving-typeable #-}
 
 -- | Acid-state database for the wallet kernel
 module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (

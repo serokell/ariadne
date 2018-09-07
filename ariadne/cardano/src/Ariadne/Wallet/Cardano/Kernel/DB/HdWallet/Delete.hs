@@ -10,8 +10,9 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete (
 
 import Universum
 
-import Data.SafeCopy (base, deriveSafeCopySimple)
 import Control.Lens ((%=))
+import Data.SafeCopy (base, deriveSafeCopySimple)
+
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet

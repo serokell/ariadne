@@ -24,8 +24,8 @@ import qualified Data.Set as Set
 
 import qualified Pos.Core as Core
 
-import Pos.Txp (Utxo)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxIn(..), TxOut(..), TxOutAux(..))
+import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.Types (txUtxo)

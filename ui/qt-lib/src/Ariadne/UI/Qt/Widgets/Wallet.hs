@@ -133,7 +133,7 @@ updateModel model selectionModel wallets selection = do
       let path = (fromIntegral walletIdx):wtiPath
 
       item <- if idx < parentRowCount
-        then QStandardItem.child parent $ fromIntegral idx
+        then QStandardItem.child parent idx
         else do
           newItem <- QStandardItem.new
           QStandardItem.appendRowItem parent newItem
