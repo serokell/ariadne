@@ -25,7 +25,7 @@ defaultWalletConfig :: FilePath -> WalletConfig
 defaultWalletConfig dataDir = WalletConfig
     { wcEntropySize = 16
     , wcKeyfilePath = dataDir </> "secret-mainnet.key"
-    , wcAcidDBPath  = dataDir </> ".wallet-db"
+    , wcAcidDBPath  = dataDir </> "wallet-db"
     }
 
 parseFieldWallet ::
