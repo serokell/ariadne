@@ -13,16 +13,16 @@ import Graphics.UI.Qtah.Signal (connect_)
 
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
-import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
+import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
-import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
 data DeletingItem = DelWallet | DelAccount deriving Eq
 data DeletionResult = DoDelete | Cancel deriving Eq

@@ -2,7 +2,7 @@ module Main where
 
 import Universum
 
-import NType (N (..))
+import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)

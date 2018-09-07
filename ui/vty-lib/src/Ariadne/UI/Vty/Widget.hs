@@ -55,7 +55,8 @@ module Ariadne.UI.Vty.Widget
 
 import Universum
 
-import Control.Lens (ReifiedLens', ReifiedLens(..), assign, makeLensesWith, to, (%=), (.=))
+import Control.Lens
+  (ReifiedLens(..), ReifiedLens', assign, makeLensesWith, to, (%=), (.=))
 
 import qualified Brick as B
 import qualified Brick.Focus as B
