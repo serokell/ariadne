@@ -5,7 +5,7 @@ module Ariadne.UI.Vty.App
 
 import Universum
 
-import Control.Lens (makeLensesWith, uses, (.=), (%=))
+import Control.Lens (makeLensesWith, uses, (%=), (.=))
 import Data.Char (toLower)
 
 import qualified Brick as B

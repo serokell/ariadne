@@ -11,9 +11,9 @@ import Universum
 
 import qualified Data.Map.Strict as Map
 
-import Pos.Txp (Utxo)
 import qualified Pos.Core as Core
 import Pos.Core.Txp (TxOut(..), TxOutAux(..))
+import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HD

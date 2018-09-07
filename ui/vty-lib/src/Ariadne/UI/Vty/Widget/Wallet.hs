@@ -5,7 +5,7 @@ module Ariadne.UI.Vty.Widget.Wallet
 import Universum
 
 import Control.Exception (handle)
-import Control.Lens (assign, ix, makeLensesWith, (%=), (.=), uses)
+import Control.Lens (assign, ix, makeLensesWith, uses, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B

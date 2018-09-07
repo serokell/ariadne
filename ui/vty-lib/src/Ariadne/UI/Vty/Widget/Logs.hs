@@ -11,8 +11,8 @@ import qualified Brick as B
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.AnsiToVty
-import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Face
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.Util
 

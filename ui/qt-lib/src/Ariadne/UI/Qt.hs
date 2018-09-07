@@ -9,7 +9,8 @@ import Control.Concurrent
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
-import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiWalletFace, UiLangFace)
+import Ariadne.UI.Qt.Face
+  (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
