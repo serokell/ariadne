@@ -31,6 +31,7 @@ ansiToVty defAttr = V.vertCat . execWriter . go defAttr identity
       Ppr.A.SSGR s x ->
         go (V.withForeColor attr (getColor s)) img x
 
+{-# ANN getColor ("HLint: ignore Use record patterns" :: Text) #-}
 getColor :: [AT.SGR] -> V.Color
 getColor xs = case colors of
   []    -> V.white

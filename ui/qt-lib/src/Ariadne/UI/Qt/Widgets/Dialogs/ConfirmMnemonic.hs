@@ -206,8 +206,7 @@ isValid confirm@ConfirmMnemonic{..} = do
 
   case currentState of
     Before -> do
-      isNoOneLooks <- QAbstractButton.isChecked noOneLooks
-      return isNoOneLooks
+      QAbstractButton.isChecked noOneLooks
     DisplayMnemonic -> do
       return True
     RetypeMnemonic -> do

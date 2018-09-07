@@ -71,7 +71,7 @@ isQuitCommand :: Text -> Bool
 isQuitCommand t = strip t `elem` ["quit", "q", ":quit", ":q"]
 
 isHelpCommand :: Text -> Bool
-isHelpCommand t = strip t `elem` ["help"]
+isHelpCommand t = strip t == "help"
 
 outputTextLn :: Text -> Repl ()
 outputTextLn = Haskeline.outputStrLn . toString

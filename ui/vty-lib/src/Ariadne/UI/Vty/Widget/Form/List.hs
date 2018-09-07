@@ -46,7 +46,7 @@ drawListWidget focused ListWidgetState{..} = do
   return $
     B.clickable widgetName $
     B.vBox $
-    map drawItem $ zip [0..] items
+    zipWith (curry drawItem) [0..] items
 
 handleListWidgetKey
   :: KeyboardEvent

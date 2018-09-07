@@ -4,7 +4,7 @@ import Universum hiding (preview)
 
 import qualified Data.ByteArray as ByteArray
 
-import Control.Lens hiding (parts, (<&>))
+import Control.Lens hiding ((<&>))
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
 

@@ -26,7 +26,7 @@ updateCheckLoop :: UpdateConfig -> Request -> Manager -> (Version -> Text -> IO 
 updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
   let
     getVersionParse =
-        fmap fst . fmap head . nonEmpty .
+        fmap (fst . head) . nonEmpty .
         sortBy (\(_, s) (_, s') -> compare s s') -- sort by the most greedily parsed
     readVersion = maybe (throwIO FailedToParseResponse) pure . getVersionParse . readP_to_S parseVersion
   (mVer :: Either SomeException Version) <- tryAny $ httpLbs req man >>= readVersion . BS.unpack . BS.init . responseBody

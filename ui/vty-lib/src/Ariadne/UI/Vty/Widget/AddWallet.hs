@@ -117,6 +117,7 @@ initAddWalletWidget langFace features =
 -- View
 ----------------------------------------------------------------------------
 
+{-# ANN drawAddWalletWidget ("HLint: ignore Use list comprehension" :: Text) #-}
 drawAddWalletWidget :: WidgetName -> AddWalletWidgetState -> WidgetDrawM AddWalletWidgetState p (B.Widget WidgetName)
 drawAddWalletWidget focus AddWalletWidgetState{..} = do
   widget <- ask

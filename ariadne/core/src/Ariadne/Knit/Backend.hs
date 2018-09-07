@@ -4,7 +4,7 @@ module Ariadne.Knit.Backend
   , createKnitBackend
   ) where
 
-import Universum hiding (atomically)
+import Universum
 
 import NType (AllConstrained, KnownSpine)
 import Text.PrettyPrint.ANSI.Leijen (Doc)

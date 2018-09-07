@@ -200,11 +200,11 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
 
     checkAccId :: HdAccountId -> IO ()
     checkAccId accId =
-      eitherToThrow $ readHdAccount accId hdWallets >> return ()
+      void $ eitherToThrow $ readHdAccount accId hdWallets
 
     checkParentRoot :: HdAccountId -> IO ()
     checkParentRoot accId =
-      eitherToThrow $ readHdRoot (accId ^. hdAccountIdParent) hdWallets >> return ()
+      void $ eitherToThrow $ readHdRoot (accId ^. hdAccountIdParent) hdWallets
 
 refreshState
   :: PassiveWalletLayer IO

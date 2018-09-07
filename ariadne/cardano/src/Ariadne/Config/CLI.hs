@@ -196,17 +196,16 @@ getConfig commitHash = do
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
-        | isPrefixOf "@DATA" path = replace "@DATA" cdDataDir path
-        | isPrefixOf "@PWD" path = replace "@PWD" cdPWD path
+        | "@DATA" `isPrefixOf` path = replace "@DATA" cdDataDir path
+        | "@PWD" `isPrefixOf` path = replace "@PWD" cdPWD path
         | isAbsoluteConsiderTilde path = path
         | otherwise = prefix </> path
 
       isAbsoluteConsiderTilde :: FilePath -> Bool
-      isAbsoluteConsiderTilde p = if buildOS == Windows
-        then isAbsolute p
-        else if isPrefixOf "~/" p
-          then True
-          else isAbsolute p
+      isAbsoluteConsiderTilde p
+        | buildOS == Windows = isAbsolute p
+        | "~/" `isPrefixOf` p = True
+        | otherwise = isAbsolute p
 
       toDhallImport :: FilePath -> D.Text
       toDhallImport = fromString . f

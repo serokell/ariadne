@@ -44,6 +44,7 @@ data Bip44DerivationPath = Bip44DerivationPath
     , bip44AddressIndex :: HdAddressIx
     } deriving (Eq, Ord, Show)
 
+{-# ANN decodeBip44DerivationPath ("HLint: ignore Redundant bang pattern" :: Text) #-}
 decodeBip44DerivationPath :: [Word32] -> Maybe Bip44DerivationPath
 decodeBip44DerivationPath derPathList = do
     -- The bang is needed due to a GHC bug with ApplicativeDo
