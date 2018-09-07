@@ -3,10 +3,12 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Util where
 import Data.Bits
 
 import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)
+import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
@@ -15,10 +17,14 @@ import qualified Graphics.UI.Qtah.Widgets.QFrame as QFrame
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
+import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
+import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
+
+data CheckboxPosition = CheckboxOnLeft | CheckboxOnRight
 
 createLayout :: (QWidget.QWidgetPtr wgt) => wgt -> IO QVBoxLayout.QVBoxLayout
 createLayout widget = do
@@ -87,17 +93,26 @@ createSubWidget = do
 
   return (widget, layout)
 
-createCheckBox :: QVBoxLayout.QVBoxLayout -> Text -> IO QCheckBox.QCheckBox
-createCheckBox layout labelText = do
+createCheckBox
+  :: QVBoxLayout.QVBoxLayout
+  -> CheckboxPosition
+  -> Text
+  -> IO QCheckBox.QCheckBox
+createCheckBox layout checkBoxPos labelText = do
   checkBox <- QCheckBox.new
-  QWidget.setSizePolicyRaw checkBox Maximum Maximum
+  QWidget.setSizePolicyRaw checkBox Maximum Preferred
   checkBoxLabel <- QLabel.newWithText $ toString labelText
   QLabel.setWordWrap checkBoxLabel True
   QWidget.setMinimumSizeRaw checkBoxLabel 600 30
 
   checkBoxLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget checkBoxLayout checkBox
-  QBoxLayout.addWidget checkBoxLayout checkBoxLabel
+  case checkBoxPos of
+    CheckboxOnLeft -> do
+      QBoxLayout.addWidget checkBoxLayout checkBox
+      QBoxLayout.addWidget checkBoxLayout checkBoxLabel
+    CheckboxOnRight -> do
+      QBoxLayout.addWidget checkBoxLayout checkBoxLabel
+      QBoxLayout.addWidget checkBoxLayout checkBox
 
   QBoxLayout.addLayout layout checkBoxLayout
 
@@ -109,3 +124,30 @@ createCheckBox layout labelText = do
         else return False
 
   return checkBox
+
+createPasswordField :: Text -> IO (QHBoxLayout.QHBoxLayout, QLineEdit.QLineEdit)
+createPasswordField placeholder = do
+    layout <- QHBoxLayout.new
+    field <- QLineEdit.new
+    QLineEdit.setEchoMode field QLineEdit.Password
+    QLineEdit.setPlaceholderText field $ toString placeholder
+
+    visibleButton <- QPushButton.new
+    void $ setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
+    QAbstractButton.setIcon visibleButton =<< QIcon.newWithFile (":/images/hide-pass-ic.png" :: String)
+    QAbstractButton.setCheckable visibleButton True
+    QWidget.setSizePolicyRaw visibleButton Maximum Maximum
+
+    QBoxLayout.addWidget layout field
+    QBoxLayout.addWidget layout visibleButton
+    QLayout.setSpacing layout 12
+    QBoxLayout.setStretch layout 0 1
+    QBoxLayout.setStretch layout 1 0
+
+    let
+      togglePasswordVisibility checked = QLineEdit.setEchoMode field $
+          if checked then QLineEdit.Normal else QLineEdit.Password
+
+    connect_ visibleButton QAbstractButton.toggledSignal togglePasswordVisibility
+
+    return (layout, field)

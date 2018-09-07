@@ -13,8 +13,12 @@ module Glue
 
          -- * Command history ↔ Vty
        , historyToUI
+
+         -- * Password Manager ↔ Vty
+       , putPasswordEventToUI
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
@@ -29,6 +33,7 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter
 
@@ -54,8 +59,9 @@ knitFaceToUI
      )
   => UiFace
   -> KnitFace components
+  -> PutPassword
   -> UiLangFace
-knitFaceToUI UiFace{..} KnitFace{..} =
+knitFaceToUI UiFace{..} KnitFace{..} putPass =
   UiLangFace
     { langPutCommand = putCommand commandHandle
     , langPutUiCommand = putUiCommand
@@ -78,7 +84,9 @@ knitFaceToUI UiFace{..} KnitFace{..} =
 
     putUiCommand op = case opToExpr op of
       Left err -> return $ Left err
-      Right expr -> Right <$> putCommand (uiCommandHandle op) expr
+      Right expr -> do
+        whenJust (extractPass op) pushPassword
+        fmap Right $ putCommand (uiCommandHandle op) expr
     uiCommandHandle op commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (resultToUI result op) $
@@ -86,6 +94,11 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       , putCommandOutput = \_ _ ->
           pass
       }
+
+    extractPass = \case
+      UiRestoreWallet _ maybePass _ _ -> maybePass
+      _ -> Nothing
+    pushPassword password = putPass WalletIdTemporary password Nothing
 
     opToExpr = \case
       UiSelect ws ->
@@ -109,15 +122,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
                 ]
             ]
           )
-      UiRestoreWallet name password mnemonic full -> do
+      UiRestoreWallet name _ mnemonic full -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.restoreCommandName $
             [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
             , Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
             , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
             ]
-            ++ maybe []
-              ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
           )
       UiNewAccount name -> do
         Right $ Knit.ExprProcCall
@@ -321,3 +332,11 @@ historyToUI ch = UiHistoryFace
   , historyNextCommand = toNextCommand ch
   , historyPrevCommand = toPrevCommand ch
   }
+
+----------------------------------------------------------------------------
+-- Glue between the Password Manager and Vty frontend
+----------------------------------------------------------------------------
+
+putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest walletId cEvent

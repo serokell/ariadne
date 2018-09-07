@@ -15,13 +15,11 @@ import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
-import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
-import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
@@ -135,26 +133,16 @@ initNewWallet = do
   (walletMnemonicWidget, walletMnemonicLayout) <- createSubWidget
   addRow walletMnemonicLayout walletMnemonicLabel walletMnemonic
 
-  fullRestoreLabel <- QLabel.newWithText ("Perform full restore" :: String)
-  fullRestore <- QCheckBox.new
+  fullRestore <- createCheckBox walletMnemonicLayout CheckboxOnRight "Perform full restore"
   QAbstractButton.setChecked fullRestore True
-  QWidget.setSizePolicyRaw fullRestore Maximum Preferred
-
-  addRow walletMnemonicLayout fullRestoreLabel fullRestore
 
   QBoxLayout.addWidget layout walletMnemonicWidget
   QWidget.hide walletMnemonicWidget
 
   addSeparator layout
 
-  hasPasswordLabel <- QLabel.newWithText $ toString passwordLabelText
-  QLabel.setWordWrap hasPasswordLabel True
-  QWidget.setMinimumSizeRaw hasPasswordLabel 600 30
-  hasPassword <- QCheckBox.new
+  hasPassword <- createCheckBox layout CheckboxOnRight passwordLabelText
   QAbstractButton.setChecked hasPassword True
-  QWidget.setSizePolicyRaw hasPassword Maximum Preferred
-
-  addRow layout hasPasswordLabel hasPassword
 
   (passwordWidget, passwordLayout) <- createSubWidget
   passwordLabel <- QLabel.newWithText ("<b>PASSWORD</b>" :: String)

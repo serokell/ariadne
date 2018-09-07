@@ -100,10 +100,11 @@ data AddressGenerationFailed = AGFailedIncorrectPassPhrase
   deriving (Eq, Show)
 
 instance Exception AddressGenerationFailed where
-    displayException =
-        \case
-            AGFailedIncorrectPassPhrase ->
-                "Address generation failed due to incorrect passphrase"
+    toException      = walletPassExceptionToException
+    fromException    = walletPassExceptionFromException
+    displayException = \case
+        AGFailedIncorrectPassPhrase ->
+            "Address generation failed due to incorrect passphrase"
 
 data WalletIndexOutOfRange = WalletIndexOutOfRange Word
   deriving (Eq, Show)

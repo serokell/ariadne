@@ -5,6 +5,7 @@ module Ariadne.UI.Qt.Widgets.Wallet
        , handleWalletEvent
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
@@ -20,9 +21,11 @@ import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.InsertPassword
 import Ariadne.UI.Qt.Widgets.WalletInfo
 import Ariadne.UI.Qt.Widgets.WalletTree
 import Ariadne.Util
+import Ariadne.UX.PasswordManager
 
 data Wallet =
   Wallet
@@ -84,12 +87,14 @@ data WalletEvent
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
+  | WalletPasswordRequest WalletId CE.Event
 
 handleWalletEvent
   :: UiLangFace
+  -> PutPassword
   -> WalletEvent
   -> UI Wallet ()
-handleWalletEvent langFace ev = do
+handleWalletEvent langFace putPass ev = do
   Wallet{..} <- ask
   case ev of
     WalletUpdateEvent wallets selection selectionInfo -> do
@@ -109,6 +114,9 @@ handleWalletEvent langFace ev = do
     WalletNewAddressCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAddressCommandResult commandId result
+    WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
+      InsertPasswordCanceled -> return ()
+      InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

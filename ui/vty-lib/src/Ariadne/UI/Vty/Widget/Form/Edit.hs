@@ -3,6 +3,7 @@ module Ariadne.UI.Vty.Widget.Form.Edit
        , initBaseEditWidget
        , initEditWidget
        , initPasswordWidget
+       , initHiddenPasswordWidget
        ) where
 
 import Control.Lens (makeLensesWith, (.=))
@@ -32,7 +33,7 @@ data EditWidgetState p =
     , editWidgetTextZipper :: !(TextZipper Text)
     , editWidgetLens :: !(ReifiedLens' p Text)
     , editWidgetAttr :: !B.AttrName
-    , editWidgetCharTransform :: !(Char -> Char)
+    , editWidgetCharTransform :: !(Maybe (Char -> Char))
     , editWidgetCharAttr :: !(Maybe (p -> (Int, Int) -> B.AttrName))
     , editWidgetEnterMode :: !EnterMode
     }
@@ -42,7 +43,7 @@ makeLensesWith postfixLFields ''EditWidgetState
 initBaseEditWidget
   :: Lens' p Text
   -> B.AttrName
-  -> (Char -> Char)
+  -> Maybe (Char -> Char)
   -> Maybe (p -> (Int, Int) -> B.AttrName)
   -> EnterMode
   -> Widget p
@@ -64,13 +65,16 @@ initBaseEditWidget lens attr charTransform charAttr enterMode =
       }
 
 initEditWidget :: Lens' p Text -> Widget p
-initEditWidget lens = initBaseEditWidget lens "edit" id Nothing EnterIgnore
+initEditWidget lens = initBaseEditWidget lens "edit" (Just id) Nothing EnterIgnore
 
 initMultilineEditWidget :: Lens' p Text -> Widget p
-initMultilineEditWidget lens = initBaseEditWidget lens "edit" id Nothing EnterNewLine
+initMultilineEditWidget lens = initBaseEditWidget lens "edit" (Just id) Nothing EnterNewLine
 
 initPasswordWidget :: Lens' p Text -> Widget p
-initPasswordWidget lens = initBaseEditWidget lens "edit" (const '*') Nothing EnterIgnore
+initPasswordWidget lens = initBaseEditWidget lens "edit" (Just $ const '*') Nothing EnterIgnore
+
+initHiddenPasswordWidget :: Lens' p Text -> Widget p
+initHiddenPasswordWidget lens = initBaseEditWidget lens "edit" Nothing Nothing EnterIgnore
 
 drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p (B.Widget WidgetName)
 drawEditWidget _focused widgetState@EditWidgetState{..} = do
@@ -95,23 +99,26 @@ drawEditWidget _focused widgetState@EditWidgetState{..} = do
         width = max 1 $ rdrCtx ^. B.availWidthL
         chunks = chunksOf' width <$> ls
 
-        rowToImg r line =
-          [ V.horizCat $
-            [ V.char (attrFn (r, c)) $ editWidgetCharTransform char
-            | (c, char) <- zip [1 + subRow * width..] $ toString subLine
-            ] ++
-            [ V.text' defAttr $ T.replicate (width - length subLine) " " ]
-          | (subRow, subLine) <- zip [0..] line
-          ]
+        rowToImg r line = case editWidgetCharTransform of
+          Nothing -> [ V.text' defAttr $ T.replicate (width) " " ]
+          Just charTransform ->
+            [ V.horizCat $
+              [ V.char (attrFn (r, c)) $ charTransform char
+              | (c, char) <- zip [1 + subRow * width..] $ toString subLine
+              ] ++
+              [ V.text' defAttr $ T.replicate (width - length subLine) " " ]
+            | (subRow, subLine) <- zip [0..] line
+            ]
 
         img = V.vertCat $ concat [ rowToImg r line | (r, line) <- zip [1..] chunks ]
 
-        cursor = B.CursorLocation (B.Location (col'', row'')) $ Just widgetName
+        cursor = B.CursorLocation (B.Location location) $ Just widgetName
           where
             row' = min row $ length chunks - 1
             col' = min col $ sum $ map length $ chunks !! row'
             row'' = (sum $ map length $ take row' $ chunks) + col' `div` width
             col'' = col' `rem` width
+            location = maybe (0, 0) (const (col'', row'')) editWidgetCharTransform
 
       return $
         B.emptyResult

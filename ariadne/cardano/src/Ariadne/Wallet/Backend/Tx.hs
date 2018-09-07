@@ -55,6 +55,10 @@ instance Buildable SendTxException where
             bprint ("Account #"%int%" doesn't exist in "%build) idx rootId
 
 instance Exception SendTxException where
+    toException e = case e of
+        SendTxIncorrectPassPhrase -> walletPassExceptionToException e
+        _ -> SomeException e
+    fromException = walletPassExceptionFromException
     displayException = toString . prettyL
 
 -- | Send a transaction from selected to wallet to the list of

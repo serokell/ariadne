@@ -12,6 +12,7 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.UX.PasswordManager (GetPassword, VoidPassword)
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
@@ -27,9 +28,13 @@ data WalletPreface = WalletPreface
     , wpMakeWallet :: !(CardanoFace -> ((Doc -> IO ()) -> WalletFace, IO ()))
     }
 
-createWalletBackend ::
-    WalletConfig -> (WalletEvent -> IO ()) -> ComponentM WalletPreface
-createWalletBackend walletConfig sendWalletEvent = do
+createWalletBackend
+    :: WalletConfig
+    -> (WalletEvent -> IO ())
+    -> GetPassword
+    -> VoidPassword
+    -> ComponentM WalletPreface
+createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
     walletSelRef <- newIORef Nothing
 
     keystore <- keystoreComponent
@@ -74,6 +79,8 @@ createWalletBackend walletConfig sendWalletEvent = do
                 , walletGetSelection =
                     (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef
+                , walletGetPassword = getPass
+                , walletVoidPassword = voidPass
                 }
             initWalletAction =
                 refreshState pwl walletSelRef sendWalletEvent
