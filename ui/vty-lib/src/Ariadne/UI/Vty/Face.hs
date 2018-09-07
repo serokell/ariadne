@@ -13,6 +13,7 @@ module Ariadne.UI.Vty.Face
        , UiBackendStatusUpdate (..)
        , UiWalletEvent (..)
        , UiNewVersionEvent (..)
+       , UiPasswordEvent (..)
 
        , UiCommand (..)
        , UiSendOutput (..)
@@ -48,10 +49,13 @@ module Ariadne.UI.Vty.Face
        , UiSelectionInfo(..)
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+import Ariadne.UX.PasswordManager (WalletId)
 
 -- | UI library settings for a particular currency implementation
 -- Mostly boolean flags for enabled widgets
@@ -69,7 +73,7 @@ data UiFeatures = UiFeatures
 ----------------------------------------------------------------------------
 
 -- API for the UI.
-data UiFace = UiFace
+newtype UiFace = UiFace
   { -- Update the user interface with an event. Does not block unless the
     -- queue of events is full (should not normally happen).
     putUiEvent :: UiEvent -> IO ()
@@ -109,6 +113,7 @@ data UiEvent
   | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
   | UiNewVersionEvent UiNewVersionEvent
+  | UiPasswordEvent UiPasswordEvent
 
 data UiCommandId = UiCommandId
   { -- This field is used to compare whether two command identifiers are equal.
@@ -163,6 +168,11 @@ data UiNewVersionEvent = UiNewVersion
   , nvUpdateURL :: Text
   }
 
+-- | Ui event triggered by the password manager
+data UiPasswordEvent
+  = UiPasswordRequest WalletId CE.Event
+  | UiPasswordSent
+
 ----------------------------------------------------------------------------
 -- UI commands
 ----------------------------------------------------------------------------
@@ -191,7 +201,6 @@ data UiSendArgs = UiSendArgs
   { usaWalletIdx :: !(Maybe Word)
   , usaAccounts :: ![Word32]
   , usaOutputs :: [UiSendOutput]
-  , usaPassphrase :: !Text
   }
 
 data UiFeeArgs = UiFeeArgs

@@ -14,6 +14,7 @@ module Ariadne.UI.Qt.Face
        , UiLangFace (..)
        , UiWalletFace (..)
        , UiHistoryFace (..)
+       , UiPasswordEvent (..)
        , UiFace (..)
 
        , UiWalletTreeItem (..)
@@ -27,10 +28,12 @@ module Ariadne.UI.Qt.Face
        , UiSelectionInfo(..)
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
+import Ariadne.UX.PasswordManager
 import Serokell.Data.Memory.Units (Byte)
 
 data UiCommandId =
@@ -83,6 +86,7 @@ data UiEvent
   | UiCommandResult UiCommandId UiCommandResult
   | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
+  | UiPasswordEvent UiPasswordEvent
 
 -- | Commands issued by the UI widgets
 data UiCommand
@@ -117,6 +121,10 @@ data UiNewAddressCommandResult
   = UiNewAddressCommandSuccess Word Word Text
   | UiNewAddressCommandFailure Text
 
+-- | Ui event triggered by the password manager
+data UiPasswordEvent
+  = UiPasswordRequest WalletId CE.Event
+
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
   forall err expr. UiLangFace
@@ -146,7 +154,7 @@ data UiHistoryFace =
     }
 
 -- API for the UI.
-data UiFace = UiFace
+newtype UiFace = UiFace
     { putUiEvent :: UiEvent -> IO ()
     -- ^ Update the user interface with an event. Does not block unless the
     -- queue of events is full (should not normally happen).

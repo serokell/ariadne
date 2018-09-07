@@ -79,8 +79,6 @@ initSendWidget langFace walletIdxGetter accountsGetter =
     withWidgetState addOutput
     addWidgetChild WidgetNameSendAdd $
       initButtonWidget "+"
-    addWidgetChild WidgetNameSendPass $
-      initPasswordWidget $ widgetParentLens sendPassL
     addWidgetChild WidgetNameSendButton $
       initButtonWidget "Send"
 
@@ -97,7 +95,10 @@ initSendWidget langFace walletIdxGetter accountsGetter =
 -- View
 ----------------------------------------------------------------------------
 
-drawSendWidget :: WidgetName -> (SendWidgetState p) -> WidgetDrawM (SendWidgetState p) p (B.Widget WidgetName)
+drawSendWidget
+  :: WidgetName
+  -> SendWidgetState p
+  -> WidgetDrawM (SendWidgetState p) p (B.Widget WidgetName)
 drawSendWidget focus SendWidgetState{..} = do
   widget <- ask
 
@@ -163,7 +164,6 @@ handleSendWidgetEvent = \case
         case result of
           UiSendCommandSuccess tr -> do
             sendResultL .= SendResultSuccess tr
-            sendPassL .= ""
             sendOutputsL .= Map.empty
             addOutput
             updateFee
@@ -191,7 +191,6 @@ updateFocusList = do
     lift $ setWidgetFocusList $
       concat (outputFocuses <$> outputs) ++
       [ WidgetNameSendAdd
-      , WidgetNameSendPass
       , WidgetNameSendButton
       ]
   where

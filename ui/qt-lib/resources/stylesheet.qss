@@ -282,15 +282,15 @@ QDialog QLineEdit, QDialog QLineEdit:focus {
     background: transparent;
 }
 
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"] {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"] {
     border: none;
     background: transparent;
     padding: 0;
 }
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:hover {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"]:hover {
     background: rgba(52, 52, 62, 12);
 }
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: rgba(52, 52, 62, 48);
 }
 

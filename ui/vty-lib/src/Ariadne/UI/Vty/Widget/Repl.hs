@@ -67,7 +67,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       }
 
     addWidgetChild WidgetNameReplInput $
-      initBaseEditWidget (widgetParentLens replWidgetCommandL) "default" id (Just $ widgetParentGetter spanAttrs) EnterWithBackslash
+      initBaseEditWidget (widgetParentLens replWidgetCommandL) "default" (Just id) (Just $ widgetParentGetter spanAttrs) EnterWithBackslash
 
     addWidgetEventHandler WidgetNameReplInput $ \case
       WidgetEventEditChanged -> do

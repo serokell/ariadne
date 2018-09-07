@@ -21,6 +21,7 @@ main = defaultMain mainSettings
         , msPutWalletEventToUI = putWalletEventToUI
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI
-        , msKnitFaceToUI = knitFaceToUI
+        , msPutPasswordEventToUI = putPasswordEventToUI
+        , msKnitFaceToUI = \uiFace knitFace _ -> knitFaceToUI uiFace knitFace
         , msUiExecContext = const $ Base ()
         }

@@ -8,6 +8,7 @@ import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Qt
 import Ariadne.UI.Qt.Face (UiLangFace, UiWalletFace(..))
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face (WalletUIFace(..))
 
 import Glue
@@ -24,16 +25,21 @@ main = defaultMain mainSettings
         , msPutWalletEventToUI = putWalletEventToUI
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Nothing
+        , msPutPasswordEventToUI = putPasswordEventToUI
         , msKnitFaceToUI = knitFaceToUI
         , msUiExecContext = const $ Base ()
         }
 
-    createUI :: WalletUIFace -> CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI WalletUIFace{..} history =
+    createUI
+        :: WalletUIFace
+        -> CommandHistory
+        -> PutPassword
+        -> ComponentM (UiFace, UiLangFace -> IO ())
+    createUI WalletUIFace{..} history putPass =
         let
           historyFace = historyToUI history
           uiWalletFace = UiWalletFace
             { uiGenerateMnemonic = walletGenerateMnemonic
             , uiDefaultEntropySize = walletDefaultEntropySize
             }
-        in createAriadneUI uiWalletFace historyFace
+        in createAriadneUI uiWalletFace historyFace putPass

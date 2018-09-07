@@ -13,8 +13,12 @@ module Glue
 
          -- * Update ↔ Vty
        , putUpdateEventToUI
+
+         -- * Password Manager ↔ Vty
+       , putPasswordEventToUI
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Data.Unique
 import Data.Version (Version)
@@ -25,6 +29,7 @@ import Ariadne.Cardano.Face
 import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Cli.Face
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face
 
 import qualified Knit
@@ -115,3 +120,11 @@ putWalletEventToUI _ _ = pass
 
 putUpdateEventToUI :: UiFace -> Version -> Text -> IO ()
 putUpdateEventToUI _ _ _ = pass
+
+----------------------------------------------------------------------------
+-- Glue between the Password Manager and Vty frontend
+----------------------------------------------------------------------------
+
+putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest walletId cEvent

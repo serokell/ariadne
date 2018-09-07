@@ -24,11 +24,13 @@ import Ariadne.UI.Vty.Widget.AddWallet
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
+import Ariadne.UI.Vty.Widget.Password
 import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
 import Ariadne.UI.Vty.Widget.Wallet
 import Ariadne.Util
+import Ariadne.UX.PasswordManager
 
 data AppScreen
   = AppScreenWallet
@@ -45,6 +47,8 @@ data AppSelection
 
 data AppCompleted = AppCompleted | AppInProgress
 
+data AppModal = NoModal | PasswordMode
+
 data AppWidgetState =
   AppWidgetState
     { appScreen :: !AppScreen
@@ -56,17 +60,25 @@ data AppState =
     { appWidget :: Widget AppState
     , appFocusRing :: B.FocusRing WidgetName
     , appNavMode :: Bool
+    , appModal :: AppModal
     }
 
 makeLensesWith postfixLFields ''AppWidgetState
 makeLensesWith postfixLFields ''AppState
 
-initApp :: UiFeatures -> UiFace -> UiLangFace -> UiHistoryFace -> AppState
-initApp features uiFace langFace historyFace =
+initApp
+    :: UiFeatures
+    -> PutPassword
+    -> UiFace
+    -> UiLangFace
+    -> UiHistoryFace
+    -> AppState
+initApp features putPass uiFace langFace historyFace =
   AppState
     { appWidget = appWidget
     , appFocusRing = getFocusRing appWidget
     , appNavMode = False
+    , appModal = NoModal
     }
   where
     appWidget = initWidget $ do
@@ -88,6 +100,7 @@ initApp features uiFace langFace historyFace =
       addWidgetChild WidgetNameHelp $ initHelpWidget langFace
       addWidgetChild WidgetNameAbout initAboutWidget
       addWidgetChild WidgetNameLogs initLogsWidget
+      addWidgetChild WidgetNamePassword $ initPasswordWidget putPass uiFace
 
       addWidgetEventHandler WidgetNameMenu $ \case
         WidgetEventMenuSelected -> do
@@ -109,10 +122,10 @@ initApp features uiFace langFace historyFace =
 
 appFocusList :: AppWidgetState -> [WidgetNamePart]
 appFocusList AppWidgetState{..} = case appScreen of
-    AppScreenWallet -> [WidgetNameTree] ++ mainWidgetName ++ [WidgetNameRepl]
-    AppScreenHelp -> [WidgetNameHelp, WidgetNameRepl]
-    AppScreenAbout -> [WidgetNameAbout, WidgetNameRepl]
-    AppScreenLogs -> [WidgetNameLogs, WidgetNameRepl]
+        AppScreenWallet -> [WidgetNameTree] ++ mainWidgetName ++ [WidgetNameRepl]
+        AppScreenHelp -> [WidgetNameHelp, WidgetNameRepl]
+        AppScreenAbout -> [WidgetNameAbout, WidgetNameRepl]
+        AppScreenLogs -> [WidgetNameLogs, WidgetNameRepl]
   where
     mainWidgetName = case appSelection of
       AppSelectionNone -> []
@@ -127,7 +140,11 @@ getAppFocus AppState{..} =
     else fromMaybe [] $ B.focusGetCurrent appFocusRing
 
 resetAppFocus :: WidgetEventM AppWidgetState AppState ()
-resetAppFocus = get >>= lift . setWidgetFocusList . appFocusList
+resetAppFocus = do
+  modal <- useWidgetLens (Lens appModalL)
+  lift . setWidgetFocusList =<< case modal of
+    NoModal -> appFocusList <$> get
+    PasswordMode -> return [WidgetNamePassword]
 
 setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
 setAppFocus focus = do
@@ -198,6 +215,7 @@ drawAppWidget focus AppWidgetState{..} = do
         widgets ++
         [ B.joinBorders B.hBorder
         , drawChild WidgetNameRepl
+        , drawChild WidgetNamePassword
         , drawChild WidgetNameStatus
         ]
     drawWalletScreen = drawScreen
@@ -262,8 +280,13 @@ handleAppEvent brickEvent = do
         focus <- gets getAppFocus
         void $ runHandler $ handleWidgetPaste pasted focus
       return AppInProgress
-    B.MouseDown name button [] coords -> do
-      case button of
+    B.MouseDown widgetName button [] coords -> do
+      modal <- use appModalL
+      let modalName = case modal of
+            NoModal -> Just widgetName
+            PasswordMode -> Nothing
+
+      whenJust modalName $ \name -> case button of
         V.BScrollUp -> void $ runHandler $ handleWidgetScroll ScrollingLineUp name
         V.BScrollDown -> void $ runHandler $ handleWidgetScroll ScrollingLineDown name
         _ -> do
@@ -340,6 +363,11 @@ handleAppWidgetEvent = \case
     resetAppFocus
   UiCommandAction UiCommandLogs -> do
     appScreenL .= AppScreenLogs
+    resetAppFocus
+  UiPasswordEvent passEvent -> do
+    assignWidgetLens (Lens appModalL) $ case passEvent of
+      UiPasswordRequest _ _ -> PasswordMode
+      UiPasswordSent ->  NoModal
     resetAppFocus
   _ ->
     pass

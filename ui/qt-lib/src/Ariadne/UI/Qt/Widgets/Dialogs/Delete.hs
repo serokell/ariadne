@@ -52,7 +52,7 @@ initDelete itemType itemName = do
     ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
   QBoxLayout.addWidget layout warningLabel
 
-  isSure <- createCheckBox layout $ sformat
+  isSure <- createCheckBox layout CheckboxOnLeft $ sformat
     ("Make sure you have access to backup before continuing. \
      \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
     itemType

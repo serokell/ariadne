@@ -65,7 +65,7 @@ initConfirmMnemonic mnemonic = do
   QBoxLayout.addWidget layout instructionLabel
 
   (noOneLooksWidget, noOneLooksLayout) <- createSubWidget
-  noOneLooks <- createCheckBox noOneLooksLayout
+  noOneLooks <- createCheckBox noOneLooksLayout CheckboxOnLeft
     "Make sure nobody looks into your screen unless you want them to have access to your funds."
   QBoxLayout.addWidget layout noOneLooksWidget
 
@@ -87,9 +87,9 @@ initConfirmMnemonic mnemonic = do
   (checksWidget, checksLayout) <- createSubWidget
   addSeparator checksLayout
 
-  uMoneyOnDevice <- createCheckBox checksLayout
+  uMoneyOnDevice <- createCheckBox checksLayout CheckboxOnLeft
     "I understand that my money are held securely on this device only, not on the company servers"
-  uMoved <- createCheckBox checksLayout
+  uMoved <- createCheckBox checksLayout CheckboxOnLeft
     "I understand that if this application is moved to another device or deleted,\
     \ my money can be only recovered with the backup phrase which was written down in a secure place"
   QBoxLayout.addWidget layout checksWidget

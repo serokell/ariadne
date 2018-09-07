@@ -32,6 +32,7 @@ import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.Types (AccountId(..), WalletId(..))
+import Ariadne.Wallet.Face
 
 import Test.QuickCheck (Arbitrary(..))
 
@@ -70,7 +71,11 @@ instance Buildable CreateAddressError where
 instance Show CreateAddressError where
     show = formatToString build
 
-instance Exception CreateAddressError
+instance Exception CreateAddressError where
+    toException e = case e of
+        CreateAddressHdSeqGenerationFailed _ -> walletPassExceptionToException e
+        _ -> SomeException e
+    fromException = walletPassExceptionFromException
 
 -- | Creates a new 'HdAddress' for the input account.
 createAddress :: PassPhrase

@@ -17,8 +17,12 @@ module Glue
 
          -- * Command history ↔ Vty
        , historyToUI
+
+         -- * Password Manager ↔ Vty
+       , putPasswordEventToUI
        ) where
 
+import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
@@ -34,6 +38,7 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter
 
@@ -59,8 +64,9 @@ knitFaceToUI
      )
   => UiFace
   -> KnitFace components
+  -> PutPassword
   -> UiLangFace
-knitFaceToUI UiFace{..} KnitFace{..} =
+knitFaceToUI UiFace{..} KnitFace{..} putPass =
   UiLangFace
     { langPutCommand = putCommand False Nothing
     , langPutUiCommand = putUiCommand False
@@ -79,6 +85,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     putUiCommand silent op = case opToExpr op of
       Left err -> return $ Left err
       Right expr -> do
+        whenJust (extractPass op) pushPassword
         comId <- putCommand silent (Just op) expr
         unless silent $
           putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
@@ -92,6 +99,12 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       , putCommandOutput = \tid doc -> unless silent $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
+
+    extractPass = \case
+      UiNewWallet UiNewWalletArgs{..} -> Just unwaPassphrase
+      UiRestoreWallet UiRestoreWalletArgs{..} -> Just urwaPassphrase
+      _ -> Nothing
+    pushPassword password = putPass WalletIdTemporary password Nothing
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
     justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])
@@ -114,8 +127,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.sendCommandName $
             justOptNumber "wallet" usaWalletIdx ++
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
-            argOutputs ++
-            optString "pass" usaPassphrase
+            argOutputs
           )
       UiFee UiFeeArgs{..} -> do
         -- TODO: Proper fee requesting should be implemented as part of AD-397
@@ -129,8 +141,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       UiNewWallet UiNewWalletArgs{..} -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.newWalletCommandName $
-            optString "name" unwaName ++
-            optString "pass" unwaPassphrase
+            optString "name" unwaName
           )
       UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall
@@ -150,8 +161,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
             , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
-            optString "name" urwaName ++
-            optString "pass" urwaPassphrase
+            optString "name" urwaName
           )
       UiRename UiRenameArgs{..} -> do
         Right $ Knit.ExprProcCall
@@ -356,3 +366,11 @@ historyToUI ch = UiHistoryFace
   , historyNextCommand = toNextCommand ch
   , historyPrevCommand = toPrevCommand ch
   }
+
+----------------------------------------------------------------------------
+-- Glue between the Password Manager and Vty frontend
+----------------------------------------------------------------------------
+
+putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest walletId cEvent

@@ -23,6 +23,7 @@ import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
 import Ariadne.TaskManager.Backend
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend
 import Ariadne.Wallet.Backend.KeyStorage (generateMnemonic)
 import Ariadne.Wallet.Face (WalletEvent, WalletUIFace(..))
@@ -44,14 +45,25 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
     -- 'defaultMain' instead of being obtained there, because it
     -- involves TH and we want to run it only when we build
     -- executables, not when we build the library.
-    , msCreateUI :: !(WalletUIFace -> CommandHistory -> ComponentM (uiFace, uiLangFace -> IO ()))
+    , msCreateUI :: !(
+        WalletUIFace ->
+        CommandHistory ->
+        PutPassword ->
+        ComponentM (uiFace, uiLangFace -> IO ())
+      )
     , msPutWalletEventToUI :: !(uiFace -> WalletEvent -> IO ())
     , msPutCardanoEventToUI :: !(uiFace -> CardanoEvent -> IO ())
     , msPutUpdateEventToUI :: !(Maybe (uiFace -> Version -> Text -> IO ()))
     -- ^ Make UI process an update event if it's supported by UI. If
     -- it's not supported, this field can be 'Nothing'.
-    , msKnitFaceToUI ::
-        !(uiFace -> KnitFace (AllComponents uiComponents) -> uiLangFace)
+    , msPutPasswordEventToUI :: !(uiFace -> RequestPasswordToUi)
+    -- ^ Make UI respond to a request from the password manager
+    , msKnitFaceToUI :: !(
+        uiFace ->
+        KnitFace (AllComponents uiComponents) ->
+        PutPassword ->
+        uiLangFace
+      )
     , msUiExecContext ::
         !(uiFace ->
         Rec (Knit.ComponentExecContext IO (AllComponents uiComponents)) uiComponents)
@@ -83,12 +95,17 @@ initializeEverything MainSettings {..}
       { walletGenerateMnemonic = generateMnemonic
       , walletDefaultEntropySize = wcEntropySize walletConfig
       }
+  PasswordManager {..} <- createPasswordManager
 
-  (uiFace, mkUiAction) <- msCreateUI walletUIFace history
+  (uiFace, mkUiAction) <- msCreateUI walletUIFace history putPassword
   WalletPreface
     { wpBListener = bHandle
     , wpMakeWallet = mkWallet
-    } <- createWalletBackend walletConfig (msPutWalletEventToUI uiFace)
+    } <- createWalletBackend
+        walletConfig
+        (msPutWalletEventToUI uiFace)
+        (getPasswordWithUI (msPutPasswordEventToUI uiFace))
+        voidPassword
   (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
@@ -117,7 +134,7 @@ initializeEverything MainSettings {..}
     knitFace = createKnitBackend knitExecContext taskManagerFace
 
     uiAction, cardanoAction :: IO ()
-    uiAction = mkUiAction (msKnitFaceToUI uiFace knitFace)
+    uiAction = mkUiAction $ msKnitFaceToUI uiFace knitFace putPassword
     cardanoAction = mkCardanoAction (msPutCardanoEventToUI uiFace)
 
     raceWithUpdateCheckAction :: IO () -> IO ()
