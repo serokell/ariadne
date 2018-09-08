@@ -1,0 +1,79 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-disciplina
+
+library:
+  <<: *lib-common
+  default-extensions:
+    - ApplicativeDo
+    - DataKinds
+    - EmptyCase
+    - ExistentialQuantification
+    - NegativeLiterals
+    - OverloadedLabels
+    - TypeOperators
+  dependencies:
+    - Earley
+    - aeson
+    - async
+    - bytestring
+    - componentm
+    - directory
+    - disciplina-core
+    - disciplina-witness
+    - filelock
+    - filepath
+    - knit
+    - lens
+    - memory
+    - optparse-applicative
+    - scientific
+    - serialise
+    - serokell-util
+    - servant
+    - servant-generic
+    - servant-client
+    - text-format
+  ghc-options:
+    - -Wno-unused-top-binds
+
+executables:
+  dscp-wallet:
+    <<: *exec-common
+    source-dirs: exec
+    default-extensions:
+      - DataKinds
+    dependencies:
+      - ansi-wl-pprint
+      - ariadne-core
+      - ariadne-disciplina
+      - ariadne-vty-lib
+      - async
+      - componentm
+      - containers
+      - double-conversion
+      - disciplina-core
+      - knit
+      - lens
+      - ntype
+      - random
+      - serokell-util
+      - text
+      - vector
+
+  dscp-wallet-cli:
+    <<: *exec-common
+    source-dirs: exec-cli
+    default-extensions:
+      - DataKinds
+    dependencies:
+      - ansi-wl-pprint
+      - ariadne-cli-lib
+      - ariadne-core
+      - ariadne-disciplina
+      - async
+      - componentm
+      - disciplina-core
+      - knit
+      - ntype
+      - text

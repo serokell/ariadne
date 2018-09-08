@@ -8,6 +8,7 @@ packages:
 # Our packages
 - ./ariadne/core
 - ./ariadne/cardano
+- ./ariadne/disciplina
 - ./ui/cli-app
 - ./ui/cli-lib
 - ./ui/qt-app
@@ -53,6 +54,7 @@ packages:
     commit: 3d274c14ca3077c3a081ba7ad57c5182da65c8c1
   subdirs:
   - cborg
+  - serialise
   extra-dep: true
 - location:
     git: https://github.com/serokell/time-units.git
@@ -141,6 +143,45 @@ packages:
     commit: e4e879abca99d0d56015765859fb37af59a81dbb
   extra-dep: true
 
+# Disciplina dependencies
+- location:
+    git: https://github.com/DisciplinaOU/disciplina
+    commit: 4264074f4c090cee6cdf8d6cd85a5893d595b1fd
+  extra-dep: true
+  subdirs:
+  - core
+  - witness
+
+- location:
+    git: https://github.com/serokell/auth-data-structures.git
+    commit: f9a0cd66f443d7b0e04a3c8ae8d475f8344b823b
+  extra-dep: true
+
+- location:
+    git: https://github.com/serokell/blockchain-util.git
+    commit: 0252789e6b3d562fd189cbc66e4bfa76d363138f # volhovm/dscp187
+  extra-dep: true
+  subdirs:
+    - snowdrop-core
+    - snowdrop-util
+    - snowdrop-block
+    - snowdrop-execution
+
+- location:
+    git: https://github.com/serokell/mon.git
+    commit: 19d35c9895468c22397187420fe9e63379aef4db
+  extra-dep: true
+
+- location:
+    git: https://github.com/serokell/rocksdb-haskell.git
+    commit: 2dd6b4ffdc4edb86b477273ee3c8416a1520f4e1
+  extra-dep: true
+
+- location:
+    git: https://github.com/int-index/caps
+    commit: 2f46fc6d5480bdef0a17f64359ad6eb29510dba4
+  extra-dep: true
+
 # Ariadne dependencies
 
 ## We are using our fork because we added some stuff there
@@ -157,13 +198,21 @@ packages:
 ## Lootbox is not on Hackage
 - location:
     git: https://github.com/serokell/lootbox.git
-    commit: f287dd6cfe29707b28cc0418e8aa099de3bfbe77 # master
+    commit: 885e41ce6f410597265823ca640267b69b1727e6 # master
   extra-dep: true
   subdirs:
+  - code/base
+  - code/config
   - code/crypto
+  - code/log
+  - code/network
   - code/prelude
 
 extra-deps:
+
+# for caps
+- git: https://github.com/mokus0/dependent-sum
+  commit: f8909cb323b4ffa63af6c4e7cb3a9745e6199080
 
 # From `cardano-sl`:
 # Very important! First release with a fix of 'race' and 'cancel'.
@@ -178,6 +227,8 @@ extra-deps:
 - hinotify-0.3.8.1
 # Required by backend test from cardano-sl-wallet-new
 - normaldistribution-1.1.0.3
+
+- aeson-options-0.0.0
 
 # Serokell stuff
 - universum-1.1.0

@@ -34,6 +34,7 @@ _definitions:
         - MonadFailDesugaring
         - MultiParamTypeClasses
         - MultiWayIf
+        - NamedFieldPuns
         - NegativeLiterals
         - OverloadedLabels
         - OverloadedStrings
