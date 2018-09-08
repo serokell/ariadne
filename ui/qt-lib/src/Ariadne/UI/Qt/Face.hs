@@ -90,7 +90,7 @@ data UiCommand
   | UiSend Text Text  -- ^ Address, amount
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
-  | UiNewAddress
+  | UiNewAddress Word Word -- ^ Wallet index, account index
   | UiKill Natural
   | UiRemoveCurrentItem
 
@@ -114,7 +114,7 @@ data UiNewAccountCommandResult
   | UiNewAccountCommandFailure Text
 
 data UiNewAddressCommandResult
-  = UiNewAddressCommandSuccess
+  = UiNewAddressCommandSuccess Word Word Text
   | UiNewAddressCommandFailure Text
 
 -- The backend language (Knit by default) interface as perceived by the UI.
