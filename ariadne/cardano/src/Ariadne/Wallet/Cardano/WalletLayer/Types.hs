@@ -2,8 +2,6 @@ module Ariadne.Wallet.Cardano.WalletLayer.Types
     ( PassiveWalletLayer (..)
     ) where
 
-import Universum
-
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel

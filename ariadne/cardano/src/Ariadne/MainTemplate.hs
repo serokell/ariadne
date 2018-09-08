@@ -5,8 +5,6 @@ module Ariadne.MainTemplate
        , defaultMain
        ) where
 
-import Universum
-
 import Control.Concurrent.Async (race_, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))

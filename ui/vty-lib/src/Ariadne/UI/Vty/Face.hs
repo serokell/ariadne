@@ -46,8 +46,6 @@ module Ariadne.UI.Vty.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)

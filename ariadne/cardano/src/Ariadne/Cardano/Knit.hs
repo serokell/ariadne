@@ -1,6 +1,6 @@
 module Ariadne.Cardano.Knit where
 
-import Universum hiding (preview)
+import Prelude hiding (preview)
 
 import Control.Lens hiding (parts)
 import Control.Natural (type (~>))

@@ -7,8 +7,6 @@ module Ariadne.Config.Ariadne
        , acHistoryL
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D

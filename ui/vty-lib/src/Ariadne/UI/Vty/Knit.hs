@@ -1,6 +1,6 @@
 module Ariadne.UI.Vty.Knit where
 
-import Universum hiding (preview)
+import Prelude hiding (preview)
 
 import Text.Earley
 

@@ -34,8 +34,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
   , (@+)
   ) where
 
-import qualified Prelude
-import Universum hiding (toList)
+import Prelude hiding (toList)
 
 import qualified Control.Lens as Lens
 import Data.Coerce (coerce)
@@ -53,6 +52,7 @@ import Pos.Infra.Util.LogSafe
   (BuildableSafe, SecureLog, buildSafeList, getSecureLog, secure)
 import Serokell.Util (listJsonIndent)
 import Test.QuickCheck (Arbitrary(..))
+import qualified Text.Show
 
 {-# ANN module ("HLint: ignore Unnecessary hiding" :: Text) #-}
 

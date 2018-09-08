@@ -1,7 +1,5 @@
 module Ariadne.TaskManager.Face where
 
-import Universum
-
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)
 

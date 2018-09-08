@@ -5,8 +5,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
   , NewWalletResult(..)
   ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 
 import Data.Bits

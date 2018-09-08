@@ -4,8 +4,6 @@ module Ariadne.Util
     )
     where
 
-import Universum
-
 import Control.Lens (LensRules, lensField, lensRules, mappingNamer)
 
 atomicRunStateIORef' :: IORef s -> State s a -> IO a

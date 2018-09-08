@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Form.Button
        ( initButtonWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 
 import qualified Brick as B

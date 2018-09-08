@@ -7,8 +7,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read (
   , queryAccountAvailableBalance
   ) where
 
-import Universum
-
 import qualified Data.Map.Strict as Map
 
 import qualified Pos.Core as Core

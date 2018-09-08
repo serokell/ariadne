@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Help
        ( initHelpWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 
 import qualified Brick as B

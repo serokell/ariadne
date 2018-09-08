@@ -1,7 +1,5 @@
 module Ariadne.Update.Backend where
 
-import Universum
-
 import Control.Concurrent (threadDelay)
 import Control.Exception.Safe (Exception(..), throwIO, tryAny)
 import qualified Data.ByteString.Lazy.Char8 as BS

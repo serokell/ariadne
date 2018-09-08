@@ -33,8 +33,6 @@ module Ariadne.Config.Cardano
        , defaultTopology
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Data.Default (def)
 import Data.FileEmbed (embedFile, makeRelativeToProject)

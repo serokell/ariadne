@@ -1,13 +1,20 @@
-<<: !include "../hpack/module.yaml"
+<<: !include "../hpack/definitions.yaml"
 
 name: knit
 
+<<: *meta
+default-extensions: *default-extensions
+ghc-options: *ghc-options
+
 library:
   <<: *lib-common
+  default-extensions:
+    - NoImplicitPrelude
   dependencies:
     - Earley
     - QuickCheck
     - ansi-wl-pprint
+    - base >= 4.7 && < 5
     - containers
     - formatting
     - generic-arbitrary
@@ -27,10 +34,14 @@ library:
 tests:
   knit-test:
     <<: *test-common
+    default-extensions:
+      - NoImplicitPrelude
     dependencies:
       - QuickCheck
+      - base >= 4.7 && < 5
       - hspec
       - knit
       - loc
       - megaparsec
       - text
+      - universum

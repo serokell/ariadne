@@ -3,8 +3,6 @@ module Ariadne.UI.Vty.Widget.Menu
        , initMenuWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Data.Char (toLower)
 import Data.Maybe (fromJust)

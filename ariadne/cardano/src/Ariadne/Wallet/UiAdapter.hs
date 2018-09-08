@@ -24,8 +24,6 @@ module Ariadne.Wallet.UiAdapter
   , formatHdRootId
   ) where
 
-import Universum
-
 import qualified Data.Vector as V
 import Formatting (sformat, (%))
 

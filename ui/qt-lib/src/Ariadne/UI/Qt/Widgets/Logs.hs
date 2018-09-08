@@ -5,8 +5,6 @@ module Ariadne.UI.Qt.Widgets.Logs
     , showLogsWindow
     ) where
 
-import Universum
-
 import Formatting
 
 import Control.Lens (makeLensesWith)

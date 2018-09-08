@@ -31,8 +31,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (
   , readHdAddressByCardanoAddress
   ) where
 
-import Universum
-
 import Control.Lens (at)
 
 import Pos.Core (Address, Coin, sumCoins)

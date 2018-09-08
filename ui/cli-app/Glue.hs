@@ -15,8 +15,6 @@ module Glue
        , putUpdateEventToUI
        ) where
 
-import Universum
-
 import Control.Exception (displayException)
 import Data.Text (pack)
 import Data.Unique

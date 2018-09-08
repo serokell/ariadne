@@ -4,8 +4,6 @@ module Ariadne.UI.Qt.MainWindow
     , handleMainWindowEvent
     ) where
 
-import Universum
-
 import Control.Lens (magnify, makeLensesWith)
 
 import Graphics.UI.Qtah.Core.Types (QtWindowType(Dialog))

@@ -4,8 +4,6 @@ module Ariadne.Wallet.Backend.AddressDiscovery
        , discoverHDAddressesWithUtxo
        ) where
 
-import Universum
-
 import Control.Lens (at, non, (?~))
 import Data.Conduit (runConduitRes, (.|))
 import qualified Data.Conduit.List as CL

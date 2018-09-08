@@ -1,6 +1,6 @@
 module Ariadne.Wallet.Knit where
 
-import Universum hiding (preview)
+import Prelude hiding (preview)
 
 import qualified Data.ByteArray as ByteArray
 
