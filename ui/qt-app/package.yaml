@@ -1,0 +1,26 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-qt-app
+
+executables:
+  ariadne-qt:
+    <<: *exec-common
+    source-dirs: .
+    ghc-options:
+      - -dynamic
+    dependencies:
+      - ansi-wl-pprint
+      - ariadne-cardano
+      - ariadne-core
+      - ariadne-qt-lib
+      - async
+      - componentm
+      - containers
+      - double-conversion
+      - knit
+      - lens
+      - ntype
+      - serokell-util
+      - text
+      - vector
+      - vinyl

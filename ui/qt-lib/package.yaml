@@ -1,0 +1,39 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-qt-lib
+
+extra-source-files:
+  - resources/ariadne-qt.qrc
+  - resources/images/*.png
+  - resources/museo/*.ttf
+  - resources/museo/*.otf
+  - resources/stylesheet.qss
+
+library:
+  <<: *lib-common
+  ghc-options:
+    - -dynamic
+    - -Wno-unused-top-binds
+  dependencies:
+    - ansi-terminal
+    - ansi-wl-pprint
+    - ariadne-core
+    - bytestring
+    - componentm
+    - containers
+    - extra
+    - file-embed
+    - formatting
+    - hoppy-runtime
+    - html-entities
+    - lens
+    - loc
+    - qtah
+    - serokell-util
+    - stm
+    - text
+
+custom-setup:
+  dependencies:
+    - Cabal
+    - base
