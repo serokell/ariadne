@@ -326,5 +326,26 @@ QDialog QLabel[styleRole="mnemonicDisplay"] {
     qproperty-alignment: "AlignCenter";
 }
 
+QDialog QPushButton[styleRole="receiveAccordionHeader"] {
+    font-weight: bold;
+    background: transparent;
+    border: none;
+    color: #34343e;
+}
+
+QDialog QPushButton[styleRole="copyAddressButton"] {
+    background: transparent;
+    border: none;
+    color: rgba(52, 52, 62, 127);
+    padding-left: 0;
+    padding-right: 0;
+}
+QDialog QPushButton[styleRole="copyAddressButton"]:hover {
+    background: rgba(52, 52, 62, 12);
+}
+QDialog QPushButton[styleRole="copyAddressButton"]:hover:pressed {
+    background: rgba(52, 52, 62, 25);
+}
+
 /* vim: ft=css
 */

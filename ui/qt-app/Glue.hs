@@ -124,9 +124,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           (Knit.ProcCall Knit.newAccountCommandName
             [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
           )
-      UiNewAddress -> do
+      UiNewAddress wIdx aIdx -> do
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAddressCommandName [])
+          (Knit.ProcCall Knit.newAddressCommandName
+            [ Knit.ArgKw "wallet" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wIdx
+            , Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ aIdx
+            ]
+          )
       UiRemoveCurrentItem -> do
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.removeCommandName [])
@@ -145,10 +149,12 @@ knitFaceToUI UiFace{..} KnitFace{..} =
         Just . UiNewAccountCommandResult .
           either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
           fromResult result
-      UiNewAddress ->
+      UiNewAddress wIdx aIdx ->
         Just . UiNewAddressCommandResult .
-          either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
-          fromResult result
+          either UiNewAddressCommandFailure (UiNewAddressCommandSuccess wIdx aIdx) $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueAddress a -> Right $ pretty a
+            _ -> Left "Unrecognized return value"
       _ -> Nothing
 
     fromResult = \case
