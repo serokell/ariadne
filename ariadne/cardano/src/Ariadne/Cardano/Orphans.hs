@@ -1,8 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Ariadne.Cardano.Orphans where
 
-import Universum
-
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Client.Txp.Util (InputSelectionPolicy(..))

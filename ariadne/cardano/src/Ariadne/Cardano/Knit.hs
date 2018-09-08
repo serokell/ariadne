@@ -1,8 +1,6 @@
 module Ariadne.Cardano.Knit where
 
-import Universum hiding (preview)
-
-import Control.Lens hiding (parts)
+import Control.Lens (makePrisms, prism')
 import Control.Natural (type (~>))
 import Data.List as List
 import Data.Scientific

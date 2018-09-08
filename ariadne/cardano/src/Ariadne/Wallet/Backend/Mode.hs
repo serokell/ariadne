@@ -10,8 +10,6 @@ module Ariadne.Wallet.Backend.Mode
        (
        ) where
 
-import Universum
-
 import qualified Data.ByteString as BS
 
 import Named ((!))

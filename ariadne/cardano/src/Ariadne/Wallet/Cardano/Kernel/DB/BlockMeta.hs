@@ -9,8 +9,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (
   , blockMetaSlotId
   ) where
 
-import Universum
-
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy

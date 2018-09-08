@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Wallet
        ( initWalletWidget
        ) where
 
-import Universum
-
 import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, uses, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)

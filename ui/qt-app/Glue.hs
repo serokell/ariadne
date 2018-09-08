@@ -15,8 +15,6 @@ module Glue
        , historyToUI
        ) where
 
-import Universum
-
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)

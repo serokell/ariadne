@@ -35,7 +35,6 @@ _definitions:
         - MultiParamTypeClasses
         - MultiWayIf
         - NegativeLiterals
-        - NoImplicitPrelude
         - OverloadedLabels
         - OverloadedStrings
         - PatternSynonyms
@@ -54,7 +53,8 @@ _definitions:
         - ViewPatterns
 
     - &dependencies
-        - base >= 4.7 && < 5
+        - base-noprelude >= 4.7 && < 5
+        - loot-prelude
         - universum
 
     - &ghc-options
@@ -68,6 +68,7 @@ _definitions:
         - -Wno-safe
         - -Wno-missing-local-signatures
         - -Wno-monomorphism-restriction
+        - -Wno-implicit-prelude
         - -Werror
 
   _utils:

@@ -6,8 +6,6 @@ module Ariadne.UI.Qt.Widgets.WalletInfo
        , handleWalletInfoEvent
        ) where
 
-import Universum
-
 import Data.Text (toUpper)
 
 import Control.Lens (makeLensesWith)

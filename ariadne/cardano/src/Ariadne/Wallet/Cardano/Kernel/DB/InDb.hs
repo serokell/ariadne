@@ -5,8 +5,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.InDb (
   , fromDb
   ) where
 
-import Universum
-
 import Control.Lens.TH (makeLenses)
 import Data.Coerce (coerce)
 import Data.SafeCopy

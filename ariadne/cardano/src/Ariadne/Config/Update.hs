@@ -3,8 +3,6 @@ module Ariadne.Config.Update
   , updateFieldModifier
   , UpdateConfig (..)) where
 
-import Universum
-
 import Ariadne.Config.DhallUtil (interpretInt, parseField)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D

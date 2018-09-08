@@ -16,8 +16,6 @@ module Ariadne.Config.DhallUtil
     , fromDhall)
     where
 
-import Universum
-
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map
 import Data.String (fromString)

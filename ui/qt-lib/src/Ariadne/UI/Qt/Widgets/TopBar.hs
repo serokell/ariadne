@@ -7,8 +7,6 @@ module Ariadne.UI.Qt.Widgets.TopBar
   , displayBlockchainInfo
   ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 
 import Data.Bits

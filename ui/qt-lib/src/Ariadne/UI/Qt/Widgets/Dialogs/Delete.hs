@@ -4,8 +4,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Delete
   , runDelete
   ) where
 
-import Universum
-
 import qualified Data.Text as T
 import Formatting
 

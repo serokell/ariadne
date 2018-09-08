@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.About
        ( initAboutWidget
        ) where
 
-import Universum
-
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
 import qualified Graphics.Vty as V

@@ -4,8 +4,6 @@ module Ariadne.UI.Qt.AnsiToHTML
     , csiToHTML
     ) where
 
-import Universum
-
 import Formatting
 
 import qualified Data.Text as T

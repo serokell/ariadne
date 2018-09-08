@@ -5,8 +5,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update (
   , updateHdAccountName
   ) where
 
-import Universum
-
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import Ariadne.Wallet.Cardano.Kernel.Util (modifyAndGetNew)

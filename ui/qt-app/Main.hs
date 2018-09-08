@@ -1,7 +1,5 @@
 module Main where
 
-import Universum
-
 import Control.Monad.Component (ComponentM)
 import NType (N(..))
 

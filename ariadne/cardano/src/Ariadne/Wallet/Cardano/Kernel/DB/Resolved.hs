@@ -11,8 +11,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Resolved (
   , rbSlot
   ) where
 
-import Universum
-
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)

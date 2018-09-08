@@ -11,8 +11,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update (
   , observableRollbackUseInTestsOnly
   ) where
 
-import Universum
-
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import Test.QuickCheck (Arbitrary(..))

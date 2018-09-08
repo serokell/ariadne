@@ -6,8 +6,6 @@ module Ariadne.UI.Qt.Widgets.WalletTree
        , handleWalletTreeEvent
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 

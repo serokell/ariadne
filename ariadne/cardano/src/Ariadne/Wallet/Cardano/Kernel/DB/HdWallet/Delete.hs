@@ -8,8 +8,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete (
   , deleteHdAccount
   ) where
 
-import Universum
-
 import Control.Lens ((%=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
 

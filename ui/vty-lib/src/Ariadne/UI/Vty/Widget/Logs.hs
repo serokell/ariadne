@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Logs
        ( initLogsWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, zoom, (+=), (.=))
 import qualified Data.Text as Text
 

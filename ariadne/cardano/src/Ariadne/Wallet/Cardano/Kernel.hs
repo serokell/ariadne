@@ -25,7 +25,7 @@ module Ariadne.Wallet.Cardano.Kernel (
   , getWalletSnapshot
   ) where
 
-import Universum hiding (State, init)
+import Prelude hiding (init)
 
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Map.Strict as Map

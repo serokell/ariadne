@@ -1,7 +1,5 @@
 module Main where
 
-import Universum
-
 import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)

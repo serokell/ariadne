@@ -1,7 +1,5 @@
 module Ariadne.Knit.Help (generateKnitHelp) where
 
-import Universum
-
 import NType (AllConstrained, KnownSpine)
 
 import qualified Data.List as List
