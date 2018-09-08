@@ -1,3 +1,5 @@
+**Description:**
+
 **YT issue:** https://issues.serokell.io/issue/AD-
 
 **Checklist:**
@@ -6,8 +8,5 @@
   - [ ] [README](README.md)
   - [ ] [TUI usage guide](docs/usage-tui.md)
   - [ ] [Configuration documentation](docs/configuration.md)
-- [ ] Adressed HLint warnings and hints
-- [ ] Rebased branch on current master and squashed all "Address PR comment" commits
+- [ ] My code complies with the [style guide](docs/code-style.md)
 - [ ] Tested my changes if they modify code
-
-**Description:**
