@@ -1,0 +1,36 @@
+<<: !include "../hpack/module.yaml"
+
+name: knit
+
+library:
+  <<: *lib-common
+  dependencies:
+    - Earley
+    - QuickCheck
+    - ansi-wl-pprint
+    - containers
+    - formatting
+    - generic-arbitrary
+    - lens
+    - loc
+    - megaparsec
+    - mtl
+    - ntype
+    - parser-combinators
+    - quickcheck-instances
+    - scientific
+    - split
+    - text
+    - text-format
+    - validation
+
+tests:
+  knit-test:
+    <<: *test-common
+    dependencies:
+      - QuickCheck
+      - hspec
+      - knit
+      - loc
+      - megaparsec
+      - text
