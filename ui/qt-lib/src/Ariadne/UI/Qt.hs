@@ -89,15 +89,17 @@ mkUiFace eventBQueue dispatcherIORef =
         whenJustM (readIORef dispatcherIORef) postEventToQt
     }
 
+{-# ANN qtEventSubLoop ("HLint: ignore Redundant return" :: Text) #-}
 qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
 qtEventSubLoop _ _ 0 = return $ Right ()
 qtEventSubLoop eventBQueue handler depth = do
   maybeEvent <- atomically $ tryReadTBQueue eventBQueue
+  next <- case maybeEvent of
+            Nothing -> return $ Right ()
+            Just event -> handler event >> (return $ Left $ depth - 1)
   -- This method is missing from qtah. If we notice lags here, add it to qtah and uncomment
   -- QCoreApplication.processEvents
-  case maybeEvent of
-    Nothing -> return $ Right ()
-    Just event -> handler event >> (return $ Left $ depth - 1)
+  return next
 
 handleAppEvent :: UiLangFace -> UiEventBQueue -> MainWindow -> IO ()
 handleAppEvent langFace eventBQueue mainWindow = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5

@@ -36,6 +36,7 @@ initListWidget itemsGetter drawItem =
       , listWidgetDrawItem = drawItem
       }
 
+{-# ANN drawListWidget ("HLint: ignore Use zipWith" :: Text) #-}
 drawListWidget :: Bool -> ListWidgetState p a -> WidgetDrawM (ListWidgetState p a) p (B.Widget WidgetName)
 drawListWidget focused ListWidgetState{..} = do
   widgetName <- getWidgetName
@@ -46,7 +47,7 @@ drawListWidget focused ListWidgetState{..} = do
   return $
     B.clickable widgetName $
     B.vBox $
-    zipWith (curry drawItem) [0..] items
+    map drawItem $ zip [0..] items
 
 handleListWidgetKey
   :: KeyboardEvent
