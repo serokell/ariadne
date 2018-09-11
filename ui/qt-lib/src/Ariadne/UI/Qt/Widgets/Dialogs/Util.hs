@@ -40,29 +40,33 @@ addHeader layout header = do
 
   void $ setProperty header ("styleRole" :: Text) ("dialogHeader" :: Text)
 
-addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
-       => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
-addRow layout label widget = do
+createRowLayout :: IO QHBoxLayout.QHBoxLayout
+createRowLayout = do
   rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addWidget rowLayout widget
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
   QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
 
+  return rowLayout
+
+internalAddRow :: (QWidget.QWidgetPtr lbl)
+               => QVBoxLayout.QVBoxLayout -> lbl -> (QHBoxLayout.QHBoxLayout -> IO ()) -> IO ()
+internalAddRow layout label widgetAdder = do
+  rowLayout <- createRowLayout
+  QBoxLayout.addWidget rowLayout label
+  widgetAdder rowLayout
+  QBoxLayout.setStretch rowLayout 0 2
+  QBoxLayout.setStretch rowLayout 1 1
+
   QBoxLayout.addLayout layout rowLayout
+
+addRow :: (QWidget.QWidgetPtr lbl, QWidget.QWidgetPtr wgt)
+       => QVBoxLayout.QVBoxLayout -> lbl -> wgt -> IO ()
+addRow layout label widget =
+  internalAddRow layout label $ flip QBoxLayout.addWidget widget
 
 addRowLayout :: (QWidget.QWidgetPtr lbl, QLayout.QLayoutPtr lay)
        => QVBoxLayout.QVBoxLayout -> lbl -> lay -> IO ()
-addRowLayout layout label widgetLayout = do
-  rowLayout <- QHBoxLayout.new
-  QBoxLayout.addWidget rowLayout label
-  QBoxLayout.addLayout rowLayout widgetLayout
-  QBoxLayout.setStretch rowLayout 0 2
-  QBoxLayout.setStretch rowLayout 1 1
-  QLayout.setContentsMarginsRaw rowLayout 18 0 18 0
-
-  QBoxLayout.addLayout layout rowLayout
+addRowLayout layout label widgetLayout =
+  internalAddRow layout label $ flip QBoxLayout.addLayout widgetLayout
 
 addSeparator :: QVBoxLayout.QVBoxLayout -> IO ()
 addSeparator layout = do
