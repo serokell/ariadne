@@ -6,7 +6,7 @@ let
     rev = "46a2aadf37981d6313621913cd2802debfb763fd";
   }) {};
 
-  project = import ./.;
+  project = import ./. { inherit pkgs; };
 in
 
 rec {
