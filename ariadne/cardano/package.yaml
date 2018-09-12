@@ -1,0 +1,114 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-cardano
+
+library:
+  <<: *lib-common
+  default-extensions:
+    - DerivingStrategies
+  dependencies:
+    - Cabal
+    - Earley
+    - MissingH
+    - QuickCheck
+    - acid-state
+    - ansi-wl-pprint
+    - ariadne-core
+    - async
+    - beam-core
+    - beam-migrate
+    - beam-sqlite
+    - bytestring
+    - cardano-crypto
+    - cardano-sl
+    - cardano-sl-binary
+    - cardano-sl-block
+    - cardano-sl-client
+    - cardano-sl-core
+    - cardano-sl-crypto
+    - cardano-sl-db
+    - cardano-sl-generator
+    - cardano-sl-infra
+    - cardano-sl-networking
+    - cardano-sl-ssc
+    - cardano-sl-txp
+    - cardano-sl-update
+    - cardano-sl-util
+    - componentm
+    - conduit
+    - constraints
+    - containers
+    - contravariant
+    - cryptonite
+    - data-default
+    - dhall
+    - directory
+    - exceptions
+    - file-embed
+    - filepath
+    - formatting
+    - http-client
+    - http-client-tls
+    - insert-ordered-containers
+    - ixset-typed
+    - knit
+    - lens
+    - log-warper
+    - loot-crypto
+    - megaparsec
+    - memory
+    - monad-control
+    - mtl
+    - named
+    - natural-transformation
+    - ntype
+    - optparse-applicative
+    - process
+    - resourcet
+    - retry
+    - safe
+    - safe-exceptions
+    - safecopy
+    - scientific
+    - serokell-util
+    - spoon
+    - sqlite-simple
+    - sqlite-simple-errors
+    - stm
+    - template-haskell
+    - text
+    - text-format
+    - time
+    - time-units
+    - transformers
+    - transformers-base
+    - unliftio
+    - unliftio-core
+    - unordered-containers
+    - vector
+    - vinyl
+    - yaml
+
+tests:
+  ariadne-cardano-test:
+    <<: *test-common
+    dependencies:
+      - QuickCheck
+      - ariadne-cardano
+      - ariadne-core
+      - bytestring
+      - canonical-json
+      - cardano-sl
+      - cardano-sl-core
+      - cardano-sl-infra
+      - hspec
+      - knit
+      - lens
+      - ntype
+      - optparse-applicative
+      - scientific
+      - serokell-util
+      - spoon
+      - text
+      - time-units
+      - yaml

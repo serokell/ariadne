@@ -1,0 +1,12 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-cli-lib
+
+library:
+  <<: *lib-common
+  dependencies:
+    - ansi-wl-pprint
+    - componentm
+    - haskeline
+    - loc
+    - text
