@@ -13,8 +13,8 @@ let
     });
 
     ariadne-qt-lib = overrideCabal previous.ariadne-qt-lib (super: {
-      libraryToolDepends = [ qt5.qtbase ];
-      librarySystemDepends = [ qt5.qtbase ];
+      libraryToolDepends = (super.libraryToolDepends or []) ++ [ qt5.qtbase ];
+      librarySystemDepends = (super.librarySystemDepends or []) ++ [ qt5.qtbase ];
     });
 
     qtah = overrideCabal previous.qtah (super: {
