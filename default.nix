@@ -3,7 +3,7 @@
 let
   stack4nix = fetchGit {
     url = https://github.com/serokell/stack4nix;
-    rev = "dee5f58317a0f067c6adfceed4d710e53d56cac5";
+    rev = "364663ca8ebf006f3fd9f76daea862afac705c69";
   };
 
   overrides = final: previous: with haskell.lib; {
