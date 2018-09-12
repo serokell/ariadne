@@ -55,8 +55,7 @@ handleListWidgetKey
 handleListWidgetKey key
   | key `elem` [KeyEnter, KeyChar ' '] = do
       ListWidgetState{..} <- get
-      parentState <- lift $ lift get
-      let items = listWidgetItemsGetter parentState
+      items <- map listWidgetItemsGetter . lift . lift $ get
       widgetEvent $ WidgetEventListSelected $ clampToList items listWidgetLocation
       return WidgetEventHandled
   | KeyUp <- key = do
@@ -64,8 +63,7 @@ handleListWidgetKey key
       return WidgetEventHandled
   | KeyDown <- key = do
       ListWidgetState{..} <- get
-      parentState <- lift $ lift get
-      let items = listWidgetItemsGetter parentState
+      items <- map listWidgetItemsGetter . lift . lift $ get
       listWidgetLocationL %= clampToList items . succ . clampToList items
       return WidgetEventHandled
   | otherwise = do
