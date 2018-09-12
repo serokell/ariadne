@@ -9,7 +9,6 @@ let
   overrides = final: previous: with haskell.lib; {
     ariadne-cardano = overrideCabal previous.ariadne-cardano (super: {
       buildTools = [ git ];
-      doHaddock = false; 
     });
 
     ariadne-qt-lib = overrideCabal previous.ariadne-qt-lib (super: {
