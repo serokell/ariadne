@@ -14,7 +14,7 @@ rec {
 
   ariadne-vty-app-flatpak = buildFlatpak {
     app-id = "io.serokell.ariadne.VTY";
-    command = "${ariadne-vty-app}/bin/ariadne-vty-app";
+    command = "${ariadne-vty-app}/bin/ariadne";
     finish-args = [ "--share=network" ];
   };
 }
