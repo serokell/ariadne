@@ -197,7 +197,7 @@ scrollDown _ maxValue = do
 
 handleReplEvent :: UiCommandId -> UiCommandEvent -> UI Repl ()
 handleReplEvent commandId event = do
-  commandOutputs <- view commandOutputsL >>= liftIO . readIORef
+  commandOutputs <- view commandOutputsL >>= readIORef
   whenJust (find isThisCommand commandOutputs) $ liftIO . updateCommandResult event
 
   where

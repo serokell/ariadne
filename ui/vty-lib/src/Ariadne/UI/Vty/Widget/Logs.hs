@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.Logs
 import Universum
 
 import Control.Lens (makeLensesWith, zoom, (+=), (.=))
-import qualified Data.Text as Text
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -61,12 +60,12 @@ drawLogsWidget LogsWidgetState{..} = do
         height = rdrCtx ^. B.availHeightL
         drawLogMessage (LogMessage message) =
           V.vertCat $
-          csiToVty attr <$> Text.lines message
+          csiToVty attr <$> lines message
         img =
           (if logsWidgetFollow then V.cropTop height else identity) $
           V.vertCat $
           reverse $
-          fmap drawLogMessage $
+          drawLogMessage <$>
           (if logsWidgetFollow then take height else identity) logsWidgetMessages
       return $
         B.emptyResult
@@ -99,7 +98,7 @@ handleLogsWidgetEvent = \case
     follow <- updateFollow widgetName
 
     zoom logsWidgetMessagesL $ modify (LogMessage message:)
-    let msgHeight = length (Text.lines message)
+    let msgHeight = length (lines message)
     logsWidgetLinesTotalL += msgHeight
     when follow $ do
       liftBrick $ B.invalidateCacheEntry widgetName
@@ -114,7 +113,7 @@ updateFollow widgetName = do
   follow <- use logsWidgetFollowL
 
   whenJustM (liftBrick $ B.lookupViewport widgetName) $ \vp -> do
-    when (not follow && vp ^. B.vpTop + vp ^. B.vpSize ^. _2 >= rendered) $ do
+    when (not follow && vp ^. B.vpTop + vp ^. (B.vpSize . _2) >= rendered) $ do
       liftBrick $ B.invalidateCacheEntry widgetName
       when (rendered == total) $ do
         liftBrick $ B.vScrollToBeginning $ B.viewportScroll widgetName

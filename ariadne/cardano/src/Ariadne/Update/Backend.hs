@@ -5,7 +5,6 @@ import Universum
 import Control.Concurrent (threadDelay)
 import Control.Exception.Safe (Exception(..), throwIO, tryAny)
 import qualified Data.ByteString.Lazy.Char8 as BS
-import qualified Data.Text as T
 import Data.Version (Version(..), parseVersion, showVersion)
 import Network.HTTP.Client
   (Manager, Request(..), httpLbs, parseRequest, responseBody)
@@ -42,5 +41,5 @@ updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
 runUpdateCheck :: UpdateConfig -> (Version -> Text -> IO ()) -> IO ()
 runUpdateCheck uc@UpdateConfig{..} notifyUpdate = do
   man <- newTlsManager
-  req <- parseRequest $ T.unpack ucVersionCheckUrl
+  req <- parseRequest $ toString ucVersionCheckUrl
   updateCheckLoop uc req man notifyUpdate

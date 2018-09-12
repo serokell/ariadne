@@ -60,18 +60,18 @@ csiToVty
   -> V.Image
 csiToVty defAttr text = V.horizCat $ uncurry V.text' <$> split
   where
-    split = readString defAttr "" $ T.unpack text
+    split = readString defAttr "" $ toString text
 
     readString :: V.Attr -> String -> String -> [(V.Attr, T.Text)]
-    readString attr acc ('\x1b':'[':xs) = (attr, T.pack $ reverse acc) : readAttr attr "" xs
+    readString attr acc ('\x1b':'[':xs) = (attr, toText $ reverse acc) : readAttr attr "" xs
     readString attr acc (x:xs) = readString attr (x:acc) xs
-    readString attr acc [] = [(attr, T.pack $ reverse acc)]
+    readString attr acc [] = [(attr, toText $ reverse acc)]
 
     readAttr :: V.Attr -> String -> String -> [(V.Attr, T.Text)]
     readAttr attr acc (x:xs)
-      | x `elem` ['\x40'..'\x7e'] = readString (csiToAttr x (T.pack $ reverse acc) attr) "" xs
+      | x `elem` ['\x40'..'\x7e'] = readString (csiToAttr x (toText $ reverse acc) attr) "" xs
       | otherwise = readAttr attr (x:acc) xs
-    readAttr attr acc [] = [(attr, T.pack $ "\x1b[" ++ reverse acc)]
+    readAttr attr acc [] = [(attr, toText $ "\x1b[" ++ reverse acc)]
 
     csiToAttr :: Char -> T.Text -> V.Attr -> V.Attr
     csiToAttr 'm' params attr = foldl' sgrToAttr attr $ T.splitOn ";" params

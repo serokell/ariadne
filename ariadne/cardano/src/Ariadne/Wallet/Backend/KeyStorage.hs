@@ -424,7 +424,7 @@ throwLeftIO ioEith = ioEith >>= eitherToThrow
 mkUntitled :: Text -> Vector Text -> Text
 mkUntitled untitled namesVec = do -- no monad
   let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
-      numbers = V.mapMaybe ((readMaybe @Natural) . T.unpack) untitledSuffixes
+      numbers = V.mapMaybe ((readMaybe @Natural) . toString) untitledSuffixes
   if null untitledSuffixes || null numbers
       then untitled <> "0"
       else untitled <> (show $ (Universum.maximum numbers) + 1)

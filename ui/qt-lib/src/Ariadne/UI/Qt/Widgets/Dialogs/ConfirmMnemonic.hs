@@ -197,7 +197,7 @@ doAction confirm@ConfirmMnemonic{..} _checked = do
 
 isRetypedMnemonicCorrect :: ConfirmMnemonic -> IO Bool
 isRetypedMnemonicCorrect ConfirmMnemonic{..} = do
-  retyped <- T.words . fromString <$> QLineEdit.text retypeMnemonic
+  retyped <- words . fromString <$> QLineEdit.text retypeMnemonic
   return $ retyped == mnemonic
 
 isValid :: ConfirmMnemonic -> IO Bool

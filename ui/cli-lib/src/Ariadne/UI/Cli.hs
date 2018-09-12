@@ -6,7 +6,7 @@ module Ariadne.UI.Cli
 import Universum
 
 import Control.Monad.Component (ComponentM, buildComponent_)
-import Data.Text (strip, unlines)
+import Data.Text (strip)
 
 import qualified System.Console.Haskeline as Haskeline
 

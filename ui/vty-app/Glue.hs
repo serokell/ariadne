@@ -24,7 +24,6 @@ import Universum
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
-import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
@@ -197,7 +196,7 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdTaskIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> toText $ '<' : show i ++ ">") mi
     , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 

@@ -18,7 +18,7 @@ generateKnitHelp _ =
   let
     procs = Knit.commandProcs @components
     sortedProcs = sortBy (\(Knit.SomeCommandProc p) (Knit.SomeCommandProc p') -> compare (Knit.cpName p) (Knit.cpName p')) procs
-  in fmap (PP.text . Text.unpack) $ Text.lines $ mkHelpMessage sortedProcs
+  in fmap (PP.text . toString) $ lines $ mkHelpMessage sortedProcs
 
 commandHelp :: Knit.CommandProc components component -> Text
 commandHelp Knit.CommandProc{..} =
