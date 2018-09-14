@@ -4,8 +4,6 @@ module Ariadne.Wallet.Backend
   , createWalletBackend
   ) where
 
-import Universum
-
 import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))
 import Data.Constraint (withDict)

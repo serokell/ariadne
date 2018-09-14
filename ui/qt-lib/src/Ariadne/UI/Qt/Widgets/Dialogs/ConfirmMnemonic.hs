@@ -3,8 +3,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
   , runConfirmMnemonic
   ) where
 
-import Universum
-
 import qualified Data.Text as T
 import Formatting
 

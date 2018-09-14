@@ -6,8 +6,6 @@ module Ariadne.Config.Wallet
   , walletFieldModifier
   , WalletConfig (..)) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D

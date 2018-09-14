@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Account
        ( initAccountWidget
        ) where
 
-import Universum
-
 import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)

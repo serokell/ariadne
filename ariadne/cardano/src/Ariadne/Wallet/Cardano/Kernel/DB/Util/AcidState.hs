@@ -16,8 +16,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState (
   , throwError
   ) where
 
-import Universum
-
 import Control.Monad.Except
 import Data.Acid (Update)
 

@@ -53,8 +53,6 @@ module Ariadne.UI.Vty.Widget
        , ReifiedLens(..)
        ) where
 
-import Universum
-
 import Control.Lens
   (ReifiedLens(..), ReifiedLens', assign, makeLensesWith, to, (%=), (.=))
 

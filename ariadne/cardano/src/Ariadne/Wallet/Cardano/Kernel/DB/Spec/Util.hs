@@ -16,8 +16,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util (
   , utxoRestrictToInputs
   ) where
 
-import Universum
-
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

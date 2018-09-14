@@ -5,7 +5,7 @@ module Ariadne.Wallet.Backend.Restore
        , restoreFromKeyFile
        ) where
 
-import Universum hiding (init)
+import Prelude hiding (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))

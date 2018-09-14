@@ -36,7 +36,7 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
   , currentAddrUtxoBalance
   ) where
 
-import Universum hiding (elems)
+import Prelude hiding (elems)
 
 import Control.Lens (at, lens, non, to, (?~))
 import Control.Lens.TH (makeLenses)

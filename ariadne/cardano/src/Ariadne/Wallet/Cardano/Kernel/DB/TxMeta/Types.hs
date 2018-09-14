@@ -33,8 +33,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types (
   , uniqueElements
   ) where
 
-import Universum
-
 import Control.Lens.TH (makeLenses)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty

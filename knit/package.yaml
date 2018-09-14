@@ -10,6 +10,8 @@ dependencies:
 
 library:
   <<: *lib-common
+  default-extensions:
+    - NoImplicitPrelude
   dependencies:
     - Earley
     - QuickCheck
@@ -33,6 +35,8 @@ library:
 tests:
   knit-test:
     <<: *test-common
+    default-extensions:
+      - NoImplicitPrelude
     dependencies:
       - QuickCheck
       - hspec

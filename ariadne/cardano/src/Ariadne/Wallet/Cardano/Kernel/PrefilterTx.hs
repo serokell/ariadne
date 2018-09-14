@@ -11,8 +11,6 @@ module Ariadne.Wallet.Cardano.Kernel.PrefilterTx
        , prefilterUtxo
        ) where
 
-import Universum
-
 import Data.List (nub)
 import qualified Data.List.NonEmpty as NE
 

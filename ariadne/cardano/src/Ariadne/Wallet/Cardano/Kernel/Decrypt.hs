@@ -15,8 +15,6 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
        , decryptAddress
        ) where
 
-import Universum
-
 import qualified Data.List.NonEmpty as NE
 import Pos.Client.Txp.History (TxHistoryEntry(..))
 import Pos.Core

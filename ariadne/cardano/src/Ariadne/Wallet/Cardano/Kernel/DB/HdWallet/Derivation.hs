@@ -4,8 +4,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (
     , deriveBip44KeyPair
     ) where
 
-import Universum
-
 import qualified Data.Set as S
 import qualified Data.Vector as V
 import Named ((!))

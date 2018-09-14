@@ -14,8 +14,6 @@ module Ariadne.Wallet.Face
   , WalletUIFace(..)
   ) where
 
-import Universum
-
 import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Client.Txp.Util (InputSelectionPolicy(..))

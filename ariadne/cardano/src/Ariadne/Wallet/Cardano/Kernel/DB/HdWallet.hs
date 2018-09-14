@@ -65,8 +65,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , eskToHdRootId
   ) where
 
-import Universum
-
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)
 import qualified Data.ByteString as BS

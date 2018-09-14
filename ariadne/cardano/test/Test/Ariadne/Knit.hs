@@ -8,8 +8,6 @@ module Test.Ariadne.Knit
        ( knitSpec
        ) where
 
-import Universum
-
 import qualified Ariadne.Cardano.Knit as Knit
 import Ariadne.TaskManager.Face (TaskId(..))
 import qualified Ariadne.TaskManager.Knit as Knit

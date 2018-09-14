@@ -14,8 +14,6 @@ module Ariadne.Wallet.Cardano.Kernel.Internal (
   , walletLogMessage
   ) where
 
-import Universum hiding (State)
-
 import Control.Lens.TH
 
 import System.Wlog (Severity(..))

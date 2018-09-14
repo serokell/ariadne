@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Control.Spoon (teaspoon)
 import qualified Data.ByteString.Lazy as BSL

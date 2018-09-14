@@ -24,8 +24,6 @@ module Ariadne.Wallet.Cardano.Kernel.Util (
   , getCurrentTimestamp
   ) where
 
-import Universum
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time.Clock.POSIX (getPOSIXTime)

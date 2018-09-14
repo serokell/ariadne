@@ -7,8 +7,6 @@ module Ariadne.Config.CLI
     , mergeConfigs
     ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, zoom, (%=))
 import Data.List.Utils (replace)
 import Data.Time.Units (fromMicroseconds)

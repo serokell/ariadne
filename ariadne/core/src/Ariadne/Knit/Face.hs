@@ -1,7 +1,5 @@
 module Ariadne.Knit.Face where
 
-import Universum
-
 import Control.Exception (SomeException)
 import Data.List.NonEmpty (NonEmpty)
 import Text.PrettyPrint.ANSI.Leijen (Doc)

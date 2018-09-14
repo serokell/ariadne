@@ -7,8 +7,6 @@ module Ariadne.UX.CommandHistory
     , toPrevCommand
     ) where
 
-import Universum
-
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Text as T
 import Database.SQLite.Simple

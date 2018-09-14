@@ -27,8 +27,6 @@ module Ariadne.UI.Qt.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)

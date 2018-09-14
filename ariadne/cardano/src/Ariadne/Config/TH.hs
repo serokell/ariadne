@@ -1,7 +1,5 @@
 module Ariadne.Config.TH (getCommitHash) where
 
-import Universum
-
 import Control.Exception.Safe (tryAny)
 import Data.Char (isSpace)
 import Formatting (sformat, string, (%))

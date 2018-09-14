@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Form.Send
        ( initSendWidget
        ) where
 
-import Universum
-
 import Control.Lens (assign, at, lens, makeLensesWith, uses, (%=), (.=), (<<+=))
 import Data.Map (Map)
 import Data.Maybe (fromJust)

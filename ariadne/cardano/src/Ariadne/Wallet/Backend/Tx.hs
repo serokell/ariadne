@@ -4,7 +4,7 @@ module Ariadne.Wallet.Backend.Tx
        ( sendTx
        ) where
 
-import Universum hiding (list)
+import Prelude hiding (list)
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Buildable

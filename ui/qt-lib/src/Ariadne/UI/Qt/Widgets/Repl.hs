@@ -5,8 +5,6 @@ module Ariadne.UI.Qt.Widgets.Repl
        , toggleRepl
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Formatting
 

@@ -17,9 +17,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Sqlite (
     , unsafeMigrateMetaDB
     ) where
 
-import qualified Prelude
-import Universum
-
 import Database.Beam.Backend.SQL
   (FromBackendRow, HasSqlValueSyntax(..), IsSql92DataTypeSyntax, varCharType)
 import Database.Beam.Backend.SQL.SQL92

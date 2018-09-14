@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Universum
-
 import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
 import Named
 

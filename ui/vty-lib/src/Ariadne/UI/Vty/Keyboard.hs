@@ -5,8 +5,6 @@ module Ariadne.UI.Vty.Keyboard
      , vtyToEditKey
      ) where
 
-import Universum
-
 import Graphics.Vty
 
 data KeyboardEvent

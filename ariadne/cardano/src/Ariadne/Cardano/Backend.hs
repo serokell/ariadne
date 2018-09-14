@@ -1,7 +1,5 @@
 module Ariadne.Cardano.Backend (createCardanoBackend) where
 
-import Universum
-
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Trans.Reader (withReaderT)
 import Control.Natural ((:~>)(..), type (~>))
