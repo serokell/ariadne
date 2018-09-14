@@ -33,14 +33,8 @@
 - ignore: { name: 'Use ?~' }
 - ignore: { name: Use <$> }
 
-# There's no 'head' in Universum
-- ignore: { name: Use head }
-
 # Sometimes [Char] is okay (if it means "a set of characters")
 - ignore: { name: Use String }
-
-# We have 'whenJust' for this
-- ignore: { name: Use Foldable.forM_ }
 
 # Sometimes TemplateHaskell is needed to please stylish-haskell
 - ignore: { name: Unused LANGUAGE pragma }
@@ -48,24 +42,6 @@
 # Some 'data' records will be extended with more fields later,
 # so they shouldn't be replaced with 'newtype' blindly
 - ignore: { name: Use newtype instead of data }
-
-
-###########################################################################
-# Hints with 'id' should use 'identity'
-###########################################################################
-
-- warn: { lhs: any identity, rhs: or }
-- warn: { lhs: all identity, rhs: and }
-- warn: { lhs: (x >>= identity), rhs: join x }
-- warn: { lhs: (identity =<< x), rhs: join x }
-- warn: { lhs: mapM identity, rhs: sequence }
-- warn: { lhs: mapM_ identity, rhs: sequence_ }
-# This hint had to be given a name because we ignore "Use fromMaybe" above
-# but we want to keep this one – so we add single quotes here
-- warn: { name: "Use 'fromMaybe'", lhs: maybe x identity, rhs: fromMaybe x }
-- warn: { lhs: mapMaybe identity, rhs: catMaybes }
-- warn: { lhs: maybe Nothing identity, rhs: join }
-
 
 ###########################################################################
 # Various stuff
