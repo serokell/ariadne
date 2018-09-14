@@ -75,7 +75,7 @@ Ariadne using the 12 word mnemonic.
 When you select a wallet or an account, you can see its balance and send 
 transactions using the form provided. You must fill at least one receiver's 
 address. To add or remove address lines, use `[ - ]` / `[ + ]` buttons on
-the right. You will be asked for a passphrase, even if you chose an empty one. 
+the right. If the wallet has a passphrase, you need to specify that as well.
 When sending a transaction from a wallet, you can also choose which accounts 
 to use as inputs using a list just above the form. Use Enter, Space or 
 mouse click to select accounts.

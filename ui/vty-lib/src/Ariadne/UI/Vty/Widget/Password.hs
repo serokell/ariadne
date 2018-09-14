@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Password
     ( initPasswordWidget
     ) where
 
-import Universum
-
 import qualified Control.Concurrent.Event as CE
 import Control.Lens (makeLensesWith, (.=))
 
@@ -88,4 +86,4 @@ handlePasswordWidgetEvent
 handlePasswordWidgetEvent = \case
     UiPasswordEvent (UiPasswordRequest walletId cEvent) ->
         passwordWidgetRecipientL .= Just (walletId, cEvent)
-    _ -> return ()
+    _ -> pass

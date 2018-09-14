@@ -100,7 +100,7 @@ createCheckBox
   -> IO QCheckBox.QCheckBox
 createCheckBox layout checkBoxPos labelText = do
   checkBox <- QCheckBox.new
-  QWidget.setSizePolicyRaw checkBox Maximum Preferred
+  QWidget.setSizePolicyRaw checkBox Maximum Maximum
   checkBoxLabel <- QLabel.newWithText $ toString labelText
   QLabel.setWordWrap checkBoxLabel True
   QWidget.setMinimumSizeRaw checkBoxLabel 600 30
@@ -133,7 +133,7 @@ createPasswordField placeholder = do
     QLineEdit.setPlaceholderText field $ toString placeholder
 
     visibleButton <- QPushButton.new
-    void $ setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
+    setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
     QAbstractButton.setIcon visibleButton =<< QIcon.newWithFile (":/images/hide-pass-ic.png" :: String)
     QAbstractButton.setCheckable visibleButton True
     QWidget.setSizePolicyRaw visibleButton Maximum Maximum

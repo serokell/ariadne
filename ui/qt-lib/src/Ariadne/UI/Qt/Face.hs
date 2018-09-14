@@ -154,7 +154,7 @@ data UiHistoryFace =
     }
 
 -- API for the UI.
-newtype UiFace = UiFace
+data UiFace = UiFace
     { putUiEvent :: UiEvent -> IO ()
     -- ^ Update the user interface with an event. Does not block unless the
     -- queue of events is full (should not normally happen).

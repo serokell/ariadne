@@ -67,36 +67,6 @@ data NewWalletResult = NewWalletCanceled | NewWalletAccepted NewWalletParameters
 makeLensesWith postfixLFields ''NewWallet
 makeLensesWith postfixLFields ''NewWalletParameters
 
-createPasswordField :: Text -> IO (QHBoxLayout.QHBoxLayout, QLineEdit.QLineEdit)
-createPasswordField placeholder = do
-  layout <- QHBoxLayout.new
-  field <- QLineEdit.new
-  QLineEdit.setEchoMode field QLineEdit.Password
-  QLineEdit.setPlaceholderText field $ toString placeholder
-
-  visibleButton <- QPushButton.new
-  setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
-  QAbstractButton.setIcon visibleButton =<< QIcon.newWithFile (":/images/hide-pass-ic.png" :: String)
-  QAbstractButton.setCheckable visibleButton True
-  QWidget.setSizePolicyRaw visibleButton Maximum Maximum
-
-  QBoxLayout.addWidget layout field
-  QBoxLayout.addWidget layout visibleButton
-  QLayout.setSpacing layout 12
-  QBoxLayout.setStretch layout 0 1
-  QBoxLayout.setStretch layout 1 0
-
-  let
-    togglePasswordVisibility checked = do
-      QLineEdit.setEchoMode field $
-        case checked of
-          True -> QLineEdit.Normal
-          False -> QLineEdit.Password
-
-  connect_ visibleButton QAbstractButton.toggledSignal togglePasswordVisibility
-
-  return (layout, field)
-
 createModeSelector :: IO QComboBox.QComboBox
 createModeSelector = do
   modeSelector <- QComboBox.new

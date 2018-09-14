@@ -3,8 +3,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.InsertPassword
   , InsertPasswordResult(..)
   ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 
 import Data.Bits

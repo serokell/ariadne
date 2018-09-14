@@ -100,7 +100,8 @@ data AddressGenerationFailed = AGFailedIncorrectPassPhrase
   deriving (Eq, Show)
 
 instance Exception AddressGenerationFailed where
-    toException      = walletPassExceptionToException
+    toException e    = case e of
+        AGFailedIncorrectPassPhrase -> walletPassExceptionToException e
     fromException    = walletPassExceptionFromException
     displayException = \case
         AGFailedIncorrectPassPhrase ->
@@ -220,15 +221,21 @@ newAddress ::
        PassiveWalletLayer IO
     -> WalletFace
     -> IORef (Maybe WalletSelection)
+    -> (WalletReference -> IO PassPhrase)
+    -> (WalletReference -> IO HdAddress -> IO HdAddress)
     -> AccountReference
     -> HdAddressChain
-    -> PassPhrase
     -> IO Address
-newAddress pwl WalletFace {..} walletSelRef accRef hdAddrChain pp = do
+newAddress pwl WalletFace {..} walletSelRef getPassPhrase voidWrongPass accRef hdAddrChain = do
+  let walletRef = case accRef of
+          AccountRefSelection -> WalletRefSelection
+          AccountRefByHdAccountId (HdAccountId hdRtId _) -> WalletRefByHdRootId hdRtId
+          AccountRefByUIindex _ wRef -> wRef
+  pp <- getPassPhrase walletRef
   walletDb <- pwlGetDBSnapshot pwl
   hdAccId <- resolveAccountRef walletSelRef accRef walletDb
 
-  hdAddr <- throwLeftIO $
+  hdAddr <- voidWrongPass walletRef . throwLeftIO $
     pwlCreateAddress pwl pp hdAccId hdAddrChain
 
   (hdAddr ^. hdAddressAddress . fromDb) <$ walletRefreshState
@@ -281,11 +288,12 @@ newWallet ::
        PassiveWalletLayer IO
     -> WalletConfig
     -> WalletFace
-    -> PassPhrase
+    -> IO PassPhrase
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-newWallet pwl walletConfig face pp mbWalletName mbEntropySize = do
+newWallet pwl walletConfig face getPassTemp mbWalletName mbEntropySize = do
+  pp <- getPassTemp
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   mnemonic <- generateMnemonic entropySize
   let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
@@ -329,10 +337,11 @@ select
   :: PassiveWalletLayer IO
   -> WalletFace
   -> IORef (Maybe WalletSelection)
+  -> IO ()
   -> Maybe WalletReference
   -> [Word]
   -> IO ()
-select pwl WalletFace{..} walletSelRef mWalletRef uiPath = do
+select pwl WalletFace{..} walletSelRef voidSelectionPass mWalletRef uiPath = do
   walletDb <- pwlGetDBSnapshot pwl
   mbSelection <- case mWalletRef of
     Nothing -> return Nothing
@@ -351,6 +360,7 @@ select pwl WalletFace{..} walletSelRef mWalletRef uiPath = do
           unless (null acPath) $ throwM SelectIsTooDeep
           return $ Just $ WSAccount $ hdAccount ^. hdAccountId
 
+  voidSelectionPass
   atomicWriteIORef walletSelRef mbSelection
   walletRefreshState
 

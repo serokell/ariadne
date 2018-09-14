@@ -6,13 +6,15 @@ module Ariadne.Wallet.Backend
 
 import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))
+import qualified Data.ByteArray as ByteArray
 import Data.Constraint (withDict)
+import Pos.Crypto.Hashing (hashRaw)
 import System.Wlog (logMessage, usingLoggerName)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
-import Ariadne.UX.PasswordManager (GetPassword, VoidPassword)
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
@@ -54,6 +56,28 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
             , bhOnRollback = rollbackHook
             }
 
+        getPass' :: WalletId -> IO PassPhrase
+        getPass' = fmap (ByteArray.convert . hashRaw . encodeUtf8) . getPass
+
+        getPassTemp :: IO PassPhrase
+        getPassTemp = getPass' WalletIdTemporary
+
+        getPassPhrase :: WalletReference -> IO PassPhrase
+        getPassPhrase = getPass' . fromWalletRef
+
+        -- | Only catches SomeWalletPassExceptions to void the password in the
+        -- Password Manager and then retrow the Exception
+        voidWrongPass :: WalletReference -> IO a -> IO a
+        voidWrongPass walletRef action = catch action doVoidPass
+          where
+            doVoidPass :: SomeWalletPassException -> IO a
+            doVoidPass e = do
+                voidPass $ fromWalletRef walletRef
+                throwM e
+
+        voidSelectionPass :: IO ()
+        voidSelectionPass = voidPass WalletIdSelected
+
         mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction)
           where
             NT runCardanoMode = cardanoRunCardanoMode
@@ -64,23 +88,22 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                 r
             mkWalletFace putCommandOutput =
                 withDicts $ fix $ \this -> WalletFace
-                { walletNewAddress = newAddress pwl this walletSelRef
+                { walletNewAddress =
+                    newAddress pwl this walletSelRef getPassPhrase voidWrongPass
                 , walletNewAccount = newAccount pwl this walletSelRef
-                , walletNewWallet = newWallet pwl walletConfig this
-                , walletRestore = restoreWallet pwl this runCardanoMode
+                , walletNewWallet = newWallet pwl walletConfig this getPassTemp
+                , walletRestore = restoreWallet pwl this runCardanoMode getPassTemp
                 , walletRestoreFromFile = restoreFromKeyFile pwl this runCardanoMode
                 , walletRename = renameSelection pwl this walletSelRef
                 , walletRemove = removeSelection pwl this walletSelRef
                 , walletRefreshState =
                     refreshState pwl walletSelRef sendWalletEvent
-                , walletSelect = select pwl this walletSelRef
+                , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
-                    sendTx pwl this cf walletSelRef putCommandOutput
+                    sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass
                 , walletGetSelection =
                     (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef
-                , walletGetPassword = getPass
-                , walletVoidPassword = voidPass
                 }
             initWalletAction =
                 refreshState pwl walletSelRef sendWalletEvent
@@ -90,6 +113,12 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
             , wpMakeWallet = mkWallet
             }
     return walletPreface
+
+fromWalletRef :: WalletReference -> WalletId
+fromWalletRef = \case
+    WalletRefByUIindex wrd -> WalletIdByUiIndex wrd
+    WalletRefSelection     -> WalletIdSelected
+    _ -> WalletIdTemporary
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be

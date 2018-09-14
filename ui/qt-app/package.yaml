@@ -19,6 +19,7 @@ executables:
       - ariadne-qt-lib
       - async
       - componentm
+      - concurrent-extra
       - containers
       - double-conversion
       - knit

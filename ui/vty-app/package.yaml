@@ -13,6 +13,7 @@ executables:
       - ariadne-vty-lib
       - async
       - componentm
+      - concurrent-extra
       - containers
       - double-conversion
       - knit

@@ -115,7 +115,7 @@ handleWalletEvent langFace putPass ev = do
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAddressCommandResult commandId result
     WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
-      InsertPasswordCanceled -> return ()
+      InsertPasswordCanceled -> pass
       InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
 
 updateModel
