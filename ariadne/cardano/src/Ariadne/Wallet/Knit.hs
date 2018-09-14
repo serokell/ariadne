@@ -1,7 +1,5 @@
 module Ariadne.Wallet.Knit where
 
-import qualified Data.ByteArray as ByteArray
-
 import Control.Lens (makePrisms)
 import Serokell.Data.Memory.Units (fromBytes)
 import Text.Earley
@@ -9,14 +7,13 @@ import Text.Earley
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
 import Pos.Core (AddressHash)
-import Pos.Crypto (PassPhrase, PublicKey, decodeAbstractHash)
-import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
+import Pos.Crypto (PublicKey, decodeAbstractHash)
+import Pos.Crypto.Hashing (unsafeCheatingHashCoerce)
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec.Char as P
 
 import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
 import Ariadne.Cardano.Orphans ()
-import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter (formatAddressHash)
@@ -116,18 +113,14 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <- getWalletRefArgOpt
-            accountPath <- getAccountPathArgOpt
+            accountRef <- getAccountRefArgOpt
             chain <- getArgOpt tyBool "external" <&>
               \case Nothing -> HdChainExternal
                     Just True -> HdChainExternal
                     Just False -> HdChainInternal
-            pure (walletRef, accountPath, chain)
-        , cpRepr = \(walletRef, accountPath, chain) -> CommandAction $ \WalletFace{..} -> do
-            passPhrase <- mkPassPhrase <$> walletGetPassword (fromWalletRef walletRef)
-            let accountRef = mkAccountRef walletRef accountPath
-                voidWrongPass = voidWrongPassword walletVoidPassword walletRef
-            newAddr <- voidWrongPass $ walletNewAddress accountRef chain passPhrase
+            pure (accountRef, chain)
+        , cpRepr = \(accountRef, chain) -> CommandAction $ \WalletFace{..} -> do
+            newAddr <- walletNewAddress accountRef chain
             return . toValue $ ValueAddress newAddr
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
@@ -153,8 +146,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
             return (name, mbEntropySize)
         , cpRepr = \(name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
-            passPhrase <- mkPassPhrase <$> walletGetPassword WalletIdTemporary
-            mnemonic <- walletNewWallet passPhrase name mbEntropySize
+            mnemonic <- walletNewWallet name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
         , cpHelp = "Generate a new wallet and add to the storage. \
                    \The result is the mnemonic to restore this wallet."
@@ -170,8 +162,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
                       True -> WalletRestoreFull
             return (name, mnemonic, restoreType)
         , cpRepr = \(name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} -> do
-            passPhrase <- mkPassPhrase <$> walletGetPassword WalletIdTemporary
-            toValue ValueUnit <$ walletRestore passPhrase name mnemonic restoreType
+            toValue ValueUnit <$ walletRestore name mnemonic restoreType
         , cpHelp = "Restore a wallet from mnemonic. " <>
                    "A passphrase can be specified to encrypt the resulting " <>
                    "wallet (it doesn't have to be the same as the one used " <>
@@ -219,9 +210,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             return (walletRef, accRefs, isp, outs)
         , cpRepr = \(walletRef, accRefs, isp, outs) -> CommandAction $
           \WalletFace{..} -> do
-            passPhrase <- mkPassPhrase <$> walletGetPassword (fromWalletRef walletRef)
-            let voidWrongPass = voidWrongPassword walletVoidPassword walletRef
-            txId <- voidWrongPass $ walletSend passPhrase walletRef accRefs isp outs
+            txId <- walletSend walletRef accRefs isp outs
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp =
             "Send a transaction from the specified wallet. When no wallet \
@@ -362,31 +351,13 @@ getWalletRefArg = getArg tyWalletRef "wallet"
 -- Maybe "account" shouldn't be hardcoded here, but currently it's
 -- always "account", we can move it outside if it appears to be
 -- necessary.
-getAccountPathArgOpt
-    :: (Elem components Core)
-    => ArgumentConsumer components (Maybe Word)
-getAccountPathArgOpt = getArgOpt tyWord "account"
-
-mkAccountRef :: WalletReference -> Maybe Word -> AccountReference
-mkAccountRef walletRef = \case
-    Nothing -> AccountRefSelection
-    Just e -> AccountRefByUIindex e walletRef
-
-mkPassPhrase :: Text -> PassPhrase
-mkPassPhrase = ByteArray.convert . hashRaw . encodeUtf8
-
--- | Only catches SomeWalletPassExceptions to void the password in the
--- Password Manager and then retrow the Exception
-voidWrongPassword :: VoidPassword -> WalletReference -> IO a -> IO a
-voidWrongPassword voidPass walletRef action = catch action doVoidPass
+getAccountRefArgOpt ::
+       (Elem components Core, Elem components Wallet) => ArgumentConsumer components AccountReference
+getAccountRefArgOpt =
+    convert <$> getWalletRefArgOpt <*>
+    getArgOpt tyWord "account"
   where
-    doVoidPass :: SomeWalletPassException -> IO a
-    doVoidPass e = do
-        voidPass $ fromWalletRef walletRef
-        throwM e
-
-fromWalletRef :: WalletReference -> WalletId
-fromWalletRef = \case
-  WalletRefByUIindex wrd -> WalletIdByUiIndex wrd
-  WalletRefSelection     -> WalletIdSelected
-  _ -> WalletIdTemporary
+    convert :: WalletReference -> Maybe Word -> AccountReference
+    convert walletRef = \case
+        Nothing -> AccountRefSelection
+        Just e -> AccountRefByUIindex e walletRef

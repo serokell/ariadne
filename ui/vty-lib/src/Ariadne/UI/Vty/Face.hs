@@ -73,7 +73,7 @@ data UiFeatures = UiFeatures
 ----------------------------------------------------------------------------
 
 -- API for the UI.
-newtype UiFace = UiFace
+data UiFace = UiFace
   { -- Update the user interface with an event. Does not block unless the
     -- queue of events is full (should not normally happen).
     putUiEvent :: UiEvent -> IO ()
@@ -201,6 +201,7 @@ data UiSendArgs = UiSendArgs
   { usaWalletIdx :: !(Maybe Word)
   , usaAccounts :: ![Word32]
   , usaOutputs :: [UiSendOutput]
+  , usaPassphrase :: !Text
   }
 
 data UiFeeArgs = UiFeeArgs

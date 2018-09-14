@@ -9,12 +9,15 @@ library:
     - ansi-wl-pprint
     - async
     - componentm
+    - concurrent-extra
     - containers
     - formatting
     - knit
     - lens
     - megaparsec
     - ntype
+    - o-clock
     - sqlite-simple
     - text
+    - time
     - transformers

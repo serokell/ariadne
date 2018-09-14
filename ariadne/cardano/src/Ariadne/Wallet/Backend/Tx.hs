@@ -73,13 +73,14 @@ sendTx ::
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
     -> (Doc -> IO ())
-    -> PassPhrase
+    -> (WalletReference -> IO PassPhrase)
+    -> (WalletReference -> IO TxId -> IO TxId)
     -> WalletReference
     -> [LocalAccountReference]
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
+sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhrase voidWrongPass walletRef accRefs isp outs = do
     -- TODO: call newPending here
     let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- pwlGetDBSnapshot pwl
@@ -93,9 +94,9 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
 
         filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
         filterAccounts ids accounts = accounts @+ toList ids
-
-    runCardanoMode $
-        sendTxDo wallets walletRootId filteredAccounts =<< cardanoGetDiffusion
+    pp <- getPassPhrase walletRef
+    voidWrongPass walletRef . runCardanoMode $
+        sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
   where
     -- Returns list of accounts which can be used.
     -- 'Nothing' means all accounts can be used.
@@ -125,10 +126,11 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
     sendTxDo ::
            HdWallets
         -> HdRootId
+        -> PassPhrase
         -> IxSet HdAccount
         -> Diffusion CardanoMode
         -> CardanoMode TxId
-    sendTxDo wallets walletRootId accountsToUse diffusion = do
+    sendTxDo wallets walletRootId pp accountsToUse diffusion = do
         -- Wallet creation and deletion is organized in such way that
         -- the absence of a key is not possible.
         esk <- liftIO $ fromMaybe
@@ -154,7 +156,7 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
         let ourAccountId = ourAccount ^. hdAccountId
         let newChangeAddress = walletNewAddress
                 (AccountRefByHdAccountId ourAccountId)
-                HdChainInternal pp
+                HdChainInternal
         (txAux, _) <-
             prepareMTx
                 cardanoProtocolMagic

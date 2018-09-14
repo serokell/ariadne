@@ -20,6 +20,7 @@ library:
     - ariadne-core
     - bytestring
     - componentm
+    - concurrent-extra
     - containers
     - extra
     - file-embed

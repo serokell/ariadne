@@ -15,7 +15,6 @@ import Ariadne.UX.PasswordManager
 type Repl = Haskeline.InputT IO
 
 type UiAction = UiLangFace -> IO ()
-type PrintAction = Text -> IO ()
 
 data AppState = AppState
     { loopDecision :: !LoopDecision
@@ -51,7 +50,7 @@ runUI uiEventVar putPass _uiFace langFace = Haskeline.runInputT settings $ do
         , passwordMode = Nothing
         }
     loop stepFunc appState = case loopDecision appState of
-        Stop -> return ()
+        Stop -> pass
         Continue -> loop stepFunc =<< stepFunc appState
 
 prompt :: PutPassword -> MVar UiEvent -> UiLangFace -> AppState -> Repl AppState

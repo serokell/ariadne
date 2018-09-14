@@ -8,12 +8,10 @@ module Ariadne.UX.PasswordManager
     , createPasswordManager
     ) where
 
-import Universum
-
-import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async
 import Control.Monad.Component (ComponentM, buildComponent_)
-import Data.Time.Clock
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Time
 
 import qualified Control.Concurrent.Event as CE
 import qualified Data.Map.Strict as Map
@@ -32,7 +30,7 @@ data WalletId
     -- ^ identifies the wallet currently selected
     | WalletIdByUiIndex !Word
     -- ^ id based on the Ui index
-    -- TODO: maybe by hash?
+    -- TODO: [AD-294] Remove knowledge of UI indices from Wallet backend
     deriving (Eq, Ord)
 
 data PasswordManager = PasswordManager
@@ -43,32 +41,32 @@ data PasswordManager = PasswordManager
 
 createPasswordManager :: ComponentM PasswordManager
 createPasswordManager = buildComponent_ "Password Manager" $ do
-    passMapVar <- newIORef (Map.empty :: Map.Map WalletId (T.Text, UTCTime))
+    passMapVar <- newIORef (Map.empty :: Map.Map WalletId (T.Text, Time Second))
 
-    let nominalWait = 300 :: NominalDiffTime -- 5 minutes
+    let passLifeTime = minute 5
+        getCurrentSecs = sec . realToFrac <$> getPOSIXTime
 
         putPassword :: PutPassword
         putPassword walletId password mEvent = do
-            currentTime <- getCurrentTime
+            currentTime <- getCurrentSecs
             oldVal <- atomicModifyIORef' passMapVar
                 (lookupInsert walletId (password, currentTime))
             whenJust mEvent CE.set
             -- only start an async countDown if there was no value before
-            whenNothing_ oldVal (void . async $ countDown walletId nominalWait)
+            whenNothing_ oldVal $
+                void . async . countDown walletId $ toUnit @Second passLifeTime
 
-        countDown :: WalletId -> NominalDiffTime -> IO ()
+        countDown :: WalletId -> Time Second -> IO ()
         countDown walletId waitTime = do
-            threadDelay . (1000000 *) . floor $ toRational waitTime
+            threadDelay waitTime
             passMap <- readIORef passMapVar
             case Map.lookup walletId passMap of
-                Just (_, time) -> do
-                    currentTime <- getCurrentTime
-                    let diffTime = diffUTCTime currentTime time
-                    if diffTime >= nominalWait then
-                        voidPassword walletId
-                    else
-                        countDown walletId diffTime
-                Nothing -> return ()
+                Just (_, oldTime) -> do
+                    currentTime <- getCurrentSecs
+                    case currentTime -%- (oldTime +:+ passLifeTime) of
+                        (LT, t) -> countDown walletId $ toUnit @Second t
+                        _ -> voidPassword walletId
+                Nothing -> pass
 
         voidPassword :: VoidPassword
         voidPassword walletId = atomicModify_ passMapVar $ Map.delete walletId
@@ -83,7 +81,7 @@ createPasswordManager = buildComponent_ "Password Manager" $ do
                         WalletIdTemporary -> voidPassword WalletIdTemporary
                         -- otherwise update the time
                         _ -> do
-                            currentTime <- getCurrentTime
+                            currentTime <- getCurrentSecs
                             atomicModify_ passMapVar $
                                 Map.insert walletId (password, currentTime)
                     return password

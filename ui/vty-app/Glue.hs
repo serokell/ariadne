@@ -101,10 +101,11 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       }
 
     extractPass = \case
-      UiNewWallet UiNewWalletArgs{..} -> Just unwaPassphrase
-      UiRestoreWallet UiRestoreWalletArgs{..} -> Just urwaPassphrase
+      UiNewWallet UiNewWalletArgs{..} -> Just (unwaPassphrase, WalletIdTemporary)
+      UiRestoreWallet UiRestoreWalletArgs{..} -> Just (urwaPassphrase, WalletIdTemporary)
+      UiSend UiSendArgs{..} -> Just (usaPassphrase, maybe WalletIdSelected WalletIdByUiIndex usaWalletIdx)
       _ -> Nothing
-    pushPassword password = putPass WalletIdTemporary password Nothing
+    pushPassword (password, walletId) = putPass walletId password Nothing
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
     justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])

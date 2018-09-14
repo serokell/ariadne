@@ -54,12 +54,13 @@ restoreWallet ::
     => PassiveWalletLayer IO
     -> WalletFace
     -> (CardanoMode ~> IO)
-    -> PassPhrase
+    -> IO PassPhrase
     -> Maybe WalletName
     -> Mnemonic
     -> WalletRestoreType
     -> IO ()
-restoreWallet pwl face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
+restoreWallet pwl face runCardanoMode getPassTemp mbWalletName (Mnemonic mnemonic) rType = do
+    pp <- getPassTemp
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
           lastWord <- last <$> nonEmpty mnemonicWords
