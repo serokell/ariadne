@@ -176,6 +176,8 @@ type UiWalletTree = Tree UiWalletTreeItem
 -- to be an issue, we may consider changing it.
 type TreePath = [Word]
 
+type NonEmptyPath = NonEmpty Word
+
 data UiWalletTreeSelection =
   UiWalletTreeSelection
     { wtsWalletIdx :: Word
@@ -195,14 +197,14 @@ data UiWalletInfo = UiWalletInfo
 data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
-  , uaciPath :: !TreePath
+  , uaciPath :: !NonEmptyPath
   , uaciBalance :: !(Text, UiCurrency)
   , uaciAddresses :: ![UiAddressInfo]
   }
 
 data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
-  , uadiPath :: !TreePath
+  , uadiPath :: !NonEmptyPath
   , uadiAddress :: !Text
   , uadiBalance :: !(Text, UiCurrency)
   }

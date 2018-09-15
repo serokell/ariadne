@@ -289,14 +289,14 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
       UiAccountInfo
         { uaciLabel = Just _uadName
         , uaciWalletIdx = uwsWalletIdx
-        , uaciPath = [fromIntegral _uadAccountIdx]
+        , uaciPath = fromIntegral _uadAccountIdx :| []
         , uaciBalance = balance _uadBalance
-        , uaciAddresses = address [fromIntegral _uadAccountIdx] <$> V.toList _uadAddresses
+        , uaciAddresses = address (fromIntegral _uadAccountIdx) <$> V.toList _uadAddresses
         }
     address acPath UiAddressData{..} =
       UiAddressInfo
         { uadiWalletIdx = uwsWalletIdx
-        , uadiPath = acPath ++ [fromIntegral _uiadAddressIdx]
+        , uadiPath = acPath :| [fromIntegral _uiadAddressIdx]
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
