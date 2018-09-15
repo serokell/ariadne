@@ -44,7 +44,7 @@ initWallet langFace uiWalletFace = do
   selectionModel <- QItemSelectionModel.newWithModel itemModel
 
   (qWalletTree, walletTree) <- initWalletTree langFace uiWalletFace itemModel selectionModel
-  (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
+  (qWalletInfo, walletInfo) <- initWalletInfo langFace uiWalletFace itemModel selectionModel
 
   layout <- QHBoxLayout.new
   QObject.setObjectName layout ("walletLayout" :: String)

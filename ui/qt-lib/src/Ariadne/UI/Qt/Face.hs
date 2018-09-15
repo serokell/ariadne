@@ -30,6 +30,7 @@ module Ariadne.UI.Qt.Face
 
 import qualified Control.Concurrent.Event as CE
 import Data.Loc.Span (Span)
+import Data.Scientific (Scientific)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
@@ -91,7 +92,7 @@ data UiEvent
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiSend Text Text  -- ^ Address, amount
+  | UiSend Word [Word] Text Scientific -- ^ Wallet idx, accounts, address, amount
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress Word Word -- ^ Wallet index, account index
@@ -142,6 +143,8 @@ data UiWalletFace =
   UiWalletFace
     { uiGenerateMnemonic :: Byte -> IO [Text]
     , uiDefaultEntropySize :: Byte
+    , uiValidateAddress :: Text -> Bool
+    , uiCoinPrecision :: Int
     }
 
 -- Interface for the command history

@@ -93,16 +93,29 @@ createSubWidget = do
 
   return (widget, layout)
 
+createCheckBoxWithLabel :: Text -> IO (QCheckBox.QCheckBox, QLabel.QLabel)
+createCheckBoxWithLabel labelText = do
+  checkBox <- QCheckBox.new
+  QWidget.setSizePolicyRaw checkBox Maximum Maximum
+  checkBoxLabel <- QLabel.newWithText $ toString labelText
+  QLabel.setWordWrap checkBoxLabel True
+
+  void $ Event.onEvent checkBoxLabel $
+    \(ev :: QMouseEvent.QMouseEvent) -> do
+      eventType <- QEvent.eventType ev
+      if eventType == QEvent.MouseButtonRelease
+        then QAbstractButton.toggle checkBox $> True
+        else return False
+
+  return (checkBox, checkBoxLabel)
+
 createCheckBox
   :: QVBoxLayout.QVBoxLayout
   -> CheckboxPosition
   -> Text
   -> IO QCheckBox.QCheckBox
 createCheckBox layout checkBoxPos labelText = do
-  checkBox <- QCheckBox.new
-  QWidget.setSizePolicyRaw checkBox Maximum Maximum
-  checkBoxLabel <- QLabel.newWithText $ toString labelText
-  QLabel.setWordWrap checkBoxLabel True
+  (checkBox, checkBoxLabel) <- createCheckBoxWithLabel labelText
   QWidget.setMinimumSizeRaw checkBoxLabel 600 30
 
   checkBoxLayout <- QHBoxLayout.new
@@ -115,13 +128,6 @@ createCheckBox layout checkBoxPos labelText = do
       QBoxLayout.addWidget checkBoxLayout checkBox
 
   QBoxLayout.addLayout layout checkBoxLayout
-
-  void $ Event.onEvent checkBoxLabel $
-    \(ev :: QMouseEvent.QMouseEvent) -> do
-      eventType <- QEvent.eventType ev
-      if eventType == QEvent.MouseButtonRelease
-        then QAbstractButton.toggle checkBox $> True
-        else return False
 
   return checkBox
 

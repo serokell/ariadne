@@ -347,5 +347,24 @@ QDialog QPushButton[styleRole="copyAddressButton"]:hover:pressed {
     background: rgba(52, 52, 62, 25);
 }
 
+QDialog QWidget#accountsSelector {
+    background: #f0f0f0;
+    border: 1px solid rgba(52, 52, 62, 51);
+    border-radius: 2px;
+}
+
+QDialog QLabel#accountsSelectorDisplay {
+    /* QSS text-align property works only for buttons and progress bars */
+    qproperty-alignment: AlignRight;
+}
+
+QDialog QLineEdit#sendAmountEdit, QDialog QLineEdit#sendAmountEdit:focus {
+    border: none;
+    font-size: 20px;
+    color: #34343e;
+
+    qproperty-alignment: AlignRight;
+}
+
 /* vim: ft=css
 */

@@ -97,6 +97,8 @@ data WalletUIFace =
   WalletUIFace
     { walletGenerateMnemonic :: Byte -> IO [Text]
     , walletDefaultEntropySize :: Byte
+    , walletValidateAddress :: Text -> Bool
+    , walletCoinPrecision :: Int
     }
 
 -- | Superclass for wallet password exceptions

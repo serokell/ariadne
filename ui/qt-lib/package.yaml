@@ -30,6 +30,7 @@ library:
     - lens
     - loc
     - qtah
+    - scientific
     - serokell-util
     - stm
     - text

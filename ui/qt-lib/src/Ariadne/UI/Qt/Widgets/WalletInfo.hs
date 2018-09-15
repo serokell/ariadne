@@ -21,14 +21,10 @@ import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
-import qualified Graphics.UI.Qtah.Widgets.QDialogButtonBox as QDialogButtonBox
-import qualified Graphics.UI.Qtah.Widgets.QFormLayout as QFormLayout
-import qualified Graphics.UI.Qtah.Widgets.QGroupBox as QGroupBox
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QInputDialog as QInputDialog
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
-import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
@@ -39,9 +35,10 @@ import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
 import Ariadne.UI.Qt.Widgets.Dialogs.Request
+import Ariadne.UI.Qt.Widgets.Dialogs.Send
 import Ariadne.Util
 
-data CurrentItem = WIWallet [UiAccountInfo] | WIAccount UiAccountInfo
+data CurrentItem = WIWallet Word [UiAccountInfo] | WIAccount Word UiAccountInfo
 
 data WalletInfo =
   WalletInfo
@@ -49,16 +46,13 @@ data WalletInfo =
     , itemNameLabel :: QLabel.QLabel
     , balanceLabel :: QLabel.QLabel
     , balanceCommandId :: IORef (Maybe UiCommandId)
-    , sendForm :: QGroupBox.QGroupBox
-    , sendAddress :: QLineEdit.QLineEdit
-    , sendAmount :: QLineEdit.QLineEdit
-    , sendButton :: QPushButton.QPushButton
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
     , createAccountButton :: QPushButton.QPushButton
     , currentItem :: IORef (Maybe CurrentItem)
     , currentItemName :: IORef Text
     , deleteItemButton :: QPushButton.QPushButton
+    , sendButton :: QPushButton.QPushButton
     , requestButton :: QPushButton.QPushButton
     , requestDialog :: IORef (Maybe Request)
     }
@@ -67,10 +61,11 @@ makeLensesWith postfixLFields ''WalletInfo
 
 initWalletInfo
   :: UiLangFace
+  -> UiWalletFace
   -> QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
   -> IO (QWidget.QWidget, WalletInfo)
-initWalletInfo langFace itemModel selectionModel = do
+initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   infoLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw infoLayout 0 0 0 0
 
@@ -115,44 +110,28 @@ initWalletInfo langFace itemModel selectionModel = do
   QLayout.addWidget balanceLayout balanceLabel
 
   accountControls <- QVBoxLayout.new
-  sendButton' <- QPushButton.newWithText (" SEND" :: String)
+  sendButton <- QPushButton.newWithText (" SEND" :: String)
   requestButton <- QPushButton.newWithText (" REQUEST" :: String)
   setProperty requestButton ("styleRole" :: Text) ("secondaryButton" :: Text)
 
   sendIcon <- QIcon.newWithFile (":/images/send-ic.png" :: String)
   receiveIcon <- QIcon.newWithFile (":/images/receive-ic.png" :: String)
 
-  QAbstractButton.setIcon sendButton' sendIcon
+  QAbstractButton.setIcon sendButton sendIcon
   QAbstractButton.setIcon requestButton receiveIcon
 
   -- Buttons will be shown once something is selected
-  QWidget.hide sendButton'
+  QWidget.hide sendButton
   QWidget.hide requestButton
 
   QBoxLayout.addStretch accountControls
-  QLayout.addWidget accountControls sendButton'
+  QLayout.addWidget accountControls sendButton
   QLayout.addWidget accountControls requestButton
   QBoxLayout.addStretch accountControls
 
   QBoxLayout.addLayout balanceLayout accountControls
   QBoxLayout.setStretch balanceLayout 0 1
   QBoxLayout.setStretch balanceLayout 1 0
-
-  sendAddress <- QLineEdit.new
-  sendAmount <- QLineEdit.new
-
-  sendButtonBox <- QDialogButtonBox.new
-  sendButton <- QDialogButtonBox.addButtonWithText sendButtonBox ("Send" :: String) QDialogButtonBox.AcceptRole
-
-  sendFormLayout <- QFormLayout.new
-  QFormLayout.addRowStringWidget sendFormLayout ("Address:" :: String) sendAddress
-  QFormLayout.addRowStringWidget sendFormLayout ("Amount:" :: String) sendAmount
-  QFormLayout.addRowWidget sendFormLayout sendButtonBox
-
-  sendForm <- QGroupBox.newWithTitle ("Send transaction" :: String)
-  QWidget.setLayout sendForm sendFormLayout
-
-  QLayout.addWidget infoLayout sendForm
 
   QBoxLayout.addStretch infoLayout
   walletInfo <- QWidget.new
@@ -162,26 +141,16 @@ initWalletInfo langFace itemModel selectionModel = do
   currentItemName <- newIORef ""
   requestDialog <- newIORef Nothing
 
-  connect_ sendButton QAbstractButton.clickedSignal $
-    sendClicked langFace WalletInfo{..}
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
   connect_ deleteItemButton QAbstractButton.clickedSignal $
     deleteItemClicked langFace WalletInfo{..}
   connect_ requestButton QAbstractButton.clickedSignal $
     requestButtonClicked langFace WalletInfo{..}
+  connect_ sendButton QAbstractButton.clickedSignal $
+    sendButtonClicked langFace uiWalletFace WalletInfo{..}
 
   return (walletInfo, WalletInfo{..})
-
-sendClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
-sendClicked UiLangFace{..} WalletInfo{..} _checked = do
-  address <- toText <$> QLineEdit.text sendAddress
-  amount <- toText <$> QLineEdit.text sendAmount
-  langPutUiCommand (UiSend address amount) >>= \case
-    Left err ->
-      void $ QMessageBox.critical sendForm ("Error" :: String) $ toString err
-    Right _ ->
-      QWidget.setEnabled sendButton False
 
 data WalletInfoEvent
   = WalletInfoSelectionChange UiSelectionInfo
@@ -199,18 +168,20 @@ handleWalletInfoEvent UiLangFace{..} ev = do
     WalletInfoSelectionChange selectionInfo -> do
       let (itemName, (balance, unit), item) =
             case selectionInfo of
-              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, WIWallet uwiAccounts)
-              UiSelectionAccount uaci@UiAccountInfo{..} -> (uaciLabel, uaciBalance, WIAccount uaci)
+              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, WIWallet uwiWalletIdx uwiAccounts)
+              UiSelectionAccount uaci@UiAccountInfo{..} -> (uaciLabel, uaciBalance, WIAccount uaciWalletIdx uaci)
 
       QLabel.setText itemNameLabel . toString . toUpper . fromMaybe "" $ itemName
       QLabel.setText balanceLabel $ toString $ formatBalance balance unit
       case item of
-        WIWallet accounts -> do
+        WIWallet _ accounts -> do
           QWidget.setVisible createAccountButton True
           QWidget.setVisible requestButton $ not $ null accounts
-        WIAccount _ -> do
+          QWidget.setVisible sendButton $ not $ null accounts
+        WIAccount {} -> do
           QWidget.setVisible createAccountButton False
           QWidget.setVisible requestButton True
+          QWidget.setVisible sendButton True
       QWidget.setVisible deleteItemButton True
 
       writeIORef currentItem $ Just item
@@ -220,13 +191,9 @@ handleWalletInfoEvent UiLangFace{..} ev = do
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
-        QWidget.setEnabled sendButton True
-        QLineEdit.clear sendAddress
-        QLineEdit.clear sendAmount
-        void $ QMessageBox.information sendForm ("Success" :: String) $ toString hash
+        void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
       UiSendCommandFailure err -> do
-        QWidget.setEnabled sendButton True
-        void $ QMessageBox.critical sendForm ("Error" :: String) $ toString err
+        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
     WalletInfoNewAccountCommandResult _commandId result -> case result of
       UiNewAccountCommandSuccess -> do
@@ -250,8 +217,8 @@ deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
   whenJustM (readIORef currentItem) $ \item -> do
     let
       delItemType = case item of
-        WIWallet _ -> DelWallet
-        WIAccount _ -> DelAccount
+        WIWallet {} -> DelWallet
+        WIAccount {} -> DelAccount
 
     itemName <- readIORef currentItemName
     result <- runDelete delItemType itemName
@@ -266,8 +233,21 @@ requestButtonClicked langFace WalletInfo{..} _checked = do
     whenJustM (readIORef currentItem) $ \item -> do
       let
         accounts = case item of
-          WIWallet uacis -> RequestAccountsMulti uacis
-          WIAccount uaci -> RequestAccountsSingle uaci
+          WIWallet _ uacis -> RequestAccountsMulti uacis
+          WIAccount _ uaci -> RequestAccountsSingle uaci
       req' <- startRequest langFace onClosed accounts
       writeIORef requestDialog $ Just req'
   where onClosed = writeIORef requestDialog Nothing
+
+sendButtonClicked :: UiLangFace -> UiWalletFace -> WalletInfo -> Bool -> IO ()
+sendButtonClicked UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJustM (readIORef currentItem) $ \item -> do
+  let
+    (wIdx, inputs) = case item of
+      WIWallet wIdx' uacis -> (wIdx', SendInputsMulti uacis)
+      WIAccount wIdx' UiAccountInfo{..} -> (wIdx', SendInputsSingle $ head uaciPath)
+  result <- runSend uiWalletFace inputs
+  case result of
+    SendCancel -> pass
+    SendSuccess SendOptions{..} -> langPutUiCommand (UiSend wIdx soAccounts soAddress soAmount) >>= \case
+      Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+      Right _ -> pass
