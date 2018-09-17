@@ -10,6 +10,14 @@ let
 in
 
 rec {
+  inherit project ariadne-qt-app;
+
+  ariadne-qt-app-flatpak = buildFlatpak {
+    app-id = "io.serokell.ariadne.Qt";
+    command = "${ariadne-qt-app}/bin/ariadne";
+    finish-args = [ "--share=network" ];
+  };
+
   ariadne-vty-app = haskell.lib.justStaticExecutables project.ariadne-vty-app;
 
   ariadne-vty-app-flatpak = buildFlatpak {
