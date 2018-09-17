@@ -80,16 +80,23 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       Left err -> return $ Left err
       Right expr -> do
         comId <- putCommand (Just op) expr
-        putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        unless (isReadOnlyOp op) $
+          putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
         return $ Right comId
 
     commandHandle mOp commandId = KnitCommandHandle
       { putCommandResult = \mtid result -> do
-          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+          unlessReadOnlyOp $
+            whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
           whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \tid doc ->
+      , putCommandOutput = \tid doc -> unlessReadOnlyOp $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
+      where unlessReadOnlyOp = unless (maybe False isReadOnlyOp mOp)
+
+    isReadOnlyOp = \case
+      UiSelect _ -> True
+      _ -> False
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
     justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])
