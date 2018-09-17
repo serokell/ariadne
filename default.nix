@@ -1,11 +1,6 @@
-{ pkgs ? import ./nixpkgs.nix }: with pkgs;
+{ pkgs ? import ./closure.nix }: with pkgs;
 
-let
-  stack4nix = fetchGit {
-    url = https://github.com/serokell/stack4nix;
-    rev = "9c8607c95b4a01a9587846d28cb66e35bd3c37f3";
-  };
-
+stackToNix {
   overrides = final: previous: with haskell.lib; {
     ariadne-cardano = overrideCabal previous.ariadne-cardano (super: {
       buildTools = [ git ];
@@ -25,7 +20,5 @@ let
     });
   };
 
-  buildStackProject = import stack4nix { inherit pkgs overrides; };
-in
-
-buildStackProject ./.
+  src = lib.cleanSource ./.;
+}
