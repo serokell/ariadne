@@ -4,6 +4,7 @@ module Knit.Prelude
   ) where
 
 import Control.Lens as X hiding (op, rmap)
+import Data.Bifunctor as X
 import Data.Foldable as X
 import Data.Function as X (on)
 import Data.Traversable as X

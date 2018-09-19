@@ -79,7 +79,7 @@ instance ComponentDetokenizer Wallet where
 
 instance Elem components Wallet => ComponentLitGrammar components Wallet where
   componentLitGrammar = rule $ asum
-    [ toLit . LitAddressHash <$> tok (_Token . uprism . _TokenAddressHash) ]
+    [ second (toLit . LitAddressHash) <$> tok (_Token . uprism . _TokenAddressHash) ]
 
 instance ComponentPrinter Wallet where
   componentPpLit = \case

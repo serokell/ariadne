@@ -135,3 +135,11 @@ type instance XArgKw NoExt = NoExt
 deriving instance (Eq a, ForallXArg Eq ext) => Eq (Arg ext a)
 deriving instance (Ord a, ForallXArg Ord ext) => Ord (Arg ext a)
 deriving instance (Show a, ForallXArg Show ext) => Show (Arg ext a)
+
+dropExt :: Expr ext cmd components -> Expr NoExt cmd components
+dropExt (ExprLit _ l) = ExprLit NoExt l
+dropExt (ExprProcCall _ pc) = ExprProcCall NoExt (dropExtPc pc)
+  where
+    dropExtPc (ProcCall _ cmd args) = ProcCall NoExt cmd (map dropExtArg args)
+    dropExtArg (ArgPos _ a) = ArgPos NoExt (dropExt a)
+    dropExtArg (ArgKw _ name a) = ArgKw NoExt name (dropExt a)

@@ -115,10 +115,10 @@ instance ComponentDetokenizer Cardano where
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitAddress <$> tok (_Token . uprism . _TokenAddress)
-      , toLit . LitPublicKey <$> tok (_Token . uprism . _TokenPublicKey)
-      , toLit . LitHash <$> tok (_Token . uprism . _TokenHash)
-      , toLit . LitCoin <$> tok (_Token . uprism . _TokenCoin . adaPrism)
+      [ second (toLit . LitAddress) <$> tok (_Token . uprism . _TokenAddress)
+      , second (toLit . LitPublicKey) <$> tok (_Token . uprism . _TokenPublicKey)
+      , second (toLit . LitHash) <$> tok (_Token . uprism . _TokenHash)
+      , second (toLit . LitCoin) <$> tok (_Token . uprism . _TokenCoin . adaPrism)
       ]
 
     where

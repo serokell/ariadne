@@ -146,9 +146,9 @@ isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 instance Elem components Core => ComponentLitGrammar components Core where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitNumber <$> tok (_Token . uprism . _TokenNumber)
-      , toLit . LitString . pack <$> tok (_Token . uprism . _TokenString)
-      , toLit . LitFilePath <$> tok (_Token . uprism . _TokenFilePath)
+      [ second (toLit . LitNumber) <$> tok (_Token . uprism . _TokenNumber)
+      , second (toLit . LitString . pack) <$> tok (_Token . uprism . _TokenString)
+      , second (toLit . LitFilePath) <$> tok (_Token . uprism . _TokenFilePath)
       ]
 
 instance ComponentPrinter Core where

@@ -64,7 +64,7 @@ instance ComponentDetokenizer TaskManager where
 instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
   componentLitGrammar =
     rule $ asum
-      [ toLit . LitTaskId <$> tok (_Token . uprism . _TokenTaskId)
+      [ second (toLit . LitTaskId) <$> tok (_Token . uprism . _TokenTaskId)
       ]
 
 instance ComponentPrinter TaskManager where
