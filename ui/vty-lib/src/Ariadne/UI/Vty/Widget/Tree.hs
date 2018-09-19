@@ -224,4 +224,4 @@ performSelect
   -> WidgetEventM TreeWidgetState p ()
 performSelect path = do
   UiLangFace{..} <- use treeLangFaceL
-  void . liftIO . langPutUiCommand $ UiSelect path
+  void . liftIO . langPutUISilentCommand $ UiSelect path
