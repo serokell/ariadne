@@ -63,8 +63,9 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = putCommand Nothing
-    , langPutUiCommand = putUiCommand
+    { langPutCommand = putCommand False Nothing
+    , langPutUiCommand = putUiCommand False
+    , langPutUISilentCommand = putUiCommand True
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
@@ -72,31 +73,26 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand mOp expr = do
+    putCommand silent mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (commandHandle mOp cid) $ expr
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle silent mOp cid) $ expr
 
-    putUiCommand op = case opToExpr op of
+    putUiCommand silent op = case opToExpr op of
       Left err -> return $ Left err
       Right expr -> do
-        comId <- putCommand (Just op) expr
-        unless (isReadOnlyOp op) $
+        comId <- putCommand silent (Just op) expr
+        unless silent $
           putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
         return $ Right comId
 
-    commandHandle mOp commandId = KnitCommandHandle
+    commandHandle silent mOp commandId = KnitCommandHandle
       { putCommandResult = \mtid result -> do
-          unlessReadOnlyOp $
+          unless silent $
             whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
           whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \tid doc -> unlessReadOnlyOp $
+      , putCommandOutput = \tid doc -> unless silent $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
-      where unlessReadOnlyOp = unless (maybe False isReadOnlyOp mOp)
-
-    isReadOnlyOp = \case
-      UiSelect _ -> True
-      _ -> False
 
     optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
     justOptNumber key = maybe [] (\value -> [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value])
