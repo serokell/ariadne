@@ -42,18 +42,18 @@ instance
     componentInflate =
       \case
         ValueAddress a ->
-          ExprLit $ toLit (LitAddress a)
+          ExprLit NoExt $ toLit (LitAddress a)
         ValuePublicKey pk ->
-          ExprLit $ toLit (LitPublicKey pk)
+          ExprLit NoExt $ toLit (LitPublicKey pk)
         ValueTxOut txOut ->
-          ExprProcCall $ ProcCall "tx-out" $ txOutToArgs txOut
+          ExprProcCall NoExt $ ProcCall NoExt "tx-out" $ txOutToArgs txOut
         ValueCoin coin ->
-          ExprLit $ toLit (LitCoin coin)
+          ExprLit NoExt $ toLit (LitCoin coin)
         ValueHash h ->
-          ExprLit $ toLit (LitHash h)
+          ExprLit NoExt $ toLit (LitHash h)
       where
-        txOutToArgs :: TxOut -> [Arg (Expr CommandId components)]
-        txOutToArgs TxOut {..} = List.map ArgPos $
+        txOutToArgs :: TxOut -> [Arg NoExt (Expr NoExt CommandId components)]
+        txOutToArgs TxOut {..} = List.map (ArgPos NoExt) $
           [ componentInflate $ ValueAddress txOutAddress
           , componentInflate $ ValueCoin txOutValue
           ]

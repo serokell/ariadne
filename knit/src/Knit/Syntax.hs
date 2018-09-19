@@ -99,9 +99,24 @@ type ForallXProcCall (constr :: * -> Constraint) (ext :: *) = (constr (XProcCall
 
 type instance XProcCall NoExt = NoExt
 
-deriving instance (Eq cmd, Eq a, ForallXProcCall Eq ext, ForallXArg Eq ext) => Eq (ProcCall ext cmd a)
-deriving instance (Ord cmd, Ord a, ForallXProcCall Ord ext, ForallXArg Ord ext) => Ord (ProcCall ext cmd a)
-deriving instance (Show cmd, Show a, ForallXProcCall Show ext, ForallXArg Show ext) => Show (ProcCall ext cmd a)
+deriving instance
+    ( Eq cmd
+    , Eq a
+    , ForallXProcCall Eq ext
+    , ForallXArg Eq ext
+    ) => Eq (ProcCall ext cmd a)
+deriving instance
+    ( Ord cmd
+    , Ord a
+    , ForallXProcCall Ord ext
+    , ForallXArg Ord ext
+    ) => Ord (ProcCall ext cmd a)
+deriving instance
+    ( Show cmd
+    , Show a
+    , ForallXProcCall Show ext
+    , ForallXArg Show ext
+    ) => Show (ProcCall ext cmd a)
 
 data Arg ext a = ArgPos (XArgPos ext) a | ArgKw (XArgKw ext) Name a
   deriving (Functor, Foldable, Traversable)

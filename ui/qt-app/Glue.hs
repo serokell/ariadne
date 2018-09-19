@@ -91,51 +91,51 @@ knitFaceToUI UiFace{..} KnitFace{..} =
 
     opToExpr = \case
       UiSelect ws ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.selectCommandName
-           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.selectCommandName
+           (map (Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
       UiKill commandId ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.killCommandName
-            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.killCommandName
+            [Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
       UiSend address amount -> do
         argAddress <- decodeTextAddress address
         argCoin <- readEither amount
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.sendCommandName
-            [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
-                [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
-                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.sendCommandName
+            [ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $ Knit.ProcCall Knit.NoExt Knit.txOutCommandName
+                [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $ argAddress
+                , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $ argCoin
                 ]
             ]
           )
       UiNewWallet name password -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newWalletCommandName $
-            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newWalletCommandName $
+            [Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name]
             ++ maybe []
-              ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
+              ((:[]) . Knit.ArgKw Knit.NoExt "pass" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString) password
           )
       UiRestoreWallet name password mnemonic full -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.restoreCommandName $
-            [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
-            , Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ mnemonic
-            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ full
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.restoreCommandName $
+            [ Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name
+            , Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ mnemonic
+            , Knit.ArgKw Knit.NoExt "full" . Knit.componentInflate . Knit.ValueBool $ full
             ]
             ++ maybe []
-              ((:[]) . Knit.ArgKw "pass" . Knit.ExprLit . Knit.toLit . Knit.LitString) password
+              ((:[]) . Knit.ArgKw Knit.NoExt "pass" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString) password
           )
       UiNewAccount name -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAccountCommandName
-            [Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name]
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newAccountCommandName
+            [Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name]
           )
       UiNewAddress -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAddressCommandName [])
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName [])
 
     resultToUI result = \case
       UiSend _ _ ->

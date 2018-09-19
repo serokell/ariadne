@@ -16,7 +16,7 @@ data family ComponentCommandRepr (components :: [*]) component
 
 data CommandProc components component = forall e. CommandProc
   { cpName :: CommandId
-  , cpArgumentPrepare :: forall ext . [Arg ext (Value components)] -> [Arg ext (Value components)]
+  , cpArgumentPrepare :: [Arg NoExt (Value components)] -> [Arg NoExt (Value components)]
   , cpArgumentConsumer :: ArgumentConsumer components e
   , cpRepr :: e -> ComponentCommandRepr components component
   , cpHelp :: Text

@@ -109,59 +109,59 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     autocomplete :: Text -> [Text]
     autocomplete c = filter (T.isPrefixOf c) commands
 
-    optString key value = if null value then [] else [Knit.ArgKw key . Knit.ExprLit . Knit.toLit . Knit.LitString $ value]
+    optString key value = if null value then [] else [Knit.ArgKw Knit.NoExt key . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ value]
 
     opToExpr = \case
       UiSelect ws ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.selectCommandName
-           (map (Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.selectCommandName
+           (map (Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
           )
       UiSend UiSendArgs{..} -> do
         argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
           argAddress <- decodeTextAddress usoAddress
           argCoin <- readEither usoAmount
-          Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
-            [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
-            , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+          Right $ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $ Knit.ProcCall Knit.NoExt Knit.txOutCommandName
+            [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $ argAddress
+            , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $ argCoin
             ]
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.sendCommandName $
-            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.sendCommandName $
+            map (Knit.ArgKw Knit.NoExt "account" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs ++
             optString "pass" usaPassphrase
           )
       UiKill commandId ->
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.killCommandName
-            [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.killCommandName
+            [Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
       UiNewWallet UiNewWalletArgs{..} -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newWalletCommandName $
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newWalletCommandName $
             optString "name" unwaName ++
             optString "pass" unwaPassphrase
           )
       UiNewAccount UiNewAccountArgs{..} -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAccountCommandName $
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newAccountCommandName $
             optString "name" unaaName
           )
       UiNewAddress -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.newAddressCommandName [])
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName [])
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.restoreCommandName $
-            [ Knit.ArgKw "mnemonic" . Knit.ExprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
-            , Knit.ArgKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.restoreCommandName $
+            [ Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ urwaMnemonic
+            , Knit.ArgKw Knit.NoExt "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
             optString "name" urwaName ++
             optString "pass" urwaPassphrase
           )
       UiRename UiRenameArgs{..} -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.renameCommandName $
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt Knit.renameCommandName $
             optString "name" uraName
           )
       _ -> Left "Not implemented"

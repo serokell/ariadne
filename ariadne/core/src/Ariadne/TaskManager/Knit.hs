@@ -25,7 +25,7 @@ makePrisms 'ValueTaskId
 
 instance Elem components TaskManager => ComponentInflate components TaskManager where
   componentInflate (ValueTaskId cid) =
-    ExprLit $ toLit (LitTaskId cid)
+    ExprLit NoExt $ toLit (LitTaskId cid)
 
 data instance ComponentCommandRepr components TaskManager
   = CommandAction (TaskManagerFace (Value components) -> IO (Value components))

@@ -50,10 +50,10 @@ instance
   ( Elem components Wallet
   ) => ComponentInflate components Wallet where
   componentInflate = \case
-    ValueAddressHash ah -> ExprLit $ toLit (LitAddressHash ah)
+    ValueAddressHash ah -> ExprLit NoExt $ toLit (LitAddressHash ah)
     ValueInputSelectionPolicy policy ->
       let commandName = inputSelectionPolicyName policy
-      in ExprProcCall $ ProcCall commandName []
+      in ExprProcCall NoExt $ ProcCall NoExt commandName []
 
 data instance ComponentLit Wallet =
   LitAddressHash PAddressHash deriving (Eq, Ord, Show)
