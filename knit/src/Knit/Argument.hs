@@ -35,7 +35,7 @@ import Data.Text
 import Numeric.Natural (Natural)
 
 import Knit.Name (Name(..))
-import Knit.Syntax (Arg(..))
+import Knit.Syntax (Arg(..), ForallXArg, XArgKw, XArgPos)
 import Knit.Value (Value)
 
 data ArgumentError = ArgumentError
@@ -86,14 +86,14 @@ instance Ord (Value components) => Monoid (ProcError components) where
     mappend (ProcError a1 t1) (ProcError a2 t2) =
         ProcError (mappend a1 a2) (Set.union t1 t2)
 
-data ArgumentConsumerState components = ACS
-    { acsRemaining :: ![Arg (Value components)]
+data ArgumentConsumerState ext components = ACS
+    { acsRemaining :: ![Arg ext (Value components)]
     , acsError     :: !(ProcError components)
     }
 
-deriving instance Eq (Value components) => Eq (ArgumentConsumerState components)
-deriving instance Ord (Value components) => Ord (ArgumentConsumerState components)
-deriving instance Show (Value components) => Show (ArgumentConsumerState components)
+deriving instance (Eq (Value components), ForallXArg Eq ext) => Eq (ArgumentConsumerState ext components)
+deriving instance (Ord (Value components), ForallXArg Ord ext) => Ord (ArgumentConsumerState ext components)
+deriving instance (Show (Value components), ForallXArg Show ext) => Show (ArgumentConsumerState ext components)
 
 data ArgCardinality f where
   ArgCardSingle :: ArgCardinality Identity
@@ -168,11 +168,11 @@ getArgSome
   -> ArgumentConsumer components (NonEmpty a)
 getArgSome = GetArg ArgCardSome
 
-runArgumentConsumer :: forall components a.
+runArgumentConsumer :: forall ext components a.
        Ord (Value components)
     => ArgumentConsumer components a
-    -> ArgumentConsumerState components
-    -> (Maybe a, ArgumentConsumerState components)
+    -> ArgumentConsumerState ext components
+    -> (Maybe a, ArgumentConsumerState ext components)
 runArgumentConsumer ac acs = case ac of
     GetArg argCard tp key -> argCardC @Traversable argCard $
       case lookupArgWithCard argCard key (acsRemaining acs) of
@@ -211,8 +211,8 @@ runArgumentConsumer ac acs = case ac of
 lookupArgWithCard ::
        ArgCardinality f
     -> Name
-    -> [Arg (Value components)]
-    -> Either ArgumentError (f (Value components), [Arg (Value components)])
+    -> [Arg ext (Value components)]
+    -> Either ArgumentError (f (Value components), [Arg ext (Value components)])
 lookupArgWithCard argCard name args = case argCard of
     ArgCardSingle -> over _1 Identity <$> lookupArgSingle name args
     ArgCardOpt    -> Right $ lookupArgOpt name args
@@ -221,8 +221,8 @@ lookupArgWithCard argCard name args = case argCard of
 
 lookupArgSingle ::
        Name
-    -> [Arg (Value components)]
-    -> Either ArgumentError ((Value components), [Arg (Value components)])
+    -> [Arg ext (Value components)]
+    -> Either ArgumentError ((Value components), [Arg ext (Value components)])
 lookupArgSingle name args = do
     let (mValue, args') = lookupArgOpt name args
     case mValue of
@@ -231,32 +231,32 @@ lookupArgSingle name args = do
 
 lookupArgOpt ::
        Name
-    -> [Arg (Value components)]
-    -> (Maybe (Value components), [Arg (Value components)])
+    -> [Arg ext (Value components)]
+    -> (Maybe (Value components), [Arg ext (Value components)])
 lookupArgOpt name = \case
     [] -> (Nothing, [])
-    ArgPos a : args -> (Just a, args)
-    arg@(ArgKw name' a) : args ->
+    ArgPos _ a : args -> (Just a, args)
+    arg@(ArgKw _ name' a) : args ->
         if name == name'
         then (Just a, args)
         else over _2 (arg:) $ lookupArgOpt name args
 
 lookupArgMany ::
        Name
-    -> [Arg (Value components)]
-    -> ([(Value components)], [Arg (Value components)])
+    -> [Arg ext (Value components)]
+    -> ([(Value components)], [Arg ext (Value components)])
 lookupArgMany name = \case
     [] -> ([], [])
-    ArgPos a : args -> over _1 (a:) $ lookupArgMany name args
-    arg@(ArgKw name' a) : args ->
+    ArgPos _ a : args -> over _1 (a:) $ lookupArgMany name args
+    arg@(ArgKw _ name' a) : args ->
         if name == name'
         then over _1 (a:) $ lookupArgMany name args
         else over _2 (arg:) $ lookupArgMany name args
 
 lookupArgSome ::
        Name
-    -> [Arg (Value components)]
-    -> Either ArgumentError (NonEmpty (Value components), [Arg (Value components)])
+    -> [Arg ext (Value components)]
+    -> Either ArgumentError (NonEmpty (Value components), [Arg ext (Value components)])
 lookupArgSome name args = do
     (v, args') <- lookupArgSingle name args
     return $ over _1 (v :|) $ lookupArgMany name args'
@@ -264,7 +264,7 @@ lookupArgSome name args = do
 consumeArguments ::
        Ord (Value components)
     => ArgumentConsumer components a
-    -> [Arg (Value components)]
+    -> [Arg ext (Value components)]
     -> Either (ProcError components) a
 consumeArguments ac args =
     let
@@ -279,17 +279,17 @@ consumeArguments ac args =
             Nothing -> Left procError
             Just a  -> Right a
 
-isArgPos :: Arg a -> Bool
+isArgPos :: Arg ext a -> Bool
 isArgPos = \case
-    ArgPos _ -> True
+    ArgPos _ _ -> True
     _ -> False
 
 toIrrelevanceError
-  :: [Arg (Value components)]
+  :: [Arg ext (Value components)]
   -> ArgumentError
 toIrrelevanceError = foldMap $ \case
-    ArgPos _ -> mempty { aeIrrelevantPos = 1 }
-    ArgKw key _ -> mempty { aeIrrelevantKeys = Set.singleton key }
+    ArgPos _ _ -> mempty { aeIrrelevantPos = 1 }
+    ArgKw _ key _ -> mempty { aeIrrelevantKeys = Set.singleton key }
 
 getParameters
   :: ArgumentConsumer components a
@@ -300,10 +300,11 @@ getParameters = \case
     AcAp f x -> getParameters f <> getParameters x
 
 typeDirectedKwAnn
-  :: Name
+  :: (XArgPos ext ~ XArgKw ext)
+  => Name
   -> (TyProjection components a)
-  -> Arg (Value components)
-  -> Arg (Value components)
+  -> Arg ext (Value components)
+  -> Arg ext (Value components)
 typeDirectedKwAnn name tp arg = case arg of
-    ArgPos v | isJust (tpMatcher tp v) -> ArgKw name v
+    ArgPos ext v | isJust (tpMatcher tp v) -> ArgKw ext name v
     _ -> arg

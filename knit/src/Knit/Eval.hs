@@ -39,7 +39,7 @@ evaluate
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (SomeCommandProc components) components
+  -> Expr ext (SomeCommandProc components) components
   -> m (Either (EvalError components) (Value components))
 evaluate ctxs expr = runExceptT (eval ctxs expr)
 
@@ -50,24 +50,24 @@ eval
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (SomeCommandProc components) components
+  -> Expr ext (SomeCommandProc components) components
   -> EvalT components m (Value components)
 eval ctxs = \case
-  ExprLit l -> return (literalToValue l)
-  ExprProcCall procCall ->
+  ExprLit _ l -> return (literalToValue l)
+  ExprProcCall _ procCall ->
     evalProcCall ctxs =<< traverse (eval ctxs) procCall
 
 evalProcCall
-  :: forall m components.
+  :: forall ext m components.
      ( AllConstrained (ComponentCommandExec m components) components
      , Monad m
      , Ord (Value components)
      )
   => ExecContext m components
-  -> ProcCall (SomeCommandProc components) (Value components)
+  -> ProcCall ext (SomeCommandProc components) (Value components)
   -> EvalT components m (Value components)
-evalProcCall ctxs (ProcCall (SomeCommandProc commandProc) args) =
-  componentEvalProcCall (rget ctxs) (ProcCall commandProc args)
+evalProcCall ctxs (ProcCall ext (SomeCommandProc commandProc) args) =
+  componentEvalProcCall (rget ctxs) (ProcCall ext commandProc args)
 
 literalToValue
   :: forall components.
@@ -80,16 +80,16 @@ literalToValue =
   . getLitUnion
 
 componentEvalProcCall
-  :: forall m component components.
+  :: forall ext m component components.
      ( AllConstrained (ComponentCommandExec m components) components
      , Elem components component
      , Monad m
      , Ord (Value components)
      )
   => ComponentExecContext m components component
-  -> ProcCall (CommandProc components component) (Value components)
+  -> ProcCall ext (CommandProc components component) (Value components)
   -> EvalT components m (Value components)
-componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
+componentEvalProcCall ctx (ProcCall _ CommandProc{..} args) = do
     e <- either (throwError . InvalidArguments cpName) return $
          consumeArguments cpArgumentConsumer $
          cpArgumentPrepare args

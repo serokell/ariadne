@@ -51,29 +51,29 @@ gComponentsLit = go (knownSpine @components)
 gExpr
   :: forall components r s.
      (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Grammar r (Prod r Text (s, Token components) (Expr CommandId components))
+  => Grammar r (Prod r Text (s, Token components) (Expr NoExt CommandId components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
     ntComponentsLit <- gComponentsLit @components
-    ntExprLit <- rule $ ExprLit <$> ntComponentsLit <?> "literal"
+    ntExprLit <- rule $ ExprLit NoExt <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
-        [ ArgKw <$> ntKey <*> ntExprAtom
-        , ArgPos <$> ntExprAtom
+        [ ArgKw NoExt <$> ntKey <*> ntExprAtom
+        , ArgPos NoExt <$> ntExprAtom
         ] <?> "argument"
     ntExpr1 <- rule $ asum
-        [ ExprProcCall <$> ntProcCall
+        [ ExprProcCall NoExt <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall $ ProcCall (CommandIdOperator OpUnit) [])
+        , pure (ExprProcCall NoExt $ ProcCall NoExt (CommandIdOperator OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup <$> ntExpr1 `sepBy1` tok _TokenSemicolon
     ntProcCall <- rule $
-      ProcCall
+      ProcCall NoExt
         <$> (CommandIdName <$> ntName)
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-        (\name -> ExprProcCall $ ProcCall (CommandIdName name) []) <$> ntName
+        (\name -> ExprProcCall NoExt $ ProcCall NoExt (CommandIdName name) []) <$> ntName
         <?> "procedure call w/o arguments"
     ntExprAtom <- rule $ asum
         [ ntExprLit
@@ -82,15 +82,15 @@ gExpr = mdo
         ] <?> "atom"
     return ntExpr
 
-mkExprGroup :: NonEmpty (Expr CommandId components) -> Expr CommandId components
+mkExprGroup :: NonEmpty (Expr NoExt CommandId components) -> Expr NoExt CommandId components
 mkExprGroup = F.foldr1 opAndThen
   where
-    opAndThen e1 e = ExprProcCall $
-      ProcCall (CommandIdOperator OpAndThen) [ArgPos e1, ArgPos e]
+    opAndThen e1 e = ExprProcCall NoExt $
+      ProcCall NoExt (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e]
 
 pExpr
   :: (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Parser Text [(s, Token components)] (Expr CommandId components)
+  => Parser Text [(s, Token components)] (Expr NoExt CommandId components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
@@ -104,7 +104,7 @@ parse
      , AllConstrained (ComponentLitGrammar components) components
      )
   => Text
-  -> Either (ParseError components) (Expr CommandId components)
+  -> Either (ParseError components) (Expr NoExt CommandId components)
 parse str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize $ str
   where
     toEither = \case

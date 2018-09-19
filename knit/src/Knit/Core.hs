@@ -51,19 +51,19 @@ instance
   where
     componentInflate = \case
       ValueUnit ->
-        ExprProcCall $ ProcCall (CommandIdOperator OpUnit) []
+        ExprProcCall NoExt $ ProcCall NoExt (CommandIdOperator OpUnit) []
       ValueBool b ->
         let commandName = bool "false" "true"   b
-        in ExprProcCall $ ProcCall commandName []
+        in ExprProcCall NoExt $ ProcCall NoExt commandName []
       ValueNumber n ->
-        ExprLit $ toLit (LitNumber n)
+        ExprLit NoExt $ toLit (LitNumber n)
       ValueString s ->
-        ExprLit $ toLit (LitString s)
+        ExprLit NoExt $ toLit (LitString s)
       ValueFilePath s ->
-        ExprLit $ toLit (LitFilePath s)
+        ExprLit NoExt $ toLit (LitFilePath s)
       ValueList vs ->
-        ExprProcCall $ ProcCall "L" $
-        List.map (ArgPos . inflate) vs
+        ExprProcCall NoExt $ ProcCall NoExt "L" $
+        List.map (ArgPos NoExt . inflate) vs
 
 data instance ComponentLit Core
   = LitNumber Scientific

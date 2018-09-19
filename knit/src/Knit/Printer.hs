@@ -45,20 +45,20 @@ ppToken = \case
 
 ppExpr
   :: AllConstrained ComponentPrinter components
-  => Expr CommandId components
+  => Expr NoExt CommandId components
   -> Doc
 ppExpr =
   \case
-    ExprLit l -> ppLit l
-    ExprProcCall p -> ppProcCall p
+    ExprLit NoExt l -> ppLit l
+    ExprProcCall NoExt p -> ppProcCall p
   where
-    ppProcCall (ProcCall commandName args) =
+    ppProcCall (ProcCall NoExt commandName args) =
       case commandName of
         CommandIdName name -> ppProcedureCall name args
         CommandIdOperator op -> ppOperatorCall op args
 
     ppOperatorCall OpUnit [] = text ""
-    ppOperatorCall OpAndThen [ArgPos a, ArgPos b] =
+    ppOperatorCall OpAndThen [ArgPos NoExt a, ArgPos NoExt b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
     ppOperatorCall _ _ =
       error "Core invariant violated: invalid operator application"
@@ -74,16 +74,16 @@ ppExpr =
         else nameDoc PP.<+> argsDoc
 
     ppArg = \case
-      ArgPos a -> parensIfProcCall a (ppExpr a)
-      ArgKw name a -> nameToDoc name PP.<> PP.colon PP.<+>
+      ArgPos NoExt a -> parensIfProcCall a (ppExpr a)
+      ArgKw NoExt name a -> nameToDoc name PP.<> PP.colon PP.<+>
         parensIfProcCall a (ppExpr a)
 
     parensIfSemicolon = \case
-      ExprProcCall (ProcCall (CommandIdOperator OpAndThen) _) -> PP.parens
+      ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpAndThen) _) -> PP.parens
       _ -> id
 
     parensIfProcCall = \case
-      ExprProcCall (ProcCall _ args) | not (List.null args) -> PP.parens
+      ExprProcCall NoExt (ProcCall NoExt _ args) | not (List.null args) -> PP.parens
       _ -> id
 
 ppValue :: PrettyPrintValue components => Value components -> Doc
