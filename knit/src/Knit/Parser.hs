@@ -18,23 +18,25 @@ import Knit.Tokenizer
 
 data ParseTreeExt
 
-type instance XExprProcCall ParseTreeExt = NoExt
-type instance XExprLit ParseTreeExt = Span
+type instance XExprProcCall ParseTreeExt = MaybeWithBrackets ()
+type instance XExprLit ParseTreeExt = MaybeWithBrackets Span
 
 type instance XProcCall ParseTreeExt = Maybe Span
 
 type instance XArgPos ParseTreeExt = NoExt
 type instance XArgKw ParseTreeExt = Span
 
-tok :: Getting (First a) (Token components) a -> Prod r e (Span, Token components) (Span, a)
-tok p = _tok p --terminal (preview $ _2 . p)
+data MaybeWithBrackets a = MaybeWithBrackets (Maybe (Span, Span)) a
+    deriving (Eq, Ord, Show)
 
-inBrackets
-    :: Getting (First ()) (Token components) BracketSide
-    -> Prod r e (Span, Token components) a
-    -> Prod r e (Span, Token components) a
-inBrackets p r =
-    tok (p . _BracketSideOpening) *> r <* tok (p . _BracketSideClosing)
+noBrackets :: a -> MaybeWithBrackets a
+noBrackets = MaybeWithBrackets Nothing
+
+addBrackets :: (Span, Span) -> MaybeWithBrackets a -> MaybeWithBrackets a
+addBrackets brackets (MaybeWithBrackets _ a) = MaybeWithBrackets (Just brackets) a
+
+tok :: Getting (First a) (Token components) a -> Prod r e (Span, Token components) (Span, a)
+tok p = terminal (sequenceA . fmap (preview p))
 
 class ComponentLitGrammar components component where
   componentLitGrammar :: Grammar r (Prod r Text (Span, Token components) (Span, Lit components))
@@ -64,15 +66,15 @@ gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
     ntComponentsLit <- gComponentsLit @components
-    ntExprLit <- rule $ uncurry ExprLit <$> ntComponentsLit <?> "literal"
+    ntExprLit <- rule $ uncurry (ExprLit . noBrackets) <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
         [ uncurry ArgKw <$> ntKey <*> ntExprAtom
         , ArgPos NoExt <$> ntExprAtom
         ] <?> "argument"
     ntExpr1 <- rule $ asum
-        [ ExprProcCall NoExt <$> ntProcCall
+        [ ExprProcCall (noBrackets ()) <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall NoExt $ ProcCall Nothing (CommandIdOperator OpUnit) [])
+        , pure (ExprProcCall (noBrackets ()) $ ProcCall Nothing (CommandIdOperator OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup ntExpr1 (fst <$> tok _TokenSemicolon)
     ntProcCall <- rule $
@@ -81,24 +83,38 @@ gExpr = mdo
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-      (\(s, name) -> ExprProcCall NoExt $ ProcCall (Just s) (CommandIdName name) [])
+      (\(s, name) -> ExprProcCall (noBrackets ()) $ ProcCall (Just s) (CommandIdName name) [])
         <$> ntName
         <?> "procedure call w/o arguments"
+    ntInBrackets <- rule $
+      addBracketsExpr
+        <$> bracketSpan _BracketSideOpening
+        <*> ntExpr
+        <*> bracketSpan _BracketSideClosing
+        <?> "parenthesized expression"
     ntExprAtom <- rule $ asum
         [ ntExprLit
         , ntProcCall0
-        , inBrackets _TokenParenthesis ntExpr <?> "parenthesized expression"
+        , ntInBrackets
         ] <?> "atom"
     return ntExpr
+  where
+    bracketSpan side = fst <$> tok (_TokenParenthesis . side)
+
+    addBracketsExpr l (ExprProcCall ext pCall) r = ExprProcCall (addBrackets (l, r) ext) pCall
+    addBracketsExpr l (ExprLit ext lit) r = ExprLit (addBrackets (l, r) ext) lit
 
 mkExprGroup
-    :: Alternative f
-    => f (Expr ParseTreeExt CommandId components)
-    -> f Span
-    -> f (Expr ParseTreeExt CommandId components)
-mkExprGroup expr sep = expr <|> liftA3 opAndThen expr sep (mkExprGroup expr sep)
+  :: Alternative f
+  => f (Expr ParseTreeExt CommandId components)
+  -> f Span
+  -> f (Expr ParseTreeExt CommandId components)
+mkExprGroup expr sep =
+    (Knit.Prelude.foldl' opAndThen)
+    <$> expr
+    <*> many ((,) <$> sep <*> expr)
   where
-    opAndThen e1 sep' e2 = ExprProcCall NoExt $
+    opAndThen e1 (sep', e2) = ExprProcCall (noBrackets ()) $
       ProcCall (Just sep') (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
