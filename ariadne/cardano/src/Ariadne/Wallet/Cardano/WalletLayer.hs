@@ -1,0 +1,59 @@
+module Ariadne.Wallet.Cardano.WalletLayer
+    ( -- * Kernel
+      bracketKernelPassiveWallet
+    , bracketKernelActiveWallet
+    -- * Legacy
+    , bracketLegacyPassiveWallet
+    , bracketLegacyActiveWallet
+    -- * We re-export the types since we want all the dependencies
+    -- in this module, other modules shouldn't be touched.
+    , module Types
+    ) where
+
+import Universum
+
+import System.Wlog (Severity)
+
+import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
+
+import Ariadne.Wallet.Cardano.Kernel (ActiveWallet, PassiveWallet)
+import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
+import Ariadne.Wallet.Cardano.Kernel.MonadDBReadAdaptor (MonadDBReadAdaptor)
+import qualified Ariadne.Wallet.Cardano.WalletLayer.Kernel as Kernel
+import qualified Ariadne.Wallet.Cardano.WalletLayer.Legacy as Legacy
+import Ariadne.Wallet.Cardano.WalletLayer.Types as Types
+import Pos.Core.Configuration (ProtocolMagic)
+
+------------------------------------------------------------
+-- Kernel
+------------------------------------------------------------
+bracketKernelPassiveWallet
+    :: forall m n a. (MonadIO m, MonadIO n, MonadMask n)
+    => (Severity -> Text -> IO ())
+    -> Keystore
+    -> MonadDBReadAdaptor IO
+    -> (PassiveWalletLayer m -> PassiveWallet -> n a) -> n a
+bracketKernelPassiveWallet = Kernel.bracketPassiveWallet
+
+bracketKernelActiveWallet
+    :: forall m n a. (MonadIO n, MonadMask n, MonadIO m)
+    => ProtocolMagic
+    -> PassiveWalletLayer m
+    -> PassiveWallet
+    -> WalletDiffusion
+    -> (ActiveWalletLayer m -> ActiveWallet -> n a) -> n a
+bracketKernelActiveWallet  = Kernel.bracketActiveWallet
+
+------------------------------------------------------------
+-- Legacy
+------------------------------------------------------------
+
+bracketLegacyPassiveWallet
+    :: forall ctx m n a. (MonadMask n, Legacy.MonadLegacyWallet ctx m)
+    => (PassiveWalletLayer m -> n a) -> n a
+bracketLegacyPassiveWallet = Legacy.bracketPassiveWallet
+
+bracketLegacyActiveWallet
+    :: forall m n a. (MonadMask n)
+    => PassiveWalletLayer m -> WalletDiffusion -> (ActiveWalletLayer m -> n a) -> n a
+bracketLegacyActiveWallet  = Legacy.bracketActiveWallet
