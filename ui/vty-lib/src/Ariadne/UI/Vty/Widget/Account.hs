@@ -223,9 +223,9 @@ handleAccountWidgetEvent = \case
             use accountBalanceL >>= \case
               BalanceResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
-                    void . liftIO . langPutUiCommand $ UiKill taskId
+                    void . liftIO . langPutUISilentCommand $ UiKill taskId
               _ -> return ()
-            liftIO (langPutUiCommand UiBalance) >>=
+            liftIO (langPutUISilentCommand UiBalance) >>=
               assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
       _ -> return ()
