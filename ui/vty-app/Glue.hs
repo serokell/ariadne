@@ -119,8 +119,19 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             optString "pass" usaPassphrase
           )
       UiFee UiFeeArgs{..} -> do
+        argOutputs <- forM ufaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          argCoin <- readEither usoAmount
+          Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
+            [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            ]
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall (Knit.CommandIdOperator Knit.OpUnit) [])
+          (Knit.ProcCall Knit.feeCommandName $
+            justOptNumber "wallet" ufaWalletIdx ++
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ufaAccounts ++
+            argOutputs
+          )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName

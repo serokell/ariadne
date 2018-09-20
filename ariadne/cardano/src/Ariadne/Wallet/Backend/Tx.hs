@@ -2,6 +2,7 @@
 
 module Ariadne.Wallet.Backend.Tx
        ( sendTx
+       , txFee
        ) where
 
 import Prelude hiding (list)
@@ -15,14 +16,15 @@ import Control.Natural ((:~>)(..))
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
-import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
+import Pos.Client.Txp (computeTxFee, getFakeChangeAddress, prepareMTx, runTxCreator, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
 import Pos.Crypto.HD (ShouldCheckPassphrase(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
-import Pos.Util (maybeThrow)
+import Pos.Txp (TxFee(..))
+import Pos.Util (eitherToThrow, maybeThrow)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage
@@ -179,6 +181,111 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
         , list . toList $ map formatToDoc _txOutputs
         , "…"
         ]
+
+-- | Send a transaction from selected to wallet to the list of
+-- 'TxOut's.  If list of accounts is not empty, only those accounts
+-- may be used as inputs.  If this list is empty and an account from
+-- the input wallet is selected, this account will be used as input.
+-- Otherwise inputs will be selected from all accounts in the wallet.
+txFee ::
+       {-(HasConfigurations)
+    => -}PassiveWalletLayer IO
+    -> WalletFace
+    -> CardanoFace
+    -> IORef (Maybe WalletSelection)
+    -> (Doc -> IO ())
+    -> WalletReference
+    -> [LocalAccountReference]
+    -> InputSelectionPolicy
+    -> NonEmpty TxOut
+    -> IO Coin
+txFee pwl WalletFace {..} CardanoFace {..} walletSelRef printAction walletRef accRefs isp outs = do
+    -- TODO: call newPending here
+    let NT runCardanoMode = cardanoRunCardanoMode
+    walletDb <- pwlGetDBSnapshot pwl
+    let wallets = walletDb ^. dbHdWallets
+    (walletRootId, walletAccounts) <-
+        resolveWalletRefThenRead walletSelRef walletRef
+        walletDb readAccountsByRootId
+    accountIds <- getSuitableAccounts walletRootId walletAccounts
+    let filteredAccounts :: IxSet HdAccount
+        filteredAccounts = maybe identity filterAccounts accountIds walletAccounts
+
+        filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
+        filterAccounts ids accounts = accounts @+ toList ids
+
+    runCardanoMode $
+        txFeeDo wallets walletRootId filteredAccounts =<< cardanoGetDiffusion
+  where
+    -- Returns list of accounts which can be used.
+    -- 'Nothing' means all accounts can be used.
+    getSuitableAccounts ::
+           HdRootId
+        -> IxSet HdAccount
+        -> IO (Maybe (NonEmpty HdAccountId))
+    getSuitableAccounts rootId accountsSet =
+        case nonEmpty accRefs of
+            Nothing -> do
+                readIORef walletSelRef >>= \case
+                    Just (WSAccount selectedAccId)
+                        | selectedAccId ^. hdAccountIdParent == rootId ->
+                            return (Just $ one selectedAccId)
+                    _ -> return Nothing
+            Just accRefsNE -> Just <$> mapM refToId accRefsNE
+      where
+        -- Here we use knowledge of the order in UI, which is not very good.
+        accountsList :: [HdAccount]
+        accountsList = toList accountsSet
+
+        refToId :: LocalAccountReference -> IO HdAccountId
+        refToId (LocalAccountRefByIndex uiIdx) =
+            maybeThrow (SendTxAccountIndexOutOfRange rootId uiIdx) $
+            accountsList ^? ix (fromIntegral uiIdx) . hdAccountId
+
+    txFeeDo ::
+           HdWallets
+        -> HdRootId
+        -> IxSet HdAccount
+        -> Diffusion CardanoMode
+        -> CardanoMode Coin
+    txFeeDo wallets walletRootId accountsToUse diffusion = do
+        -- Wallet creation and deletion is organized in such way that
+        -- the absence of a key is not possible.
+        esk <- liftIO $ fromMaybe
+            (error "Bug: Keystore has no such key.")
+            <$> pwlLookupKeystore pwl walletRootId
+
+        let signersMap :: HashMap Address SafeSigner
+            -- safe due to passphrase check above
+            signersMap = walletSigners esk wallets pp accountsToUse
+        let getSigner :: Address -> Maybe SafeSigner
+            getSigner addr = signersMap ^. at addr
+        ourAddresses <-
+            maybeThrow
+                (SendTxNoAddresses walletRootId)
+                (nonEmpty $ HM.keys signersMap)
+        -- We pick one of the accounts to generate change address in it.
+        ourAccount <-
+            maybeThrow
+                (SendTxNoAccounts walletRootId)
+                (toList accountsToUse ^? ix 0)
+        let ourAccountId = ourAccount ^. hdAccountId
+        let newChangeAddress = getFakeChangeAddress
+        (txAux, _) <-
+            prepareMTx
+                cardanoProtocolMagic
+                getSigner
+                mempty
+                isp
+                ourAddresses
+                (map TxOutAux outs)
+                newChangeAddress
+        let tx = taTx txAux
+        let txId = hash tx
+        txId <$ submitTxRaw diffusion txAux
+
+        TxFee fee <- eitherToThrow =<< runTxCreator isp (computeTxFee cardanoProtocolMagic pendingAddrs utxo outputs)
+        return fee
 
 -- Assumes the passphrase is correct!
 walletSigners :: EncryptedSecretKey -> HdWallets -> PassPhrase -> IxSet HdAccount -> HashMap Address SafeSigner
