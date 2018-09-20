@@ -7,7 +7,6 @@ import Control.Concurrent.Async
 import Control.Exception
 import Control.Lens
 import Formatting hiding (text)
-import Text.Earley
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
 
@@ -62,9 +61,9 @@ instance ComponentDetokenizer TaskManager where
     TokenTaskId (TaskId cid) -> sformat ("<"%build%">") (toInteger cid)
 
 instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
-  componentLitGrammar =
-    rule $ asum
-      [ second (toLit . LitTaskId) <$> tok (_Token . uprism . _TokenTaskId)
+  componentLitGrammar t =
+    asum
+      [ (toLit . LitTaskId) <$> preview (_Token . uprism . _TokenTaskId) t
       ]
 
 instance ComponentPrinter TaskManager where

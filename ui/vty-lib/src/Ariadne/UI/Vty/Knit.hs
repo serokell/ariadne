@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Knit where
 
 import Universum hiding (preview)
 
-import Text.Earley
-
 import Ariadne.UI.Vty.Face
 import Knit
 
@@ -37,7 +35,7 @@ instance ComponentDetokenizer UI where
   componentTokenRender = \case{}
 
 instance ComponentLitGrammar components UI where
-  componentLitGrammar = rule empty
+  componentLitGrammar _ = asum []
 
 instance ComponentPrinter UI where
   componentPpLit = \case{}

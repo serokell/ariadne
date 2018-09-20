@@ -12,7 +12,6 @@ import Data.Scientific
 import Data.String
 import Data.Text
 import Data.Word
-import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -144,11 +143,11 @@ isFilePathChar :: Char -> Bool
 isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 
 instance Elem components Core => ComponentLitGrammar components Core where
-  componentLitGrammar =
-    rule $ asum
-      [ second (toLit . LitNumber) <$> tok (_Token . uprism . _TokenNumber)
-      , second (toLit . LitString . pack) <$> tok (_Token . uprism . _TokenString)
-      , second (toLit . LitFilePath) <$> tok (_Token . uprism . _TokenFilePath)
+  componentLitGrammar t =
+    asum
+      [ (toLit . LitNumber) <$> preview (_Token . uprism . _TokenNumber) t
+      , (toLit . LitString . pack) <$> preview (_Token . uprism . _TokenString) t
+      , (toLit . LitFilePath) <$> preview (_Token . uprism . _TokenFilePath) t
       ]
 
 instance ComponentPrinter Core where

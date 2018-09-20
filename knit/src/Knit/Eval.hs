@@ -56,6 +56,7 @@ eval ctxs = \case
   ExprLit _ l -> return (literalToValue l)
   ExprProcCall _ procCall ->
     evalProcCall ctxs =<< traverse (eval ctxs) procCall
+  XExpr xxExpr -> absurd xxExpr
 
 evalProcCall
   :: forall m components.

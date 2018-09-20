@@ -49,14 +49,15 @@ resolveProcNames
   :: Eq name
   => (x -> name)
   -> [x]
-  -> Expr ext name components
-  -> Either (NonEmpty name) (Expr ext x components)
+  -> Expr NoExt name components
+  -> Either (NonEmpty name) (Expr NoExt x components)
 resolveProcNames nameOf xs =
     over _Left NonEmpty.nub . Validation.toEither . go
   where
     go = \case
       ExprLit ext l -> pure (ExprLit ext l)
       ExprProcCall ext procCall -> ExprProcCall ext <$> goProcCall procCall
+      XExpr xxExpr -> absurd xxExpr
 
     goProcCall (ProcCall ext procName args) =
       ProcCall ext

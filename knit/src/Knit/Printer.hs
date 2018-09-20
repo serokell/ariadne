@@ -51,6 +51,7 @@ ppExpr =
   \case
     ExprLit NoExt l -> ppLit l
     ExprProcCall NoExt p -> ppProcCall p
+    XExpr xxExpr -> absurd xxExpr
   where
     ppProcCall (ProcCall NoExt commandName args) =
       case commandName of

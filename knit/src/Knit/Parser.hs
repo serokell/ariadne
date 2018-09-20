@@ -18,63 +18,68 @@ import Knit.Tokenizer
 
 data ParseTreeExt
 
-type instance XExprProcCall ParseTreeExt = MaybeWithBrackets ()
-type instance XExprLit ParseTreeExt = MaybeWithBrackets Span
+type instance XExprProcCall ParseTreeExt _ _ = NoExt
+type instance XExprLit ParseTreeExt _ components = Located (Token components)
+type instance XXExpr ParseTreeExt cmd components =
+    ExprInBrackets (Located (Token components)) (Expr ParseTreeExt cmd components)
 
-type instance XProcCall ParseTreeExt = Maybe Span
+type instance XProcCall ParseTreeExt _ (Expr ParseTreeExt _ components) =
+    Maybe (Located (Token components))
 
-type instance XArgPos ParseTreeExt = NoExt
-type instance XArgKw ParseTreeExt = Span
+type instance XArgPos ParseTreeExt _ = NoExt
+type instance XArgKw ParseTreeExt (Expr ParseTreeExt _ components) = Located (Token components)
 
-data MaybeWithBrackets a = MaybeWithBrackets (Maybe (Span, Span)) a
-    deriving (Eq, Ord, Show)
+data ExprInBrackets br a = ExprInBrackets br a br
+    deriving (Show, Eq, Ord)
 
-noBrackets :: a -> MaybeWithBrackets a
-noBrackets = MaybeWithBrackets Nothing
-
-addBrackets :: (Span, Span) -> MaybeWithBrackets a -> MaybeWithBrackets a
-addBrackets brackets (MaybeWithBrackets _ a) = MaybeWithBrackets (Just brackets) a
-
-tok :: Getting (First a) (Token components) a -> Prod r e (Span, Token components) (Span, a)
-tok p = terminal (sequenceA . fmap (preview p))
+tok
+  :: Getting (First a) (Token components) a
+  -> Prod r e (Located (Token components)) (Located (Token components), a)
+tok p = terminal (\x -> (x,) <$> preview (lItem . p) x)
 
 class ComponentLitGrammar components component where
-  componentLitGrammar :: Grammar r (Prod r Text (Span, Token components) (Span, Lit components))
+  componentLitGrammar :: Token components -> Maybe (Lit components)
 
 gComponentsLit
   :: forall components r.
      (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Grammar r (Prod r Text (Span, Token components) (Span, Lit components))
+  => Grammar r (Prod r Text
+        (Located (Token components))
+        (Located (Token components), Lit components))
 gComponentsLit = go (knownSpine @components)
   where
     go
       :: forall components'.
          (AllConstrained (ComponentLitGrammar components) components')
       => Spine components'
-      -> Grammar r (Prod r Text (Span, Token components) (Span, Lit components))
+      -> Grammar r (Prod r Text
+            (Located (Token components))
+            (Located (Token components), Lit components))
     go (Base ()) = rule A.empty
     go (Step (Proxy :: Proxy component, xs)) = do
       nt1 <- go xs
-      nt2 <- componentLitGrammar @_ @component
+      nt2 <- rule $ terminal $ \t -> do
+        lit <- componentLitGrammar @_ @component $ _lItem t
+        pure (t, lit)
       rule $ nt1 <|> nt2
 
 gExpr
   :: forall components r.
      (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Grammar r (Prod r Text (Span, Token components) (Expr ParseTreeExt CommandId components))
+  => Grammar r (Prod r Text (Located (Token components)) (Expr ParseTreeExt CommandId components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
     ntComponentsLit <- gComponentsLit @components
-    ntExprLit <- rule $ uncurry (ExprLit . noBrackets) <$> ntComponentsLit <?> "literal"
+    ntExprLit <- rule $ uncurry ExprLit <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
         [ uncurry ArgKw <$> ntKey <*> ntExprAtom
         , ArgPos NoExt <$> ntExprAtom
         ] <?> "argument"
     ntExpr1 <- rule $ asum
-        [ ExprProcCall (noBrackets ()) <$> ntProcCall
+        [ ExprProcCall NoExt <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall (noBrackets ()) $ ProcCall Nothing (CommandIdOperator OpUnit) [])
+        , pure (ExprProcCall NoExt $ ProcCall Nothing (CommandIdOperator OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup ntExpr1 (fst <$> tok _TokenSemicolon)
     ntProcCall <- rule $
@@ -83,11 +88,11 @@ gExpr = mdo
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-      (\(s, name) -> ExprProcCall (noBrackets ()) $ ProcCall (Just s) (CommandIdName name) [])
+      (\(s, name) -> ExprProcCall NoExt $ ProcCall (Just s) (CommandIdName name) [])
         <$> ntName
         <?> "procedure call w/o arguments"
-    ntInBrackets <- rule $
-      addBracketsExpr
+    ntInBrackets <- rule $ fmap XExpr $
+      ExprInBrackets
         <$> bracketSpan _BracketSideOpening
         <*> ntExpr
         <*> bracketSpan _BracketSideClosing
@@ -101,30 +106,27 @@ gExpr = mdo
   where
     bracketSpan side = fst <$> tok (_TokenParenthesis . side)
 
-    addBracketsExpr l (ExprProcCall ext pCall) r = ExprProcCall (addBrackets (l, r) ext) pCall
-    addBracketsExpr l (ExprLit ext lit) r = ExprLit (addBrackets (l, r) ext) lit
-
 mkExprGroup
   :: Alternative f
   => f (Expr ParseTreeExt CommandId components)
-  -> f Span
+  -> f (Located (Token components))
   -> f (Expr ParseTreeExt CommandId components)
 mkExprGroup expr sep =
     (Knit.Prelude.foldl' opAndThen)
     <$> expr
     <*> many ((,) <$> sep <*> expr)
   where
-    opAndThen e1 (sep', e2) = ExprProcCall (noBrackets ()) $
+    opAndThen e1 (sep', e2) = ExprProcCall NoExt $
       ProcCall (Just sep') (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
   :: (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
-  => Parser Text [(Span, Token components)] (Expr ParseTreeExt CommandId components)
+  => Parser Text [Located (Token components)] (Expr ParseTreeExt CommandId components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
     { peSource :: Text
-    , peReport :: Report Text [(Span, Token components)]
+    , peReport :: Report Text [Located (Token components)]
     }
 
 parseTree
@@ -147,7 +149,16 @@ parse
      )
   => Text
   -> Either (ParseError components) (Expr NoExt CommandId components)
-parse = second dropExt . parseTree
+parse = second dropParseTreeExt . parseTree
 
 parseErrorSpans :: ParseError components -> [Span]
-parseErrorSpans = List.map fst . unconsumed . peReport
+parseErrorSpans = List.map _lSpan . unconsumed . peReport
+
+dropParseTreeExt :: Expr ParseTreeExt cmd components -> Expr NoExt cmd components
+dropParseTreeExt (XExpr (ExprInBrackets _ e _)) = dropParseTreeExt e
+dropParseTreeExt (ExprLit _ l) = ExprLit NoExt l
+dropParseTreeExt (ExprProcCall _ pc) = ExprProcCall NoExt (dropExtPc pc)
+  where
+    dropExtPc (ProcCall _ cmd args) = ProcCall NoExt cmd (List.map dropExtArg args)
+    dropExtArg (ArgPos _ a) = ArgPos NoExt (dropParseTreeExt a)
+    dropExtArg (ArgKw _ name a) = ArgKw NoExt name (dropParseTreeExt a)

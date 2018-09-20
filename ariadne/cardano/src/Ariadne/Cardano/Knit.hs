@@ -11,7 +11,6 @@ import Pos.Core
 import Pos.Core.Txp (TxOut)
 import Pos.Crypto
 import Pos.Util.Util (toParsecError)
-import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -113,12 +112,12 @@ instance ComponentDetokenizer Cardano where
     TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> show unit
 
 instance Elem components Cardano => ComponentLitGrammar components Cardano where
-  componentLitGrammar =
-    rule $ asum
-      [ second (toLit . LitAddress) <$> tok (_Token . uprism . _TokenAddress)
-      , second (toLit . LitPublicKey) <$> tok (_Token . uprism . _TokenPublicKey)
-      , second (toLit . LitHash) <$> tok (_Token . uprism . _TokenHash)
-      , second (toLit . LitCoin) <$> tok (_Token . uprism . _TokenCoin . adaPrism)
+  componentLitGrammar t =
+    asum
+      [ (toLit . LitAddress) <$> preview (_Token . uprism . _TokenAddress) t
+      , (toLit . LitPublicKey) <$> preview (_Token . uprism . _TokenPublicKey) t
+      , (toLit . LitHash) <$> preview (_Token . uprism . _TokenHash) t
+      , (toLit . LitCoin) <$> preview (_Token . uprism . _TokenCoin . adaPrism) t
       ]
 
     where

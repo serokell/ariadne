@@ -35,7 +35,7 @@ import Data.Text
 import Numeric.Natural (Natural)
 
 import Knit.Name (Name(..))
-import Knit.Syntax (Arg(..), ForallXArg, XArgKw, XArgPos)
+import Knit.Syntax (Arg(..), ForallXArg, NoExt(..))
 import Knit.Value (Value)
 
 data ArgumentError = ArgumentError
@@ -91,9 +91,18 @@ data ArgumentConsumerState ext components = ACS
     , acsError     :: !(ProcError components)
     }
 
-deriving instance (Eq (Value components), ForallXArg Eq ext) => Eq (ArgumentConsumerState ext components)
-deriving instance (Ord (Value components), ForallXArg Ord ext) => Ord (ArgumentConsumerState ext components)
-deriving instance (Show (Value components), ForallXArg Show ext) => Show (ArgumentConsumerState ext components)
+deriving instance
+    ( Eq (Value components)
+    , ForallXArg Eq ext (Value components)
+    ) => Eq (ArgumentConsumerState ext components)
+deriving instance
+    ( Ord (Value components)
+    , ForallXArg Ord ext (Value components)
+    ) => Ord (ArgumentConsumerState ext components)
+deriving instance
+    ( Show (Value components)
+    , ForallXArg Show ext (Value components)
+    ) => Show (ArgumentConsumerState ext components)
 
 data ArgCardinality f where
   ArgCardSingle :: ArgCardinality Identity
@@ -300,11 +309,10 @@ getParameters = \case
     AcAp f x -> getParameters f <> getParameters x
 
 typeDirectedKwAnn
-  :: (XArgPos ext ~ XArgKw ext)
-  => Name
+  :: Name
   -> (TyProjection components a)
-  -> Arg ext (Value components)
-  -> Arg ext (Value components)
+  -> Arg NoExt (Value components)
+  -> Arg NoExt (Value components)
 typeDirectedKwAnn name tp arg = case arg of
-    ArgPos ext v | isJust (tpMatcher tp v) -> ArgKw ext name v
+    ArgPos NoExt v | isJust (tpMatcher tp v) -> ArgKw NoExt name v
     _ -> arg

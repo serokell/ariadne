@@ -23,6 +23,13 @@ import Text.Megaparsec.Char
 import Knit.Name
 import Knit.Prelude
 
+data Located item = Located
+    { _lSpan :: Span
+    , _lItem :: item
+    } deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+
+makeLenses ''Located
+
 -- | The side of a bracket.
 --
 -- Opening: @([{<@
@@ -205,7 +212,7 @@ detokenize = T.unwords . List.map tokenRender
 tokenize
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> [(Span, Token components)]
+  -> [Located (Token components)]
 tokenize = fromMaybe noTokenErr . tokenize'
   where
     noTokenErr =
@@ -223,7 +230,7 @@ tokenize = fromMaybe noTokenErr . tokenize'
 tokenize'
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> Maybe [(Span, Token components)]
+  -> Maybe [Located (Token components)]
 tokenize' =
   -- 'parseMaybe' runs a parser, returning the result as 'Just' in case of
   -- success and as 'Nothing' in case of failure. It expects the parser to
@@ -236,12 +243,12 @@ tokenize' =
     pSkip *> many (withSpan pToken <* pSkip)
 
 -- | Add a source span to the result of tokenization.
-withSpan :: Tokenizer a -> Tokenizer (Span, a)
+withSpan :: Tokenizer a -> Tokenizer (Located a)
 withSpan p = do
     position1 <- posToLoc <$> getPosition
     t <- p
     position2 <- posToLoc <$> getPosition
-    return (spanFromTo position1 position2, t)
+    return $ Located (spanFromTo position1 position2) t
   where
     posToLoc :: SourcePos -> Loc
     posToLoc SourcePos{..} = uncurry loc

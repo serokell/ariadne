@@ -6,7 +6,6 @@ import qualified Data.ByteArray as ByteArray
 
 import Control.Lens hiding (parts, (<&>))
 import Serokell.Data.Memory.Units (fromBytes)
-import Text.Earley
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
@@ -78,8 +77,8 @@ instance ComponentDetokenizer Wallet where
     TokenAddressHash h -> formatAddressHash h
 
 instance Elem components Wallet => ComponentLitGrammar components Wallet where
-  componentLitGrammar = rule $ asum
-    [ second (toLit . LitAddressHash) <$> tok (_Token . uprism . _TokenAddressHash) ]
+  componentLitGrammar t = asum
+    [ (toLit . LitAddressHash) <$> preview (_Token . uprism . _TokenAddressHash) t ]
 
 instance ComponentPrinter Wallet where
   componentPpLit = \case
