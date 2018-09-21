@@ -78,6 +78,7 @@ ppExpr =
       ArgPos NoExt a -> parensIfProcCall a (ppExpr a)
       ArgKw NoExt name a -> nameToDoc name PP.<> PP.colon PP.<+>
         parensIfProcCall a (ppExpr a)
+      XArg xxArg -> absurd xxArg
 
     parensIfSemicolon = \case
       ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpAndThen) _) -> PP.parens

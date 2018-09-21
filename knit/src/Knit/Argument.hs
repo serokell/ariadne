@@ -249,6 +249,7 @@ lookupArgOpt name = \case
         if name == name'
         then (Just a, args)
         else over _2 (arg:) $ lookupArgOpt name args
+    XArg _ : args -> lookupArgOpt name args
 
 lookupArgMany ::
        Name
@@ -261,6 +262,7 @@ lookupArgMany name = \case
         if name == name'
         then over _1 (a:) $ lookupArgMany name args
         else over _2 (arg:) $ lookupArgMany name args
+    XArg _ : args -> lookupArgMany name args
 
 lookupArgSome ::
        Name
@@ -299,6 +301,7 @@ toIrrelevanceError
 toIrrelevanceError = foldMap $ \case
     ArgPos _ _ -> mempty { aeIrrelevantPos = 1 }
     ArgKw _ key _ -> mempty { aeIrrelevantKeys = Set.singleton key }
+    XArg _ -> mempty
 
 getParameters
   :: ArgumentConsumer components a

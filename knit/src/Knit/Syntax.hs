@@ -132,18 +132,24 @@ instance Foldable (ProcCall NoExt cmd) where
 instance Traversable (ProcCall NoExt cmd) where
     sequenceA (ProcCall NoExt cmd args) = ProcCall NoExt cmd <$> traverse sequenceA args
 
-data Arg ext a = ArgPos (XArgPos ext a) a | ArgKw (XArgKw ext a) Name a
+data Arg ext a
+    = ArgPos (XArgPos ext a) a
+    | ArgKw (XArgKw ext a) Name a
+    | XArg (XXArg ext a)
 
 type family XArgPos ext a
 type family XArgKw ext a
+type family XXArg ext a
 
 type ForallXArg (constr :: * -> Constraint) (ext :: *) (a :: *) =
     ( constr (XArgPos ext a)
     , constr (XArgKw ext a)
+    , constr (XXArg ext a)
     )
 
 type instance XArgPos NoExt _ = NoExt
 type instance XArgKw NoExt _ = NoExt
+type instance XXArg NoExt _ = Void
 
 deriving instance (Eq a, ForallXArg Eq ext a) => Eq (Arg ext a)
 deriving instance (Ord a, ForallXArg Ord ext a) => Ord (Arg ext a)
@@ -152,11 +158,14 @@ deriving instance (Show a, ForallXArg Show ext a) => Show (Arg ext a)
 instance Functor (Arg NoExt) where
     fmap f (ArgPos NoExt a) = ArgPos NoExt (f a)
     fmap f (ArgKw NoExt name a) = ArgKw NoExt name (f a)
+    fmap _ (XArg xxArg) = absurd xxArg
 
 instance Foldable (Arg NoExt) where
     foldMap f (ArgPos NoExt a) = f a
     foldMap f (ArgKw NoExt _ a) = f a
+    foldMap _ (XArg xxArg) = absurd xxArg
 
 instance Traversable (Arg NoExt) where
     sequenceA (ArgPos NoExt a) = ArgPos NoExt <$> a
     sequenceA (ArgKw NoExt name a) = ArgKw NoExt name <$> a
+    sequenceA (XArg xxArg) = absurd xxArg

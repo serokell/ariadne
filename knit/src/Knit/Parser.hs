@@ -28,6 +28,7 @@ type instance XProcCall ParseTreeExt _ (Expr ParseTreeExt _ components) =
 
 type instance XArgPos ParseTreeExt _ = NoExt
 type instance XArgKw ParseTreeExt (Expr ParseTreeExt _ components) = Located (Token components)
+type instance XXArg ParseTreeExt _ = Void
 
 data ExprInBrackets br a = ExprInBrackets br a br
     deriving (Show, Eq, Ord)
@@ -162,3 +163,4 @@ dropParseTreeExt (ExprProcCall _ pc) = ExprProcCall NoExt (dropExtPc pc)
     dropExtPc (ProcCall _ cmd args) = ProcCall NoExt cmd (List.map dropExtArg args)
     dropExtArg (ArgPos _ a) = ArgPos NoExt (dropParseTreeExt a)
     dropExtArg (ArgKw _ name a) = ArgKw NoExt name (dropParseTreeExt a)
+    dropExtArg (XArg xxArg) = absurd xxArg
