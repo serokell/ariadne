@@ -76,8 +76,8 @@ instance ComponentDetokenizer Wallet where
   componentTokenRender = \case
     TokenAddressHash h -> formatAddressHash h
 
-instance Elem components Wallet => ComponentLitGrammar components Wallet where
-  componentLitGrammar t = asum
+instance Elem components Wallet => ComponentTokenToLit components Wallet where
+  componentTokenToLit t = asum
     [ (toLit . LitAddressHash) <$> preview (_Token . uprism . _TokenAddressHash) t ]
 
 instance ComponentPrinter Wallet where

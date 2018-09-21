@@ -111,8 +111,8 @@ instance ComponentDetokenizer Cardano where
     TokenHash h -> sformat ("#"%hashHexF) (getAHash h)
     TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> show unit
 
-instance Elem components Cardano => ComponentLitGrammar components Cardano where
-  componentLitGrammar t =
+instance Elem components Cardano => ComponentTokenToLit components Cardano where
+  componentTokenToLit t =
     asum
       [ (toLit . LitAddress) <$> preview (_Token . uprism . _TokenAddress) t
       , (toLit . LitPublicKey) <$> preview (_Token . uprism . _TokenPublicKey) t

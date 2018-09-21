@@ -60,8 +60,8 @@ instance ComponentDetokenizer TaskManager where
   componentTokenRender = \case
     TokenTaskId (TaskId cid) -> sformat ("<"%build%">") (toInteger cid)
 
-instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
-  componentLitGrammar t =
+instance Elem components TaskManager => ComponentTokenToLit components TaskManager where
+  componentTokenToLit t =
     asum
       [ (toLit . LitTaskId) <$> preview (_Token . uprism . _TokenTaskId) t
       ]

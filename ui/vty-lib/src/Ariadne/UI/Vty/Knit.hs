@@ -34,8 +34,8 @@ instance ComponentTokenizer components UI where
 instance ComponentDetokenizer UI where
   componentTokenRender = \case{}
 
-instance ComponentLitGrammar components UI where
-  componentLitGrammar _ = asum []
+instance ComponentTokenToLit components UI where
+  componentTokenToLit _ = asum []
 
 instance ComponentPrinter UI where
   componentPpLit = \case{}

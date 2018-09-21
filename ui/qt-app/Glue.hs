@@ -47,7 +47,7 @@ knitFaceToUI
   :: forall components.
      ( KnownSpine components
      , AllConstrained (Knit.ComponentTokenizer components) components
-     , AllConstrained (Knit.ComponentLitGrammar components) components
+     , AllConstrained (Knit.ComponentTokenToLit components) components
      , AllConstrained (Knit.ComponentInflate components) components
      , AllConstrained Knit.ComponentPrinter components
      , Elem components Knit.Core

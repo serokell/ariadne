@@ -142,8 +142,8 @@ instance ComponentDetokenizer Core where
 isFilePathChar :: Char -> Bool
 isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 
-instance Elem components Core => ComponentLitGrammar components Core where
-  componentLitGrammar t =
+instance Elem components Core => ComponentTokenToLit components Core where
+  componentTokenToLit t =
     asum
       [ (toLit . LitNumber) <$> preview (_Token . uprism . _TokenNumber) t
       , (toLit . LitString . pack) <$> preview (_Token . uprism . _TokenString) t

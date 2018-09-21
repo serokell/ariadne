@@ -37,12 +37,12 @@ tok
   -> Prod r e (Located (Token components)) (Located (Token components), a)
 tok p = terminal (\x -> (x,) <$> preview (lItem . p) x)
 
-class ComponentLitGrammar components component where
-  componentLitGrammar :: Token components -> Maybe (Lit components)
+class ComponentTokenToLit components component where
+  componentTokenToLit :: Token components -> Maybe (Lit components)
 
 gComponentsLit
   :: forall components r.
-     (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+     (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
   => Grammar r (Prod r Text
         (Located (Token components))
         (Located (Token components), Lit components))
@@ -50,7 +50,7 @@ gComponentsLit = go (knownSpine @components)
   where
     go
       :: forall components'.
-         (AllConstrained (ComponentLitGrammar components) components')
+         (AllConstrained (ComponentTokenToLit components) components')
       => Spine components'
       -> Grammar r (Prod r Text
             (Located (Token components))
@@ -59,13 +59,13 @@ gComponentsLit = go (knownSpine @components)
     go (Step (Proxy :: Proxy component, xs)) = do
       nt1 <- go xs
       nt2 <- rule $ terminal $ \t -> do
-        lit <- componentLitGrammar @_ @component $ _lItem t
+        lit <- componentTokenToLit @_ @component $ _lItem t
         pure (t, lit)
       rule $ nt1 <|> nt2
 
 gExpr
   :: forall components r.
-     (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+     (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
   => Grammar r (Prod r Text (Located (Token components)) (Expr ParseTreeExt CommandId components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
@@ -120,7 +120,7 @@ mkExprGroup expr sep =
       ProcCall (Just sep') (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
-  :: (AllConstrained (ComponentLitGrammar components) components, KnownSpine components)
+  :: (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
   => Parser Text [Located (Token components)] (Expr ParseTreeExt CommandId components)
 pExpr = parser gExpr
 
@@ -132,7 +132,7 @@ data ParseError components = ParseError
 parseTree
   :: ( KnownSpine components
      , AllConstrained (ComponentTokenizer components) components
-     , AllConstrained (ComponentLitGrammar components) components
+     , AllConstrained (ComponentTokenToLit components) components
      )
   => Text
   -> Either (ParseError components) (Expr ParseTreeExt CommandId components)
@@ -145,7 +145,7 @@ parseTree str = over _Left (ParseError str) . toEither . fullParses pExpr . toke
 parse
   :: ( KnownSpine components
      , AllConstrained (ComponentTokenizer components) components
-     , AllConstrained (ComponentLitGrammar components) components
+     , AllConstrained (ComponentTokenToLit components) components
      )
   => Text
   -> Either (ParseError components) (Expr NoExt CommandId components)
