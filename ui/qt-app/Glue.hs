@@ -84,7 +84,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           whenJust (resultToUI result op) $
             putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \_ _ ->
-          return ()
+          pass
       }
 
     opToExpr = \case

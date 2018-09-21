@@ -5,14 +5,12 @@ module Ariadne.Wallet.Backend.Restore
        , restoreFromKeyFile
        ) where
 
-import Prelude hiding (init)
+import qualified Universum.Unsafe as Unsafe (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))
 import Control.Natural (type (~>))
 import qualified Data.ByteString as BS
-import Data.List (init)
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 import Pos.Binary.Class (decodeFull')
@@ -64,11 +62,11 @@ restoreWallet ::
 restoreWallet pwl face runCardanoMode pp mbWalletName (Mnemonic mnemonic) rType = do
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
-          lastWord <- NE.last <$> nonEmpty mnemonicWords
+          lastWord <- last <$> nonEmpty mnemonicWords
           pure (lastWord == "ariadne-v0") -- TODO AD-124: version parsing?
     esk <- if
       | isAriadneMnemonic ->
-          let seed = mnemonicToSeedNoPassword (unwords $ init mnemonicWords)
+          let seed = mnemonicToSeedNoPassword (unwords $ Unsafe.init mnemonicWords)
           in pure . snd $ Crypto.safeDeterministicKeyGen seed pp
       | length mnemonicWords == 12 ->
           case safeKeysFromPhrase pp (BackupPhrase mnemonicWords) of
@@ -149,7 +147,7 @@ collectUtxo esk = do
     -- switching to modern wallet data layer.
 
     filterAddresses :: AddressWithPathToUtxoMap -> PrefilteredUtxo
-    filterAddresses = Map.fromList . mapMaybe f . Map.toList
+    filterAddresses = Map.fromList . mapMaybe f . toPairs
       where
         f ((derPath, addr), utxo) =
             case decodeBip44DerivationPath derPath of

@@ -100,18 +100,18 @@ knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput 
 ----------------------------------------------------------------------------
 
 putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
-putCardanoEventToUI _ _ = return ()
+putCardanoEventToUI _ _ = pass
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
-putWalletEventToUI _ _ = return ()
+putWalletEventToUI _ _ = pass
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putUpdateEventToUI :: UiFace -> Version -> Text -> IO ()
-putUpdateEventToUI _ _ _ = return ()
+putUpdateEventToUI _ _ _ = pass

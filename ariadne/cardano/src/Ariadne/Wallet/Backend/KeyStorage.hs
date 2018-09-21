@@ -405,7 +405,7 @@ renameSelection
 renameSelection pwl WalletFace{..} walletSelRef name = do
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
-    Nothing -> pure ()
+    Nothing -> pass
     Just selection -> case selection of
       WSRoot hdrId ->
         throwLeftIO $ void <$> pwlUpdateWalletName pwl hdrId (WalletName name)

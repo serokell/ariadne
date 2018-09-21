@@ -1,7 +1,7 @@
 module Ariadne.Update.Backend where
 
 import Control.Concurrent (threadDelay)
-import Control.Exception.Safe (Exception(..), throwIO, tryAny)
+import Control.Exception.Safe (throwIO)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Version (Version(..), parseVersion, showVersion)
 import Network.HTTP.Client

@@ -3,9 +3,10 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
     , passiveWalletLayerWithDBComponent
     ) where
 
+import qualified Universum.Unsafe as Unsafe (fromJust)
+
 import Control.Monad.Component (ComponentM, buildComponent)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
-import Data.Maybe (fromJust)
 import System.Wlog (Severity(Debug))
 
 import Pos.Block.Types (Blund, Undo(..))
@@ -119,9 +120,8 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
     -- by the invariants established in the 'Blund'.
     blundToResolvedBlock :: Blund -> Maybe ResolvedBlock
     blundToResolvedBlock (b,u)
-        = rightToJust b <&> \mainBlock ->
+        = rightToMaybe b <&> \mainBlock ->
             fromRawResolvedBlock
             $ UnsafeRawResolvedBlock mainBlock spentOutputs'
         where
-            spentOutputs' = map (map fromJust) $ undoTx u
-            rightToJust   = either (const Nothing) Just
+            spentOutputs' = map (map Unsafe.fromJust) $ undoTx u

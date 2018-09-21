@@ -98,7 +98,7 @@ createHdAccount :: HdAccount -> Update' HdWallets CreateHdAccountError ()
 createHdAccount hdAccount = do
     -- Check that the root ID exists
     zoomHdRootId CreateHdAccountUnknownRoot rootId $
-      return ()
+      pass
 
     zoom hdWalletsAccounts $ do
       exists <- gets $ IxSet.member accountId
@@ -113,7 +113,7 @@ createHdAddress :: HdAddress -> Update' HdWallets CreateHdAddressError ()
 createHdAddress hdAddress = do
     -- Check that the account ID exists
     zoomHdAccountId CreateHdAddressUnknown (addrId ^. hdAddressIdParent) $
-      return ()
+      pass
     -- Create the new address
     zoom hdWalletsAddresses $ do
       exists <- gets $ IxSet.member addrId

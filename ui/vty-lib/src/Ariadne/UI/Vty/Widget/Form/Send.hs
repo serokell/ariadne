@@ -2,9 +2,10 @@ module Ariadne.UI.Vty.Widget.Form.Send
        ( initSendWidget
        ) where
 
+import qualified Universum.Unsafe as Unsafe (fromJust)
+
 import Control.Lens (assign, at, lens, makeLensesWith, uses, (%=), (.=), (<<+=))
 import Data.Map (Map)
-import Data.Maybe (fromJust)
 
 import qualified Brick as B
 import qualified Data.Map as Map
@@ -77,10 +78,10 @@ initSendWidget langFace walletIdxGetter accountsGetter =
 
     addWidgetEventHandler WidgetNameSendAdd $ \case
       WidgetEventButtonPressed -> addOutput
-      _ -> return ()
+      _ -> pass
     addWidgetEventHandler WidgetNameSendButton $ \case
       WidgetEventButtonPressed -> performSendTransaction
-      _ -> return ()
+      _ -> pass
 
     withWidgetState updateFocusList
 
@@ -157,9 +158,9 @@ handleSendWidgetEvent = \case
           UiSendCommandFailure err -> do
             sendResultL .= SendResultError err
       _ ->
-        return ()
+        pass
   _ ->
-    return ()
+    pass
 
 ----------------------------------------------------------------------------
 -- Actions
@@ -196,7 +197,7 @@ addOutput = do
       initButtonWidget "-"
     addWidgetEventHandler (WidgetNameSendRemove idx) $ \case
       WidgetEventButtonPressed -> removeOutput idx
-      _ -> return ()
+      _ -> pass
 
 removeOutput :: Int -> WidgetEventM (SendWidgetState p) p ()
 removeOutput idx = do
@@ -214,12 +215,12 @@ performSendTransaction = do
   outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
   passphrase <- use sendPassL
   use sendResultL >>= \case
-    SendResultWaiting _ -> return ()
+    SendResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs walletIdx accounts outputs passphrase) >>=
       assign sendResultL . either SendResultError SendResultWaiting
 
 unsafeFromJust :: Lens' (Maybe a) a
-unsafeFromJust = lens fromJust setJust
+unsafeFromJust = lens Unsafe.fromJust setJust
   where
     setJust (Just _) b = Just b
     setJust Nothing  _ = error "setJust: Nothing"

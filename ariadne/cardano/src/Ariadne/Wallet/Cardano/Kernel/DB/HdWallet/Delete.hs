@@ -22,7 +22,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 -- | Delete a wallet with the whole subtree (addresses and accounts).
 deleteHdRoot :: HdRootId -> Update' HdWallets DeleteHdRootError ()
 deleteHdRoot rootId = do
-  zoomHdRootId DeleteUnknownHdRoot rootId $ return ()
+  zoomHdRootId DeleteUnknownHdRoot rootId $ pass
   hdWalletsAddresses %= deleteIxAll rootId
   hdWalletsAccounts  %= deleteIxAll rootId
   hdWalletsRoots     %= deleteIxAll rootId
@@ -30,7 +30,7 @@ deleteHdRoot rootId = do
 -- | Delete an account with its addresses.
 deleteHdAccount :: HdAccountId -> Update' HdWallets DeleteHdAccountError ()
 deleteHdAccount accId = do
-  zoomHdAccountId DeleteUnknownHdAccount accId $ return ()
+  zoomHdAccountId DeleteUnknownHdAccount accId $ pass
   hdWalletsAddresses %= deleteIxAll accId
   hdWalletsAccounts  %= deleteIxAll accId
 

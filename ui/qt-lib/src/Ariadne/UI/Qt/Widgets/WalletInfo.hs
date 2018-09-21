@@ -262,14 +262,12 @@ deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
 requestButtonClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 requestButtonClicked langFace WalletInfo{..} _checked = do
   req <- readIORef requestDialog
-  case req of
-    Just _ -> return ()
-    Nothing ->
-      whenJustM (readIORef currentItem) $ \item -> do
-        let
-          accounts = case item of
-            WIWallet uacis -> RequestAccountsMulti uacis
-            WIAccount uaci -> RequestAccountsSingle uaci
-        req' <- startRequest langFace onClosed accounts
-        writeIORef requestDialog $ Just req'
+  whenNothing_ req $
+    whenJustM (readIORef currentItem) $ \item -> do
+      let
+        accounts = case item of
+          WIWallet uacis -> RequestAccountsMulti uacis
+          WIAccount uaci -> RequestAccountsSingle uaci
+      req' <- startRequest langFace onClosed accounts
+      writeIORef requestDialog $ Just req'
   where onClosed = writeIORef requestDialog Nothing

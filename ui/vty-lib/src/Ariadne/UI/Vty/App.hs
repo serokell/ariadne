@@ -93,7 +93,7 @@ initApp features uiFace langFace historyFace =
         WidgetEventMenuSelected -> do
           resetAppFocus
           assignWidgetLens (Lens appNavModeL) False
-        _ -> return ()
+        _ -> pass
 
     appWidgetState = AppWidgetState
       { appScreen = AppScreenWallet
@@ -342,4 +342,4 @@ handleAppWidgetEvent = \case
     appScreenL .= AppScreenLogs
     resetAppFocus
   _ ->
-    return ()
+    pass

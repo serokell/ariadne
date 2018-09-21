@@ -210,7 +210,7 @@ handleEditWidgetMouseDown
 handleEditWidgetMouseDown (B.Location (col, row)) = do
     EditWidgetState{..} <- get
     whenJustM (B.getName <$> lift get >>= liftBrick . B.lookupViewport) $ \vp -> do
-      let width = vp ^. B.vpSize ^. _1
+      let width = vp ^. (B.vpSize . _1)
       ls <- T.splitOn "\n" <$> useWidgetLens editWidgetLens
       modifyZipper $ safeMoveCursor $ go 0 (row, col - 1) width ls
     return WidgetEventHandled

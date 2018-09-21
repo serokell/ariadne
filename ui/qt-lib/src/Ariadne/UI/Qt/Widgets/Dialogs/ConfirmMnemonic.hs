@@ -3,7 +3,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
   , runConfirmMnemonic
   ) where
 
-import qualified Data.Text as T
 import Formatting
 
 import Graphics.UI.Qtah.Signal (connect_)

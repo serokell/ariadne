@@ -140,9 +140,8 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
             $ readAddressesByAccountId accId $ snapshot ^. dbHdWallets
 
         newIndex <- liftEither $
-            maybe
-            (Left (CreateAddressHdSeqAddressSpaceSaturated accId))
-            Right
+            maybeToRight
+            (CreateAddressHdSeqAddressSpaceSaturated accId)
             $ mkHdAddressIx hdAddresses
 
         let hdAddressId = HdAddressId accId chain newIndex
@@ -155,10 +154,9 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
                                         passphrase
                                         esk
                                         bip44derPath
-        newAddress <- liftEither $
-            maybe
-            (Left $ CreateAddressHdSeqGenerationFailed accId)
-            (Right . fst)
+        (newAddress, _) <- liftEither $
+            maybeToRight
+            (CreateAddressHdSeqGenerationFailed accId)
             mbAddr
 
         let hdAddress =

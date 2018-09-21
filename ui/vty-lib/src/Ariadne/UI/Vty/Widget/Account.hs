@@ -88,7 +88,7 @@ initAccountWidget langFace =
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameAccountRenameButton $ \case
       WidgetEventButtonPressed -> performRename
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameAccountSend $
       initSendWidget langFace
@@ -100,13 +100,13 @@ initAccountWidget langFace =
       initButtonWidget "Generate"
     addWidgetEventHandler WidgetNameAccountAddressGenerateButton $ \case
       WidgetEventButtonPressed -> performNewAddress
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameAccountAddressList $
       initListWidget (widgetParentGetter accountAddresses) drawAddressRow
     addWidgetEventHandler WidgetNameAccountAddressList $ \case
       WidgetEventListSelected idx -> performCopyAddress idx
-      _ -> return ()
+      _ -> pass
 
     withWidgetState updateFocusList
 
@@ -224,11 +224,11 @@ handleAccountWidgetEvent = \case
               BalanceResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
                     void . liftIO . langPutUISilentCommand $ UiKill taskId
-              _ -> return ()
+              _ -> pass
             liftIO (langPutUISilentCommand UiBalance) >>=
               assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
-      _ -> return ()
+      _ -> pass
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     accountRenameResultL %= \case
       RenameResultWaiting commandId' | commandId == commandId' ->
@@ -251,7 +251,7 @@ handleAccountWidgetEvent = \case
           UiNewAddressCommandFailure err -> AddressResultError err
       other -> other
   _ ->
-    return ()
+    pass
 
 ----------------------------------------------------------------------------
 -- Actions
@@ -273,7 +273,7 @@ performRename = do
   UiLangFace{..} <- use accountLangFaceL
   name <- use accountNameL
   use accountRenameResultL >>= \case
-    RenameResultWaiting _ -> return ()
+    RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
 
@@ -286,7 +286,7 @@ performNewAddress = do
         Just (x:_) -> Just x
         _ -> Nothing
   use accountAddressResultL >>= \case
-    AddressResultWaiting _ -> return ()
+    AddressResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
       assign accountAddressResultL . either AddressResultError AddressResultWaiting
 

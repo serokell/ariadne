@@ -1,11 +1,12 @@
 module Ariadne.Cardano.Backend (createCardanoBackend) where
 
+import qualified Universum.Unsafe as Unsafe (fromJust)
+
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Trans.Reader (withReaderT)
 import Control.Natural ((:~>)(..), type (~>))
 import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
-import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import Mockable (Production(..), runProduction)
 import Pos.Context (NodeContext(..))
@@ -93,7 +94,7 @@ runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
   let setupLoggers = setupLogging Nothing loggerConfig
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
       nodeParams <- getNodeParams cardanoConfig
-      let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
+      let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
               [ updateTriggerWorker

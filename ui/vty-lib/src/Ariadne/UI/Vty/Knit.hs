@@ -60,7 +60,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
       CommandProc
         { cpName = "help"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandHelp
             return $ toValue ValueUnit
@@ -69,7 +69,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
     , CommandProc
         { cpName = "logs"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit

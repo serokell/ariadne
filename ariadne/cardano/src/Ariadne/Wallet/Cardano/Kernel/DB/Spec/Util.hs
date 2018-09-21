@@ -29,7 +29,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.Types (txUtxo)
 
 utxoOutputs :: Utxo -> [TxOut]
-utxoOutputs = map toaOut . Map.elems
+utxoOutputs = map toaOut . elems
 
 balanceI :: Utxo -> Balance
 balanceI = Core.sumCoins . map txOutValue . utxoOutputs
@@ -47,7 +47,7 @@ utxoInputs :: Utxo -> Set TxIn
 utxoInputs = Map.keysSet
 
 txIns :: PendingTxs -> Set TxIn
-txIns = Set.fromList . concatMap (NE.toList . _txInputs . taTx) . Map.elems
+txIns = Set.fromList . concatMap (NE.toList . _txInputs . taTx) . elems
 
 txAuxInputSet :: TxAux -> Set TxIn
 txAuxInputSet = Set.fromList . NE.toList . _txInputs . taTx
@@ -74,7 +74,7 @@ available utxo pending = utxoRemoveInputs utxo (txIns pending)
 --
 -- See also 'pendingUtxo'
 rawPendingUtxo :: PendingTxs -> Utxo
-rawPendingUtxo pending = unionTxOuts $ map (txUtxo . taTx) $ Map.elems pending
+rawPendingUtxo pending = unionTxOuts $ map (txUtxo . taTx) $ elems pending
 
 -- | The outputs of the pending transactions which aren't used by other
 -- pending transactions

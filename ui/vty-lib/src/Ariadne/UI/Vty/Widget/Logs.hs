@@ -102,7 +102,7 @@ handleLogsWidgetEvent = \case
       liftBrick $ B.invalidateCacheEntry widgetName
       logsWidgetLinesRenderedL += msgHeight
   _ ->
-    return ()
+    pass
 
 updateFollow :: WidgetName -> WidgetEventM LogsWidgetState p Bool
 updateFollow widgetName = do

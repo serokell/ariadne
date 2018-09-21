@@ -212,7 +212,7 @@ neHead f (x :| xs) = (:| xs) <$> f x
 
 instance Buildable Pending where
     build (Pending p) =
-      let elems = p ^. fromDb . to M.toList
+      let elems = p ^. fromDb . to toPairs
       in bprint ("Pending " % listJsonIndent 4) (map fst elems)
 
 instance Buildable AccCheckpoint where

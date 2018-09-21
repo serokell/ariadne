@@ -83,4 +83,4 @@ loop :: Monad m => m LoopDecision -> m ()
 loop step = fix $ \go ->
     step >>= \case
         Continue -> go
-        Stop -> return ()
+        Stop -> pass
