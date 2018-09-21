@@ -1,11 +1,11 @@
 module Ariadne.UX.CommandHistory
-    ( CommandHistory
-    , openCommandHistory
-    , addCommand
-    , setPrefix
-    , toNextCommand
-    , toPrevCommand
-    ) where
+       ( CommandHistory
+       , openCommandHistory
+       , addCommand
+       , setPrefix
+       , toNextCommand
+       , toPrevCommand
+       ) where
 
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Text as T

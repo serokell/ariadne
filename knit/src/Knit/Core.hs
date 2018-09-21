@@ -1,4 +1,38 @@
-module Knit.Core where
+module Knit.Core
+       ( Core
+
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentLitGrammar(..)
+       , ComponentPrinter(..)
+       , ComponentCommandRepr(..)
+       , ComponentLitToValue(..)
+       , ComponentExecContext(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
+
+       , _ValueBool
+       , _ValueNumber
+       , _ValueString
+       , _ValueUnit
+       , _ValueFilePath
+       , _ValueList
+
+       , tyEither
+       , tyValue
+       , tyBool
+       , tyFilePath
+       , tyString
+       , tyInt
+       , tyWord
+       , tyWord8
+       , tyWord32
+       , tyWord64
+       ) where
 
 import Control.Applicative as A
 import Control.Lens

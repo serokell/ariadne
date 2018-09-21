@@ -1,10 +1,10 @@
-module Ariadne.Wallet.Cardano.Kernel.Accounts (
-      createAccount
-    , deleteAccount
-    , updateAccount
-    -- * Errors
-    , CreateAccountError(..)
-    ) where
+module Ariadne.Wallet.Cardano.Kernel.Accounts
+       ( createAccount
+       , deleteAccount
+       , updateAccount
+         -- * Errors
+       , CreateAccountError(..)
+       ) where
 
 import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable

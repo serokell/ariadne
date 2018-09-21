@@ -2,20 +2,19 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Sqlite database for the 'TxMeta' portion of the wallet kernel.
-module Ariadne.Wallet.Cardano.Kernel.DB.Sqlite (
+module Ariadne.Wallet.Cardano.Kernel.DB.Sqlite
+       ( -- * Resource creation and acquisition
+         newConnection
+       , closeMetaDB
 
-    -- * Resource creation and acquisition
-      newConnection
-    , closeMetaDB
+         -- * Basic API
+       , putTxMeta
+       , getTxMeta
+       , getTxMetas
 
-    -- * Basic API
-    , putTxMeta
-    , getTxMeta
-    , getTxMetas
-
-    -- * Unsafe functions
-    , unsafeMigrateMetaDB
-    ) where
+         -- * Unsafe functions
+       , unsafeMigrateMetaDB
+       ) where
 
 import Database.Beam.Backend.SQL
   (FromBackendRow, HasSqlValueSyntax(..), IsSql92DataTypeSyntax, varCharType)

@@ -1,4 +1,10 @@
-module Ariadne.UI.Qt.UI where
+module Ariadne.UI.Qt.UI
+       ( UI
+       , QVariantCastable(..)
+       , runUI
+       , connectSignal
+       , setProperty
+       ) where
 
 import Graphics.UI.Qtah.Signal (Signal, connect_)
 

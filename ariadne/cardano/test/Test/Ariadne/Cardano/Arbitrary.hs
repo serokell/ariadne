@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Ariadne.Cardano.Arbitrary where
+module Test.Ariadne.Cardano.Arbitrary
+       (
+       ) where
 
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Data.Time.Units (fromMicroseconds)

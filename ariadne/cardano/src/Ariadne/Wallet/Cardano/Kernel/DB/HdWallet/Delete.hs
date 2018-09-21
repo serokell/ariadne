@@ -1,12 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 -- | DELETE operatiosn on HD wallets
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete (
-    DeleteHdAccountError(..)
-  , DeleteHdRootError(..)
-  , deleteHdRoot
-  , deleteHdAccount
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+       ( DeleteHdAccountError(..)
+       , DeleteHdRootError(..)
+       , deleteHdRoot
+       , deleteHdAccount
+       ) where
 
 import Control.Lens ((%=))
 import Data.SafeCopy (base, deriveSafeCopySimple)

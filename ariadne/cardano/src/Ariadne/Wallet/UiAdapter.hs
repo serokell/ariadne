@@ -1,28 +1,28 @@
 module Ariadne.Wallet.UiAdapter
-  ( UiWalletData(..)
-  , UiAccountData(..)
-  , UiWalletSelection(..)
-  , UiAddressData(..)
-  -- * Lens
-  , uwdName
-  , uwdId
-  , uwdAccounts
-  , uwdBalance
+       ( UiWalletData(..)
+       , UiAccountData(..)
+       , UiWalletSelection(..)
+       , UiAddressData(..)
+         -- * Lens
+       , uwdName
+       , uwdId
+       , uwdAccounts
+       , uwdBalance
 
-  , uadName
-  , uadAccountIdx
-  , uadAddresses
-  , uadBalance
+       , uadName
+       , uadAccountIdx
+       , uadAddresses
+       , uadBalance
 
-  , uiadAddress
-  , uiadAddressIdx
-  , uiadBalance
-  --
-  , toUiWalletDatas
-  , toUiWalletSelection
-  , formatAddressHash
-  , formatHdRootId
-  ) where
+       , uiadAddress
+       , uiadAddressIdx
+       , uiadBalance
+         --
+       , toUiWalletDatas
+       , toUiWalletSelection
+       , formatAddressHash
+       , formatHdRootId
+       ) where
 
 import qualified Data.Vector as V
 import Formatting (sformat, (%))

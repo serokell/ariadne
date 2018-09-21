@@ -1,4 +1,7 @@
-module Ariadne.UI.Vty.Knit where
+module Ariadne.UI.Vty.Knit
+       ( UI
+       , ComponentExecContext(..)
+       ) where
 
 import Text.Earley
 

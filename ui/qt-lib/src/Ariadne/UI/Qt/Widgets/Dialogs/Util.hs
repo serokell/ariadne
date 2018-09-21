@@ -1,4 +1,12 @@
-module Ariadne.UI.Qt.Widgets.Dialogs.Util where
+module Ariadne.UI.Qt.Widgets.Dialogs.Util
+       ( createLayout
+       , addHeader
+       , addRow
+       , addRowLayout
+       , addSeparator
+       , createSubWidget
+       , createCheckBox
+       ) where
 
 import Data.Bits
 

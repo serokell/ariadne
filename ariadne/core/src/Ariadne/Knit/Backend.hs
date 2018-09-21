@@ -1,8 +1,8 @@
 module Ariadne.Knit.Backend
-  ( Components
-  , KnitFace(..)
-  , createKnitBackend
-  ) where
+       ( Components
+       , KnitFace(..)
+       , createKnitBackend
+       ) where
 
 import NType (AllConstrained, KnownSpine)
 import Text.PrettyPrint.ANSI.Leijen (Doc)

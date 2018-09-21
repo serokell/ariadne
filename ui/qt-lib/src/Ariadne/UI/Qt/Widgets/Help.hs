@@ -1,8 +1,8 @@
 module Ariadne.UI.Qt.Widgets.Help
-    ( Help
-    , initHelp
-    , showHelpWindow
-    ) where
+       ( Help
+       , initHelp
+       , showHelpWindow
+       ) where
 
 import qualified Data.Text as T
 

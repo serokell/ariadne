@@ -1,8 +1,8 @@
-module Ariadne.Wallet.Cardano.Kernel.Addresses (
-    createAddress
-    -- * Errors
-    , CreateAddressError(..)
-    ) where
+module Ariadne.Wallet.Cardano.Kernel.Addresses
+       ( createAddress
+         -- * Errors
+       , CreateAddressError(..)
+       ) where
 
 import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable

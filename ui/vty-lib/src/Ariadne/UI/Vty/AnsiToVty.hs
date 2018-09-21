@@ -1,4 +1,8 @@
-module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty, pprDoc) where
+module Ariadne.UI.Vty.AnsiToVty
+       (ansiToVty
+       , csiToVty
+       , pprDoc
+       ) where
 
 import Control.Monad.Trans.Writer
 

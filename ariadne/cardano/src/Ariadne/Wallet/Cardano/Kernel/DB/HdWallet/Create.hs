@@ -1,20 +1,20 @@
 {-# LANGUAGE RankNTypes #-}
 
 -- | CREATE operations on HD wallets
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create (
-    -- * Errors
-    CreateHdRootError(..)
-  , CreateHdAccountError(..)
-  , CreateHdAddressError(..)
-    -- * Functions
-  , createHdRoot
-  , createHdAccount
-  , createHdAddress
-    -- * Initial values
-  , initHdRoot
-  , initHdAccount
-  , initHdAddress
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
+       ( -- * Errors
+         CreateHdRootError(..)
+       , CreateHdAccountError(..)
+       , CreateHdAddressError(..)
+        -- * Functions
+       , createHdRoot
+       , createHdAccount
+       , createHdAddress
+         -- * Initial values
+       , initHdRoot
+       , initHdAccount
+       , initHdAddress
+       ) where
 
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)

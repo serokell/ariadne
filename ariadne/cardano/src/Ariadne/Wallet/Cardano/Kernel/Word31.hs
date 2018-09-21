@@ -1,9 +1,9 @@
 module Ariadne.Wallet.Cardano.Kernel.Word31
-    ( Word31
-    , Word31Exception (..)
-    , unsafeMkWord31
-    , word31ToWord32
-    ) where
+       ( Word31
+       , Word31Exception (..)
+       , unsafeMkWord31
+       , word31ToWord32
+       ) where
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable (Buildable(..))

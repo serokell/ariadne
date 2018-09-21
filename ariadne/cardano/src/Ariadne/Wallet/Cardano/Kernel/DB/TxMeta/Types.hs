@@ -1,37 +1,37 @@
 -- | Transaction metadata conform the wallet specification
-module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types (
-    -- * Transaction metadata
-    TxMeta(..)
-    -- ** Lenses
-  , txMetaId
-  , txMetaAmount
-  , txMetaInputs
-  , txMetaOutputs
-  , txMetaCreationAt
-  , txMetaIsLocal
-  , txMetaIsOutgoing
+module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types
+       ( -- * Transaction metadata
+         TxMeta(..)
+         -- ** Lenses
+       , txMetaId
+       , txMetaAmount
+       , txMetaInputs
+       , txMetaOutputs
+       , txMetaCreationAt
+       , txMetaIsLocal
+       , txMetaIsOutgoing
 
-  -- * Transaction storage
-  , MetaDBHandle (..)
+         -- * Transaction storage
+       , MetaDBHandle (..)
 
-  -- * Filtering and sorting primitives
-  , Limit (..)
-  , Offset (..)
-  , Sorting (..)
-  , SortCriteria (..)
-  , SortDirection (..)
+         -- * Filtering and sorting primitives
+       , Limit (..)
+       , Offset (..)
+       , Sorting (..)
+       , SortCriteria (..)
+       , SortDirection (..)
 
-  -- * Domain-specific errors
-  , TxMetaStorageError (..)
-  , InvariantViolation (..)
+         -- * Domain-specific errors
+       , TxMetaStorageError (..)
+       , InvariantViolation (..)
 
-  -- * Strict & lenient equalities
-  , exactlyEqualTo
-  , isomorphicTo
+         -- * Strict & lenient equalities
+       , exactlyEqualTo
+       , isomorphicTo
 
-  -- * Internals useful for testing
-  , uniqueElements
-  ) where
+         -- * Internals useful for testing
+       , uniqueElements
+       ) where
 
 import Control.Lens.TH (makeLenses)
 import qualified Data.List as List

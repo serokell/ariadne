@@ -1,6 +1,32 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Knit.Tokenizer where
+module Knit.Tokenizer
+       ( BracketSide(..)
+       , Tokenizer
+       , ComponentToken
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , Token(..)
+
+       , _BracketSideOpening 
+       , _BracketSideClosing
+       , _Token
+       , _TokenSquareBracket
+       , _TokenParenthesis
+       , _TokenEquals
+       , _TokenSemicolon
+       , _TokenName
+       , _TokenKey
+       , _TokenUnknown
+
+       , toToken
+       , fromToken
+       , tokenize
+       , detokenize
+       , tokenize'
+       , longestMatch
+       , pSomeAlphaNum
+       ) where
 
 import Control.Applicative as A
 import Control.Lens

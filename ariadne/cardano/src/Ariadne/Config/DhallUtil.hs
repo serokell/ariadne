@@ -1,20 +1,20 @@
 module Ariadne.Config.DhallUtil
-    ( defalultIfNothing
-    , parseField
-    , interpretFilePath
-    , interpretWord16
-    , interpretInt
-    , interpretBytestringUTF8
-    , interpretByte
-    , injectInt
-    , injectFilePath
-    , injectByteStringUTF8
-    , injectWord16
-    , injectByte
-    , injectMaybe
-    , toDhall
-    , fromDhall)
-    where
+       ( defalultIfNothing
+       , parseField
+       , interpretFilePath
+       , interpretWord16
+       , interpretInt
+       , interpretBytestringUTF8
+       , interpretByte
+       , injectInt
+       , injectFilePath
+       , injectByteStringUTF8
+       , injectWord16
+       , injectByte
+       , injectMaybe
+       , toDhall
+       , fromDhall
+       ) where
 
 import Data.Functor.Contravariant (Contravariant(..))
 import qualified Data.HashMap.Strict.InsOrd as Map

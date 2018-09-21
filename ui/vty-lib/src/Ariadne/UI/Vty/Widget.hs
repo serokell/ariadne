@@ -48,7 +48,7 @@ module Ariadne.UI.Vty.Widget
        , handleWidgetScroll
        , handleWidgetEvent
 
-       -- Re-exports
+         -- Re-exports
        , ReifiedLens'
        , ReifiedLens(..)
        ) where

@@ -9,7 +9,7 @@ module Ariadne.Cardano.Face
        , CardanoEvent (..)
        , CardanoFace (..)
 
-       -- * Re-exports from Cardano
+         -- * Re-exports from Cardano
        , Coin
        , EpochOrSlot (..)
        , EpochIndex (..)

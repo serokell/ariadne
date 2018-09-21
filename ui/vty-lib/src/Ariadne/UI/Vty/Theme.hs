@@ -1,4 +1,6 @@
-module Ariadne.UI.Vty.Theme where
+module Ariadne.UI.Vty.Theme
+       ( defaultAttrMap
+       ) where
 
 import Prelude hiding (on)
 

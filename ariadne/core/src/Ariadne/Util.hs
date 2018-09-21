@@ -1,8 +1,7 @@
 module Ariadne.Util
-    ( atomicRunStateIORef'
-    , postfixLFields
-    )
-    where
+       ( atomicRunStateIORef'
+       , postfixLFields
+       ) where
 
 import Control.Lens (LensRules, lensField, lensRules, mappingNamer)
 

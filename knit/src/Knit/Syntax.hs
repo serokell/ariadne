@@ -1,4 +1,14 @@
-module Knit.Syntax where
+module Knit.Syntax
+       ( Operator(..)
+       , CommandId(..)
+       , Expr(..)
+       , ComponentLit
+       , Lit(..)
+       , ProcCall(..)
+       , Arg(..)
+       , toLit
+       , fromLit
+       ) where
 
 import Data.String
 

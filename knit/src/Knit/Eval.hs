@@ -1,4 +1,14 @@
-module Knit.Eval where
+module Knit.Eval
+       ( EvalError(..)
+       , EvalT
+       , ExecContext
+
+       , ComponentExecContext
+       , ComponentCommandExec(..)
+       , ComponentLitToValue(..)
+
+       , evaluate
+       ) where
 
 import Control.Monad.Except
 import Data.Type.Equality

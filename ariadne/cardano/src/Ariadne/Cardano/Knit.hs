@@ -1,4 +1,26 @@
-module Ariadne.Cardano.Knit where
+module Ariadne.Cardano.Knit
+       ( Cardano
+       , Currency(..)
+
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentLitGrammar(..)
+       , ComponentPrinter(..)
+       , ComponentCommandRepr(..)
+       , ComponentLitToValue(..)
+       , ComponentExecContext(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
+
+       , showCoin
+       , txOutCommandName
+       , tyPublicKey
+       , tyTxOut
+       ) where
 
 import Control.Lens (makePrisms, prism')
 import Control.Natural (type (~>))

@@ -1,12 +1,12 @@
 module Knit.DisplayError
-    ( ppArgumentError
-    , ppEvalError
-    , ppTypeError
-    , ppTypeName
-    , ppParseError
-    , ppProcError
-    , ppResolveErrors
-    ) where
+       ( ppArgumentError
+       , ppEvalError
+       , ppTypeError
+       , ppTypeName
+       , ppParseError
+       , ppProcError
+       , ppResolveErrors
+       ) where
 
 
 import Control.Applicative ((<|>))

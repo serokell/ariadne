@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Ariadne.Cardano.Orphans where
+module Ariadne.Cardano.Orphans
+       (
+       ) where
 
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))

@@ -1,23 +1,23 @@
-module Ariadne.Wallet.Cardano.Kernel.Types (
-    -- * Input resolution
-    -- ** Raw types
-    ResolvedTxInputs
-  , ResolvedBlockInputs
-  , RawResolvedTx(..)
-  , invRawResolvedTx
-  , mkRawResolvedTx
-  , RawResolvedBlock(..)
-  , invRawResolvedBlock
-  , mkRawResolvedBlock
-  -- ** Abstract Wallet/AccountIds
-  , WalletId (..)
-  , AccountId (..)
-  , accountToWalletId
-    -- ** From raw to derived types
-  , fromRawResolvedTx
-  , fromRawResolvedBlock
-  , txUtxo
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.Types
+       ( -- * Input resolution
+         -- ** Raw types
+         ResolvedTxInputs
+       , ResolvedBlockInputs
+       , RawResolvedTx(..)
+       , invRawResolvedTx
+       , mkRawResolvedTx
+       , RawResolvedBlock(..)
+       , invRawResolvedBlock
+       , mkRawResolvedBlock
+         -- ** Abstract Wallet/AccountIds
+       , WalletId (..)
+       , AccountId (..)
+       , accountToWalletId
+         -- ** From raw to derived types
+       , fromRawResolvedTx
+       , fromRawResolvedBlock
+       , txUtxo
+       ) where
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map

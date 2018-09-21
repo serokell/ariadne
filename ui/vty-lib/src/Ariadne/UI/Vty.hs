@@ -1,7 +1,7 @@
 module Ariadne.UI.Vty
-  ( UiFace(..)
-  , createAriadneUI
-  ) where
+       ( UiFace(..)
+       , createAriadneUI
+       ) where
 
 import qualified Brick as B
 import Brick.BChan

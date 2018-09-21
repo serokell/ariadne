@@ -1,9 +1,9 @@
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (
-      mkHdAccountIx
-    , mkHdAddressIx
-    , deriveBip44KeyPair
-    , deriveFirstBip44KeyPair
-    ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
+       ( mkHdAccountIx
+       , mkHdAddressIx
+       , deriveBip44KeyPair
+       , deriveFirstBip44KeyPair
+       ) where
 
 import qualified Data.Set as S
 import qualified Data.Vector as V

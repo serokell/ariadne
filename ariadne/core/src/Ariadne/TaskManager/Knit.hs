@@ -1,4 +1,22 @@
-module Ariadne.TaskManager.Knit where
+module Ariadne.TaskManager.Knit
+       ( TaskManager
+
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentCommandRepr(..)
+       , ComponentExecContext(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentLitToValue(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentLitGrammar(..)
+       , ComponentPrinter(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
+
+       , killCommandName
+       ) where
 
 import Control.Concurrent
 import Control.Concurrent.Async

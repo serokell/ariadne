@@ -1,7 +1,7 @@
 module Ariadne.UI.Qt
-  ( UiFace(..)
-  , createAriadneUI
-  ) where
+       ( UiFace(..)
+       , createAriadneUI
+       ) where
 
 import Control.Concurrent
 import Control.Monad.Component (ComponentM, buildComponent_)

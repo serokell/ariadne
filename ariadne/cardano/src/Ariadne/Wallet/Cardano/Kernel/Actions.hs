@@ -1,15 +1,15 @@
 module Ariadne.Wallet.Cardano.Kernel.Actions
-    ( WalletAction(..)
-    , WalletActionInterp(..)
-    , forkWalletWorker
-    , walletWorker
-    , interp
-    , interpList
-    , WalletWorkerState
-    , isInitialState
-    , hasPendingFork
-    , isValidState
-    ) where
+       ( WalletAction(..)
+       , WalletActionInterp(..)
+       , forkWalletWorker
+       , walletWorker
+       , interp
+       , interpList
+       , WalletWorkerState
+       , isInitialState
+       , hasPendingFork
+       , isValidState
+       ) where
 
 import Control.Concurrent.Async (async, link)
 import Control.Concurrent.Chan

@@ -1,12 +1,12 @@
 module Ariadne.UI.Qt.Widgets.TopBar
-  ( TopBar
-  , initTopBar
-  , doOnReplButtonClick
-  , doOnLogsAction
-  , doOnHelpAction
-  , doOnSettingsAction
-  , displayBlockchainInfo
-  ) where
+       ( TopBar
+       , initTopBar
+       , doOnReplButtonClick
+       , doOnLogsAction
+       , doOnHelpAction
+       , doOnSettingsAction
+       , displayBlockchainInfo
+       ) where
 
 import Control.Lens (makeLensesWith)
 

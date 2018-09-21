@@ -1,9 +1,9 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
-  ( runNewWallet
-  , NewWalletParameters(..)
-  , NewWalletSpecifier(..)
-  , NewWalletResult(..)
-  ) where
+       ( runNewWallet
+       , NewWalletParameters(..)
+       , NewWalletSpecifier(..)
+       , NewWalletResult(..)
+       ) where
 
 import Control.Lens (makeLensesWith)
 

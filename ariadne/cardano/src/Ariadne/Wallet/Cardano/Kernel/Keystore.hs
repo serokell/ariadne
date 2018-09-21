@@ -10,25 +10,25 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Ariadne.Wallet.Cardano.Kernel.Keystore (
-      Keystore -- opaque
-    , DeletePolicy(..)
-    , DuplicatedWalletKey(..)
-      -- * Constructing a keystore
-    , keystoreComponent
-    , bracketKeystore
-    , bracketLegacyKeystore
-    -- * Inserting values
-    , insert
-    -- * Deleting values
-    , delete
-    -- * Queries on a keystore
-    , lookup
-    -- * Conversions
-    , toList
-    -- * Tests handy functions
-    , bracketTestKeystore
-    ) where
+module Ariadne.Wallet.Cardano.Kernel.Keystore
+       ( Keystore -- opaque
+       , DeletePolicy(..)
+       , DuplicatedWalletKey(..)
+         -- * Constructing a keystore
+       , keystoreComponent
+       , bracketKeystore
+       , bracketLegacyKeystore
+       -- * Inserting values
+       , insert
+       -- * Deleting values
+       , delete
+       -- * Queries on a keystore
+       , lookup
+       -- * Conversions
+       , toList
+       -- * Tests handy functions
+       , bracketTestKeystore
+       ) where
 
 import Prelude hiding (toList)
 

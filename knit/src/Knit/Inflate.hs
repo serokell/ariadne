@@ -1,4 +1,7 @@
-module Knit.Inflate where
+module Knit.Inflate
+       ( ComponentInflate(..)
+       , inflate
+       ) where
 
 import Knit.Prelude
 import Knit.Syntax

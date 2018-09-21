@@ -1,6 +1,6 @@
 module Ariadne.UI.Vty.Focus
-     ( withFocusIndicator
-     ) where
+       ( withFocusIndicator
+       ) where
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

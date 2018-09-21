@@ -6,13 +6,13 @@
 -- Cardano specific types (except those types that appear in the translation
 -- of the UTxO DSL), so that we can test it outside of a node context also
 -- (in unit tests).
-module Ariadne.Wallet.Cardano.Kernel.Internal (
-    -- * Passive wallet
-    PassiveWallet(..)
-  , walletKeystore
-  , wallets
-  , walletLogMessage
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.Internal
+       ( -- * Passive wallet
+         PassiveWallet(..)
+       , walletKeystore
+       , wallets
+       , walletLogMessage
+       ) where
 
 import Control.Lens.TH
 

@@ -1,4 +1,34 @@
-module Ariadne.Wallet.Knit where
+module Ariadne.Wallet.Knit
+       ( Wallet
+
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentLitGrammar(..)
+       , ComponentPrinter(..)
+       , ComponentCommandRepr(..)
+       , ComponentLitToValue(..)
+       , ComponentExecContext(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
+
+       , refreshStateCommandName
+       , newAddressCommandName
+       , newAccountCommandName
+       , newWalletCommandName
+       , restoreCommandName
+       , restoreFromFileCommandName
+       , selectCommandName
+       , sendCommandName
+       , balanceCommandName
+       , renameCommandName
+       , removeCommandName
+
+       , getWalletRefArg
+       ) where
 
 import Control.Lens (makePrisms)
 import Serokell.Data.Memory.Units (fromBytes)

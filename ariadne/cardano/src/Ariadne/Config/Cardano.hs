@@ -1,23 +1,22 @@
 module Ariadne.Config.Cardano
-       (
-         -- * Config type
+       ( -- * Config type
          CardanoConfig (..)
 
-       -- * Defaults
+         -- * Defaults
        , defaultLoggerConfig
        , defaultConfigurationYaml
        , defaultGenesisJson
        , defaultCardanoConfig
 
-       -- * Helpers
+         -- * Helpers
        , cardanoFieldModifier
 
-       -- * Construction of various stuff
+         -- * Construction of various stuff
        , mkLoggingParams
        , getNodeParams
        , gtSscParams
 
-       -- * Lenses
+         -- * Lenses
        , ccDbPathL
        , ccRebuildDBL
        , ccNetworkTopologyL
@@ -28,8 +27,7 @@ module Ariadne.Config.Cardano
        , ccConfigurationOptionsL
        , ccEkgParamsL
 
-
-       -- * Exports for tests
+         -- * Exports for tests
        , defaultTopology
        ) where
 

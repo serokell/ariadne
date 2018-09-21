@@ -1,15 +1,15 @@
 -- | Resolved blocks and transactions
-module Ariadne.Wallet.Cardano.Kernel.DB.Resolved (
-    -- * Resolved blocks and transactions
-    ResolvedInput
-  , ResolvedTx(..)
-  , ResolvedBlock(..)
-    -- ** Lenses
-  , rtxInputs
-  , rtxOutputs
-  , rbTxs
-  , rbSlot
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Resolved
+       ( -- * Resolved blocks and transactions
+         ResolvedInput
+       , ResolvedTx(..)
+       , ResolvedBlock(..)
+         -- ** Lenses
+       , rtxInputs
+       , rtxOutputs
+       , rbTxs
+       , rbSlot
+       ) where
 
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map as Map

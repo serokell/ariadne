@@ -1,6 +1,6 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Types
-    ( PassiveWalletLayer (..)
-    ) where
+       ( PassiveWalletLayer (..)
+       ) where
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel

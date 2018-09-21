@@ -1,8 +1,7 @@
 -- | Part of backend which manages keys, wallets, accounts, addresses.
 
 module Ariadne.Wallet.Backend.KeyStorage
-       (
-         -- * Commands/other functions
+       ( -- * Commands/other functions
          refreshState
        , resolveWalletRef
        , resolveWalletRefThenRead

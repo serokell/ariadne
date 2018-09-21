@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
 module Ariadne.Config.CLI
-    ( getConfig
-    -- * Exported for testing
-    , opts
-    , mergeConfigs
-    ) where
+       ( getConfig
+         -- * Exported for testing
+       , opts
+       , mergeConfigs
+       ) where
 
 import Control.Lens (makeLensesWith, zoom, (%=))
 import Data.List.Utils (replace)
