@@ -1,4 +1,5 @@
 # Cabal
+cabal.project
 dist
 dist-newstyle
 .cabal-sandbox/
