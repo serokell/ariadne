@@ -84,8 +84,6 @@
 - warn: {lhs: f >>= guard, rhs: guardM}
 - warn: {lhs: guard =<< f, rhs: guardM}
 
-- hint: {lhs: fmap (fmap f) x, rhs: f <<$>> x}
-
 - warn: {lhs: fmap concat (mapM f s), rhs: Universum.concatMapM f s}
 - warn: {lhs: concat <$> mapM f s, rhs: Universum.concatMapM f s}
 
