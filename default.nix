@@ -1,6 +1,11 @@
-{ pkgs ? import ./closure.nix }: with pkgs;
+{ pkgs ? import ./closure.nix, root ? ./., shell ? false }: with pkgs;
 
 stackToNix {
+  # TODO: implement filtering in stack-to-nix
+  root = lib.cleanSource root;
+
+  inherit shell;
+
   overrides = final: previous: with haskell.lib; {
     ariadne-cardano = overrideCabal previous.ariadne-cardano (super: {
       buildTools = [ git ];
@@ -19,6 +24,4 @@ stackToNix {
       librarySystemDepends = with qt5; [ qtbase qttools ];
     });
   };
-
-  src = lib.cleanSource ./.;
 }
