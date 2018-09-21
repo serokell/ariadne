@@ -1,7 +1,5 @@
 module Ariadne.UI.Vty.Knit where
 
-import Universum
-
 import Text.Earley
 
 import Ariadne.UI.Vty.Face

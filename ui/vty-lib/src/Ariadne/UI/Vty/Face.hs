@@ -46,8 +46,6 @@ module Ariadne.UI.Vty.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
@@ -79,6 +77,7 @@ data UiFace = UiFace
 data UiLangFace = forall err expr. UiLangFace
   { langPutCommand :: expr -> IO UiCommandId
   , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
+  , langPutUISilentCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc

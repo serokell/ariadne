@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.AddWallet
        ( initAddWalletWidget
        ) where
 
-import Universum
-
 import Control.Lens (assign, makeLensesWith, (.=))
 
 import qualified Brick as B

@@ -5,13 +5,10 @@ module Ariadne.UI.Vty.Widget.Form.Edit
        , initPasswordWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, (.=))
 import Data.Char (isSpace)
 import Data.List ((!!))
 import Data.Text.Zipper (TextZipper)
-import Prelude (until)
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -278,3 +275,10 @@ smartBreakLine :: TextZipper Text -> TextZipper Text
 smartBreakLine tz =
   let indentation = T.takeWhile isSpace (TZ.currentLine tz)
   in TZ.insertMany indentation (TZ.breakLine tz)
+
+until :: (a -> Bool) -> (a -> a) -> a -> a
+until p f = go
+  where
+    go x
+      | p x = x
+      | otherwise = go (f x)

@@ -6,8 +6,6 @@ module Ariadne.Wallet.Cardano.Kernel.Bip32
        , makePubKeyHdwAddressUsingPath
        ) where
 
-import Universum
-
 import Named (Named(..))
 
 import Cardano.Crypto.Wallet.Types (DerivationIndex)

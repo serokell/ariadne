@@ -9,7 +9,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta (
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Sqlite as ConcreteStorage
 import Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types as Types
-import Universum
 
 -- Concrete instantiation of 'MetaDBHandle'
 

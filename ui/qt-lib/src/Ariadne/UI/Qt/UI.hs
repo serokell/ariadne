@@ -1,7 +1,5 @@
 module Ariadne.UI.Qt.UI where
 
-import Universum
-
 import qualified Data.ByteString as BS
 
 import Graphics.UI.Qtah.Signal (Signal, connect_)

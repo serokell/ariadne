@@ -7,8 +7,6 @@ module Ariadne.UI.Cli.Face
        , UiCommandEvent (..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 

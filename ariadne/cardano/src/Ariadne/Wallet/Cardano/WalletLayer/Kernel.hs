@@ -3,8 +3,6 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
     , passiveWalletLayerWithDBComponent
     ) where
 
-import Universum
-
 import Control.Monad.Component (ComponentM, buildComponent)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import Data.Maybe (fromJust)

@@ -27,8 +27,6 @@ module Ariadne.UI.Qt.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
@@ -92,7 +90,7 @@ data UiCommand
   | UiSend Text Text  -- ^ Address, amount
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
-  | UiNewAddress
+  | UiNewAddress Word Word -- ^ Wallet index, account index
   | UiKill Natural
   | UiRemoveCurrentItem
 
@@ -116,7 +114,7 @@ data UiNewAccountCommandResult
   | UiNewAccountCommandFailure Text
 
 data UiNewAddressCommandResult
-  = UiNewAddressCommandSuccess
+  = UiNewAddressCommandSuccess Word Word Text
   | UiNewAddressCommandFailure Text
 
 -- The backend language (Knit by default) interface as perceived by the UI.
@@ -178,6 +176,8 @@ type UiWalletTree = Tree UiWalletTreeItem
 -- to be an issue, we may consider changing it.
 type TreePath = [Word]
 
+type NonEmptyPath = NonEmpty Word
+
 data UiWalletTreeSelection =
   UiWalletTreeSelection
     { wtsWalletIdx :: Word
@@ -197,14 +197,14 @@ data UiWalletInfo = UiWalletInfo
 data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
-  , uaciPath :: !TreePath
+  , uaciPath :: !NonEmptyPath
   , uaciBalance :: !(Text, UiCurrency)
   , uaciAddresses :: ![UiAddressInfo]
   }
 
 data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
-  , uadiPath :: !TreePath
+  , uadiPath :: !NonEmptyPath
   , uadiAddress :: !Text
   , uadiBalance :: !(Text, UiCurrency)
   }

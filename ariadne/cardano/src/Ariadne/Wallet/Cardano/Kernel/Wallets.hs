@@ -11,12 +11,11 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets (
     , createWalletHdSeq
     ) where
 
-import qualified Prelude
-import Universum
 
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
+import qualified Text.Show
 
 import Data.Acid.Advanced (update')
 

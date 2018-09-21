@@ -3,8 +3,6 @@ module Ariadne.Wallet.Cardano.Kernel.Bip39
        , mnemonicToSeedNoPassword
        ) where
 
-import Universum
-
 import Loot.Crypto.Bip39 (entropyToMnemonic, mnemonicToSeed)
 
 -- The empty string below is called a passphrase in BIP-39, but

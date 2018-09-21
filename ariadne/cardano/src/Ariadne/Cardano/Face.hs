@@ -25,8 +25,6 @@ module Ariadne.Cardano.Face
        , decodeTextAddress
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Control.Monad.Base (MonadBase)
 import Control.Monad.IO.Unlift (MonadUnliftIO)

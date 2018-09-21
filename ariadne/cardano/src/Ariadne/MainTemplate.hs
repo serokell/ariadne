@@ -1,11 +1,9 @@
--- | Template of the code that is supposed to be in 'Main.hs'.
+-- | Template of the code that is supposed to be in @Main.hs@.
 
 module Ariadne.MainTemplate
        ( MainSettings (..)
        , defaultMain
        ) where
-
-import Universum
 
 import Control.Concurrent.Async (race_, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)

@@ -4,8 +4,6 @@ module Ariadne.Knit.Backend
   , createKnitBackend
   ) where
 
-import Universum
-
 import NType (AllConstrained, KnownSpine)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 

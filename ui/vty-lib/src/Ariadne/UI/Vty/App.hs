@@ -3,8 +3,6 @@ module Ariadne.UI.Vty.App
   , app
   ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, uses, (%=), (.=))
 import Data.Char (toLower)
 

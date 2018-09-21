@@ -2,8 +2,6 @@ module Ariadne.Wallet.Cardano.WalletLayer.Types
     ( PassiveWalletLayer (..)
     ) where
 
-import Universum
-
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel
@@ -23,7 +21,7 @@ import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 -- | The passive wallet (data) layer. See @PassiveWallet@.
 data PassiveWalletLayer m = PassiveWalletLayer
-    { -- * wallets
+    { -- | wallets
       pwlCreateWallet
           :: EncryptedSecretKey
           -> Kernel.HasNonemptyPassphrase
@@ -48,7 +46,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdRootId
           -> m (Either Kernel.DeleteHdRootError ())
 
-    -- * accounts
+    -- | accounts
     , pwlCreateAccount
           :: Kernel.HdRootId
           -> Kernel.AccountName
@@ -67,7 +65,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdAccountId
           -> m (Either Kernel.DeleteHdAccountError ())
 
-    -- * addresses
+    -- | addresses
     , pwlCreateAddress
           :: PassPhrase
           -> Kernel.HdAccountId
@@ -77,7 +75,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdRootId
           -> m (Either Kernel.UnknownHdRoot (IxSet Kernel.HdAddress))
 
-    -- * core API
+    -- | core API
     , pwlApplyBlocks
           :: OldestFirst NE Blund
           -> m ()
@@ -85,7 +83,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: NewestFirst NE Blund
           -> m ()
 
-    -- * internal, hopefully these will go in the future
+    -- | internal, hopefully these will go in the future
     , pwlGetDBSnapshot
           :: m Kernel.DB
     , pwlLookupKeystore

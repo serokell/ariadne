@@ -5,8 +5,6 @@ module Ariadne.Config.History
   , hcPathL
   ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D

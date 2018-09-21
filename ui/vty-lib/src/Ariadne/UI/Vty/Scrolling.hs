@@ -8,8 +8,6 @@ module Ariadne.UI.Vty.Scrolling
      , fixedScrollingViewport
      ) where
 
-import Universum
-
 import Ariadne.UI.Vty.Keyboard
 
 import qualified Brick as B

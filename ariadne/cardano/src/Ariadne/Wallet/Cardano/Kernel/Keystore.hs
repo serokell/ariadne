@@ -29,7 +29,7 @@ module Ariadne.Wallet.Cardano.Kernel.Keystore (
     , bracketTestKeystore
     ) where
 
-import Universum hiding (toList)
+import Prelude hiding (toList)
 
 import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)

@@ -1,0 +1,18 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-cli-app
+
+executables:
+  ariadne-cli:
+    <<: *exec-common
+    source-dirs: .
+    dependencies:
+      - ansi-wl-pprint
+      - ariadne-cardano
+      - ariadne-cli-lib
+      - ariadne-core
+      - async
+      - componentm
+      - knit
+      - ntype
+      - text

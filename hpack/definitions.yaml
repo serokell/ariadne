@@ -1,0 +1,92 @@
+# This file defines sensible defaults but does not actually apply
+# any of them, so it can be safely included.
+
+_definitions:
+  _top-level:
+    - &meta
+        version:            '0.2.0.0'
+        description:        'Please see the README on Github at <https://github.com/serokell/ariadne#readme>'
+        homepage:           'https://github.com/serokell/ariadne#readme'
+        bug-reports:        https://github.com/serokell/ariadne/issues
+        author:             Serokell
+        maintainer:         Serokell <hi@serokell.io>
+        copyright:          2018 Serokell
+        license:            MPL-2.0
+        license-file:       COPYING.md
+        github:             serokell/ariadne
+        extra-source-files: []
+
+    - &default-extensions
+        - ApplicativeDo
+        - BangPatterns
+        - ConstraintKinds
+        - DataKinds
+        - DeriveFoldable
+        - DeriveFunctor
+        - DeriveGeneric
+        - DeriveTraversable
+        - EmptyCase
+        - FlexibleContexts
+        - FlexibleInstances
+        - GADTs
+        - GeneralizedNewtypeDeriving
+        - LambdaCase
+        - MonadFailDesugaring
+        - MultiParamTypeClasses
+        - MultiWayIf
+        - NegativeLiterals
+        - OverloadedLabels
+        - OverloadedStrings
+        - PatternSynonyms
+        - PolyKinds
+        - RankNTypes
+        - RecordWildCards
+        - RecursiveDo
+        - ScopedTypeVariables
+        - StandaloneDeriving
+        - TemplateHaskell
+        - TupleSections
+        - TypeApplications
+        - TypeFamilies
+        - TypeOperators
+        - UndecidableInstances
+        - ViewPatterns
+
+    - &dependencies
+        - base-noprelude >= 4.7 && < 5
+        - loot-prelude
+        - universum
+
+    - &ghc-options
+        # Source: https://medium.com/mercury-bank/enable-all-the-warnings-a0517bc081c3
+        - -Weverything
+        - -Wno-missing-exported-signatures
+        - -Wno-missing-import-lists
+        - -Wno-missed-specialisations
+        - -Wno-all-missed-specialisations
+        - -Wno-unsafe
+        - -Wno-safe
+        - -Wno-missing-local-signatures
+        - -Wno-monomorphism-restriction
+        - -Wno-implicit-prelude
+        - -Werror
+
+  _utils:
+    - &lib-common
+        source-dirs: src
+
+    - &test-common
+        main:        Spec.hs
+        source-dirs: test
+        ghc-options:
+          - -threaded
+          - -rtsopts
+          - -with-rtsopts=-N
+
+    - &exec-common
+        main:        Main.hs
+        ghc-options:
+          - -threaded
+          - -rtsopts
+          - -with-rtsopts=-N
+          - -O2

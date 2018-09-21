@@ -4,8 +4,6 @@ module Ariadne.UI.Vty.Widget.Tree
        ( initTreeWidget
        ) where
 
-import Universum
-
 import Control.Lens (ix, makeLensesWith, uses, (.=))
 import Data.List (findIndex, intercalate)
 import Data.Tree (Tree(..))
@@ -226,4 +224,4 @@ performSelect
   -> WidgetEventM TreeWidgetState p ()
 performSelect path = do
   UiLangFace{..} <- use treeLangFaceL
-  void . liftIO . langPutUiCommand $ UiSelect path
+  void . liftIO . langPutUISilentCommand $ UiSelect path

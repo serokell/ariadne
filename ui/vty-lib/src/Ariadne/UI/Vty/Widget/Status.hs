@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Status
        ( initStatusWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, (.=))
 import Data.List as List
 import Data.Version (Version, showVersion)

@@ -7,8 +7,6 @@ module Ariadne.Wallet.Cardano.Kernel.Bip44
     , encodeBip44DerivationPathFromAccount
     ) where
 
-import Universum
-
 import Pos.Crypto.HD (firstHardened, firstNonHardened, isHardened)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet

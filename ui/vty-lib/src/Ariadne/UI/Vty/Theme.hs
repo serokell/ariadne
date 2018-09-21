@@ -1,5 +1,7 @@
 module Ariadne.UI.Vty.Theme where
 
+import Prelude hiding (on)
+
 import Brick
 import Graphics.Vty
 

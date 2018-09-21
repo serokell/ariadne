@@ -5,8 +5,6 @@ module Ariadne.Wallet.Cardano.Kernel.Word31
     , word31ToWord32
     ) where
 
-import Universum
-
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable (Buildable(..))
 import Formatting (bprint, int)

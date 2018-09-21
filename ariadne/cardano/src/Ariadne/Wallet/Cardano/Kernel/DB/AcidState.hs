@@ -33,8 +33,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
   , ObservableRollbackUseInTestsOnly(..)
   ) where
 
-import Universum
-
 import Control.Lens (at, non, to)
 import Control.Lens.TH (makeLenses)
 import Control.Monad.Except (MonadError, catchError, runExcept)

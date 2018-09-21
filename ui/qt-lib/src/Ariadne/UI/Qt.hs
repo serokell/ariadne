@@ -3,8 +3,6 @@ module Ariadne.UI.Qt
   , createAriadneUI
   ) where
 
-import Universum
-
 import Control.Concurrent
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)

@@ -11,8 +11,6 @@ module Ariadne.Wallet.Cardano.Kernel.PrefilterTx
        , prefilterUtxo
        ) where
 
-import Universum
-
 import qualified Data.List.NonEmpty as NE
 
 import qualified Data.Map as Map
@@ -120,8 +118,8 @@ type UtxoSummaryRaw = Map TxIn (TxOutAux,AddressSummary)
 --   The output Utxo is extended with address summary information
 prefilterTx :: WalletKey
             -> ResolvedTx
-            -> (Map HdAccountId PrefilteredInputs -- ^ prefiltered inputs
-              , Map HdAccountId UtxoSummaryRaw)   -- ^ prefiltered output utxo, extended with address summary
+            -> (Map HdAccountId PrefilteredInputs -- prefiltered inputs
+              , Map HdAccountId UtxoSummaryRaw)   -- prefiltered output utxo, extended with address summary
 prefilterTx wKey tx = (prefInps,prefOuts')
     where
         inps = toList (tx ^. rtxInputs  . fromDb)

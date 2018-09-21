@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Wallet
        ( initWalletWidget
        ) where
 
-import Universum
-
 import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, uses, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)
@@ -303,17 +301,17 @@ handleWalletWidgetEvent = \case
             use walletBalanceL >>= \case
               BalanceResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
-                    void . liftIO . langPutUiCommand $ UiKill taskId
+                    void . liftIO . langPutUISilentCommand $ UiKill taskId
               _ -> return ()
-            liftIO (langPutUiCommand UiBalance) >>=
+            liftIO (langPutUISilentCommand UiBalance) >>=
               assign walletBalanceL . either BalanceResultError BalanceResultWaiting
         whenM (use walletTxHistoryEnabledL) $ do
           use walletTxHistoryL >>= \case
             TxHistoryResultWaiting commandId
               | Just taskId <- cmdTaskId commandId ->
-                  void . liftIO . langPutUiCommand $ UiKill taskId
+                  void . liftIO . langPutUISilentCommand $ UiKill taskId
             _ -> return ()
-          liftIO (langPutUiCommand UiTxHistory) >>=
+          liftIO (langPutUISilentCommand UiTxHistory) >>=
             assign walletTxHistoryL . either TxHistoryResultError TxHistoryResultWaiting
 
         updateFocusList

@@ -1,11 +1,9 @@
 module Ariadne.TaskManager.Knit where
 
-import Universum hiding (preview)
-
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Exception
-import Control.Lens
+import Control.Lens (makePrisms)
 import Formatting hiding (text)
 import Text.Earley
 import qualified Text.Megaparsec.Char as P

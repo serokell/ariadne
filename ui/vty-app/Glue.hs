@@ -19,8 +19,6 @@ module Glue
        , historyToUI
        ) where
 
-import Universum
-
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
@@ -64,8 +62,9 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} =
   UiLangFace
-    { langPutCommand = putCommand Nothing
-    , langPutUiCommand = putUiCommand
+    { langPutCommand = putCommand False Nothing
+    , langPutUiCommand = putUiCommand False
+    , langPutUISilentCommand = putUiCommand True
     , langParse = Knit.parse
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
@@ -73,22 +72,24 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand mOp expr = do
+    putCommand silent mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (commandHandle mOp cid) $ expr
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle silent mOp cid) $ expr
 
-    putUiCommand op = case opToExpr op of
+    putUiCommand silent op = case opToExpr op of
       Left err -> return $ Left err
       Right expr -> do
-        comId <- putCommand (Just op) expr
-        putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        comId <- putCommand silent (Just op) expr
+        unless silent $
+          putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
         return $ Right comId
 
-    commandHandle mOp commandId = KnitCommandHandle
+    commandHandle silent mOp commandId = KnitCommandHandle
       { putCommandResult = \mtid result -> do
-          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+          unless silent $
+            whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
           whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \tid doc ->
+      , putCommandOutput = \tid doc -> unless silent $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
 

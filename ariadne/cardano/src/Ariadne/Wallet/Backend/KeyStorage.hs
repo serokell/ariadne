@@ -24,7 +24,6 @@ module Ariadne.Wallet.Backend.KeyStorage
        , generateMnemonic
        ) where
 
-import Universum
 import qualified Universum.Unsafe as Unsafe
 
 import Control.Exception (Exception(displayException))
@@ -427,4 +426,4 @@ mkUntitled untitled namesVec = do -- no monad
       numbers = V.mapMaybe ((readMaybe @Natural) . toString) untitledSuffixes
   if null untitledSuffixes || null numbers
       then untitled <> "0"
-      else untitled <> (show $ (Universum.maximum numbers) + 1)
+      else untitled <> (show $ (maximum numbers) + 1)

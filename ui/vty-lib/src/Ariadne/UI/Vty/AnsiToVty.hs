@@ -1,7 +1,5 @@
 module Ariadne.UI.Vty.AnsiToVty (ansiToVty, csiToVty, pprDoc) where
 
-import Universum
-
 import Control.Monad.Trans.Writer
 
 import qualified Data.Text as T

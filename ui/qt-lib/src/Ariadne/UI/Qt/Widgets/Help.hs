@@ -4,8 +4,6 @@ module Ariadne.UI.Qt.Widgets.Help
     , showHelpWindow
     ) where
 
-import Universum
-
 import qualified Data.Text as T
 
 import Control.Lens (makeLensesWith)

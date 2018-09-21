@@ -16,8 +16,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create (
   , initHdAddress
   ) where
 
-import Universum
-
 import Control.Lens (at, (.=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable

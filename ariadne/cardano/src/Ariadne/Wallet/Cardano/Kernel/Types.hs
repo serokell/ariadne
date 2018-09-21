@@ -19,8 +19,6 @@ module Ariadne.Wallet.Cardano.Kernel.Types (
   , txUtxo
   ) where
 
-import Universum
-
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import Data.Text.Buildable (Buildable(..))

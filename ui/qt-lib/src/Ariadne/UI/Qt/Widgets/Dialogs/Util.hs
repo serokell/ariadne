@@ -1,7 +1,5 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Util where
 
-import Universum
-
 import Data.Bits
 
 import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)

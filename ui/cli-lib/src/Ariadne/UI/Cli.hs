@@ -3,8 +3,6 @@ module Ariadne.UI.Cli
        , createAriadneUI
        ) where
 
-import Universum
-
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Data.Text (strip)
 

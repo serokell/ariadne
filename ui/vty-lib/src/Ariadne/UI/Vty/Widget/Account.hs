@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.Account
        ( initAccountWidget
        ) where
 
-import Universum
-
 import Control.Exception (handle)
 import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)
@@ -225,9 +223,9 @@ handleAccountWidgetEvent = \case
             use accountBalanceL >>= \case
               BalanceResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
-                    void . liftIO . langPutUiCommand $ UiKill taskId
+                    void . liftIO . langPutUISilentCommand $ UiKill taskId
               _ -> return ()
-            liftIO (langPutUiCommand UiBalance) >>=
+            liftIO (langPutUISilentCommand UiBalance) >>=
               assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
       _ -> return ()

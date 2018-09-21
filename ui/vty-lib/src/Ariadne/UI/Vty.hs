@@ -3,8 +3,6 @@ module Ariadne.UI.Vty
   , createAriadneUI
   ) where
 
-import Universum
-
 import qualified Brick as B
 import Brick.BChan
 import Control.Monad.Component (ComponentM, buildComponent_)

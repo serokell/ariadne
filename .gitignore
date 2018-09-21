@@ -5,6 +5,7 @@ dist-newstyle
 cabal.sandbox.config
 cabal.project.local
 .ghc.environment*
+*.cabal
 
 # Profiling
 *.prof

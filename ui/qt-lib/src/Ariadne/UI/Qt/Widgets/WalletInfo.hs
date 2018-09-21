@@ -6,8 +6,6 @@ module Ariadne.UI.Qt.Widgets.WalletInfo
        , handleWalletInfoEvent
        ) where
 
-import Universum
-
 import Data.Text (toUpper)
 
 import Control.Lens (makeLensesWith)
@@ -38,10 +36,12 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
+import Ariadne.UI.Qt.Widgets.Dialogs.Request
 import Ariadne.Util
 
-data CurrentItem = WIWallet | WIAccount
+data CurrentItem = WIWallet [UiAccountInfo] | WIAccount UiAccountInfo
 
 data WalletInfo =
   WalletInfo
@@ -56,9 +56,11 @@ data WalletInfo =
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
     , createAccountButton :: QPushButton.QPushButton
-    , currentItemType :: IORef (Maybe CurrentItem)
+    , currentItem :: IORef (Maybe CurrentItem)
     , currentItemName :: IORef Text
     , deleteItemButton :: QPushButton.QPushButton
+    , requestButton :: QPushButton.QPushButton
+    , requestDialog :: IORef (Maybe Request)
     }
 
 makeLensesWith postfixLFields ''WalletInfo
@@ -123,7 +125,7 @@ initWalletInfo langFace itemModel selectionModel = do
   QAbstractButton.setIcon sendButton' sendIcon
   QAbstractButton.setIcon requestButton receiveIcon
 
-  -- TODO implement corresponding functionality
+  -- Buttons will be shown once something is selected
   QWidget.hide sendButton'
   QWidget.hide requestButton
 
@@ -156,8 +158,9 @@ initWalletInfo langFace itemModel selectionModel = do
   walletInfo <- QWidget.new
   QWidget.setLayout walletInfo infoLayout
 
-  currentItemType <- newIORef Nothing
+  currentItem <- newIORef Nothing
   currentItemName <- newIORef ""
+  requestDialog <- newIORef Nothing
 
   connect_ sendButton QAbstractButton.clickedSignal $
     sendClicked langFace WalletInfo{..}
@@ -165,6 +168,8 @@ initWalletInfo langFace itemModel selectionModel = do
     addAccountClicked langFace WalletInfo{..}
   connect_ deleteItemButton QAbstractButton.clickedSignal $
     deleteItemClicked langFace WalletInfo{..}
+  connect_ requestButton QAbstractButton.clickedSignal $
+    requestButtonClicked langFace WalletInfo{..}
 
   return (walletInfo, WalletInfo{..})
 
@@ -182,6 +187,7 @@ data WalletInfoEvent
   = WalletInfoSelectionChange UiSelectionInfo
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
+  | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
 
 handleWalletInfoEvent
   :: UiLangFace
@@ -191,20 +197,26 @@ handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      let (itemName, (balance, unit), isWallet) =
+      let (itemName, (balance, unit), item) =
             case selectionInfo of
-              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, True)
-              UiSelectionAccount UiAccountInfo{..} -> (uaciLabel, uaciBalance, False)
+              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, WIWallet uwiAccounts)
+              UiSelectionAccount uaci@UiAccountInfo{..} -> (uaciLabel, uaciBalance, WIAccount uaci)
 
       QLabel.setText itemNameLabel . toString . toUpper . fromMaybe "" $ itemName
-      QLabel.setText balanceLabel $ toString $ balance <> " " <> unitToHtml unit
-
-      QWidget.setVisible createAccountButton isWallet
+      QLabel.setText balanceLabel $ toString $ formatBalance balance unit
+      case item of
+        WIWallet accounts -> do
+          QWidget.setVisible createAccountButton True
+          QWidget.setVisible requestButton $ not $ null accounts
+        WIAccount _ -> do
+          QWidget.setVisible createAccountButton False
+          QWidget.setVisible requestButton True
       QWidget.setVisible deleteItemButton True
 
-      writeIORef currentItemType $ Just $ if isWallet then WIWallet else WIAccount
+      writeIORef currentItem $ Just item
       -- `itemNameLabel` stores capitalized text, but we need the original for delete dialog
       writeIORef currentItemName $ fromMaybe "" itemName
+
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
@@ -222,9 +234,11 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiNewAccountCommandFailure err -> do
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
-unitToHtml :: UiCurrency -> Text
-unitToHtml ADA = "<img src=':/images/ada-symbol-big-dark.png'>"
-unitToHtml Lovelace = "Lovelace"
+    WalletInfoNewAddressCommandResult _commandId result -> case result of
+      UiNewAddressCommandSuccess wIdx aIdx address -> do
+        whenJustM (readIORef requestDialog) $ \req -> addNewAddress req wIdx aIdx address
+      UiNewAddressCommandFailure err ->
+        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
@@ -233,14 +247,29 @@ addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
 
 deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
-  whenJustM (readIORef currentItemType) $ \itemType -> do
+  whenJustM (readIORef currentItem) $ \item -> do
     let
-      delItemType = case itemType of
-        WIWallet -> DelWallet
-        WIAccount -> DelAccount
+      delItemType = case item of
+        WIWallet _ -> DelWallet
+        WIAccount _ -> DelAccount
 
     itemName <- readIORef currentItemName
     result <- runDelete delItemType itemName
 
     when (result == DoDelete) $ do
       void $ langPutUiCommand UiRemoveCurrentItem
+
+requestButtonClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+requestButtonClicked langFace WalletInfo{..} _checked = do
+  req <- readIORef requestDialog
+  case req of
+    Just _ -> return ()
+    Nothing ->
+      whenJustM (readIORef currentItem) $ \item -> do
+        let
+          accounts = case item of
+            WIWallet uacis -> RequestAccountsMulti uacis
+            WIAccount uaci -> RequestAccountsSingle uaci
+        req' <- startRequest langFace onClosed accounts
+        writeIORef requestDialog $ Just req'
+  where onClosed = writeIORef requestDialog Nothing

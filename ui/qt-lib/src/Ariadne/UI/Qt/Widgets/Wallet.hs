@@ -5,8 +5,6 @@ module Ariadne.UI.Qt.Widgets.Wallet
        , handleWalletEvent
        ) where
 
-import Universum
-
 import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
@@ -108,7 +106,9 @@ handleWalletEvent langFace ev = do
     WalletNewAccountCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAccountCommandResult commandId result
-    WalletNewAddressCommandResult _ _ -> return ()
+    WalletNewAddressCommandResult commandId result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoNewAddressCommandResult commandId result
 
 updateModel
   :: QStandardItemModel.QStandardItemModel
