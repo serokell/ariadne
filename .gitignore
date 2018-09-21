@@ -13,17 +13,8 @@ cabal.project.local
 # Stack
 .stack-work
 
-# Emacs
-TAGS
-.dir-locals.el
-
-# Vim
-tags
-*.swp
-
-# Intellij
-*.iml
-.idea/
+# Nix
+result*
 
 # Runtime
 node-db/
