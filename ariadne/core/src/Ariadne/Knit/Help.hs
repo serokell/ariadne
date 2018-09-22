@@ -1,5 +1,7 @@
 module Ariadne.Knit.Help (generateKnitHelp) where
 
+import qualified Universum.Unsafe as Unsafe (tail)
+
 import NType (AllConstrained, KnownSpine)
 
 import qualified Data.List as List
@@ -16,7 +18,7 @@ generateKnitHelp _ =
   let
     procs = Knit.commandProcs @components
     sortedProcs = sortBy (\(Knit.SomeCommandProc p) (Knit.SomeCommandProc p') -> compare (Knit.cpName p) (Knit.cpName p')) procs
-  in fmap (PP.text . Text.unpack) $ Text.lines $ mkHelpMessage sortedProcs
+  in fmap (PP.text . toString) $ lines $ mkHelpMessage sortedProcs
 
 commandHelp :: Knit.CommandProc components component -> Text
 commandHelp Knit.CommandProc{..} =
@@ -82,19 +84,19 @@ appendLine line1 line2 =
     (lineWords line1 <>    lineWords line2)
 
 nonEmptyTails :: NonEmpty a -> NonEmpty [a]
-nonEmptyTails = NonEmpty.fromList . List.tail . List.tails . NonEmpty.toList
+nonEmptyTails = NonEmpty.fromList . Unsafe.tail . tails . NonEmpty.toList
 
 leftAlign :: Int -> Text -> [Text]
 leftAlign desiredLineWidth =
     fmap mergeLine . groupWords . List.map initLine . words
   where
     groupWords :: [Line] -> [Line]
-    groupWords = List.unfoldr (fmap @Maybe groupWords' . nonEmpty)
+    groupWords = unfoldr (fmap @Maybe groupWords' . nonEmpty)
 
     groupWords' :: NonEmpty Line -> (Line, [Line])
     groupWords' ls =
-        fromMaybe (NonEmpty.head groupings) $
-            NonEmpty.last <$> nonEmpty goodGroupings
+        fromMaybe (head groupings) $
+            last <$> nonEmpty goodGroupings
       where
         goodGroupings = NonEmpty.takeWhile (fits . fst) groupings
         groupings =

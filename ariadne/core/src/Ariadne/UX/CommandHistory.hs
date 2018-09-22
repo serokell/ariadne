@@ -92,4 +92,4 @@ resetCurrentCommandId ch =
     queryResult <- query_ conn "SELECT COALESCE(MAX(id), 0) FROM history" :: IO [[Int]]
     case queryResult of
       [[maxId]] -> writeIORef (currentCommandId ch) (maxId + 1)
-      _ -> return ()
+      _ -> pass

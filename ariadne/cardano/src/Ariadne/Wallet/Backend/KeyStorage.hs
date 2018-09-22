@@ -199,11 +199,11 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
 
     checkAccId :: HdAccountId -> IO ()
     checkAccId accId =
-      eitherToThrow $ readHdAccount accId hdWallets >> return ()
+      void $ eitherToThrow $ readHdAccount accId hdWallets
 
     checkParentRoot :: HdAccountId -> IO ()
     checkParentRoot accId =
-      eitherToThrow $ readHdRoot (accId ^. hdAccountIdParent) hdWallets >> return ()
+      void $ eitherToThrow $ readHdRoot (accId ^. hdAccountIdParent) hdWallets
 
 refreshState
   :: PassiveWalletLayer IO
@@ -405,7 +405,7 @@ renameSelection
 renameSelection pwl WalletFace{..} walletSelRef name = do
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
-    Nothing -> pure ()
+    Nothing -> pass
     Just selection -> case selection of
       WSRoot hdrId ->
         throwLeftIO $ void <$> pwlUpdateWalletName pwl hdrId (WalletName name)
@@ -423,7 +423,7 @@ throwLeftIO ioEith = ioEith >>= eitherToThrow
 mkUntitled :: Text -> Vector Text -> Text
 mkUntitled untitled namesVec = do -- no monad
   let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
-      numbers = V.mapMaybe ((readMaybe @Natural) . T.unpack) untitledSuffixes
+      numbers = V.mapMaybe ((readMaybe @Natural) . toString) untitledSuffixes
   if null untitledSuffixes || null numbers
       then untitled <> "0"
       else untitled <> (show $ (maximum numbers) + 1)

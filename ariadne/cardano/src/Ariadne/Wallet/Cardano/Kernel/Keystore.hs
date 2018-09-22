@@ -33,7 +33,6 @@ import Prelude hiding (toList)
 
 import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)
-import Control.Monad.Trans.Identity (IdentityT(..), runIdentityT)
 import qualified Data.Map as Map
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO (hClose, openTempFile)
@@ -132,7 +131,7 @@ newLegacyKeystore us = Keystore <$> newMVar (InternalStorage us)
 bracketLegacyKeystore :: UserSecret -> (Keystore -> IO a) -> IO a
 bracketLegacyKeystore us withKeystore =
     bracket (newLegacyKeystore us)
-            (\_ -> return ()) -- Leave teardown to the legacy wallet
+            (\_ -> pass) -- Leave teardown to the legacy wallet
             withKeystore
 
 bracketTestKeystore :: (Keystore -> IO a) -> IO a
@@ -166,7 +165,7 @@ releaseKeystore dp (Keystore ks) =
     withMVar ks $ \internalStorage@(InternalStorage us) -> do
         fp <- release internalStorage
         case dp of
-             KeepKeystoreIfEmpty   -> return ()
+             KeepKeystoreIfEmpty   -> pass
              RemoveKeystoreIfEmpty ->
                  when (isEmptyUserSecret us) $ removeFile fp
 

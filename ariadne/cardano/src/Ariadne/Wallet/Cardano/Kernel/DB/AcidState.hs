@@ -152,13 +152,13 @@ newPending accountId tx = runUpdate' . zoom dbHdWallets $ do
 -- transactions for all the wallets managed by this edge node.
 cancelPending :: Map HdAccountId (InDb (Set Txp.TxId)) -> Update DB ()
 cancelPending cancelled = void . runUpdate' . zoom dbHdWallets $
-    forM_ (Map.toList cancelled) $ \(accountId, InDb txids) ->
+    forM_ (toPairs cancelled) $ \(accountId, InDb txids) ->
         -- Here we are deliberately swallowing the possible exception
         -- returned by the wrapped 'zoom' as the only reason why this update
         -- might fail is if, in the meantime, the target account was cancelled,
         -- in which case we do want the entire computation to abort, but simply
         -- skip cancelling the transactions for the account that has been removed.
-        handleError (\(_e :: UnknownHdAccount) -> return ()) $
+        handleError (\(_e :: UnknownHdAccount) -> pass) $
             zoomHdAccountId identity accountId $ do
               modify' (over hdAccountCheckpoints (Spec.cancelPending txids))
     where
@@ -290,7 +290,7 @@ createHdAccount accId prefilteredUtxo accountName = runUpdate' . zoom dbHdWallet
     -- @createAccPrefiltered@ by passing a handler there (instead of
     -- @assumeHdRootExists@), but it has too many parameters already.
     zoomHdRootId HD.CreateHdAccountUnknownRoot rootId $
-        return ()
+        pass
 
     createAccPrefiltered
         identity
@@ -355,7 +355,7 @@ createPrefiltered :: forall p e.
                   -> Map HdAccountId AccountName
                   -> Update' HdWallets e ()
 createPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP pByAccount accountNames =
-    forM_ (Map.toList pByAccount) $ \(accId, p) ->
+    forM_ (toPairs pByAccount) $ \(accId, p) ->
         createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
             (accountNames ^. at accId)
 
@@ -373,7 +373,7 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
     let prefilteredUtxo :: PrefilteredUtxo
         prefilteredUtxo = mkPrefilteredUtxo p
         accUtxo :: Utxo
-        accUtxo = Map.unions $ Map.elems prefilteredUtxo
+        accUtxo = Map.unions $ elems prefilteredUtxo
 
     -- apply the update to the account
     let newAccount = HD.initHdAccount accId accountName (firstAccCheckpoint accUtxo)
@@ -384,7 +384,7 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
         (accApplyP p)
 
     -- create addresses (if they don't exist)
-    forM_ (Map.toList prefilteredUtxo) $ \(addrWithId@(addressId, address), addrUtxo) ->
+    forM_ (toPairs prefilteredUtxo) $ \(addrWithId@(addressId, address), addrUtxo) ->
         zoomOrCreateHdAddress
             assumeHdAccountExists -- we created it above
             (newAddress addressId address addrUtxo)

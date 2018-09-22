@@ -82,7 +82,7 @@ initWalletTree langFace uiWalletFace itemModel selectionModel = do
 addWalletClicked :: UiLangFace -> UiWalletFace -> WalletTree -> Bool -> IO ()
 addWalletClicked langFace@UiLangFace{..} uiWalletFace walletTree@WalletTree{..} _checked =
   runNewWallet >>= \case
-    NewWalletCanceled -> return ()
+    NewWalletCanceled -> pass
     NewWalletAccepted NewWalletParameters{..} ->
       case nwSpecifier of
         NewWalletName -> doCreateNewWallet langFace uiWalletFace walletTree nwName nwPassword

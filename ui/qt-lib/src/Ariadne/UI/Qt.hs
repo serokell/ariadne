@@ -87,6 +87,7 @@ mkUiFace eventBQueue dispatcherIORef =
         whenJustM (readIORef dispatcherIORef) postEventToQt
     }
 
+{-# ANN qtEventSubLoop ("HLint: ignore Redundant return" :: Text) #-}
 qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
 qtEventSubLoop _ _ 0 = return $ Right ()
 qtEventSubLoop eventBQueue handler depth = do

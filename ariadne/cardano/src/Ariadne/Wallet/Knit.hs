@@ -106,7 +106,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
       CommandProc
         { cpName = refreshStateCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
             walletRefreshState
             return $ toValue ValueUnit
@@ -234,7 +234,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = balanceCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
             toValue . ValueCoin <$> walletBalance
         , cpHelp = "Get balance of the currently selected item"
@@ -251,7 +251,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = removeCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
             walletRemove
             return $ toValue ValueUnit
@@ -266,7 +266,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         in CommandProc
           { cpName = name
           , cpArgumentPrepare = id
-          , cpArgumentConsumer = pure ()
+          , cpArgumentConsumer = pass
           , cpRepr = \() -> CommandAction $ \_ ->
               pure (toValue (ValueInputSelectionPolicy policy))
           , cpHelp =

@@ -37,7 +37,7 @@ import Database.SQLite.Simple.FromField (FromField(..), returnError)
 import qualified Database.SQLite.SimpleErrors as Sqlite
 import qualified Database.SQLite.SimpleErrors.Types as Sqlite
 
-import Control.Exception (throwIO, toException)
+import Control.Exception (throwIO)
 import Control.Lens (Getter)
 import qualified Data.Foldable as Foldable
 import qualified Data.Map as M
@@ -331,7 +331,7 @@ putTxMeta conn txMeta =
             SQL.runInsert $ SQL.insert (_mDbOutputs metaDB) $ SQL.insertValues (toList outputs)
         case res of
              Left e   -> handleResponse e
-             Right () -> return ()
+             Right () -> pass
     where
         -- Handle the 'SQLiteResponse', rethrowing the exception or turning
         -- \"controlled failures\" (like the presence of a duplicated
@@ -371,7 +371,7 @@ putTxMeta conn txMeta =
                              -- both "hashes" matched, this is genuinely the
                              -- same 'Tx' being inserted twice, probably as
                              -- part of a rollback.
-                             return ()
+                             pass
 
                 _ -> throwIO $ Kernel.StorageFailure (toException e)
 

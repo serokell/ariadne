@@ -3,7 +3,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
   , runConfirmMnemonic
   ) where
 
-import qualified Data.Text as T
 import Formatting
 
 import Graphics.UI.Qtah.Signal (connect_)
@@ -195,7 +194,7 @@ doAction confirm@ConfirmMnemonic{..} _checked = do
 
 isRetypedMnemonicCorrect :: ConfirmMnemonic -> IO Bool
 isRetypedMnemonicCorrect ConfirmMnemonic{..} = do
-  retyped <- T.words . fromString <$> QLineEdit.text retypeMnemonic
+  retyped <- words . fromString <$> QLineEdit.text retypeMnemonic
   return $ retyped == mnemonic
 
 isValid :: ConfirmMnemonic -> IO Bool
@@ -204,8 +203,7 @@ isValid confirm@ConfirmMnemonic{..} = do
 
   case currentState of
     Before -> do
-      isNoOneLooks <- QAbstractButton.isChecked noOneLooks
-      return isNoOneLooks
+      QAbstractButton.isChecked noOneLooks
     DisplayMnemonic -> do
       return True
     RetypeMnemonic -> do

@@ -104,6 +104,7 @@ renderLine start end str = text str
 renderFullLine :: Text -> Doc
 renderFullLine str = renderLine 0 (T.length str) str
 
+{-# ANN ppParseError ("HLint: ignore Functor law" :: Text) #-}
 ppParseError
   :: AllConstrained ComponentPrinter components
   => ParseError components

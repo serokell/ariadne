@@ -73,7 +73,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       WidgetEventEditChanged -> do
         reparse
         historyUpdate
-      _ -> return ()
+      _ -> pass
 
     setWidgetFocusList [WidgetNameReplInput]
 
@@ -188,7 +188,7 @@ handleReplWidgetKey = \case
       ReplWidgetState{..} <- get
       if
         | null replWidgetCommand ->
-            return ()
+            pass
         | isQuitCommand replWidgetCommand ->
             liftIO $ putUiEvent replWidgetUiFace $ UiCommandAction UiCommandQuit
         | otherwise -> do
@@ -240,7 +240,7 @@ handleReplWidgetEvent = \case
             liftBrick $ do
               B.invalidateCacheEntry widgetName
               scrollToEnd widgetName
-    _ -> return ()
+    _ -> pass
 
 reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do

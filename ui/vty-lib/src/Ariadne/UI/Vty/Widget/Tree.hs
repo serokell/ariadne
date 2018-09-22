@@ -5,12 +5,11 @@ module Ariadne.UI.Vty.Widget.Tree
        ) where
 
 import Control.Lens (ix, makeLensesWith, uses, (.=))
-import Data.List (findIndex, intercalate)
+import Data.List (findIndex)
 import Data.Tree (Tree(..))
 import Serokell.Util (enumerate)
 
 import qualified Brick as B
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
@@ -172,7 +171,7 @@ handleTreeWidgetKey key = if
         whenJustM (modifiedPath True) performSelect
         return WidgetEventHandled
     | key `elem` [KeyLeft, KeyChar 'h'] -> do
-        defaultPath $ \p -> if length p == 1 then toList p else NE.init p
+        defaultPath $ \p -> if length p == 1 then toList p else init p
         return WidgetEventHandled
     | key `elem` [KeyRight, KeyChar 'l'] -> do
         defaultPath $ (++ [0]) . toList
@@ -213,7 +212,7 @@ handleTreeWidgetEvent = \case
     treeItemsL .= items
     treeSelectionL .= findIndex treeItemSelected items
   _ ->
-    return ()
+    pass
 
 ----------------------------------------------------------------------------
 -- Actions

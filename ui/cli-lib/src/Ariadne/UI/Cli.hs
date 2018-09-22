@@ -4,7 +4,7 @@ module Ariadne.UI.Cli
        ) where
 
 import Control.Monad.Component (ComponentM, buildComponent_)
-import Data.Text (strip, unlines)
+import Data.Text (strip)
 
 import qualified System.Console.Haskeline as Haskeline
 
@@ -69,7 +69,7 @@ isQuitCommand :: Text -> Bool
 isQuitCommand t = strip t `elem` ["quit", "q", ":quit", ":q"]
 
 isHelpCommand :: Text -> Bool
-isHelpCommand t = strip t `elem` ["help"]
+isHelpCommand t = strip t == "help"
 
 outputTextLn :: Text -> Repl ()
 outputTextLn = Haskeline.outputStrLn . toString
@@ -83,4 +83,4 @@ loop :: Monad m => m LoopDecision -> m ()
 loop step = fix $ \go ->
     step >>= \case
         Continue -> go
-        Stop -> return ()
+        Stop -> pass

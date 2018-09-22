@@ -200,7 +200,7 @@ generateClicked UiLangFace{..} req@Request{..} = whenJustM (readIORef currentAcc
 
 handleResult :: Request -> Either Text UiCommandId -> IO ()
 handleResult Request{..} (Left msg) = void $ QMessageBox.critical request ("Error" :: String) $ toString msg
-handleResult _ _ = return ()
+handleResult _ _ = pass
 
 addNewAddress :: Request -> Word -> Word -> Text -> IO ()
 addNewAddress Request{..} wIdx aIdx address = for_ accountWidgets updateAccountWidget
@@ -208,7 +208,7 @@ addNewAddress Request{..} wIdx aIdx address = for_ accountWidgets updateAccountW
     updateAccountWidget :: RequestAccountWidget -> IO ()
     updateAccountWidget RequestAccountWidget{..}
       | (rawWIdx, rawAIdx) == (wIdx, aIdx) = doUpdate rawLayout
-      | otherwise = return ()
+      | otherwise = pass
 
     doUpdate :: QVBoxLayout.QVBoxLayout -> IO ()
     doUpdate layout = createAddressRow layout address ("0", ADA)

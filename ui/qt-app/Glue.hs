@@ -78,13 +78,13 @@ knitFaceToUI UiFace{..} KnitFace{..} =
 
     putUiCommand op = case opToExpr op of
       Left err -> return $ Left err
-      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
+      Right expr -> Right <$> putCommand (uiCommandHandle op) expr
     uiCommandHandle op commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (resultToUI result op) $
             putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \_ _ ->
-          return ()
+          pass
       }
 
     opToExpr = \case

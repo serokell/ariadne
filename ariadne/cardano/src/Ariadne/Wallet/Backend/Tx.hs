@@ -6,7 +6,6 @@ module Ariadne.Wallet.Backend.Tx
 
 import Prelude hiding (list)
 
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
@@ -142,7 +141,7 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRe
         ourAddresses <-
             maybeThrow
                 (SendTxNoAddresses walletRootId)
-                (nonEmpty $ HM.keys signersMap)
+                (nonEmpty $ keys signersMap)
         -- We pick one of the accounts to generate change address in it.
         ourAccount <-
             maybeThrow

@@ -3,9 +3,10 @@ module Ariadne.UI.Vty.Widget.Menu
        , initMenuWidget
        ) where
 
+import qualified Universum.Unsafe as Unsafe (fromJust)
+
 import Control.Lens (makeLensesWith)
 import Data.Char (toLower)
-import Data.Maybe (fromJust)
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -130,7 +131,7 @@ handleMenuWidgetKey key = do
     rotate dir = do
       selection <- useWidgetLens menuWidgetSelectionLens
       assignWidgetLens menuWidgetSelectionLens $
-        fromJust . B.focusGetCurrent . dir . B.focusSetCurrent selection $ menuWidgetFocusRing
+        Unsafe.fromJust . B.focusGetCurrent . dir . B.focusSetCurrent selection $ menuWidgetFocusRing
       return WidgetEventHandled
     done = do
       widgetEvent WidgetEventMenuSelected

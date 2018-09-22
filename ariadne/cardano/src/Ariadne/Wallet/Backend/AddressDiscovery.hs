@@ -27,7 +27,7 @@ discoverHDAddressWithUtxo ::
     => HDPassphrase
     -> m AddressWithPathToUtxoMap
 discoverHDAddressWithUtxo walletPassphrase =
-    NE.head <$> discoverHDAddressesWithUtxo (one walletPassphrase)
+    head <$> discoverHDAddressesWithUtxo (one walletPassphrase)
 
 -- | This is heavily based on @Pos.Crypto.HDDiscovery.discoverHDAddresses@.
 discoverHDAddressesWithUtxo

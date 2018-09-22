@@ -110,9 +110,8 @@ createHdSeqAccount accountName _esk rootId pw = runExceptT $ go 0
             $ readAccountsByRootId rootId $ snapshot ^. dbHdWallets
 
         newIndex <- liftEither $
-            maybe
-            (Left (CreateAccountHdSeqAccountSpaceSaturated rootId))
-            Right
+            maybeToRight
+            (CreateAccountHdSeqAccountSpaceSaturated rootId)
             $ mkHdAccountIx hdAccounts
 
         let hdAccountId = HdAccountId rootId newIndex

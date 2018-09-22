@@ -136,7 +136,7 @@ readHdRoot :: HdRootId -> HdQueryErr UnknownHdRoot HdRoot
 readHdRoot rootId = aux . view (at rootId) . readAllHdRoots
   where
     aux :: Maybe a -> Either UnknownHdRoot a
-    aux = maybe (Left (UnknownHdRoot rootId)) Right
+    aux = maybeToRight (UnknownHdRoot rootId)
 
 -- | Look up the specified account
 readHdAccount :: HdAccountId -> HdQueryErr UnknownHdAccount HdAccount
@@ -161,7 +161,7 @@ readHdAddress :: HdAddressId -> HdQueryErr UnknownHdAddress HdAddress
 readHdAddress addrId = aux . view (at addrId) . readAllHdAddresses
   where
     aux :: Maybe a -> Either UnknownHdAddress a
-    aux = maybe (Left (UnknownHdAddress addrId)) Right
+    aux = maybeToRight (UnknownHdAddress addrId)
 
 -- | Look up the specified address by its associated Cardano's 'Address'.
 readHdAddressByCardanoAddress :: Address -> HdQueryErr UnknownHdAddress HdAddress

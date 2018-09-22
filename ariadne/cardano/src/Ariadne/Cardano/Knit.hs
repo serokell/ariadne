@@ -98,7 +98,7 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
         toParsecError . fmap unsafeCheatingHashCoerce $ decodeAbstractHash str
       pCoin :: Tokenizer Scientific
       pCoin = do
-        n <- P.signed (return ()) P.scientific
+        n <- P.signed pass P.scientific
         u <- (adaMultiplier <$ P.string' "ADA") <|> (1 <$ P.string' "Lovelace")
 
         return (u * n)

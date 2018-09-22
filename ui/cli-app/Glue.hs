@@ -16,7 +16,6 @@ module Glue
        ) where
 
 import Control.Exception (displayException)
-import Data.Text (pack)
 import Data.Unique
 import Data.Version (Version)
 import NType (AllConstrained, KnownSpine)
@@ -69,7 +68,7 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdTaskIdRendered = fmap (\(TaskId i) -> pack $ '<' : show i ++ ">") mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> toText $ '<' : show i ++ ">") mi
     , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 
@@ -101,18 +100,18 @@ knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput 
 ----------------------------------------------------------------------------
 
 putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
-putCardanoEventToUI _ _ = return ()
+putCardanoEventToUI _ _ = pass
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
-putWalletEventToUI _ _ = return ()
+putWalletEventToUI _ _ = pass
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend
 ----------------------------------------------------------------------------
 
 putUpdateEventToUI :: UiFace -> Version -> Text -> IO ()
-putUpdateEventToUI _ _ _ = return ()
+putUpdateEventToUI _ _ _ = pass

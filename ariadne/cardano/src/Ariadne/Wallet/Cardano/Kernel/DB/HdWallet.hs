@@ -560,13 +560,13 @@ zoomOrCreateHdAddress checkAccountExists newAddress addrId upd = do
 --
 -- Helper function which can be used as an argument to 'zoomOrCreateHdAccount'
 assumeHdRootExists :: HdRootId -> Update' HdWallets e ()
-assumeHdRootExists _id = return ()
+assumeHdRootExists _id = pass
 
 -- | Assume that the given HdAccount exists
 --
 -- Helper function which can be used as an argument to 'zoomOrCreateHdAddress'
 assumeHdAccountExists :: HdAccountId -> Update' HdWallets e ()
-assumeHdAccountExists _id = return ()
+assumeHdAccountExists _id = pass
 
 {-------------------------------------------------------------------------------
   Pretty printing

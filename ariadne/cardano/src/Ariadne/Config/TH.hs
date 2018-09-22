@@ -1,6 +1,5 @@
 module Ariadne.Config.TH (getCommitHash) where
 
-import Control.Exception.Safe (tryAny)
 import Data.Char (isSpace)
 import Formatting (sformat, string, (%))
 import Language.Haskell.TH (ExpQ, litE, runIO, stringL)

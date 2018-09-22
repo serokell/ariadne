@@ -131,7 +131,7 @@ walletWorker chan ops = do
     where
         tick :: StateT (WalletWorkerState b) IO ()
         tick = lift (readChan chan) >>= \case
-            Shutdown -> return ()
+            Shutdown -> pass
             msg      -> interp ops msg >> tick
 
 -- | Connect a wallet action interpreter to a stream of actions.
