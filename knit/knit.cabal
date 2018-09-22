@@ -50,6 +50,7 @@ library
       Knit.Procedure
       Knit.Tokenizer
       Knit.Parser
+      Knit.ParseTreeExt
       Knit.DisplayError
       Knit.Printer
   default-language:
