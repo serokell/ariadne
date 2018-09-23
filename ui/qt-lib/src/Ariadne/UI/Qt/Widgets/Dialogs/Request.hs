@@ -117,7 +117,7 @@ createAccountWidgets layout (RequestAccountsMulti uacis) = forM uacis $ \uaci@Ui
   QBoxLayout.addWidget layout widget
   QWidget.hide widget
 
-  void $ setProperty header ("styleRole" :: String) ("receiveAccordionHeader" :: String)
+  setProperty header ("styleRole" :: String) ("receiveAccordionHeader" :: String)
   -- This is needed to put the icon right of the text
   QWidget.setLayoutDirection header RightToLeft
   -- Right is actually Left due to layoutDirection = RightToLeft
@@ -152,7 +152,7 @@ createAddressRow parentLayout address (balance, unit) = do
   QBoxLayout.addWidget rightLayout copyButton
 
   void $ QLayout.setWidgetAlignment rightLayout balanceLabel $ alignRight .|. alignVCenter
-  void $ setProperty copyButton ("styleRole" :: String) ("copyAddressButton" :: String)
+  setProperty copyButton ("styleRole" :: String) ("copyAddressButton" :: String)
   QAbstractButton.setIcon copyButton =<< QIcon.newWithFile (":/images/clipboard-small-ic.png" :: String)
   QWidget.setSizePolicyRaw copyButton Maximum Preferred
 

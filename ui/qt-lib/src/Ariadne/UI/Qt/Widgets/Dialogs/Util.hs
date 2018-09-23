@@ -36,7 +36,7 @@ addHeader layout header = do
   void $ QLayout.setWidgetAlignment layout header $ alignHCenter .|. alignVCenter
   QBoxLayout.addSpacing layout 24
 
-  void $ setProperty header ("styleRole" :: Text) ("dialogHeader" :: Text)
+  setProperty header ("styleRole" :: Text) ("dialogHeader" :: Text)
 
 createRowLayout :: IO QHBoxLayout.QHBoxLayout
 createRowLayout = do
@@ -70,8 +70,8 @@ addSeparator :: QVBoxLayout.QVBoxLayout -> IO ()
 addSeparator layout = do
   separator <- QFrame.new
   QFrame.setFrameShape separator QFrame.HLine
-  void $ setProperty separator ("styleRole" :: Text) ("separator" :: Text)
-  void $ setProperty separator ("orientation" :: Text) ("horizontal" :: Text)
+  setProperty separator ("styleRole" :: Text) ("separator" :: Text)
+  setProperty separator ("orientation" :: Text) ("horizontal" :: Text)
 
   QBoxLayout.addWidget layout separator
 
