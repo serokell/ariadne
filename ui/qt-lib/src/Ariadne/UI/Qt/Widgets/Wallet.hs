@@ -99,9 +99,9 @@ handleWalletEvent langFace putPass ev = do
   case ev of
     WalletUpdateEvent wallets selection selectionInfo -> do
       lift $ updateModel itemModel selectionModel wallets selection
-      whenJust selectionInfo $
-        magnify walletInfoL . handleWalletInfoEvent langFace .
-          WalletInfoSelectionChange
+      magnify walletInfoL . handleWalletInfoEvent langFace $ case selectionInfo of
+        Just selectionInfo' -> WalletInfoSelectionChange selectionInfo'
+        Nothing -> WalletInfoDeselect
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
@@ -129,6 +129,11 @@ updateModel model selectionModel wallets selection = do
   rootRowCount <- QStandardItem.rowCount root
   mapM_ (\(idx, item) -> toModelItem root rootRowCount idx (idx, item)) $ enumerate wallets
   QStandardItem.removeRows root (length wallets) (rootRowCount - length wallets)
+  whenNothing_ selection $ do
+    -- Apparently in order for the QTreeView to drop selection, you need to do `clearSelection`
+    -- Doing `clearCurrentIndex` just in case
+    QItemSelectionModel.clearCurrentIndex selectionModel
+    QItemSelectionModel.clearSelection selectionModel
   where
     selPath = (\UiWalletTreeSelection{..} -> wtsWalletIdx:wtsPath) <$> selection
     toModelItem
