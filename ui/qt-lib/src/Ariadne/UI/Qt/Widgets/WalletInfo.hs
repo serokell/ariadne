@@ -77,7 +77,7 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   QLayout.setContentsMarginsRaw headerLayout 36 12 36 12
   QLayout.setSpacing headerLayout 36
 
-  itemNameLabel <- QLabel.newWithText ("Select something..." :: String)
+  itemNameLabel <- QLabel.newWithText $ toString selectSomethingText
   QObject.setObjectName itemNameLabel ("itemNameLabel" :: String)
   QLayout.addWidget headerLayout itemNameLabel
   QBoxLayout.addStretch headerLayout
@@ -154,6 +154,7 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
 
 data WalletInfoEvent
   = WalletInfoSelectionChange UiSelectionInfo
+  | WalletInfoDeselect
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
@@ -188,6 +189,15 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       -- `itemNameLabel` stores capitalized text, but we need the original for delete dialog
       writeIORef currentItemName $ fromMaybe "" itemName
 
+    WalletInfoDeselect -> do
+      QLabel.setText itemNameLabel $ toString selectSomethingText
+      QLabel.setText balanceLabel ("" :: String)
+      QWidget.hide createAccountButton
+      QWidget.hide requestButton
+      QWidget.hide deleteItemButton
+
+      writeIORef currentItem Nothing
+      writeIORef currentItemName ""
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
@@ -251,3 +261,6 @@ sendButtonClicked UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJust
     SendSuccess SendOptions{..} -> langPutUiCommand (UiSend wIdx soAccounts soAddress soAmount) >>= \case
       Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
       Right _ -> pass
+
+selectSomethingText :: Text
+selectSomethingText = "Select something..."
