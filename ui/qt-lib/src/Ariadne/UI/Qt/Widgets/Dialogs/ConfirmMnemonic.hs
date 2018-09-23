@@ -70,7 +70,7 @@ initConfirmMnemonic mnemonic = do
   QBoxLayout.addWidget layout noOneLooksWidget
 
   mnemonicWidget <- QLabel.new
-  void $ setProperty mnemonicWidget ("styleRole" :: Text) ("mnemonicDisplay" :: Text)
+  setProperty mnemonicWidget ("styleRole" :: Text) ("mnemonicDisplay" :: Text)
   QBoxLayout.addWidget layout mnemonicWidget
   QWidget.hide mnemonicWidget
 
@@ -101,9 +101,9 @@ initConfirmMnemonic mnemonic = do
   QBoxLayout.addWidget buttonsLayout actionButton
   QBoxLayout.addLayout layout buttonsLayout
 
-  void $ setProperty clearButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
-  void $ setProperty actionButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
-  void $ setProperty clearButton ("styleRole" :: Text) ("secondaryButton" :: Text)
+  setProperty clearButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  setProperty actionButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  setProperty clearButton ("styleRole" :: Text) ("secondaryButton" :: Text)
 
   QWidget.hide clearButton
 

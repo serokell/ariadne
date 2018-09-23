@@ -77,7 +77,7 @@ createPasswordField placeholder = do
   QLineEdit.setPlaceholderText field $ toString placeholder
 
   visibleButton <- QPushButton.new
-  void $ setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
+  setProperty visibleButton ("styleRole" :: Text) ("passwordVisibilityToggle" :: Text)
   QAbstractButton.setIcon visibleButton =<< QIcon.newWithFile (":/images/hide-pass-ic.png" :: String)
   QAbstractButton.setCheckable visibleButton True
   QWidget.setSizePolicyRaw visibleButton Maximum Maximum
@@ -121,7 +121,7 @@ initNewWallet = do
 
   addHeader layout modeSelector
   void $ QLayout.setWidgetAlignment layout modeSelector $ alignHCenter .|. alignVCenter
-  void $ setProperty modeSelector ("styleRole" :: Text) ("dialogHeader" :: Text)
+  setProperty modeSelector ("styleRole" :: Text) ("dialogHeader" :: Text)
 
   walletNameLabel <- QLabel.newWithText ("<b>WALLET NAME</b>" :: String)
   walletName <- QLineEdit.new
@@ -176,7 +176,7 @@ initNewWallet = do
   QWidget.setSizePolicyRaw createButton Maximum Preferred
   QBoxLayout.addWidget layout createButton
   void $ QLayout.setWidgetAlignment layout createButton $ alignHCenter .|. alignVCenter
-  void $ setProperty createButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  setProperty createButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
 
   QBoxLayout.addStretch layout
 

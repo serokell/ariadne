@@ -117,7 +117,7 @@ initWalletInfo langFace itemModel selectionModel = do
   accountControls <- QVBoxLayout.new
   sendButton' <- QPushButton.newWithText (" SEND" :: String)
   requestButton <- QPushButton.newWithText (" REQUEST" :: String)
-  void $ setProperty requestButton ("styleRole" :: Text) ("secondaryButton" :: Text)
+  setProperty requestButton ("styleRole" :: Text) ("secondaryButton" :: Text)
 
   sendIcon <- QIcon.newWithFile (":/images/send-ic.png" :: String)
   receiveIcon <- QIcon.newWithFile (":/images/receive-ic.png" :: String)
