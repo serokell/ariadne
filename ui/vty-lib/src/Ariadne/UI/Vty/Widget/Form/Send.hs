@@ -141,8 +141,10 @@ drawSendWidget focus SendWidgetState{..} = do
           (drawOutput <$> Map.keys sendOutputs) ++
           [drawOutputsFooter]
       , label "Estimated fee:" B.<+> case sendFeeResult of
+          FeeResultNone -> B.emptyWidget
+          FeeResultWaiting _ -> B.txt "Calculating fee..."
+          FeeResultError err -> B.txt err
           FeeResultSuccess fee -> B.txt fee
-          _ -> B.emptyWidget
       , label "Passphrase:" B.<+> drawChild WidgetNameSendPass
       , label "" B.<+> drawChild WidgetNameSendButton
       , case sendResult of

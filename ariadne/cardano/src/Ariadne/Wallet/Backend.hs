@@ -117,6 +117,9 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 , walletSend =
                     sendTx awl this cardanoFace walletSelRef putCommandOutput
                         getPassPhrase voidWrongPass waitUiConfirm
+                , walletFee = \walletRef accRefs _ txOuts -> do
+                    accountIds <- allAccountIds pwl walletSelRef walletRef accRefs
+                    pwlEstimateFees pwl accountIds txOuts
                 , walletBalance = getBalance pwl walletSelRef
                 , walletSumCoins = \amounts -> return $ unsafeIntegerToCoin $ sumCoins amounts
                 }
