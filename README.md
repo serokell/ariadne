@@ -117,6 +117,37 @@ Ariadne TUI can be built and works on Linux and macOS.
 
 Qt GUI only works on Linux. Windows and macOS will be supported soon.
 
+### Build using Nix
+
+Install Nix with [NixOS/nix#2409][] patch:
+
+```sh
+nix-env -f https://github.com/serokell/nixpkgs/archive/master.tar.gz -iA nix
+```
+
+[Nix]: https://nixos.org/nix/
+[NixOS/nix#2409]: https://github.com/NixOS/nix/pull/2409
+
+Set up Serokell binary cache so that you don't have to build dependencies:
+
+```sh
+sudo $(nix-build closure.nix -A cachix --no-out-link)/bin/cachix use serokell
+```
+
+If you are on a single-user Nix install (`nix-shell -p nix-info --run nix-info`
+should say `multi-user?: no`), omit `sudo` in the command above.
+
+If you are on NixOS, make sure to add `https://cache.nixos.org` to `nix.binaryCaches`,
+otherwise main Nix binary cache stops working. See [cachix/cachix#128][].
+
+[cachix/cachix#128]: https://github.com/cachix/cachix/pull/128
+
+For production builds, run `nix-build`.
+
+For incremental builds, run `nix-shell`. Then, use either `stack build` or
+`cabal new-build all` as you normally would. This will only build local packages,
+all dependencies are managed by Nix.
+
 ### Build using Stack
 
 1. Install [Stack](https://docs.haskellstack.org/en/stable/README/).
