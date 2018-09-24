@@ -1,8 +1,8 @@
-{ pkgs ? import ./closure.nix, root ? ./., shell ? false }: with pkgs;
+{ pkgs ? import ./closure.nix, shell ? false }: with pkgs;
 
 stackToNix {
   # TODO: implement filtering in stack-to-nix
-  root = lib.cleanSource root;
+  root = lib.cleanSource ./.;
 
   inherit shell;
 
