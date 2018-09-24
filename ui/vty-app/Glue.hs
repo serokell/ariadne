@@ -22,6 +22,7 @@ module Glue
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
+import Data.Text (pack)
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
@@ -118,9 +119,19 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             optString "pass" usaPassphrase
           )
       UiFee UiFeeArgs{..} -> do
-        -- TODO: Proper fee requesting should be implemented as part of AD-397
+        argOutputs <- forM ufaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          argCoin <- readEither usoAmount
+          Right $ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
+            [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            ]
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall (Knit.CommandIdOperator Knit.OpUnit) [])
+          (Knit.ProcCall Knit.feeCommandName $
+            justOptNumber "wallet" ufaWalletIdx ++
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ufaAccounts ++
+            argOutputs
+          )
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName

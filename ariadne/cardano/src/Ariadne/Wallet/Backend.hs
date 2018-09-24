@@ -71,6 +71,8 @@ createWalletBackend walletConfig sendWalletEvent = do
                 , walletSelect = select pwl this walletSelRef
                 , walletSend =
                     sendTx pwl this cf walletSelRef putCommandOutput
+                , walletFee =
+                    txFee pwl this cf walletSelRef putCommandOutput
                 , walletGetSelection =
                     (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef

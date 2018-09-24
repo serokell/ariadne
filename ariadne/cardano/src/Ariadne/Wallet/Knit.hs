@@ -232,6 +232,22 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             "\" policy will be used."
         }
     , CommandProc
+        { cpName = feeCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            walletRef <- getWalletRefArgOpt
+            accRefs <- getArgMany tyLocalAccountRef "account"
+            outs <- getArgSome tyTxOut "out"
+            isp <- fromMaybe defaultInputSelectionPolicy <$>
+                getArgOpt tyInputSelectionPolicy "policy"
+            return (walletRef, accRefs, isp, outs)
+        , cpRepr = \(walletRef, accRefs, isp, outs) -> CommandAction $ \WalletFace{..} ->
+            toValue . ValueCoin <$> walletFee walletRef accRefs isp outs
+        , cpHelp =
+            "Estimate a fee for a transaction. \
+            \Parameters have the same meaning as the \"send\" command parameters."
+        }
+    , CommandProc
         { cpName = balanceCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pass
@@ -301,6 +317,9 @@ selectCommandName = "select"
 
 sendCommandName :: CommandId
 sendCommandName = "send"
+
+feeCommandName :: CommandId
+feeCommandName = "fee"
 
 balanceCommandName :: CommandId
 balanceCommandName = "balance"
