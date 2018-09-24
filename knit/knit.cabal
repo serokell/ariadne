@@ -40,19 +40,20 @@ library
   exposed-modules:
       Knit
       Knit.Argument
-      Knit.Value
       Knit.Core
-      Knit.Syntax
-      Knit.Name
+      Knit.DisplayError
       Knit.Eval
+      Knit.FormattedExprExt
       Knit.Inflate
-      Knit.Prelude
-      Knit.Procedure
-      Knit.Tokenizer
+      Knit.Name
       Knit.Parser
       Knit.ParseTreeExt
-      Knit.DisplayError
+      Knit.Prelude
       Knit.Printer
+      Knit.Procedure
+      Knit.Syntax
+      Knit.Tokenizer
+      Knit.Value
   default-language:
       Haskell2010
   default-extensions:
