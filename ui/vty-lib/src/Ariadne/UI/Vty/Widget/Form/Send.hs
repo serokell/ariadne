@@ -36,8 +36,15 @@ data SendWidgetState p =
     , sendOutputs :: !(Map Int SendOutput)
     , sendNextOutput :: !Int
     , sendPass :: !Text
+    , sendFeeResult :: !FeeResult
     , sendResult :: !SendResult
     }
+
+data FeeResult
+  = FeeResultNone
+  | FeeResultWaiting !UiCommandId
+  | FeeResultError !Text
+  | FeeResultSuccess !Text  -- ^ Estimated fee
 
 data SendResult
   = SendResultNone
@@ -65,6 +72,7 @@ initSendWidget langFace walletIdxGetter accountsGetter =
       , sendOutputs = Map.empty
       , sendNextOutput = 0
       , sendPass = ""
+      , sendFeeResult = FeeResultNone
       , sendResult = SendResultNone
       }
 
@@ -129,6 +137,9 @@ drawSendWidget focus SendWidgetState{..} = do
           [drawOutputsHeader] ++
           (drawOutput <$> Map.keys sendOutputs) ++
           [drawOutputsFooter]
+      , label "Estimated fee:" B.<+> case sendFeeResult of
+          FeeResultSuccess fee -> B.txt fee
+          _ -> B.emptyWidget
       , label "Passphrase:" B.<+> drawChild WidgetNameSendPass
       , label "" B.<+> drawChild WidgetNameSendButton
       , case sendResult of
@@ -155,10 +166,18 @@ handleSendWidgetEvent = \case
             sendPassL .= ""
             sendOutputsL .= Map.empty
             addOutput
+            updateFee
           UiSendCommandFailure err -> do
             sendResultL .= SendResultError err
       _ ->
         pass
+  UiCommandResult commandId (UiFeeCommandResult result) -> do
+    sendFeeResultL %= \case
+      FeeResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiFeeCommandSuccess fee -> FeeResultSuccess fee
+          UiFeeCommandFailure err -> FeeResultError err
+      other -> other
   _ ->
     pass
 
@@ -182,6 +201,26 @@ updateFocusList = do
       , WidgetNameSendRemove idx
       ]
 
+collectFormData :: WidgetEventM (SendWidgetState p) p (Maybe Word, [Word32], [UiSendOutput])
+collectFormData = do
+  parentState <- lift $ lift get
+  walletIdx <- uses sendWalletIdxGetterL $ maybe Nothing (\getter -> getter parentState)
+  accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
+  outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
+  return (walletIdx, accounts, outputs)
+
+updateFee :: WidgetEventM (SendWidgetState p) p ()
+updateFee = do
+  UiLangFace{..} <- use sendLangFaceL
+  (walletIdx, accounts, outputs) <- collectFormData
+  use sendFeeResultL >>= \case
+    FeeResultWaiting commandId
+      | Just taskId <- cmdTaskId commandId ->
+          void . liftIO . langPutUISilentCommand $ UiKill taskId
+    _ -> pass
+  liftIO (langPutUISilentCommand $ UiFee $ UiFeeArgs walletIdx accounts outputs) >>=
+    assign sendFeeResultL . either FeeResultError FeeResultWaiting
+
 addOutput :: Monad m => StateT (SendWidgetState p) (StateT (WidgetInfo (SendWidgetState p) p) m) ()
 addOutput = do
   idx <- sendNextOutputL <<+= 1
@@ -195,6 +234,13 @@ addOutput = do
       initEditWidget $ widgetParentLens $ sendOutputsL . at idx . unsafeFromJust . sendAmountL
     addWidgetChild (WidgetNameSendRemove idx) $
       initButtonWidget "-"
+
+    addWidgetEventHandler (WidgetNameSendAddress idx) $ \case
+      WidgetEventEditChanged -> updateFee
+      _ -> pass
+    addWidgetEventHandler (WidgetNameSendAmount idx) $ \case
+      WidgetEventEditChanged -> updateFee
+      _ -> pass
     addWidgetEventHandler (WidgetNameSendRemove idx) $ \case
       WidgetEventButtonPressed -> removeOutput idx
       _ -> pass
@@ -205,14 +251,12 @@ removeOutput idx = do
   when (remaining > 1) $ do
     sendOutputsL %= Map.delete idx
     updateFocusList
+    updateFee
 
 performSendTransaction :: WidgetEventM (SendWidgetState p) p ()
 performSendTransaction = do
   UiLangFace{..} <- use sendLangFaceL
-  parentState <- lift $ lift get
-  walletIdx <- uses sendWalletIdxGetterL $ maybe Nothing (\getter -> getter parentState)
-  accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
-  outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
+  (walletIdx, accounts, outputs) <- collectFormData
   passphrase <- use sendPassL
   use sendResultL >>= \case
     SendResultWaiting _ -> pass

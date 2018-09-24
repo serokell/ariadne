@@ -17,6 +17,7 @@ module Ariadne.UI.Vty.Face
        , UiCommand (..)
        , UiSendOutput (..)
        , UiSendArgs (..)
+       , UiFeeArgs (..)
        , UiNewWalletArgs (..)
        , UiNewAccountArgs (..)
        , UiNewAddressArgs (..)
@@ -29,6 +30,7 @@ module Ariadne.UI.Vty.Face
        , UiTxHistoryRow (..)
        , UiTxHistoryCommandResult (..)
        , UiSendCommandResult (..)
+       , UiFeeCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
@@ -171,6 +173,7 @@ data UiCommand
   | UiBalance
   | UiTxHistory
   | UiSend UiSendArgs
+  | UiFee UiFeeArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
   | UiNewAddress UiNewAddressArgs
@@ -189,6 +192,12 @@ data UiSendArgs = UiSendArgs
   , usaAccounts :: ![Word32]
   , usaOutputs :: [UiSendOutput]
   , usaPassphrase :: !Text
+  }
+
+data UiFeeArgs = UiFeeArgs
+  { ufaWalletIdx :: !(Maybe Word)
+  , ufaAccounts :: ![Word32]
+  , ufaOutputs :: [UiSendOutput]
   }
 
 data UiNewWalletArgs = UiNewWalletArgs
@@ -226,6 +235,7 @@ data UiCommandResult
   = UiBalanceCommandResult UiBalanceCommandResult
   | UiTxHistoryCommandResult UiTxHistoryCommandResult
   | UiSendCommandResult UiSendCommandResult
+  | UiFeeCommandResult UiFeeCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -240,6 +250,10 @@ data UiBalanceCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiFeeCommandResult
+  = UiFeeCommandSuccess Text
+  | UiFeeCommandFailure Text
 
 data UiTxHistoryRowPart = UiTxHistoryRowPart
   { uthrpAddress :: Text

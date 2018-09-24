@@ -117,6 +117,10 @@ knitFaceToUI UiFace{..} KnitFace{..} =
             argOutputs ++
             optString "pass" usaPassphrase
           )
+      UiFee UiFeeArgs{..} -> do
+        -- TODO: Proper fee requesting should be implemented as part of AD-397
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall (Knit.CommandIdOperator Knit.OpUnit) [])
       UiKill commandId ->
         Right $ Knit.ExprProcCall
           (Knit.ProcCall Knit.killCommandName
@@ -162,6 +166,8 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiFee{} ->
+        Just . UiFeeCommandResult . UiFeeCommandSuccess $ "not implemented"
       UiNewWallet{} ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case
