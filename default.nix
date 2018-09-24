@@ -1,10 +1,10 @@
-{ pkgs ? import ./nixpkgs.nix }: with pkgs;
+{ pkgs ? import ./closure.nix, shell ? false }: with pkgs;
 
-let
-  stack4nix = fetchGit {
-    url = https://github.com/serokell/stack4nix;
-    rev = "dee5f58317a0f067c6adfceed4d710e53d56cac5";
-  };
+stackToNix {
+  # TODO: implement filtering in stack-to-nix
+  root = lib.cleanSource ./.;
+
+  inherit shell;
 
   overrides = final: previous: with haskell.lib; {
     ariadne-cardano = overrideCabal previous.ariadne-cardano (super: {
@@ -24,8 +24,4 @@ let
       librarySystemDepends = with qt5; [ qtbase qttools ];
     });
   };
-
-  buildStackProject = import stack4nix { inherit pkgs overrides; };
-in
-
-buildStackProject ./.
+}

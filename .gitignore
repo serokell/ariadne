@@ -1,4 +1,5 @@
 # Cabal
+cabal.project
 dist
 dist-newstyle
 .cabal-sandbox/
@@ -13,17 +14,8 @@ cabal.project.local
 # Stack
 .stack-work
 
-# Emacs
-TAGS
-.dir-locals.el
-
-# Vim
-tags
-*.swp
-
-# Intellij
-*.iml
-.idea/
+# Nix
+result*
 
 # Runtime
 node-db/
@@ -41,3 +33,15 @@ config/mainnet-genesis.json
 
 # Qt resources
 ui/qt-lib/resources/*.cpp
+
+# Emacs
+TAGS
+.dir-locals.el
+
+# Intellij
+*.iml
+.idea/
+
+# Vim
+tags
+*.swp
