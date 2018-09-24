@@ -33,3 +33,15 @@ config/mainnet-genesis.json
 
 # Qt resources
 ui/qt-lib/resources/*.cpp
+
+# Emacs
+TAGS
+.dir-locals.el
+
+# Intellij
+*.iml
+.idea/
+
+# Vim
+tags
+*.swp
