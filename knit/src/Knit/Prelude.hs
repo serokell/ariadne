@@ -3,6 +3,7 @@ module Knit.Prelude
   , uprism
   ) where
 
+import Control.Applicative as X (liftA2)
 import Control.Lens as X hiding (op, rmap)
 import Data.Bifunctor as X
 import Data.Foldable as X

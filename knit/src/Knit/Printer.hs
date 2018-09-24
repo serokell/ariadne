@@ -1,8 +1,7 @@
 module Knit.Printer where
 
 import Data.List as List
-import Data.Monoid
-import Data.Semigroup (Option(..))
+import Data.Semigroup (Option(..), option, (<>))
 import qualified Data.Text as T
 import Data.Text.Buildable (build)
 import qualified Data.Text.Lazy as TL
@@ -59,6 +58,15 @@ spanToDoc (SSpan s) =
     toInt :: L.ToNat n => n -> Int
     toInt = fromIntegral . L.toNat
 
+invalidOperatorApplication :: a
+invalidOperatorApplication = error "Core invariant violated: invalid operator application"
+
+procedureWithNoName :: a
+procedureWithNoName = error "Core invariant violated: procedure with no name"
+
+opUnitWithAName :: a
+opUnitWithAName = error "Core invariant violated: OpUnit with a name"
+
 parseTreeToDecoratedTree
   :: Expr ParseTreeExt CommandId components
   -> (Option SSpan, Expr DecoratorExt CommandId components)
@@ -85,45 +93,74 @@ parseTreeToDecoratedTree =
       :: ProcCall ParseTreeExt CommandId (Expr ParseTreeExt CommandId components)
       -> (Option SSpan, ProcCall DecoratorExt CommandId (Expr DecoratorExt CommandId components))
     pcToDecoratedPc (ProcCall tok cmd args) =
-      ProcCall NoExt cmd <$> argGo (Option $ fmap fst tok) args
+      case cmd of
+        CommandIdName _ ->
+          case fmap fst tok of
+            Just sp -> wrapSpan $ ProcCall NoExt cmd <$> argGo sp args
+            Nothing -> procedureWithNoName
+        CommandIdOperator op ->
+          case (op, fmap fst tok, args) of
+            (OpAndThen, Just tokSp, [lhs, rhs]) ->
+              let
+                decoratedLhs =
+                  decorateWithSpan (argToDecoratedArg lhs) $ \sp ->
+                    XArg . Decorated
+                      (text "")
+                      (spanToDoc $ sp `spanBetween` tokSp)
+                decoratedRhs =
+                  decorateWithSpan (argToDecoratedArg rhs) $ \sp ->
+                    XArg . Decorated
+                      (spanToDoc $ tokSp `spanBetween` sp)
+                      (text "")
+              in
+                ProcCall NoExt cmd <$> liftA2 (\a b -> [a, b]) decoratedLhs decoratedRhs
+            (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
+
+            (OpUnit, Nothing, []) -> (Option Nothing, ProcCall NoExt cmd [])
+            (OpUnit, Just _, []) -> opUnitWithAName
+
+            _ -> invalidOperatorApplication
+
+    argToDecoratedArg
+      :: Arg ParseTreeExt (Expr ParseTreeExt CommandId components)
+      -> (Option SSpan, Arg DecoratorExt (Expr DecoratorExt CommandId components))
+    argToDecoratedArg = \case
+      XArg xxArg -> absurd xxArg
+      ArgPos NoExt a -> ArgPos NoExt <$> parseTreeToDecoratedTree a
+      ArgKw nameTok name a ->
+        let
+          decoratedExpr = parseTreeToDecoratedTree a
+          wrappedExpr = decorateWithSpan decoratedExpr $ \sp ->
+            XExpr . Decorated
+              (spanToDoc $ fst nameTok `spanBetween` sp)
+              (text "")
+        in
+          wrapSpan nameTok $> ArgKw NoExt name <*> wrappedExpr
+
+    decorateWithSpan
+        :: (Option SSpan, a)
+        -> (SSpan -> a -> a)
+        -> (Option SSpan, a)
+    decorateWithSpan v@(Option Nothing, _) _ = v
+    decorateWithSpan v@(Option (Just sp), _) decorate = decorate sp <$> v
 
     argGo
-      :: Option SSpan
+      :: SSpan
       -> [Arg ParseTreeExt (Expr ParseTreeExt CommandId components)]
-      -> (Option SSpan, [Arg DecoratorExt (Expr DecoratorExt CommandId components)])
-    argGo (Option Nothing) (_ : _) = error "procedure with empty name has arguments"
+      -> (SSpan, [Arg DecoratorExt (Expr DecoratorExt CommandId components)])
     argGo prevSp [] = (prevSp, [])
-    argGo prevSp'@(Option (Just prevSp)) (arg : args) =
-      case arg of
-        XArg xxArg -> absurd xxArg
-        ArgPos NoExt a ->
-          let
-            decoratedArg = parseTreeToDecoratedTree a
-            newSp = prevSp' <> fst decoratedArg
-            dPrefix =
-              case getOption $ fst decoratedArg of
-                Just argSp -> spanToDoc $ prevSp `spanBetween` argSp
-                Nothing -> PP.text ""
-            dPostfix = PP.text ""
-            dItem = ArgPos NoExt (snd decoratedArg)
-          in
-            (XArg Decorated{..} :) <$> argGo newSp args
-        ArgKw nameTok name a ->
-          let
-            decoratedArg = parseTreeToDecoratedTree a
-            newSp = prevSp' <> Option (Just (fst nameTok)) <> fst decoratedArg
-            decorateExpr =
-              case getOption $ fst decoratedArg of
-                Nothing -> id
-                Just exprSp ->
-                  XExpr . Decorated
-                    (spanToDoc $ fst nameTok `spanBetween` exprSp)
-                    (text "")
-            dPrefix = spanToDoc $ prevSp `spanBetween` fst nameTok
-            dPostfix = PP.text ""
-            dItem = ArgKw NoExt name $ decorateExpr $ snd decoratedArg
-          in
-            (XArg Decorated{..} :) <$> argGo newSp args
+    argGo prevSp (arg : args) =
+      let
+        decoratedArg = argToDecoratedArg arg
+        newSp = option prevSp (prevSp <>) $ fst decoratedArg
+        dPrefix =
+          case getOption $ fst decoratedArg of
+            Just argSp -> spanToDoc $ prevSp `spanBetween` argSp
+            Nothing -> PP.text ""
+        dPostfix = PP.text ""
+        dItem = snd decoratedArg
+      in
+        (XArg Decorated{..} :) <$> argGo newSp args
 
 ppLit
   :: forall components.
@@ -165,8 +202,7 @@ ppExpr =
     ppOperatorCall OpUnit [] = text ""
     ppOperatorCall OpAndThen [ArgPos NoExt a, ArgPos NoExt b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
-    ppOperatorCall _ _ =
-      error "Core invariant violated: invalid operator application"
+    ppOperatorCall _ _ = invalidOperatorApplication
 
     ppProcedureCall procName args =
       let
