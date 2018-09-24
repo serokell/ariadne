@@ -2,8 +2,9 @@
 
 ## Bug Reports
 
-Please [open an issue](https://github.com/serokell/ariadne/issues) if
-you find a bug.
+Please [open an issue](https://issues.serokell.io/newIssue?project=AD)
+if you find a bug. Note: you need to login (e. g. using your GitHub
+account) first.
 
 The more detailed your report is, the faster it can be resolved.
 

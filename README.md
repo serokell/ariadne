@@ -173,6 +173,12 @@ ariadne` to launch the executable. In order to use GUI launch
 
 For complete usage guide visit [TUI](docs/usage-tui.md) page.
 
+## Issue tracker
+
+We use [YouTrack](https://issues.serokell.io/issues/AD) as our issue
+tracker. You can login using your GitHub account to leave a comment or
+create a new issue.
+
 ## For Contributors [↑](#-ariadne)
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
