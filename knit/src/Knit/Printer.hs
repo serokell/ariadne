@@ -44,17 +44,18 @@ data Decorated a = Decorated
     , dItem :: a
     } deriving (Show, Functor, Foldable, Traversable)
 
-spanBetween :: SSpan -> SSpan -> SSpan
-spanBetween (SSpan a) (SSpan b) = SSpan $ L.spanFromTo (L.end a) (L.start b)
-
-spanToDoc :: SSpan -> Doc
-spanToDoc (SSpan s) =
-  if L.locLine (L.start s) == L.locLine (L.end s)
-    then PP.string $ replicate (toInt $ L.locColumn (L.end s) - L.locColumn (L.start s)) ' '
-    else PP.string
-      $ replicate (toInt $ L.locLine (L.end s) - L.locLine (L.start s)) '\n'
-      ++ replicate (toInt $ L.locColumn (L.end s) - 1) ' '
+docBetween :: SSpan -> SSpan -> Doc
+docBetween (SSpan a) (SSpan b) =
+    maybe mempty spanToDoc $ L.fromToMay (L.end a) (L.start b)
   where
+    spanToDoc :: L.Span -> Doc
+    spanToDoc s =
+      if L.locLine (L.start s) == L.locLine (L.end s)
+        then PP.string $ replicate (toInt $ L.locColumn (L.end s) - L.locColumn (L.start s)) ' '
+        else PP.string
+          $ replicate (toInt $ L.locLine (L.end s) - L.locLine (L.start s)) '\n'
+          ++ replicate (toInt $ L.locColumn (L.end s) - 1) ' '
+
     toInt :: L.ToNat n => n -> Int
     toInt = fromIntegral . L.toNat
 
@@ -77,11 +78,11 @@ parseTreeToDecoratedTree =
         decoratedE = parseTreeToDecoratedTree e
         decorate = case getOption $ fst decoratedE of
           Just sp -> Decorated
-            (PP.lparen <> spanToDoc (fst l `spanBetween` sp))
-            (spanToDoc (sp `spanBetween` fst r) <> PP.rparen)
+            (PP.lparen <> fst l `docBetween` sp)
+            (sp `docBetween` fst r <> PP.rparen)
           Nothing -> Decorated
-            (text "")
-            (PP.parens $ spanToDoc $ fst l `spanBetween` fst r)
+            mempty
+            (PP.parens $ fst l `docBetween` fst r)
       in
         wrapSpan l *> fmap (XExpr . decorate) decoratedE <* wrapSpan r
     ExprProcCall NoExt pc -> ExprProcCall NoExt <$> pcToDecoratedPc pc
@@ -99,21 +100,22 @@ parseTreeToDecoratedTree =
             Just sp -> wrapSpan $ ProcCall NoExt cmd <$> argGo sp args
             Nothing -> procedureWithNoName
         CommandIdOperator op ->
-          case (op, fmap fst tok, args) of
+          case (op, tok, args) of
             (OpAndThen, Just tokSp, [lhs, rhs]) ->
               let
                 decoratedLhs =
                   decorateWithSpan (argToDecoratedArg lhs) $ \sp ->
                     XArg . Decorated
-                      (text "")
-                      (spanToDoc $ sp `spanBetween` tokSp)
+                      mempty
+                      (sp `docBetween` fst tokSp)
                 decoratedRhs =
                   decorateWithSpan (argToDecoratedArg rhs) $ \sp ->
                     XArg . Decorated
-                      (spanToDoc $ tokSp `spanBetween` sp)
-                      (text "")
+                      (fst tokSp `docBetween` sp)
+                      mempty
               in
-                ProcCall NoExt cmd <$> liftA2 (\a b -> [a, b]) decoratedLhs decoratedRhs
+                ProcCall NoExt cmd <$> liftA3 (\a _ b -> [a, b])
+                    decoratedLhs (wrapSpan tokSp) decoratedRhs
             (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
 
             (OpUnit, Nothing, []) -> (Option Nothing, ProcCall NoExt cmd [])
@@ -132,8 +134,8 @@ parseTreeToDecoratedTree =
           decoratedExpr = parseTreeToDecoratedTree a
           wrappedExpr = decorateWithSpan decoratedExpr $ \sp ->
             XExpr . Decorated
-              (spanToDoc $ fst nameTok `spanBetween` sp)
-              (text "")
+              (fst nameTok `docBetween` sp)
+              mempty
         in
           wrapSpan nameTok $> ArgKw NoExt name <*> wrappedExpr
 
@@ -155,12 +157,39 @@ parseTreeToDecoratedTree =
         newSp = option prevSp (prevSp <>) $ fst decoratedArg
         dPrefix =
           case getOption $ fst decoratedArg of
-            Just argSp -> spanToDoc $ prevSp `spanBetween` argSp
-            Nothing -> PP.text ""
-        dPostfix = PP.text ""
+            Just argSp -> prevSp `docBetween` argSp
+            Nothing -> mempty
+        dPostfix = mempty
         dItem = snd decoratedArg
       in
         (XArg Decorated{..} :) <$> argGo newSp args
+
+ppDecoratedTree
+  :: forall components.
+     AllConstrained ComponentPrinter components
+  => Expr DecoratorExt CommandId components
+  -> Doc
+ppDecoratedTree =
+  \case
+    ExprLit NoExt l -> ppLit l
+    ExprProcCall NoExt p -> ppProcCall p
+    XExpr Decorated{..} -> dPrefix <> ppDecoratedTree dItem <> dPostfix
+  where
+    ppProcCall (ProcCall NoExt commandName args) =
+      case commandName of
+        CommandIdName name -> ppProcedureCall name args
+        CommandIdOperator op -> ppOperatorCall op args
+
+    ppOperatorCall OpUnit [] = mempty
+    ppOperatorCall OpAndThen [lhs, rhs] = ppArg lhs <> PP.char ';' <> ppArg rhs
+    ppOperatorCall _ _ = invalidOperatorApplication
+
+    ppProcedureCall procName args = nameToDoc procName <> mconcat (map ppArg args)
+
+    ppArg = \case
+      ArgPos NoExt a -> ppDecoratedTree a
+      ArgKw NoExt name a -> nameToDoc name <> PP.colon <> ppDecoratedTree a
+      XArg Decorated{..} -> dPrefix <> ppArg dItem <> dPostfix
 
 ppLit
   :: forall components.
@@ -199,7 +228,7 @@ ppExpr =
         CommandIdName name -> ppProcedureCall name args
         CommandIdOperator op -> ppOperatorCall op args
 
-    ppOperatorCall OpUnit [] = text ""
+    ppOperatorCall OpUnit [] = mempty
     ppOperatorCall OpAndThen [ArgPos NoExt a, ArgPos NoExt b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
     ppOperatorCall _ _ = invalidOperatorApplication
