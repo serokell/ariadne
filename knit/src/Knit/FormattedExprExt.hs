@@ -1,5 +1,6 @@
 module Knit.FormattedExprExt where
 
+import Control.Monad.Writer.Strict hiding ((<>))
 import Data.Semigroup (Option(..), option, (<>))
 
 import qualified Data.Loc as L
@@ -54,14 +55,15 @@ opUnitWithAName :: a
 opUnitWithAName = error "Core invariant violated: OpUnit with a name"
 
 parseTreeToFormattedExpr
-  :: Expr ParseTreeExt CommandId components
-  -> (Option SSpan, Expr FormattedExprExt CommandId components)
+  :: forall components.
+     Expr ParseTreeExt CommandId components
+  -> Writer (Option SSpan) (Expr FormattedExprExt CommandId components)
 parseTreeToFormattedExpr =
   \case
     XExpr (ExprInBrackets l e r) ->
       let
         decoratedE = parseTreeToFormattedExpr e
-        decorate = case getOption $ fst decoratedE of
+        decorate = case getOption $ execWriter decoratedE of
           Just sp -> Formatted
             (PP.lparen <> fst l `docBetween` sp)
             (sp `docBetween` fst r <> PP.rparen)
@@ -73,11 +75,11 @@ parseTreeToFormattedExpr =
     ExprProcCall NoExt pc -> ExprProcCall NoExt <$> pcToFormattedPc pc
     ExprLit tok lit -> wrapSpan tok $> ExprLit NoExt lit
   where
-    wrapSpan = first (Option . Just)
+    wrapSpan (a, b) = writer (b, Option $ Just a)
 
     pcToFormattedPc
-      :: ProcCall ParseTreeExt CommandId (Expr ParseTreeExt CommandId components)
-      -> (Option SSpan, ProcCall FormattedExprExt CommandId (Expr FormattedExprExt CommandId components))
+      :: ProcCall' ParseTreeExt CommandId components
+      -> Writer (Option SSpan) (ProcCall' FormattedExprExt CommandId components)
     pcToFormattedPc (ProcCall tok cmd args) =
       case cmd of
         CommandIdName _ ->
@@ -103,14 +105,14 @@ parseTreeToFormattedExpr =
                     decoratedLhs (wrapSpan tokSp) decoratedRhs
             (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
 
-            (OpUnit, Nothing, []) -> (Option Nothing, ProcCall NoExt cmd [])
+            (OpUnit, Nothing, []) -> writer (ProcCall NoExt cmd [], Option Nothing)
             (OpUnit, Just _, []) -> opUnitWithAName
 
             _ -> invalidOperatorApplication
 
     argToFormattedArg
-      :: Arg ParseTreeExt (Expr ParseTreeExt CommandId components)
-      -> (Option SSpan, Arg FormattedExprExt (Expr FormattedExprExt CommandId components))
+      :: Arg' ParseTreeExt CommandId components
+      -> Writer (Option SSpan) (Arg' FormattedExprExt CommandId components)
     argToFormattedArg = \case
       XArg xxArg -> absurd xxArg
       ArgPos NoExt a -> ArgPos NoExt <$> parseTreeToFormattedExpr a
@@ -125,27 +127,23 @@ parseTreeToFormattedExpr =
           wrapSpan nameTok $> ArgKw NoExt name <*> wrappedExpr
 
     decorateWithSpan
-        :: (Option SSpan, a)
-        -> (SSpan -> a -> a)
-        -> (Option SSpan, a)
-    decorateWithSpan v@(Option Nothing, _) _ = v
-    decorateWithSpan v@(Option (Just sp), _) decorate = decorate sp <$> v
+      :: Writer (Option SSpan) a
+      -> (SSpan -> a -> a)
+      -> Writer (Option SSpan) a
+    decorateWithSpan w decorate = option w (\sp -> decorate sp <$> w) $ execWriter w
 
     argGo
       :: SSpan
-      -> [Arg ParseTreeExt (Expr ParseTreeExt CommandId components)]
-      -> (SSpan, [Arg FormattedExprExt (Expr FormattedExprExt CommandId components)])
+      -> [Arg' ParseTreeExt CommandId components]
+      -> (SSpan, [Arg' FormattedExprExt CommandId components])
     argGo prevSp [] = (prevSp, [])
     argGo prevSp (arg : args) =
       let
         decoratedArg = argToFormattedArg arg
-        newSp = option prevSp (prevSp <>) $ fst decoratedArg
-        dPrefix =
-          case getOption $ fst decoratedArg of
-            Just argSp -> prevSp `docBetween` argSp
-            Nothing -> mempty
+        newSp = option prevSp (prevSp <>) $ execWriter decoratedArg
+        dPrefix = option mempty (prevSp `docBetween`) $ execWriter decoratedArg
         dPostfix = mempty
-        dItem = snd decoratedArg
+        dItem = fst $ runWriter decoratedArg
       in
         (XArg Formatted{..} :) <$> argGo newSp args
 

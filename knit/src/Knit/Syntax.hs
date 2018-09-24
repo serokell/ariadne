@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds, PolyKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Knit.Syntax where
 
@@ -96,6 +96,8 @@ fromLit = umatch . getLitUnion
 
 data ProcCall ext cmd a = ProcCall (XProcCall ext cmd a) cmd [Arg ext a]
 
+type ProcCall' ext cmd components = ProcCall ext cmd (Expr ext cmd components)
+
 type family XProcCall ext cmd a
 
 type ForallXProcCall (constr :: * -> Constraint) (ext :: *) (cmd :: *) (a :: *) =
@@ -136,6 +138,8 @@ data Arg ext a
     = ArgPos (XArgPos ext a) a
     | ArgKw (XArgKw ext a) Name a
     | XArg (XXArg ext a)
+
+type Arg' ext cmd components = Arg ext (Expr ext cmd components)
 
 type family XArgPos ext a
 type family XArgKw ext a
