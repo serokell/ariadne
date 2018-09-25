@@ -119,15 +119,6 @@ Qt GUI only works on Linux. Windows and macOS will be supported soon.
 
 ### Build using Nix
 
-Install Nix with [NixOS/nix#2409][] patch:
-
-```sh
-nix-env -f https://github.com/serokell/nixpkgs/archive/master.tar.gz -iA nix
-```
-
-[Nix]: https://nixos.org/nix/
-[NixOS/nix#2409]: https://github.com/NixOS/nix/pull/2409
-
 Set up Serokell binary cache so that you don't have to build dependencies:
 
 ```sh
@@ -141,6 +132,14 @@ If you are on NixOS, make sure to add `https://cache.nixos.org` to `nix.binaryCa
 otherwise main Nix binary cache stops working. See [cachix/cachix#128][].
 
 [cachix/cachix#128]: https://github.com/cachix/cachix/pull/128
+
+Then, install Nix with [NixOS/nix#2409][] patch:
+
+```sh
+nix-env -f closure.nix -iA nix
+```
+
+[NixOS/nix#2409]: https://github.com/NixOS/nix/pull/2409
 
 For production builds, run `nix-build`.
 
