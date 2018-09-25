@@ -220,5 +220,4 @@ extra-deps:
 - html-entities-1.1.4.1 # https://github.com/nikita-volkov/html-entities/issues/8
 
 nix:
-  enable: true
   shell-file: shell-native.nix
