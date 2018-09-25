@@ -218,7 +218,3 @@ extra-deps:
 - hoppy-generator-0.5.0
 - hoppy-std-0.5.0
 - html-entities-1.1.4.1 # https://github.com/nikita-volkov/html-entities/issues/8
-
-nix:
-  shell-file: shell.nix
-  pure: true
