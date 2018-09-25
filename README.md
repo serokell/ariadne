@@ -122,7 +122,7 @@ Qt GUI only works on Linux. Windows and macOS will be supported soon.
 Set up Serokell binary cache so that you don't have to build dependencies:
 
 ```sh
-sudo $(nix-build closure.nix -A cachix --no-out-link)/bin/cachix use serokell
+sudo $(nix-build pkgs.nix -A cachix --no-out-link)/bin/cachix use serokell
 ```
 
 If you are on a single-user Nix install (`nix-shell -p nix-info --run nix-info`
@@ -136,7 +136,7 @@ otherwise main Nix binary cache stops working. See [cachix/cachix#128][].
 Then, install Nix with [NixOS/nix#2409][] patch:
 
 ```sh
-nix-env -f closure.nix -iA nix
+nix-env -f pkgs.nix -iA nix
 ```
 
 [NixOS/nix#2409]: https://github.com/NixOS/nix/pull/2409
