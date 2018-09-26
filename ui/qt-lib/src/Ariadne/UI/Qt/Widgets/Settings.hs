@@ -4,12 +4,9 @@ module Ariadne.UI.Qt.Widgets.Settings
     , showSettingsWindow
     ) where
 
--- import qualified Data.Text as T
-
 import Control.Lens (makeLensesWith)
 import Data.Bits
-
--- import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import Web.Browser (openBrowser)
 
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import Graphics.UI.Qtah.Signal (connect_)
@@ -21,6 +18,7 @@ import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -59,8 +57,7 @@ data GeneralSettings =
 data AboutSettings =
   AboutSettings
     { releaseNotesButton :: QPushButton.QPushButton
-    , termsButton :: QPushButton.QPushButton
-    , privacyButton :: QPushButton.QPushButton
+    , licenseButton :: QPushButton.QPushButton
     }
 
 data SupportSettings =
@@ -168,7 +165,13 @@ initGeneralSettings = do
   QComboBox.addItem themeSelector ("Mint" :: String)
   addRow generalLayout themeLabel themeSelector
 
+  QWidget.setEnabled languageSelector False
+  QWidget.setEnabled countervalueSelector False
+  QWidget.setEnabled rateProviderSelector False
+  QWidget.setEnabled themeSelector False
+
   QWidget.setLayout generalWidget generalLayout
+
 
   let gs = GeneralSettings{..}
 
@@ -188,26 +191,24 @@ initAboutSettings = do
   addRow aboutLayout versionLabel releaseNotesButton
   addSeparator aboutLayout
 
-  let conditions = "Sample text about terms and conditions"
 
-  termsLabel <- createTwoLinesLabel "TERMS AND CONDITIONS" conditions
-  --missing icon
-  termsButton <- QPushButton.new
-  QWidget.setSizePolicyRaw termsButton Maximum Fixed
-  addRow aboutLayout termsLabel termsButton
-  addSeparator aboutLayout
+  let license = "Sample text about license"
 
-  let privacyPolicy = "Sample text about privacy policy"
-
-  privacyLabel <- createTwoLinesLabel "PRIVACY POLICY" privacyPolicy
-  --missing icon
-  privacyButton <- QPushButton.new
-  QWidget.setSizePolicyRaw privacyButton Maximum Fixed
-  addRow aboutLayout privacyLabel privacyButton
+  licenseLabel <- createTwoLinesLabel "License" license
+  licenseButton <- QPushButton.new
+  void $ setProperty licenseButton ("styleRole" :: Text) ("linkButton" :: Text)
+  QAbstractButton.setIcon licenseButton =<< QIcon.newWithFile (":/images/link-ic.png" :: String)
+  QWidget.setSizePolicyRaw licenseButton   Maximum Maximum
+  addRow aboutLayout licenseLabel licenseButton
 
   QWidget.setLayout aboutWidget aboutLayout
 
   let as = AboutSettings{..}
+
+  connect_ releaseNotesButton QAbstractButton.clickedSignal 
+        $ \_ -> openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md" >>= \_ -> return ()
+  connect_ licenseButton QAbstractButton.clickedSignal 
+        $ \_ -> openBrowser "https://github.com/serokell/ariadne/blob/master/COPYING.md" >>= \_ -> return ()
 
   return (aboutWidget, as)
 
@@ -216,41 +217,69 @@ initSupportSettings = do
   supportWidget <- QWidget.new
   supportLayout <- QVBoxLayout.new
 
-  faqLabel <- createTwoLinesLabel "FAQ" "Sample text about FAQ"
+  let faqText = "If you are experiencing issues, please see the FAQ on Ariadne \
+                \website for guidance on known issues."
+  faqLabel <- createTwoLinesLabel "FREQUENTLY ASKED QUESTIONS" faqText
   --missing icon
   faqButton <- QPushButton.new
+  void $ setProperty faqButton ("styleRole" :: Text) ("linkButton" :: Text)
+  QAbstractButton.setIcon faqButton =<< QIcon.newWithFile (":/images/link-ic.png" :: String)
   QWidget.setSizePolicyRaw faqButton Maximum Fixed
   addRow supportLayout faqLabel faqButton
 
-  clearCacheLabel <- createTwoLinesLabel "CLEAR CACHE" "Sample text about clear cache"
+
+  let clearCacheText = "Clear Ariadne Wallet cache to force resynchronization with the blockchain."
+  clearCacheLabel <- createTwoLinesLabel "CLEAR CACHE" clearCacheText
   --missing icon
   clearCacheButton <- QPushButton.newWithText ("Clear cache" :: String)
   QWidget.setSizePolicyRaw clearCacheButton Maximum Fixed
   addRow supportLayout clearCacheLabel clearCacheButton
 
-  reportLabel <- createTwoLinesLabel "REPORT A PROBLEM" "Sample text about report"
+  let reportText = "If the FAQ does not solve the issue you are experiencing,\
+                   \ please use support request."
+  reportLabel <- createTwoLinesLabel "REPORT A PROBLEM" reportText
   reportButton <- QPushButton.newWithText ("Support request" :: String)
   QWidget.setSizePolicyRaw reportButton Maximum Fixed
   addRow supportLayout reportLabel reportButton
 
-  downloadLogsLabel <- createTwoLinesLabel "EXPORT LOGS" "Sample text about logs"
+  let downloadLogsText = "If you want to inspect logs, you can download them here. \
+                         \Logs do not contain sensitive information, \
+                         \and it would be helpful to attach them to problem reports to help \
+                         \the team investigate the issue you are experiencing \ 
+                         \Logs can be attached automatically when using the bug report feature."
+
+  downloadLogsLabel <- createTwoLinesLabel "EXPORT LOGS" downloadLogsText
   downloadLogsButton <- QPushButton.newWithText ("Download logs" ::  String)
   QWidget.setSizePolicyRaw downloadLogsLabel Maximum Fixed
   addRow supportLayout downloadLogsLabel downloadLogsButton
 
-  enableReportsLabel <- createTwoLinesLabel "AUTOMATIC REPORTS" "Sample text about reports which is long enough to not fit a single line Sample text about reports which is long enough to not fit a single line"
+
+  let enableReportsText = "Share anonymous usage and diagnostic data to help \
+                          \improve Ariadne Wallet, services and security features."
+  enableReportsLabel <- createTwoLinesLabel "AUTOMATIC REPORTS" enableReportsText
   enableRepots <- QCheckBox.new
   addRow supportLayout enableReportsLabel enableRepots
 
-  analyticsLabel <- createTwoLinesLabel "ANALYTICS" "Sample text about analytics"
+  let analyticsText = "Enable analytics of anonymous data to help improve the user experience. \
+                      \This includes the operating system, language, firmware versions and the numbebr of added accounts."
+  analyticsLabel <- createTwoLinesLabel "ANALYTICS" analyticsText
   hasAnalytics <- QCheckBox.new
   addRow supportLayout analyticsLabel hasAnalytics
 
-
-  resetLabel <- createTwoLinesLabel "RESET ARIADNE" "Sample text about reset"
+  let resetText = "Erase all Ariadne Wallet data stored on your computer, \
+  \including your wallets, accounts, transaction history and settings."
+  resetLabel <- createTwoLinesLabel "RESET ARIADNE" resetText
   resetButton <- QPushButton.newWithText ("Reset" :: String)
   QWidget.setSizePolicyRaw resetButton Maximum Fixed
   addRow supportLayout resetLabel resetButton
+
+  QWidget.setEnabled faqButton False
+  QWidget.setEnabled clearCacheButton False
+  QWidget.setEnabled reportButton False
+  QWidget.setEnabled downloadLogsButton False
+  QWidget.setEnabled enableRepots False
+  QWidget.setEnabled hasAnalytics False
+  QWidget.setEnabled resetButton False
 
   QWidget.setLayout supportWidget supportLayout
 

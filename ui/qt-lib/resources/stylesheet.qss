@@ -316,6 +316,20 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: #fafafa;
 }
 
+QPushButton[
+styleRole="linkButton"] {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+QPushButton[styleRole="linkButton"]:hover {
+    background: rgba(52, 52, 62, 12);
+}
+QPushButton[styleRole="linkButton"]:checked {
+    background: rgba(52, 52, 62, 48);
+}
+
 QDialog QLabel[styleRole="mnemonicDisplay"] {
     background-color: rgba(13, 23, 23, 10);
     padding-top: 12px;
