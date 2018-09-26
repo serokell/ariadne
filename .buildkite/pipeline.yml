@@ -11,6 +11,8 @@ steps:
       system: x86_64-linux
     label: build
 
+  - wait
+
   - command: nix-build release.nix -A ariadne-vty-app-flatpak -o ariadne-vty.flatpak
     agents:
       system: x86_64-linux
