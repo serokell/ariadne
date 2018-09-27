@@ -1,6 +1,7 @@
 module Ariadne.UI.Vty.Widget
        ( WidgetNamePart(..)
        , WidgetName
+       , WidgetDrawing
        , WidgetEvent(..)
        , WidgetEventResult(..)
        , WidgetInfo
@@ -40,6 +41,8 @@ module Ariadne.UI.Vty.Widget
 
        , drawWidget
        , drawWidgetChild
+       , singleDrawing
+       , layeredDrawing
 
        , handleWidgetEditKey
        , handleWidgetKey
@@ -58,6 +61,7 @@ import Control.Lens
 
 import qualified Brick as B
 import qualified Brick.Focus as B
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 import Ariadne.UI.Vty.Face
@@ -124,10 +128,27 @@ data WidgetNamePart
 
   | WidgetNamePassword
   | WidgetNamePasswordInput
+  | WidgetNamePasswordContinue
+  | WidgetNamePasswordCancel
+
+  | WidgetNameConfirmMnemonic
+  | WidgetNameConfirmMnemonicInput
+  | WidgetNameConfirmMnemonicContinue
+  | WidgetNameConfirmMnemonicCancel
+  | WidgetNameConfirmRemove
+  | WidgetNameConfirmRemoveContinue
+  | WidgetNameConfirmRemoveCancel
+  | WidgetNameConfirmSend
+  | WidgetNameConfirmSendContinue
+  | WidgetNameConfirmSendCancel
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree
 type WidgetName = [WidgetNamePart]
+
+-- | Result of drawing a widget
+-- it can be a single Brick Widget or a stack of layers
+type WidgetDrawing = NonEmpty (B.Widget WidgetName)
 
 -- | Events child widget can send back to parent widget
 --
@@ -168,9 +189,9 @@ data WidgetInfo s p = WidgetInfo
   , widgetIgnoreVisibility :: Bool
   -- ^ Ignore visibility requests to allow scrolling focused child away from viewport.
   -- This is set when scrolling is initiated and reset after any other user interaction.
-  , widgetDraw :: !(s -> WidgetDrawM s p (B.Widget WidgetName))
-  , widgetDrawWithFocused :: !(Bool -> s -> WidgetDrawM s p (B.Widget WidgetName))
-  , widgetDrawWithFocus :: !(WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName))
+  , widgetDraw :: !(s -> WidgetDrawM s p WidgetDrawing)
+  , widgetDrawWithFocused :: !(Bool -> s -> WidgetDrawM s p WidgetDrawing)
+  , widgetDrawWithFocus :: !(WidgetName -> s -> WidgetDrawM s p WidgetDrawing)
   -- ^ These three routines are just three variants of one routine.
   -- They differ only in a way current focus is handled.
   -- A widget should normally implement only one of them,
@@ -236,7 +257,7 @@ initWidget action =
     , widgetEventQueue = []
     , widgetEventSend = return . const ()
     , widgetIgnoreVisibility = False
-    , widgetDraw = return . const B.emptyWidget
+    , widgetDraw = return . singleDrawing . const B.emptyWidget
     , widgetDrawWithFocused = \_ s -> do
         draw <- view widgetDrawL
         draw s
@@ -279,13 +300,13 @@ addWidgetEventHandler :: MonadState (WidgetInfo s p) m => WidgetNamePart -> (Wid
 addWidgetEventHandler namePart handler = do
   widgetEventHandlersL %= Map.insert namePart handler
 
-setWidgetDraw :: MonadState (WidgetInfo s p) m => (s -> WidgetDrawM s p (B.Widget WidgetName)) -> m ()
+setWidgetDraw :: MonadState (WidgetInfo s p) m => (s -> WidgetDrawM s p WidgetDrawing) -> m ()
 setWidgetDraw = assign widgetDrawL
 
-setWidgetDrawWithFocused :: MonadState (WidgetInfo s p) m => (Bool -> s -> WidgetDrawM s p (B.Widget WidgetName)) -> m ()
+setWidgetDrawWithFocused :: MonadState (WidgetInfo s p) m => (Bool -> s -> WidgetDrawM s p WidgetDrawing) -> m ()
 setWidgetDrawWithFocused = assign widgetDrawWithFocusedL
 
-setWidgetDrawWithFocus :: MonadState (WidgetInfo s p) m => (WidgetName -> s -> WidgetDrawM s p (B.Widget WidgetName)) -> m ()
+setWidgetDrawWithFocus :: MonadState (WidgetInfo s p) m => (WidgetName -> s -> WidgetDrawM s p WidgetDrawing) -> m ()
 setWidgetDrawWithFocus = assign widgetDrawWithFocusL
 
 -- | Sets a default scroll handler, which fits for most widgets
@@ -393,20 +414,26 @@ withWidgetState action = do
 -- Widget rendering
 ----------------------------------------------------------------------------
 
-drawWidget :: WidgetName -> p -> Widget p -> B.Widget WidgetName
+drawWidget :: WidgetName -> p -> Widget p -> WidgetDrawing
 drawWidget focus parent (Widget widget@WidgetInfo{..}) =
-    visible $ runReader (runReaderT (widgetDrawWithFocus focus widgetState) widget) parent
+    map visible $ runReader (runReaderT (widgetDrawWithFocus focus widgetState) widget) parent
   where
     visible w
       | focus == widgetName
       , not widgetIgnoreVisibility = B.visible w
       | otherwise = w
 
-drawWidgetChild :: WidgetName -> WidgetInfo s p -> WidgetNamePart -> B.Widget WidgetName
+drawWidgetChild :: WidgetName -> WidgetInfo s p -> WidgetNamePart -> WidgetDrawing
 drawWidgetChild focus widget@WidgetInfo{..} name =
-    maybe B.emptyWidget (drawWidget focus widget . withIgnoreVisibility) $ Map.lookup name widgetChildren
+    singleDrawing . maybe B.emptyWidget (last . drawWidget focus widget . withIgnoreVisibility) $ Map.lookup name widgetChildren
   where
     withIgnoreVisibility (Widget child) = Widget child{ widgetIgnoreVisibility = widgetIgnoreVisibility }
+
+singleDrawing :: (B.Widget WidgetName) -> WidgetDrawing
+singleDrawing = NE.fromList . (: [])
+
+layeredDrawing :: [B.Widget WidgetName] -> WidgetDrawing
+layeredDrawing = NE.fromList
 
 ----------------------------------------------------------------------------
 -- Widget event handling

@@ -4,6 +4,7 @@ module Ariadne.Wallet.Face
 
        , WalletFace(..)
        , WalletEvent(..)
+       , ConfirmationType(..)
        , WalletReference(..)
        , AccountReference(..)
        , LocalAccountReference(..)
@@ -90,8 +91,14 @@ data WalletFace =
 -- UI-compatible events in the 'Glue' module. They must be independent from the
 -- UI and capture /what the backend can generate/, not what the frontend can
 -- handle.
-data WalletEvent =
-  WalletStateSetEvent DB (Maybe WalletSelection)
+data WalletEvent
+  = WalletStateSetEvent DB (Maybe WalletSelection)
+  | WalletRequireConfirm (MVar Bool) ConfirmationType
+
+data ConfirmationType
+  = ConfirmMnemonic [Text]           -- ^ mnemonic
+  | ConfirmRemove WalletSelection    -- ^ selection
+  | ConfirmSend [(Text, Text, Text)] -- ^ lists of outputs (address, amount, coin)
 
 data WalletUIFace =
   WalletUIFace

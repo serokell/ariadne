@@ -24,6 +24,7 @@ import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
 
 import Ariadne.Cardano.Face
+import Ariadne.Cardano.Knit (showCoin)
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
 import Ariadne.Wallet.Cardano.Kernel.Bip32
@@ -41,6 +42,7 @@ data SendTxException
     | SendTxNoAccounts !HdRootId
     | SendTxIncorrectPassPhrase
     | SendTxAccountIndexOutOfRange !HdRootId !Word
+    | SendTxNotConfirmed
     deriving (Show)
 
 instance Buildable SendTxException where
@@ -53,6 +55,8 @@ instance Buildable SendTxException where
             "Incorrect passphrase"
         SendTxAccountIndexOutOfRange rootId idx ->
             bprint ("Account #"%int%" doesn't exist in "%build) idx rootId
+        SendTxNotConfirmed ->
+            "Not confirmed by User"
 
 instance Exception SendTxException where
     toException e = case e of
@@ -75,12 +79,26 @@ sendTx ::
     -> (Doc -> IO ())
     -> (WalletReference -> IO PassPhrase)
     -> (WalletReference -> IO TxId -> IO TxId)
+    -> (ConfirmationType -> IO Bool)
     -> WalletReference
     -> [LocalAccountReference]
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhrase voidWrongPass walletRef accRefs isp outs = do
+sendTx
+    pwl
+    WalletFace {..}
+    CardanoFace {..}
+    walletSelRef
+    printAction
+    getPassPhrase
+    voidWrongPass
+    waitUiConfirm
+    walletRef
+    accRefs
+    isp
+    outs
+  = do
     -- TODO: call newPending here
     let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- pwlGetDBSnapshot pwl
@@ -94,6 +112,8 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhra
 
         filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
         filterAccounts ids accounts = accounts @+ toList ids
+    confirmed <- waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs
+    when (not confirmed) $ throwM SendTxNotConfirmed
     pp <- getPassPhrase walletRef
     voidWrongPass walletRef . runCardanoMode $
         sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
@@ -184,6 +204,12 @@ sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhra
         , list . toList $ map formatToDoc _txOutputs
         , "…"
         ]
+
+    txOutToInfo :: TxOut -> (Text, Text, Text)
+    txOutToInfo TxOut{..} = (outAddress, outAmount, show outCoin)
+      where
+        outAddress = show $ formatToDoc txOutAddress
+        (outAmount, outCoin) = showCoin $ txOutValue
 
 -- Assumes the passphrase is correct!
 walletSigners :: EncryptedSecretKey -> HdWallets -> PassPhrase -> IxSet HdAccount -> HashMap Address SafeSigner

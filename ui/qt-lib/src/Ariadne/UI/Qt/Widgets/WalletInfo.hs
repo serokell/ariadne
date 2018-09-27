@@ -158,6 +158,7 @@ data WalletInfoEvent
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
+  | WalletInfoConfirmRemove (MVar Bool) UiDeletingItem
 
 handleWalletInfoEvent
   :: UiLangFace
@@ -217,6 +218,11 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiNewAddressCommandFailure err ->
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
+    WalletInfoConfirmRemove resultVar delItemType ->
+      liftIO $ runDelete delItemType >>= \case
+        DoDelete -> liftIO $ putMVar resultVar True
+        Cancel -> liftIO $ putMVar resultVar False
+
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
@@ -224,17 +230,8 @@ addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
 
 deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
-  whenJustM (readIORef currentItem) $ \item -> do
-    let
-      delItemType = case item of
-        WIWallet {} -> DelWallet
-        WIAccount {} -> DelAccount
-
-    itemName <- readIORef currentItemName
-    result <- runDelete delItemType itemName
-
-    when (result == DoDelete) $ do
-      void $ langPutUiCommand UiRemoveCurrentItem
+  whenJustM (readIORef currentItem) $ \_ ->
+    void $ langPutUiCommand UiRemoveCurrentItem
 
 requestButtonClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 requestButtonClicked langFace WalletInfo{..} _checked = do

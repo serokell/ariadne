@@ -88,6 +88,7 @@ data WalletEvent
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
   | WalletPasswordRequest WalletId CE.Event
+  | WalletConfirmationRequest (MVar Bool) UiConfirmationType
 
 handleWalletEvent
   :: UiLangFace
@@ -117,6 +118,14 @@ handleWalletEvent langFace putPass ev = do
     WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
       InsertPasswordCanceled -> pass
       InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
+    WalletConfirmationRequest resultVar confirmationType -> case confirmationType of
+      UiConfirmMnemonic mnemonic ->
+        magnify walletTreeL $ handleWalletTreeEvent langFace $
+          WalletTreeConfirmMnemonic resultVar mnemonic
+      UiConfirmRemove deletingItem ->
+        magnify walletInfoL $ handleWalletInfoEvent langFace $
+          WalletInfoConfirmRemove resultVar deletingItem
+      UiConfirmSend _ -> pass -- TODO: part of [AD-389]
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

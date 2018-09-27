@@ -29,11 +29,11 @@ initCheckboxWidget title lens =
       , checkboxWidgetLens = Lens lens
       }
 
-drawCheckboxWidget :: Bool -> CheckboxWidgetState p -> WidgetDrawM (CheckboxWidgetState p) p (B.Widget WidgetName)
+drawCheckboxWidget :: Bool -> CheckboxWidgetState p -> WidgetDrawM (CheckboxWidgetState p) p WidgetDrawing
 drawCheckboxWidget focused CheckboxWidgetState{..} = do
   widgetName <- getWidgetName
   checked <- viewWidgetLens checkboxWidgetLens
-  return $
+  return . singleDrawing $
     B.clickable widgetName $
     (if focused then B.withAttr "selected" else id) $
     B.txt $

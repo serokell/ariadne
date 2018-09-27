@@ -76,12 +76,12 @@ initPasswordWidget lens = initBaseEditWidget lens "edit" (Just $ const '*') Noth
 initHiddenPasswordWidget :: Lens' p Text -> Widget p
 initHiddenPasswordWidget lens = initBaseEditWidget lens "edit" Nothing Nothing EnterIgnore
 
-drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p (B.Widget WidgetName)
+drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p WidgetDrawing
 drawEditWidget _focused widgetState@EditWidgetState{..} = do
   widgetName <- getWidgetName
   parentState <- lift ask
   (ls, (row, col)) <- currentState widgetState <$> viewWidgetLens editWidgetLens
-  return $
+  return . singleDrawing $
     fixedViewport widgetName B.Horizontal $
     B.Widget B.Fixed B.Fixed $ do
       rdrCtx <- B.getContext

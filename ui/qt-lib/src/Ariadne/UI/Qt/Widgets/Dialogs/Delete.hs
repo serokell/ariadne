@@ -15,29 +15,25 @@ import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
-import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
-data DeletingItem = DelWallet | DelAccount deriving Eq
 data DeletionResult = DoDelete | Cancel deriving Eq
 
 data Delete =
   Delete
     { delete :: QDialog.QDialog
     , isSure :: QCheckBox.QCheckBox
-    , itemName :: Text
-    , retypeWidget :: QWidget.QWidget
-    , retypeName :: QLineEdit.QLineEdit
     , deleteButton :: QPushButton.QPushButton
-    , itemType :: DeletingItem
+    , itemType :: UiDeletingItem
     }
 
-initDelete :: DeletingItem -> Text -> IO Delete
-initDelete itemType itemName = do
+initDelete :: UiDeletingItem -> IO Delete
+initDelete itemType = do
   delete <- QDialog.new
   layout <- createLayout delete
 
@@ -49,24 +45,13 @@ initDelete itemType itemName = do
   addHeader layout header
 
   warningLabel <- QLabel.newWithText . toString $ sformat
-    ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
+    ("Do you really want to delete this " % itemTypeFormat % "?") itemType
   QBoxLayout.addWidget layout warningLabel
 
   isSure <- createCheckBox layout CheckboxOnLeft $ sformat
     ("Make sure you have access to backup before continuing. \
      \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
     itemType
-
-  (retypeWidget, retypeLayout) <- createSubWidget
-  addSeparator retypeLayout
-
-  retypeLabel <- QLabel.newWithText . toString $ sformat
-    ("Type " % itemTypeFormat % " name to confirm deletion") itemType
-  retypeName <- QLineEdit.new
-  addRow retypeLayout retypeLabel retypeName
-
-  QBoxLayout.addWidget layout retypeWidget
-  QWidget.hide retypeWidget
 
   buttonsLayout <- QHBoxLayout.new
   cancelButton <- QPushButton.newWithText ("CANCEL" :: String)
@@ -83,7 +68,6 @@ initDelete itemType itemName = do
   let del = Delete{..}
 
   connect_ isSure QAbstractButton.toggledSignal $ isSureToggled del
-  connect_ retypeName QLineEdit.textChangedSignal $ \_ -> revalidate del
   connect_ cancelButton QAbstractButton.clickedSignal $ \_ -> QDialog.reject delete
   connect_ deleteButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept delete
 
@@ -91,9 +75,9 @@ initDelete itemType itemName = do
 
   return del
 
-runDelete :: DeletingItem -> Text -> IO DeletionResult
-runDelete itemType itemName = do
-  del@Delete{delete = delete} <- initDelete itemType itemName
+runDelete :: UiDeletingItem -> IO DeletionResult
+runDelete itemType = do
+  del@Delete{delete = delete} <- initDelete itemType
   result <- toEnum <$> QDialog.exec delete
   valid <- isValid del
 
@@ -102,24 +86,18 @@ runDelete itemType itemName = do
     QDialog.Rejected -> Cancel
 
 isValid :: Delete -> IO Bool
-isValid Delete{..} = do
-  delIsSure <- QAbstractButton.isChecked isSure
-  delItemName <- T.strip . fromString <$> QLineEdit.text retypeName
-
-  -- We do not ask to retype name for accounts
-  return $ delIsSure && (itemType /= DelWallet || delItemName == itemName)
+isValid Delete{..} = QAbstractButton.isChecked isSure
 
 revalidate :: Delete -> IO ()
 revalidate del@Delete{..} = isValid del >>= QWidget.setEnabled deleteButton
 
-itemTypeFormat :: Format r (DeletingItem -> r)
+itemTypeFormat :: Format r (UiDeletingItem -> r)
 itemTypeFormat = later $ \case
-  DelWallet -> "wallet"
-  DelAccount -> "account"
+  UiDelWallet -> "wallet"
+  UiDelAccount -> "account"
 
 isSureToggled :: Delete -> Bool -> IO ()
-isSureToggled del@Delete{..} checked = do
+isSureToggled del@Delete{..} _checked = do
   revalidate del
-  when (itemType == DelWallet) $ do
-    QWidget.setVisible retypeWidget checked
+  when (itemType == UiDelWallet) $ do
     QWidget.adjustSize delete

@@ -37,9 +37,9 @@ initStatusWidget =
       , statusWidgetUpdateURL = Nothing
       }
 
-drawStatusWidget :: StatusWidgetState -> WidgetDrawM StatusWidgetState p (B.Widget WidgetName)
+drawStatusWidget :: StatusWidgetState -> WidgetDrawM StatusWidgetState p WidgetDrawing
 drawStatusWidget StatusWidgetState{..} =
-  return $
+  return . singleDrawing $
     B.padTop (B.Pad 1) $
     B.updateAttrMap (B.mapAttrName "status" B.borderAttr) $
     B.withAttr "status" $

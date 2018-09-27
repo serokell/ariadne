@@ -147,7 +147,7 @@ drawAddressRow focused AccountAddress{..} =
         B.emptyResult
           & B.imageL .~ img
 
-drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p (B.Widget WidgetName)
+drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p WidgetDrawing
 drawAccountWidget focus AccountWidgetState{..} = do
   widget <- ask
   widgetName <- getWidgetName
@@ -159,10 +159,10 @@ drawAccountWidget focus AccountWidgetState{..} = do
 
     labelWidth = 16
 
-    drawChild = drawWidgetChild focus widget
+    drawChild = last . drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
-  return $
+  return . singleDrawing $
     scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $
