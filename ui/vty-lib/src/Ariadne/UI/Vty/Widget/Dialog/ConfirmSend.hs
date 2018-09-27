@@ -132,4 +132,3 @@ handleConfirmSendWidgetEvent = \case
         confirmSendWidgetResultVarL .= Just resVar
         confirmSendWidgetOutputListL .= sendInfo
     _ -> pass
-
