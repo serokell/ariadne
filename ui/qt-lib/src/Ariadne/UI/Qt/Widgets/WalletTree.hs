@@ -80,27 +80,18 @@ initWalletTree langFace uiWalletFace itemModel selectionModel = do
   return (widget, WalletTree{..})
 
 addWalletClicked :: UiLangFace -> UiWalletFace -> WalletTree -> Bool -> IO ()
-addWalletClicked langFace@UiLangFace{..} uiWalletFace walletTree@WalletTree{..} _checked =
+addWalletClicked UiLangFace{..} _uiWalletFace WalletTree{..} _checked =
   runNewWallet >>= \case
     NewWalletCanceled -> pass
     NewWalletAccepted NewWalletParameters{..} ->
       case nwSpecifier of
-        NewWalletName -> doCreateNewWallet langFace uiWalletFace walletTree nwName nwPassword
+        NewWalletName -> void $ langPutUiCommand $ UiNewWallet nwName nwPassword
         NewWalletMnemonic mnemonic full -> void $ langPutUiCommand $
           UiRestoreWallet nwName nwPassword mnemonic full
 
-doCreateNewWallet :: UiLangFace -> UiWalletFace -> WalletTree -> Text -> Maybe Text -> IO ()
-doCreateNewWallet UiLangFace{..} UiWalletFace{..} WalletTree{..} name password = do
-  mnemonic <- uiGenerateMnemonic uiDefaultEntropySize
-  confirmationResult <- runConfirmMnemonic mnemonic
-
-  case confirmationResult of
-    ConfirmMnemonicSuccess -> void $ langPutUiCommand $ UiRestoreWallet name password (unwords mnemonic) False
-    ConfirmMnemonicFailure -> void $ QMessageBox.critical treeView ("Error" :: String)
-      ("You failed to verify the mnemonic. Please try creating a new wallet again." :: String)
-
 data WalletTreeEvent
   = WalletTreeRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
+  | WalletTreeConfirmMnemonic (MVar Bool) [Text] 
 
 handleWalletTreeEvent
   :: UiLangFace
@@ -114,3 +105,10 @@ handleWalletTreeEvent UiLangFace{..} ev = do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet created" :: String)
       UiRestoreWalletCommandFailure err -> do
         void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
+    WalletTreeConfirmMnemonic resultVar mnemonic -> do 
+      liftIO $ runConfirmMnemonic mnemonic >>= \case
+        ConfirmMnemonicSuccess -> liftIO $ putMVar resultVar True
+        ConfirmMnemonicFailure -> liftIO $ do
+          putMVar resultVar False
+          void $ QMessageBox.critical treeView ("Error" :: String)
+            ("You failed to verify the mnemonic. Please try creating a new wallet again." :: String)

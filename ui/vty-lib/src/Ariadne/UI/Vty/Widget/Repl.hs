@@ -77,7 +77,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
 
     setWidgetFocusList [WidgetNameReplInput]
 
-drawReplWidget :: WidgetName -> ReplWidgetState p -> WidgetDrawM (ReplWidgetState p) p (B.Widget WidgetName)
+drawReplWidget :: WidgetName -> ReplWidgetState p -> WidgetDrawM (ReplWidgetState p) p WidgetDrawing
 drawReplWidget focus ReplWidgetState{..} = do
     widget <- ask
     widgetName <- getWidgetName
@@ -88,10 +88,11 @@ drawReplWidget focus ReplWidgetState{..} = do
         withFocusIndicator focus widgetName 'R' 0 $
         B.padLeftRight 1 $
         appendPrompt $
+        last $
         drawWidgetChild focus widget WidgetNameReplInput
 
     if fullsize
-      then return $ B.vBox
+      then return . singleDrawing $ B.vBox
         [ B.padLeft (B.Pad 1) $
           scrollingViewport widgetName B.Vertical $
           B.cached widgetName $
@@ -103,7 +104,7 @@ drawReplWidget focus ReplWidgetState{..} = do
         , B.hBorder
         , input
         ]
-      else return $ B.vBox $ case replWidgetOut of
+      else return . singleDrawing $ B.vBox $ case replWidgetOut of
         (x@OutputCommand{}):_ ->
           [ B.padLeftRight 1 $
             B.Widget

@@ -1,4 +1,4 @@
-module Ariadne.UI.Vty.Widget.Password
+module Ariadne.UI.Vty.Widget.Dialog.Password
     ( initPasswordWidget
     ) where
 
@@ -6,17 +6,16 @@ import qualified Control.Concurrent.Event as CE
 import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
-import qualified Data.Text as T
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
+import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Edit hiding (initPasswordWidget)
 import Ariadne.Util
 import Ariadne.UX.PasswordManager
 
-data PasswordWidgetState =
-  PasswordWidgetState
+data PasswordWidgetState = PasswordWidgetState
     { passwordWidgetPutPassword :: !PutPassword
     , passwordWidgetUiFace      :: !UiFace
     , passwordWidgetContent     :: !Text
@@ -39,46 +38,44 @@ initPasswordWidget putPassword uiFace = initWidget $ do
 
     addWidgetChild WidgetNamePasswordInput $
         initHiddenPasswordWidget (widgetParentLens passwordWidgetContentL)
+    addDialogButton WidgetNamePasswordContinue "Continue" performContinue
 
-    setWidgetFocusList [WidgetNamePasswordInput]
+    setWidgetFocusList
+        [ WidgetNameSelf
+        , WidgetNamePasswordContinue
+        , WidgetNamePasswordInput
+        ]
 
 drawPasswordWidget
     :: WidgetName
     -> PasswordWidgetState
-    -> WidgetDrawM PasswordWidgetState p (B.Widget WidgetName)
+    -> WidgetDrawM PasswordWidgetState p WidgetDrawing
 drawPasswordWidget focus PasswordWidgetState{..} = do
     widget <- ask
     case passwordWidgetRecipient of
-        Nothing -> return B.emptyWidget
-        Just _  -> return $
+        Nothing -> return $ singleDrawing B.emptyWidget
+        Just _  -> drawInsideDialog "Insert Password" focus [WidgetNamePasswordContinue] $
             B.padLeftRight 1 $
-            appendPrompt $
-            drawWidgetChild focus widget WidgetNamePasswordInput
-  where
-    inputPrompt = "Password: "
-    appendPrompt w = B.Widget (B.hSize w) (B.vSize w) $ do
-        c <- B.getContext
-        result <- B.render $ B.hLimit (c ^. B.availWidthL - T.length inputPrompt) w
-        B.render $ B.hBox
-            [ B.txt inputPrompt
-            , B.Widget (B.hSize w) (B.vSize w) (return result)
-            ]
+            B.hBox
+                [ B.txt "Password: "
+                , last $ drawWidgetChild focus widget WidgetNamePasswordInput
+                ]
 
 handlePasswordWidgetKey
     :: KeyboardEvent
     -> WidgetEventM PasswordWidgetState p WidgetEventResult
 handlePasswordWidgetKey = \case
-    KeyEnter -> do
-        PasswordWidgetState{..} <- get
-        case passwordWidgetRecipient of
-            Nothing -> return WidgetEventNotHandled
-            Just (walletId, cEvent) -> do
-              liftIO $ passwordWidgetPutPassword walletId passwordWidgetContent $ Just cEvent
-              liftIO $ putUiEvent passwordWidgetUiFace $ UiPasswordEvent UiPasswordSent
-              passwordWidgetRecipientL .= Nothing
-              passwordWidgetContentL .= ""
-              return WidgetEventHandled
+    KeyEnter -> performContinue *> return WidgetEventHandled
     _ -> return WidgetEventNotHandled
+
+performContinue :: WidgetEventM PasswordWidgetState p ()
+performContinue = do
+    PasswordWidgetState{..} <- get
+    whenJust passwordWidgetRecipient $ \(walletId, cEvent) -> do
+        liftIO $ passwordWidgetPutPassword walletId passwordWidgetContent $ Just cEvent
+        liftIO $ putUiEvent passwordWidgetUiFace $ UiPasswordEvent UiPasswordSent
+        passwordWidgetRecipientL .= Nothing
+        passwordWidgetContentL .= ""
 
 handlePasswordWidgetEvent
     :: UiEvent

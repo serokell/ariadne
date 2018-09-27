@@ -27,10 +27,10 @@ initButtonWidget title =
       { buttonWidgetTitle = title
       }
 
-drawButtonWidget :: Bool -> ButtonWidgetState -> WidgetDrawM ButtonWidgetState p (B.Widget WidgetName)
+drawButtonWidget :: Bool -> ButtonWidgetState -> WidgetDrawM ButtonWidgetState p WidgetDrawing
 drawButtonWidget focused ButtonWidgetState{..} = do
   widgetName <- getWidgetName
-  return $
+  return . singleDrawing $
     B.clickable widgetName $
     (if focused then B.withAttr "selected" else id) $
     B.txt $

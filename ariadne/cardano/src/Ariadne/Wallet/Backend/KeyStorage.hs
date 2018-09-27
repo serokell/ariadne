@@ -96,6 +96,13 @@ instance Exception SelectIsTooDeep where
   displayException SelectIsTooDeep =
     "The selection path is too deep"
 
+data WalletGenerationFailed = WGFailedUnconfirmedMnemonic
+  deriving (Eq, Show)
+
+instance Exception WalletGenerationFailed where
+  displayException WGFailedUnconfirmedMnemonic =
+    "Wallet mnemonic was not confirmed"
+
 data AddressGenerationFailed = AGFailedIncorrectPassPhrase
   deriving (Eq, Show)
 
@@ -120,6 +127,13 @@ data AccountIndexOutOfRange = AccountIndexOutOfRange Word
 instance Exception AccountIndexOutOfRange where
   displayException (AccountIndexOutOfRange i) =
    "The account index " ++ show i ++ " is out of range."
+
+data RemoveFailed = RemoveFailedUnconfirmed
+  deriving (Eq, Show)
+
+instance Exception RemoveFailed where
+  displayException RemoveFailedUnconfirmed =
+    "Removal was not confirmed"
 
 -- | Get the wallet HdRootId by ID, UI index or using current selection.
 resolveWalletRef
@@ -289,13 +303,16 @@ newWallet ::
     -> WalletConfig
     -> WalletFace
     -> IO PassPhrase
+    -> (ConfirmationType -> IO Bool)
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-newWallet pwl walletConfig face getPassTemp mbWalletName mbEntropySize = do
+newWallet pwl walletConfig face getPassTemp waitUiConfirm mbWalletName mbEntropySize = do
   pp <- getPassTemp
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   mnemonic <- generateMnemonic entropySize
+  confirmed <- waitUiConfirm $ ConfirmMnemonic mnemonic
+  when (not confirmed) $ throwM WGFailedUnconfirmedMnemonic
   let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
       (_, esk) = safeDeterministicKeyGen seed pp
   mnemonic <$
@@ -392,19 +409,23 @@ removeSelection
   :: PassiveWalletLayer IO
   -> WalletFace
   -> IORef (Maybe WalletSelection)
+  -> (ConfirmationType -> IO Bool)
   -> IO ()
-removeSelection pwl WalletFace{..} walletSelRef = do
+removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm = do
   mWalletSel <- readIORef walletSelRef
   newSelection <- case mWalletSel of
     Nothing -> pure Nothing
     -- Throw "Nothing selected" here?
-    Just selection -> case selection of
-      WSRoot hdrId -> do
-        throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId
-        return Nothing
-      WSAccount hdAccId -> do
-        throwLeftIO $ void <$> pwlDeleteAccount pwl hdAccId
-        return $ Just $ WSRoot (hdAccId ^. hdAccountIdParent)
+    Just selection -> do
+      confirmed <- waitUiConfirm $ ConfirmRemove selection
+      when (not confirmed) $ throwM RemoveFailedUnconfirmed
+      case selection of
+        WSRoot hdrId -> do
+          throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId
+          return Nothing
+        WSAccount hdAccId -> do
+          throwLeftIO $ void <$> pwlDeleteAccount pwl hdAccId
+          return $ Just $ WSRoot (hdAccId ^. hdAccountIdParent)
   atomicWriteIORef walletSelRef newSelection
   walletRefreshState
 

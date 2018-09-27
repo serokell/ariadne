@@ -78,6 +78,13 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
         voidSelectionPass :: IO ()
         voidSelectionPass = voidPass WalletIdSelected
 
+        -- | Ask Ui for a confirmation and wait for a result
+        waitUiConfirm :: ConfirmationType -> IO Bool
+        waitUiConfirm confirmType = do
+            mVar <- newEmptyMVar
+            sendWalletEvent $ WalletRequireConfirm mVar confirmType
+            takeMVar mVar
+
         mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction)
           where
             NT runCardanoMode = cardanoRunCardanoMode
@@ -91,16 +98,16 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                 { walletNewAddress =
                     newAddress pwl this walletSelRef getPassPhrase voidWrongPass
                 , walletNewAccount = newAccount pwl this walletSelRef
-                , walletNewWallet = newWallet pwl walletConfig this getPassTemp
+                , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm
                 , walletRestore = restoreWallet pwl this runCardanoMode getPassTemp
                 , walletRestoreFromFile = restoreFromKeyFile pwl this runCardanoMode
                 , walletRename = renameSelection pwl this walletSelRef
-                , walletRemove = removeSelection pwl this walletSelRef
+                , walletRemove = removeSelection pwl this walletSelRef waitUiConfirm
                 , walletRefreshState =
                     refreshState pwl walletSelRef sendWalletEvent
                 , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
-                    sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass
+                    sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
                 , walletGetSelection =
                     (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef

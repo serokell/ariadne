@@ -96,6 +96,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       }
 
     extractPass = \case
+      UiNewWallet _ maybePass -> maybePass
       UiRestoreWallet _ maybePass _ _ -> maybePass
       _ -> Nothing
     pushPassword password = putPass WalletIdTemporary password Nothing
@@ -122,6 +123,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             , Knit.ArgKw "wallet" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wallet
             ] ++
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts
+          )
+      UiNewWallet name _ -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newWalletCommandName $
+            [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
+            ]
           )
       UiRestoreWallet name _ mnemonic full -> do
         Right $ Knit.ExprProcCall
@@ -253,7 +260,16 @@ walletEventToUI = \case
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
         ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
+  WalletRequireConfirm resVar confirmationType ->
+    Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
+      ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
+      ConfirmRemove selection  -> UiConfirmRemove $ toUiDeletingItem selection
+      ConfirmSend outLst       -> UiConfirmSend outLst
 
+toUiDeletingItem :: WalletSelection -> UiDeletingItem
+toUiDeletingItem = \case
+    WSRoot _    -> UiDelWallet
+    WSAccount _ -> UiDelAccount
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =
