@@ -111,16 +111,17 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (Knit.ProcCall Knit.killCommandName
             [Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiSend address amount -> do
+      UiSend wallet accounts address amount -> do
         argAddress <- decodeTextAddress address
-        argCoin <- readEither amount
         Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.sendCommandName
+          (Knit.ProcCall Knit.sendCommandName $
             [ Knit.ArgKw "out" . Knit.ExprProcCall $ Knit.ProcCall Knit.txOutCommandName
                 [ Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitAddress $ argAddress
-                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ argCoin
+                , Knit.ArgPos . Knit.ExprLit . Knit.toLit . Knit.LitNumber $ amount
                 ]
-            ]
+            , Knit.ArgKw "wallet" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wallet
+            ] ++
+            map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts
           )
       UiRestoreWallet name _ mnemonic full -> do
         Right $ Knit.ExprProcCall
@@ -147,7 +148,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (Knit.ProcCall Knit.removeCommandName [])
 
     resultToUI result = \case
-      UiSend _ _ ->
+      UiSend {} ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
