@@ -25,8 +25,6 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 
--- import Ariadne.UI.Qt.AnsiToHTML
--- import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.Util
@@ -178,8 +176,8 @@ initGeneralSettings = do
   for_ [languageSelector, countervalueSelector, rateProviderSelector, themeSelector] $ \w ->
     QWidget.setSizePolicyRaw w Maximum Fixed
 
-  -- for_ [languageSelector, countervalueSelector, rateProviderSelector, themeSelector] $ \w ->
-    -- QWidget.setEnabled w False
+  for_ [languageSelector, countervalueSelector, rateProviderSelector, themeSelector] $ \w ->
+    QWidget.setEnabled w False
 
   QWidget.setLayout generalWidget generalLayout
 
@@ -232,7 +230,6 @@ initSupportSettings = do
   let faqText = "If you are experiencing issues, please see the FAQ on Ariadne \
                 \website for guidance on known issues."
   faqLabel <- createTwoLinesLabel "FREQUENTLY ASKED QUESTIONS" faqText
-  --missing icon
   faqButton <- QPushButton.new
   void $ setProperty faqButton ("styleRole" :: Text) ("linkButton" :: Text)
   addRow supportLayout faqLabel faqButton
@@ -241,7 +238,6 @@ initSupportSettings = do
 
   let clearCacheText = "Clear Ariadne Wallet cache to force resynchronization with the blockchain."
   clearCacheLabel <- createTwoLinesLabel "CLEAR CACHE" clearCacheText
-  --missing icon
   clearCacheButton <- QPushButton.newWithText ("Clear cache" :: String)
   addRow supportLayout clearCacheLabel clearCacheButton
   addSeparator supportLayout
@@ -299,7 +295,8 @@ initSupportSettings = do
   for_ [faqButton, clearCacheButton, reportButton, downloadLogsButton, resetButton] $ \b ->
     QWidget.setEnabled b False
 
-
+  for_ [hasAnalytics, enableRepots] $ \b ->
+    QWidget.setEnabled b False
 
   QWidget.setLayout supportWidget supportLayout
 
