@@ -25,11 +25,15 @@ import Ariadne.Config.Cardano
   defaultLoggerConfig, defaultTopology)
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
+import Ariadne.Config.History (HistoryConfig(..))
+import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Util (postfixLFields)
 
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
+import Test.Ariadne.History.Arbitrary ()
+import Test.Ariadne.Update.Arbitrary ()
 import Test.Ariadne.Wallet.Arbitrary ()
 
 makeLensesWith postfixLFields ''CommonNodeArgs
@@ -50,6 +54,8 @@ configSpec = describe "Ariadne.Config" $ do
   it "Embedded values are correct" embeddedValuesUnitTest
   prop "handles any CardanoConfig" propHandleCardanoConfig
   prop "handles any WalletConfig" propHandleWalletConfig
+  prop "handles any UpdateConfig" propHandleUpdateConfig
+  prop "handles any HistoryConfig" propHandleHistoryConfig
 
 propHandleCardanoConfig :: CardanoConfig -> Property
 propHandleCardanoConfig conf = monadicIO $ do
@@ -58,6 +64,16 @@ propHandleCardanoConfig conf = monadicIO $ do
 
 propHandleWalletConfig :: WalletConfig -> Property
 propHandleWalletConfig conf = monadicIO $ do
+  parsed <- run $ (fromDhall . toDhall) conf
+  assert (conf == parsed)
+
+propHandleUpdateConfig :: UpdateConfig -> Property
+propHandleUpdateConfig conf = monadicIO $ do
+  parsed <- run $ (fromDhall . toDhall) conf
+  assert (conf == parsed)
+
+propHandleHistoryConfig :: HistoryConfig -> Property
+propHandleHistoryConfig conf = monadicIO $ do
   parsed <- run $ (fromDhall . toDhall) conf
   assert (conf == parsed)
 
@@ -107,6 +123,10 @@ cliArgs =
   , "--wallet:entropy-size", "32"
   , "--wallet:keyfile", "new-secret-mainnet.key"
   , "--wallet:wallet-db-path", "new-wallet-db"
+  , "--update:version-check-url", "new-version-check-url"
+  , "--update:update-url", "new-update-url"
+  , "--update:check-delay", "21600"
+  , "--history:path", "new-history-path"
   ]
 
 
@@ -134,7 +154,17 @@ expectedAriadneConfig = defaultAriadneCfg
     , wcKeyfilePath = "new-secret-mainnet.key"
     , wcAcidDBPath  = "new-wallet-db"
     }
+  , acUpdate = defaultUpdateConfig
+      { ucVersionCheckUrl = "new-version-check-url"
+      , ucUpdateUrl       = "new-update-url"
+      , ucCheckDelay      = 21600
+      }
+  , acHistory = defaultHistoryConfig
+      { hcPath = "new-history-path"
+      }
   }
   where
     defaultCardanoConfig = acCardano defaultAriadneCfg
     defaultWalletConfig = acWallet defaultAriadneCfg
+    defaultUpdateConfig = acUpdate defaultAriadneCfg
+    defaultHistoryConfig = acHistory defaultAriadneCfg
