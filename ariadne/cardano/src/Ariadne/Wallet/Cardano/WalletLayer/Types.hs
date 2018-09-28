@@ -25,6 +25,8 @@ data PassiveWalletLayer m = PassiveWalletLayer
       pwlCreateWallet
           :: EncryptedSecretKey
           -> Kernel.HasNonemptyPassphrase
+          -> Kernel.WithAddress
+          -> Maybe PassPhrase
           -> Kernel.AssuranceLevel
           -> Kernel.WalletName
           -> Map Kernel.HdAccountId Kernel.PrefilteredUtxo

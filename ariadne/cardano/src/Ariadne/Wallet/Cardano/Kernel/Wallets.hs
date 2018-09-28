@@ -5,6 +5,7 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets (
     , deleteHdWallet
     , HasNonemptyPassphrase(..)
     , mkHasPP
+    , WithAddress (..)
       -- * Errors
     , CreateWalletError(..)
     -- * Internal & testing use only
@@ -13,6 +14,7 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets (
 
 
 import qualified Data.Text.Buildable
+import qualified Data.Text.Lazy.Builder as TB (fromText)
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
 import qualified Text.Show
@@ -22,11 +24,13 @@ import Data.Acid.Advanced (update')
 import Pos.Core (Timestamp)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase, emptyPassphrase)
 
+import Ariadne.Wallet.Cardano.Kernel.Accounts (createAccount, CreateAccountError(..))
+import Ariadne.Wallet.Cardano.Kernel.Addresses (createAddress, CreateAddressError (..))
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
   UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (AssuranceLevel, HdAccountId, HdRoot, WalletName)
+  (AccountName(..), AssuranceLevel, HdAddressChain(HdChainInternal), HdAccountId, HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as HD
@@ -35,15 +39,19 @@ import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
-import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
+import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..), AccountId(..))
 import Ariadne.Wallet.Cardano.Kernel.Util (getCurrentTimestamp)
 
 import Test.QuickCheck (Arbitrary(..))
 
 
 data CreateWalletError =
-      CreateWalletFailed HD.CreateHdRootError
+      CreateWalletFailed HD.CreateHdRootError  
       -- ^ When trying to create the 'Wallet', the DB operation failed.
+    | CreateAccountFailed CreateAccountError
+    | CreateAddressFailed CreateAddressError
+    | EmptyPassPhraseError
+
 
 instance Arbitrary CreateWalletError where
     arbitrary = error "Arbitrary CreateWalletError is not implemented"
@@ -51,6 +59,12 @@ instance Arbitrary CreateWalletError where
 instance Buildable CreateWalletError where
     build (CreateWalletFailed dbOperation) =
         bprint ("CreateWalletUnknownHdAccount " % F.build) dbOperation
+    build EmptyPassPhraseError = TB.fromText "EmptyPassPhraseError"
+    build (CreateAccountFailed dbOperation) =
+        bprint ("CreateWalletAcountUnknown " % F.build) dbOperation
+    build (CreateAddressFailed dbOperation) =
+        bprint ("CreateWalletAddressUnknown " % F.build) dbOperation
+
 
 instance Show CreateWalletError where
     show = formatToString build
@@ -58,6 +72,8 @@ instance Show CreateWalletError where
 instance Exception CreateWalletError
 
 newtype HasNonemptyPassphrase = HasNonemptyPassphrase Bool
+
+newtype WithAddress = WithAddress Bool
 
 mkHasPP :: PassPhrase -> HasNonemptyPassphrase
 mkHasPP pp = HasNonemptyPassphrase $ pp /= emptyPassphrase
@@ -72,6 +88,10 @@ createHdWallet :: PassiveWallet
              -- ^ Wallet's encrypted secret key. Should be generated outside.
              -> HasNonemptyPassphrase
              -- ^ Whether the newly created wallet has a non-empty passphrase.
+             -> WithAddress
+             -- ^ Whether we need to auto create an account and address for new wallet
+             -> Maybe PassPhrase
+             -- ^ The passPhrase for create wallet account address
              -> AssuranceLevel
              -- ^ The 'AssuranceLevel' for this wallet, namely after how many
              -- blocks each transaction is considered 'adopted'. This translates
@@ -82,7 +102,7 @@ createHdWallet :: PassiveWallet
              -> Map HdAccountId PrefilteredUtxo
              -- ^ Initial utxo for the new wallet.
              -> IO (Either CreateWalletError HdRoot)
-createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAccount = do
+createHdWallet pw esk hasNonemptyPP (WithAddress wA) mPP assuranceLevel walletName utxoByAccount = do
     -- STEP 1: Insert the 'EncryptedSecretKey' into the 'Keystore'
     let newRootId = HD.eskToHdRootId esk
         walletId = WalletIdHdSeq newRootId
@@ -92,7 +112,7 @@ createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAcco
     -- an acid-state transaction.
     res <- createWalletHdSeq
         pw
-        hasNonemptyPassphrase
+        hasNonemptyPP
         walletName
         assuranceLevel
         esk
@@ -102,7 +122,12 @@ createHdWallet pw esk hasNonemptyPassphrase assuranceLevel walletName utxoByAcco
             Keystore.delete walletId (pw ^. walletKeystore)
             return . Left $ CreateWalletFailed e
         Right hdRoot -> do
-            return (Right hdRoot)
+            if not wA then 
+                return (Right hdRoot) 
+            else case mPP of 
+                Just passphrase -> addAddress pw walletId passphrase hdRoot
+                Nothing -> return . Left $ EmptyPassPhraseError
+
 
 
 -- | Creates an HD wallet where new accounts and addresses are generated
@@ -175,3 +200,25 @@ updateHdWalletAssurance
     -> IO (Either HD.UnknownHdRoot HdRoot)
 updateHdWalletAssurance pw hdRootId assuranceLevel =
     update' (pw ^. wallets) (UpdateHdWalletAssurance hdRootId assuranceLevel)
+
+{-------------------------------------------------------------------------------
+  Automatic creation of Wallet Account and Address
+-------------------------------------------------------------------------------}
+
+addAddress 
+    :: PassiveWallet
+    -> WalletId
+    -> PassPhrase
+    -> HdRoot
+    -> IO (Either CreateWalletError HdRoot)
+addAddress pw walletId passphrase hdRoot = do 
+    accountRes <- createAccount (AccountName "un-named") walletId pw
+    case accountRes of 
+        Left err      -> return . Left $ CreateAccountFailed err
+        Right account -> do
+            let accountId = AccountIdHdSeq $ account ^. HD.hdAccountId
+            addressRes <- createAddress passphrase accountId HdChainInternal pw
+            case addressRes of
+                Left err -> return . Left $ CreateAddressFailed err
+                Right _  -> return (Right hdRoot)
+    

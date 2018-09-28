@@ -194,6 +194,7 @@ arguments will be marked with "`?`".
   to mnemonics of 13 words. Ariadne mnemonics follow 
   [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) 
   with an addition of one extra word as mentioned above.
+  Created Wallet will also have a default auto generated account and address.
 - `new-account wallet: WalletId or Word name: String?`: create a new account
   in the specified or currently selected wallet. You can specify a wallet 
   either by its ID or by its (zero-based) index in the wallet tree.
