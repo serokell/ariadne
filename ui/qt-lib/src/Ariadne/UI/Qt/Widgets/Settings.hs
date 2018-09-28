@@ -216,9 +216,9 @@ initAboutSettings = do
   let as = AboutSettings{..}
 
   connect_ releaseNotesButton QAbstractButton.clickedSignal 
-        $ \_ -> openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md" >>= \_ -> return ()
+        $ \_ -> (openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md" >> pass)
   connect_ licenseButton QAbstractButton.clickedSignal 
-        $ \_ -> openBrowser "https://github.com/serokell/ariadne/blob/master/COPYING.md" >>= \_ -> return ()
+        $ \_ -> (openBrowser "https://github.com/serokell/ariadne/blob/master/COPYING.md" >> pass)  
 
   return (aboutWidget, as)
 
