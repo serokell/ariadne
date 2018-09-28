@@ -40,6 +40,7 @@ library
   exposed-modules:
       Knit
       Knit.Argument
+      Knit.Autocompletion
       Knit.Core
       Knit.DisplayError
       Knit.Eval

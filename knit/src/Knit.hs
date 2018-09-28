@@ -5,6 +5,7 @@ module Knit
 import NType as X
 
 import Knit.Argument as X
+import Knit.Autocompletion as X
 import Knit.Core as X
 import Knit.DisplayError as X
 import Knit.Eval as X
