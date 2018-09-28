@@ -278,7 +278,7 @@ QDialog QLineEdit, QDialog QLineEdit:focus {
     border-top: none;
     border-left: none;
     border-right: none;
-    border-bottom: 1px solid rgba(52, 52, 62, 25);
+    border-bottom: 1px solid rgba(52, 52, 62, 127);
     background: transparent;
 }
 
@@ -316,18 +316,111 @@ QDialog QLineEdit, QDialog QLineEdit:focus {
     background: #fafafa;
 }
 
-QPushButton[
-styleRole="linkButton"] {
+#settingsDialog QComboBox {
+    border: none;
+    background: transparent;
+    padding-right: 5px;
+    color: rgb(52, 52, 62, 127);
+}
+
+#settingsDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+  }
+
+#settingsDialog QComboBox::down-arrow {
+    image: url(':/images/expand-arrow.png');
+}
+
+#settingsDialog QComboBox QAbstractItemView {
+    border: 1px solid rgba(0, 0, 0, 30);
+    background: #fafafa;
+}
+
+QPushButton[styleRole="settingsTopbarButton"] {
+    width: 120px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: rgb(52, 52, 62, 59);
+}
+
+QPushButton[styleRole="settingsTopbarButton"]:hover {
+    background: rgba(52, 52, 62, 10);
+}
+
+QPushButton[styleRole="settingsTopbarButton"]:checked {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="rightPaneSettingsButton"] {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="rightPaneSettingsButton"]:hover {
+    border: none;
+    background: rgba(0, 202, 157, 60);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="rightPaneSettingsButton"]:pressed {
+    background: rgba(0, 202, 157, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="rightPaneSettingsButton"]:disabled {
+    background: rgba(0, 202, 157, 10);
+    color: rgba(0, 202, 157, 127);
+}
+
+QPushButton[styleRole="resetSettingsButton"] {
+    border: none;
+    background: rgba(202, 80, 0, 60);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="resetSettingsButton"]:hover {
+    background: rgba(202, 80, 0, 90);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="resetSettingsButton"]:pressed {
+    background: rgba(202, 80, 0, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="resetSettingsButton"]:disabled {
+    background: rgba(202, 80, 0, 25);
+    color: rgba(202, 80, 0, 127);
+}
+QPushButton[styleRole="linkButton"] {
+    image: url(':/images/link-ic.png');
     border: none;
     background: transparent;
     padding: 0;
 }
 
 QPushButton[styleRole="linkButton"]:hover {
-    background: rgba(52, 52, 62, 12);
+    background: rgba(52, 52, 62, 25);
 }
-QPushButton[styleRole="linkButton"]:checked {
-    background: rgba(52, 52, 62, 48);
+QPushButton[styleRole="linkButton"]:pressed {
+    background: rgba(52, 52, 62, 127);
+}
+QPushButton[styleRole="linkButton"]:disabled {
+    background: rgba(52, 52, 62, 0);
+}
+
+QCheckBox {
+    spacing: 5px;
+}
+
+QCheckBox::indicator {
+    width: 13px;
+    height: 13px;
 }
 
 QDialog QLabel[styleRole="mnemonicDisplay"] {
