@@ -31,7 +31,7 @@ import Ariadne.Wallet.Cardano.Kernel.Bip44
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
 import Ariadne.Wallet.Cardano.Kernel.Wallets
-  (HasNonemptyPassphrase(..), WithAddress (..), mkHasPP)
+  (HasNonemptyPassphrase(..), CreateWithAddress(..), mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
@@ -128,7 +128,7 @@ restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assura
     utxoByAccount <- case rType of
         WalletRestoreQuick -> pure mempty
         WalletRestoreFull  -> runCardanoMode $ collectUtxo esk
-    addWallet pwl face esk mbWalletName utxoByAccount hasPP (WithAddress False) Nothing assurance
+    addWallet pwl face esk mbWalletName utxoByAccount hasPP WithoutAddress assurance
 
 collectUtxo ::
        HasConfiguration

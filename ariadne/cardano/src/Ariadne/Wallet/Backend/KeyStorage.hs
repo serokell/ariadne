@@ -50,7 +50,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (deriveBip44KeyPair)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
-import Ariadne.Wallet.Cardano.Kernel.Wallets (HasNonemptyPassphrase, WithAddress (..), mkHasPP)
+import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
@@ -298,9 +298,8 @@ newWallet pwl walletConfig face getPassTemp mbWalletName mbEntropySize = do
   mnemonic <- generateMnemonic entropySize
   let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
       (_, esk) = safeDeterministicKeyGen seed pp
-  let withAA = WithAddress True
   mnemonic <$
-    addWallet pwl face esk mbWalletName mempty (mkHasPP pp) withAA (Just pp) assurance
+    addWallet pwl face esk mbWalletName mempty (mkHasPP pp) (WithAddress pp) assurance
   where
     -- TODO(AD-251): allow selecting assurance.
     assurance = AssuranceLevelNormal
@@ -313,18 +312,17 @@ addWallet ::
     -> Maybe WalletName
     -> Map HdAccountId PrefilteredUtxo
     -> HasNonemptyPassphrase
-    -> WithAddress
-    -> Maybe PassPhrase 
+    -> CreateWithAddress
     -> AssuranceLevel
     -> IO ()
-addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP withA mPP assurance = do
+addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP createWithA assurance = do
   walletName <-
       fromMaybe
       (genWalletName <$> pwlGetDBSnapshot pwl)
       (pure <$> mbWalletName)
 
   throwLeftIO $ void <$>
-    pwlCreateWallet pwl esk hasPP withA mPP assurance walletName utxoByAccount
+    pwlCreateWallet pwl esk hasPP createWithA assurance walletName utxoByAccount
 
   walletRefreshState
   where
