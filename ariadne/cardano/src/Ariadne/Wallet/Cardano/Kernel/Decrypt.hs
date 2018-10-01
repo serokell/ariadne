@@ -13,6 +13,7 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
        , eskToHDPassphrase
        , selectOwnAddresses
        , decryptAddress
+       , decryptAddressRaw
        ) where
 
 import qualified Data.List.NonEmpty as NE
@@ -90,7 +91,11 @@ selectOwnAddresses hdPass getAddr =
 
 decryptAddress :: HDPassphrase -> Address -> Maybe WAddressMeta
 decryptAddress hdPass addr = do
-    hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
-    derPathList <- unpackHDAddressAttr hdPass hdPayload
+    derPathList <- decryptAddressRaw hdPass addr
     derPath <- decodeBip44DerivationPath derPathList
     pure $ WAddressMeta derPath addr
+
+decryptAddressRaw :: HDPassphrase -> Address -> Maybe [Word32]
+decryptAddressRaw hdPass addr = do
+    hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
+    unpackHDAddressAttr hdPass hdPayload
