@@ -136,7 +136,7 @@ initGeneralSettings = do
   addRow generalLayout languageLabel languageSelector
   addSeparator generalLayout
 
-  countervalueLabel <- QLabel.newWithText ("<b>COUTNERVALUE</b>" :: String)
+  countervalueLabel <- QLabel.newWithText ("<b>COUNTERVALUE</b>" :: String)
   countervalueSelector <- QComboBox.new
   QComboBox.addItem countervalueSelector ("USD" :: String)
   addRow generalLayout countervalueLabel countervalueSelector
