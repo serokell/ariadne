@@ -144,7 +144,7 @@ data AddrCheckpoint = AddrCheckpoint {
       --    inputs from more than one address.
       _addrCheckpointUtxo        :: !(InDb Core.Utxo)
     , _addrCheckpointUtxoBalance :: !(InDb Core.Coin)
-    }
+    } deriving Eq
 
 emptyAddrCheckpoint :: AddrCheckpoint
 emptyAddrCheckpoint = AddrCheckpoint {
