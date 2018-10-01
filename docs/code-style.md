@@ -5,10 +5,11 @@ Ariadne Style Guide
 > with some modifications.
 > This style guide's aims are code beauty, readability and understandability.
 
-You can find our other formatting utilites and guidelines which expand the code style:
-* [.stylish-haskell.yaml](https://github.com/serokell/serokell-util/blob/master/.stylish-haskell.yaml)
-* [Universum](https://github.com/serokell/universum)
-* [Custom _HLint_ rules](https://github.com/input-output-hk/cardano-sl/blob/master/HLint.hs)
+We use [stylish-haskell](https://github.com/jaspervdj/stylish-haskell) with
+[this config](../.stylish-haskell.yaml) to do some formatting automatically.
+
+We also use [hlint](https://github.com/ndmitchell/hlint) with custom
+configs. See [this script](../scripts/lint.sh) for details.
 
 General guide lines
 -------------------

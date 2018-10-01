@@ -35,7 +35,8 @@ import Ariadne.Config.Ariadne
   (AriadneConfig(..), acCardanoL, acHistoryL, acWalletL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.History (hcPathL)
+import Ariadne.Config.History
+import Ariadne.Config.Update
 import Ariadne.Config.Wallet
   (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
 import Ariadne.Util
@@ -45,6 +46,8 @@ import Ariadne.Util
 data CLI_AriadneConfig = CLI_AriadneConfig
     { cli_acCardano :: !CLI_CardanoConfig
     , cli_acWallet :: !CLI_WalletConfig
+    , cli_acUpdate :: !CLI_UpdateConfig
+    , cli_acHistory :: !CLI_HistoryConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
@@ -72,8 +75,19 @@ data CLI_WalletConfig = CLI_WalletConfig
     , cli_wcAcidDBPath  :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
+data CLI_UpdateConfig = CLI_UpdateConfig
+    { cli_ucVersionCheckUrl :: !(Maybe Text)
+    , cli_ucUpdateUrl :: !(Maybe Text)
+    , cli_ucCheckDelay :: !(Maybe Int)
+    } deriving (Eq, Show)
+
+data CLI_HistoryConfig = CLI_HistoryConfig
+    { cli_hcPath :: !(Maybe FilePath)
+    } deriving (Eq, Show)
+
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_CardanoConfig
+makeLensesWith postfixLFields ''CLI_HistoryConfig
 
 makeLensesWith postfixLFields ''ConfigurationOptions
 
@@ -84,12 +98,11 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     merge :: Maybe a -> a -> a
     merge = flip fromMaybe
 
-    -- TODO: AD-175 Overridable update configuration
     mergedAriadneConfig = AriadneConfig
         { acCardano = mergedCardanoConfig
         , acWallet = mergedWalletConfig
-        , acUpdate = acUpdate defaultAc
-        , acHistory = acHistory defaultAc
+        , acUpdate = mergedUpdateConfig
+        , acHistory = mergedHistoryConfig
         }
 
     -- Merge Wallet config
@@ -139,6 +152,22 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , cfoKey = merge (overrideCO ^. cli_cfoKeyL) (defaultCO ^. cfoKeyL)
         , cfoSystemStart = (overrideCO ^. cli_cfoSystemStartL) <|> (defaultCO ^. cfoSystemStartL)
         , cfoSeed = (overrideCO ^. cli_cfoSeedL) <|> (defaultCO ^. cfoSeedL)
+        }
+
+    -- Merge Update config
+    overrideUc = cli_acUpdate overrideAc
+    defaultUc = acUpdate defaultAc
+    mergedUpdateConfig = defaultUc
+        { ucVersionCheckUrl = merge (cli_ucVersionCheckUrl overrideUc) (ucVersionCheckUrl defaultUc)
+        , ucUpdateUrl = merge (cli_ucUpdateUrl overrideUc) (ucUpdateUrl defaultUc)
+        , ucCheckDelay = merge (cli_ucCheckDelay overrideUc) (ucCheckDelay defaultUc)
+        }
+
+    -- Merge History config
+    overrideHc = cli_acHistory overrideAc
+    defaultHc = acHistory defaultAc
+    mergedHistoryConfig = defaultHc
+        { hcPath = merge (overrideHc ^. cli_hcPathL) (defaultHc ^. hcPathL)
         }
 
 data ConfigDirectories = ConfigDirectories
@@ -238,6 +267,8 @@ cliAriadneConfigParser :: Opt.Parser CLI_AriadneConfig
 cliAriadneConfigParser = do
   cli_acCardano <- cliCardanoConfigParser
   cli_acWallet <- cliWalletParser
+  cli_acUpdate <- cliUpdateParser
+  cli_acHistory <- cliHistoryParser
   pure CLI_AriadneConfig {..}
 
 cliWalletParser :: Opt.Parser CLI_WalletConfig
@@ -263,6 +294,34 @@ cliWalletParser = do
     then return b
     else err b
   err inp = Opt.readerError $ "Invalid entropy size " <> (show inp) <> ". Chose one of [16, 20, 24, 28, 32]"
+
+cliUpdateParser :: Opt.Parser CLI_UpdateConfig
+cliUpdateParser = do
+  cli_ucVersionCheckUrl <- optional $ strOption $ mconcat
+    [ long $ toOptionNameUpdate "ucVersionCheckUrl"
+    , metavar "URL"
+    , help "URL used to get the latest software version"
+    ]
+  cli_ucUpdateUrl <- optional $ strOption $ mconcat
+    [ long $ toOptionNameUpdate "ucUpdateUrl"
+    , metavar "URL"
+    , help "URL displayed in the message about a new version"
+    ]
+  cli_ucCheckDelay  <- optional $ option auto $ mconcat
+    [ long $ toOptionNameUpdate "ucCheckDelay"
+    , metavar "INT'"
+    , help "How often to check for a new version (in seconds)"
+    ]
+  pure CLI_UpdateConfig {..}
+
+cliHistoryParser :: Opt.Parser CLI_HistoryConfig
+cliHistoryParser = do
+  cli_hcPath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameHistory "hcPath"
+    , metavar "FILEPATH"
+    , help "Path to file with command history."
+    ]
+  pure CLI_HistoryConfig {..}
 
 cliCardanoConfigParser :: Opt.Parser CLI_CardanoConfig
 cliCardanoConfigParser = do
@@ -357,3 +416,9 @@ toOptionNameCardano = ("cardano:" <>) . toString . cardanoFieldModifier
 
 toOptionNameWallet :: D.Text -> String
 toOptionNameWallet =  ("wallet:" <>) . toString . walletFieldModifier
+
+toOptionNameUpdate :: D.Text -> String
+toOptionNameUpdate = ("update:" <>) . toString . updateFieldModifier
+
+toOptionNameHistory :: D.Text -> String
+toOptionNameHistory = ("history:" <>) . toString . historyFieldModifier
