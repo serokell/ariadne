@@ -95,16 +95,53 @@ initCardanoContext :: HasConfiguration => ProtocolMagic -> CardanoContext
 initCardanoContext ccMagic = CardanoContext{..}
   where
     ccLeaders     = genesisLeaders epochSlots
-    ccStakes      = genesisStakes
+    ccStakes      = utxoToStakes ccUtxo
     ccBlock0      = genesisBlock0 ccMagic (GenesisHash genesisHash) ccLeaders
     ccData        = genesisData
-    ccUtxo        = unGenesisUtxo genesisUtxo
+    ccUtxo        = bip44GenesisUtxo
     ccSecrets     = fromMaybe (error "initCardanoContext: no secrets") $
                       generatedSecrets
     ccInitLeaders = ccLeaders
     ccBalances    = utxoToAddressCoinPairs ccUtxo
     ccHash0       = (blockHeaderHash . BlockHeaderGenesis . _gbHeader) ccBlock0
     ccEpochSlots  = epochSlots
+
+    bip44GenesisUtxo :: Utxo
+    bip44GenesisUtxo = Map.fromList $ map mkUtxoEntry $ toList $ unGenesisUtxo genesisUtxo
+
+    mkUtxoEntry :: TxOutAux -> (TxIn, TxOutAux)
+    mkUtxoEntry (TxOutAux (TxOut addr coin)) =
+        let bip44Addr = convertAddress addr in
+        ( TxInUtxo (unsafeHash bip44Addr) 0
+        , TxOutAux (TxOut bip44Addr coin)
+        )
+
+    convertAddress :: Address -> Address
+    convertAddress addr = Map.findWithDefault addr addr daedalusToBip44
+
+    daedalusToBip44 :: Map.Map Address Address
+    daedalusToBip44 =
+        Map.fromList $
+            map
+                (\secret -> (createAddressPoor False secret, createAddressPoor True secret))
+                $ gsPoorSecrets ccSecrets
+
+    createAddressPoor :: Bool -> PoorSecret -> Address
+    createAddressPoor isBip44 = \case
+        PoorEncryptedSecret hdwSk ->
+            deriveFirstAddress
+                (IsBootstrapEraAddr True)
+                emptyPassphrase
+                hdwSk
+        PoorSecret secret -> makePubKeyAddressBoot (toPublic secret)
+      where
+        deriveFirstAddress :: IsBootstrapEraAddr -> PassPhrase -> EncryptedSecretKey -> Address
+        deriveFirstAddress era pp rootSK =
+            fst $ fromMaybe (error "createAddressPoor: pass mismatch") $
+                if isBip44 then
+                    deriveFirstBip44KeyPair era pp rootSK
+                else
+                    deriveFirstHDAddress era pp rootSK
 
 {-------------------------------------------------------------------------------
   More explicit representation of the various actors in the genesis block
