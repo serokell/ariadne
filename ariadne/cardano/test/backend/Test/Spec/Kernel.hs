@@ -11,6 +11,7 @@ import Pos.Core.Chrono
 
 import Test.Infrastructure.Generator
 import Test.Infrastructure.Genesis
+import qualified Test.Spec.Fixture as Fixture (bracketPassiveWallet)
 import Util.Buildable.Hspec
 import Util.Buildable.QuickCheck
 import UTxO.Bootstrap
@@ -132,7 +133,7 @@ dependentPending GenesisValues{..} = Inductive {
 bracketPassiveWallet :: (Kernel.PassiveWallet -> IO a) -> IO a
 bracketPassiveWallet postHook = do
       Keystore.bracketTestKeystore $ \keystore ->
-          Kernel.bracketPassiveWallet logMessage keystore postHook
+          Fixture.bracketPassiveWallet logMessage keystore postHook
   where
    -- TODO: Decide what to do with logging.
    -- For now we are not logging them to stdout to not alter the output of

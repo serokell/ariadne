@@ -133,6 +133,7 @@ tests:
       - cardano-sl-txp
       - cardano-sl-update
       - cardano-sl-util
+      - componentm
       - conduit
       - constraints
       - containers
@@ -157,6 +158,7 @@ tests:
       - text
       - text-format
       - time
+      - unliftio-core
       - unordered-containers
       - vector
     ghc-options:
