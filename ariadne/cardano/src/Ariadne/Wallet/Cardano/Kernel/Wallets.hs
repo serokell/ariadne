@@ -101,35 +101,43 @@ createHdWallet
     -- ^ Initial utxo for the new wallet.
     -> IO (Either CreateWalletError HdRoot)
 createHdWallet pw esk hasNonemptyPP createWithA assuranceLevel walletName utxoByAccount = do
+    -- Note: upstream implementation inserted a new HdRoot into acid-state
+    -- first, and then added the new key into the keystore. We do
+    -- this in the reverse order because we want to maintain the
+    -- invariant where having an HdRoot in the acid-state guarantees
+    -- that the corresponding key is present in the keystore.
+    --
     -- STEP 1: Insert the 'EncryptedSecretKey' into the 'Keystore'
-    let newRootId = HD.eskToHdRootId esk
-        walletId = WalletIdHdSeq newRootId
-    -- This may throw an IO exception.
-    Keystore.insert walletId esk (pw ^. walletKeystore)
-    -- STEP 2: Atomically generate the wallet and the initial internal structure in
-    -- an acid-state transaction.
-    res <- createWalletHdSeq
-        pw
-        hasNonemptyPP
-        walletName
-        assuranceLevel
-        esk
-        utxoByAccount
-    case res of
-        Left e -> do
-            Keystore.delete walletId (pw ^. walletKeystore)
-            return . Left $ CreateWalletFailed e
-        Right hdRoot -> do
-            case createWithA of
-                WithoutAddress         -> return (Right hdRoot)
-                WithAddress passphrase -> do
-                    addressRes <- runExceptT $ addDefaultAddress pw walletId passphrase
-                    case addressRes of
-                        Left e   -> return $ Left e
-                        Right () -> return (Right hdRoot)
-
-
-
+    -- This may throw an IO exception, which we rewrap into Either
+    -- in order to follow the general pattern of imported code.
+    let hdrId = HD.eskToHdRootId esk
+        walletId = WalletIdHdSeq hdrId
+    res1 <- try $ Keystore.insert walletId esk (pw ^. walletKeystore)
+    case res1 of
+        Left Keystore.DuplicatedWalletKey ->
+            pure $ Left $ CreateWalletFailed (HD.CreateHdRootExists hdrId)
+        Right () -> do
+            -- STEP 2: Atomically generate the wallet and the initial internal structure in
+            -- an acid-state transaction.
+            res2 <- createWalletHdSeq
+                pw
+                hasNonemptyPP
+                walletName
+                assuranceLevel
+                esk
+                utxoByAccount
+            case res2 of
+                Left e -> do
+                    liftIO $ Keystore.delete walletId (pw ^. walletKeystore)
+                    pure $ Left $ CreateWalletFailed e
+                Right hdRoot -> do
+                    case createWithA of
+                        WithoutAddress         -> return (Right hdRoot)
+                        WithAddress passphrase -> do
+                            addressRes <- runExceptT $ addDefaultAddress pw walletId passphrase
+                            case addressRes of
+                                Left e   -> return $ Left e
+                                Right () -> return (Right hdRoot)
 
 -- | Creates an HD wallet where new accounts and addresses are generated
 -- via sequential index derivation.
