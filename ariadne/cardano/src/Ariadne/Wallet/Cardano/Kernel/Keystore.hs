@@ -235,7 +235,7 @@ delete walletId (Keystore ks) = do
 toList :: Keystore -> IO [(WalletId, EncryptedSecretKey)]
 toList (Keystore ks) =
     withMVar ks $ \(InternalStorage us) ->
-        pure $ map (first hashPubKeyToWalletId) $ Map.toList $ us ^. usWallets
+        pure $ map (first hashPubKeyToWalletId) $ toPairs $ us ^. usWallets
   where
     hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
     hashPubKeyToWalletId = WalletIdHdSeq . HdRootId . InDb

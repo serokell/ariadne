@@ -45,7 +45,7 @@ import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 -- | Address extended with an HdAddressId, which embeds information that places
 --   the Address in the context of the Wallet/Accounts/Addresses hierarchy.
-type AddrWithId = (HdAddressId,Address)
+type AddrWithId = (HdAddressId, Address)
 
 -- | A mapping from (extended) addresses to their corresponding Utxo
 type PrefilteredUtxo = Map AddrWithId Utxo
@@ -71,10 +71,10 @@ data PrefilteredBlock = PrefilteredBlock {
 deriveSafeCopySimple 1 'base ''PrefilteredBlock
 
 pfbInputs :: PrefilteredBlock -> Set TxIn
-pfbInputs PrefilteredBlock {..} = Set.unions $ Map.elems pfbPrefilteredInputs
+pfbInputs PrefilteredBlock {..} = Set.unions $ elems pfbPrefilteredInputs
 
 pfbOutputs :: PrefilteredBlock -> Utxo
-pfbOutputs PrefilteredBlock {..} = Map.unions $ Map.elems pfbPrefilteredUtxo
+pfbOutputs PrefilteredBlock {..} = Map.unions $ elems pfbPrefilteredUtxo
 
 -- | Empty prefiltered block
 --
@@ -148,7 +148,7 @@ prefilterInputs wKey inps
 -- | Prefilter utxo using wallet key
 prefilterUtxo' :: WalletKey -> Utxo -> Map HdAccountId UtxoWithAddrId
 prefilterUtxo' wKey utxo
-    = prefilterResolvedTxPairs wKey mergeF (Map.toList utxo)
+    = prefilterResolvedTxPairs wKey mergeF (toPairs utxo)
     where
         mergeF = Map.fromListWith Map.union . (map f)
 
@@ -181,7 +181,7 @@ toPrefilteredUtxo toHdAddressId =
         -> Map k1 v1
         -> Map k2 [v2]
     groupBy getKey getValue =
-        Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
+        Map.fromListWith (++) . map (getKey &&& (one . getValue)) . toPairs
 
 -- | Prefilter resolved transaction pairs.
 --   Also returns a Boolean indicating whether @all@ pairs are "ours"
@@ -224,7 +224,7 @@ extendWithSummary :: Map TxIn (TxOutAux,HdAddressId)
                   -> Map TxIn (TxOutAux,AddressSummary)
                   -- ^ Utxo extended with AddressSummary
 extendWithSummary utxoWithAddrId
-    = Map.fromList $ mapMaybe toAddrSummary (Map.toList utxoWithAddrId)
+    = Map.fromList $ mapMaybe toAddrSummary (toPairs utxoWithAddrId)
     where
         toAddrSummary (txIn,(txOutAux,addressId))
             = case txIn of
@@ -321,7 +321,7 @@ fromUtxoSummary :: Map TxIn (TxOutAux,AddressSummary)
                 -> (PrefilteredUtxo,[AddressSummary])
 fromUtxoSummary summary = (toPrefilteredUtxo addrSummaryId summary, addrs)
     where
-        addrs = map snd $ Map.elems summary
+        addrs = map snd $ elems summary
 
 {-------------------------------------------------------------------------------
   Pretty-printing
@@ -338,7 +338,7 @@ mapBuilderExplicit
 mapBuilderExplicit formatK formatV =
     setBuilder
     . map (\(k, v) -> (formatK k) <> ": " <> (formatV v))
-    . Map.toList
+    . toPairs
 
 prefilteredInputsF :: Format r (PrefilteredInputs -> r)
 prefilteredInputsF = later $ mapBuilderExplicit pairBuilder setBuilder
