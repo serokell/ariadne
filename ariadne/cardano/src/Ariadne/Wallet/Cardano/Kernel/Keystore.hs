@@ -35,7 +35,9 @@ import Prelude hiding (toList)
 import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)
 import qualified Data.Map as Map
-import System.Directory (getTemporaryDirectory, removeFile)
+import System.Directory
+  (createDirectoryIfMissing, getTemporaryDirectory, removeFile)
+import System.FilePath ((</>))
 import System.IO (hClose, openTempFile)
 
 import Pos.Core (AddressHash, addressHash)
@@ -152,11 +154,19 @@ bracketTestKeystore withKeystore =
 -- directory.
 newTestKeystore :: IO Keystore
 newTestKeystore = liftIO $ runIdentityT $ fromKeystore $ do
-    tempDir         <- liftIO getTemporaryDirectory
-    (tempFile, hdl) <- liftIO $ openTempFile tempDir "keystore.key"
-    liftIO $ hClose hdl
-    us <- peekUserSecret tempFile
+    fp <- liftIO $ getKeystorePath
+    us <- peekUserSecret fp
     Keystore <$> newMVar (InternalStorage us)
+  where
+    getKeystorePath :: IO FilePath
+    getKeystorePath = do
+        tempDir <- getTemporaryDirectory
+        let dir = tempDir </> "ariadne-test"
+        createDirectoryIfMissing False dir
+        (fp, hdl) <- openTempFile dir "keystore.key"
+        hClose hdl
+        removeFile fp
+        pure fp
 
 -- | Release the resources associated with this 'Keystore'.
 releaseKeystore :: DeletePolicy -> Keystore -> IO ()
