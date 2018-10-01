@@ -412,10 +412,7 @@ createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAc
 
         newAddress :: HdAddressId -> Core.Address -> Utxo -> HdAddress
         newAddress addressId address addrUtxo =
-            HD.initHdAddress addressId (InDb address) isUsed (firstAddrCheckpoint addrUtxo)
-          where
-            isUsed :: Bool
-            isUsed = error "TODO: _hdAddressIsUsed"
+            HD.initHdAddress addressId (InDb address) (firstAddrCheckpoint addrUtxo)
 
         firstAddrCheckpoint :: Utxo -> AddrCheckpoint
         firstAddrCheckpoint addrUtxo = AddrCheckpoint {
