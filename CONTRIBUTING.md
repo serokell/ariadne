@@ -37,4 +37,5 @@ configuration file requires `stylish-haskell` version `0.8.1.0` or newer.
 
 We have a [Makefile](Makefile) which provides shortcuts for the most
 common developers' activities, like building with flags suitable for
-development, testing, applying `stylish-haskell`.
+development, testing, applying `stylish-haskell` and `hlint`, building
+Haddock documentation.
