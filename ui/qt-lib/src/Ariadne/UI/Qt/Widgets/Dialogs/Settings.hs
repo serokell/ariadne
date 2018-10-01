@@ -5,11 +5,9 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Settings
     ) where
 
 import Control.Lens (makeLensesWith)
-import Data.Bits
 import Data.Version (showVersion)
 import Web.Browser (openBrowser)
 
-import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)
 import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
@@ -79,24 +77,24 @@ initSettings = do
   QWidget.adjustSize settings
 
   settingsLayout <- createLayout settings
-  QLayout.setContentsMarginsRaw settingsLayout 0 24 0 0
-  QLayout.setSpacing settingsLayout 0
 
   label <- QLabel.newWithText ("SETTINGS" :: String)
 
   addHeader settingsLayout label
-  void $ QLayout.setWidgetAlignment settingsLayout label $ alignHCenter .|. alignVCenter
-  void $ setProperty label ("styleRole" :: Text) ("dialogHeader" :: Text)
+  setProperty label ("styleRole" :: Text) ("dialogHeader" :: Text)
   buttonsLayout <- QHBoxLayout.new
   QBoxLayout.setSpacing buttonsLayout 6
   QLayout.setContentsMarginsRaw buttonsLayout 202 0 202 0
+
   generalButton <- QPushButton.newWithText ("GENERAL" :: String)
   aboutButton <- QPushButton.newWithText ("ABOUT" :: String)
   supportButton <- QPushButton.newWithText ("SUPPORT" :: String)
+  QBoxLayout.addStretch buttonsLayout
   for_ [generalButton, aboutButton, supportButton] $ \b -> do
     setProperty b ("styleRole" :: Text) ("settingsTopbarButton" :: Text)
     QAbstractButton.setCheckable b True
     QBoxLayout.addWidget buttonsLayout b
+  QBoxLayout.addStretch buttonsLayout
 
   QAbstractButton.setChecked generalButton True
 
@@ -129,6 +127,7 @@ initGeneralSettings = do
   generalWidget <- QWidget.new
   generalLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw generalLayout 24 42 24 42
+  QBoxLayout.setSpacing generalLayout 18
 
   languageLabel <- QLabel.newWithText ("<b>LANGUAGE</b>" :: String)
   languageSelector <- QComboBox.new
@@ -168,6 +167,7 @@ initAboutSettings = do
   aboutWidget <- QWidget.new
   aboutLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw aboutLayout 24 42 24 42
+  QBoxLayout.setSpacing aboutLayout 18
 
   let currentVersion = "Ariadne " <> showVersion currentAriadneVersion
 
@@ -192,9 +192,9 @@ initAboutSettings = do
   let as = AboutSettings{..}
 
   connect_ releaseNotesButton QAbstractButton.clickedSignal
-        $ \_ -> (void $ openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md")
+        $ \_ -> void $ openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md"
   connect_ licenseButton QAbstractButton.clickedSignal
-        $ \_ -> (void $ openBrowser "https://serokell.io/ariadne/license")
+        $ \_ -> void $ openBrowser "https://serokell.io/ariadne/license"
 
   return (aboutWidget, as)
 
@@ -203,6 +203,7 @@ initSupportSettings = do
   supportWidget <- QWidget.new
   supportLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw supportLayout 24 42 24 42
+  QBoxLayout.setSpacing supportLayout 18
 
   let faqText = "If you are experiencing issues, please see the FAQ on Ariadne \
                 \website for guidance on known issues"
@@ -228,7 +229,6 @@ initSupportSettings = do
     QWidget.setSizePolicyRaw w Maximum Fixed
 
   void $ setProperty clearCacheButton ("styleRole" :: Text) ("inverseButton" :: Text)
-
   void $ setProperty resetButton ("styleRole" :: Text) ("inverseSecondaryButton" :: Text)
 
   for_ [faqButton, clearCacheButton, resetButton] $ \b ->
@@ -239,7 +239,7 @@ initSupportSettings = do
   let ss = SupportSettings{..}
   return (supportWidget, ss)
 
-showWidget :: Settings -> QWidget.QWidget -> QPushButton.QPushButton -> IO()
+showWidget :: Settings -> QWidget.QWidget -> QPushButton.QPushButton -> IO ()
 showWidget Settings{..} widget button = do
   for_ [generalButton, aboutButton, supportButton] $ \w ->
     QAbstractButton.setChecked w False
