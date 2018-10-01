@@ -81,7 +81,6 @@ initSettings = do
   label <- QLabel.newWithText ("SETTINGS" :: String)
 
   addHeader settingsLayout label
-  setProperty label ("styleRole" :: Text) ("dialogHeader" :: Text)
   buttonsLayout <- QHBoxLayout.new
   QBoxLayout.setSpacing buttonsLayout 6
   QLayout.setContentsMarginsRaw buttonsLayout 202 0 202 0
