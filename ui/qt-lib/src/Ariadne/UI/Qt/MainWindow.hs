@@ -18,7 +18,7 @@ import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
-import Ariadne.UI.Qt.Widgets.Settings
+import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Repl
 import Ariadne.UI.Qt.Widgets.TopBar
 import Ariadne.UI.Qt.Widgets.Wallet

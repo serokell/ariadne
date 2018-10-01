@@ -278,7 +278,7 @@ QDialog QLineEdit, QDialog QLineEdit:focus {
     border-top: none;
     border-left: none;
     border-right: none;
-    border-bottom: 1px solid rgba(52, 52, 62, 127);
+    border-bottom: 1px solid rgba(52, 52, 62, 25);
     background: transparent;
 }
 
@@ -338,15 +338,13 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
 }
 
 QPushButton[styleRole="settingsTopbarButton"] {
-    width: 120px;
-    height: 30px;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     border: none;
     background: transparent;
-    color: rgb(52, 52, 62, 59);
-}
-
-QPushButton[styleRole="settingsTopbarButton"]:hover {
-    background: rgba(52, 52, 62, 10);
+    color: rgb(52, 52, 62, 127);
 }
 
 QPushButton[styleRole="settingsTopbarButton"]:checked {
@@ -355,49 +353,51 @@ QPushButton[styleRole="settingsTopbarButton"]:checked {
     color: #00ca9d;
 }
 
-QPushButton[styleRole="rightPaneSettingsButton"] {
+QPushButton[styleRole="inverseButton"] {
     border: none;
     background: rgba(0, 202, 157, 25);
     color: #00ca9d;
 }
 
-QPushButton[styleRole="rightPaneSettingsButton"]:hover {
+QPushButton[styleRole="inverseButton"]:hover {
     border: none;
     background: rgba(0, 202, 157, 60);
     color: #00ca9d;
 }
 
-QPushButton[styleRole="rightPaneSettingsButton"]:pressed {
+QPushButton[styleRole="inverseButton"]:pressed {
     background: rgba(0, 202, 157, 255);
     color: #ffffff;
 }
 
-QPushButton[styleRole="rightPaneSettingsButton"]:disabled {
+QPushButton[styleRole="inverseButton"]:disabled {
     background: rgba(0, 202, 157, 10);
     color: rgba(0, 202, 157, 127);
 }
 
-QPushButton[styleRole="resetSettingsButton"] {
+QPushButton[styleRole="inverseSecondaryButton"] {
     border: none;
     background: rgba(202, 80, 0, 60);
     color: #ca5000;
 }
 
-QPushButton[styleRole="resetSettingsButton"]:hover {
+QPushButton[styleRole="inverseSecondaryButton"]:hover {
     background: rgba(202, 80, 0, 90);
     color: #ca5000;
 }
 
-QPushButton[styleRole="resetSettingsButton"]:pressed {
+QPushButton[styleRole="inverseSecondaryButton"]:pressed {
     background: rgba(202, 80, 0, 255);
     color: #ffffff;
 }
 
-QPushButton[styleRole="resetSettingsButton"]:disabled {
+QPushButton[styleRole="inverseSecondaryButton"]:disabled {
     background: rgba(202, 80, 0, 25);
     color: rgba(202, 80, 0, 127);
 }
 QPushButton[styleRole="linkButton"] {
+    height: 26;
+    width: 26;
     image: url(':/images/link-ic.png');
     border: none;
     background: transparent;
@@ -412,15 +412,6 @@ QPushButton[styleRole="linkButton"]:pressed {
 }
 QPushButton[styleRole="linkButton"]:disabled {
     background: rgba(52, 52, 62, 0);
-}
-
-QCheckBox {
-    spacing: 5px;
-}
-
-QCheckBox::indicator {
-    width: 13px;
-    height: 13px;
 }
 
 QDialog QLabel[styleRole="mnemonicDisplay"] {

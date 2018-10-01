@@ -94,7 +94,7 @@ initTopBar = do
   replButton <- QPushButton.new
   helpButton <- QPushButton.newWithText ("Help" :: String)
   logsButton <- QPushButton.newWithText ("Logs" :: String)
-  settingsButton <- QPushButton.newWithText ("Settings" :: String)
+  settingsButton <- QPushButton.new
   pointingCursor <- QCursor.newWithCursorShape PointingHandCursor
 
   let createSeparator = do
@@ -120,9 +120,11 @@ initTopBar = do
   syncingIcon <- QIcon.newWithFile (":/images/syncing.png" :: String)
   syncedIcon <- QIcon.newWithFile (":/images/synced.png" :: String)
   terminalIcon <- QIcon.newWithFile (":/images/terminal-ic.png" :: String)
+  settingsIcon <- QIcon.newWithFile (":/images/settings-ic.png" :: String)
 
   QAbstractButton.setIcon syncLabel syncingIcon
   QAbstractButton.setIcon replButton terminalIcon
+  QAbstractButton.setIcon settingsButton settingsIcon
 
   return (widget, TopBar{..})
 
