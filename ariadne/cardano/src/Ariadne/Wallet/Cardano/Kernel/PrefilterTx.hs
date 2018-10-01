@@ -1,9 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes, ScopedTypeVariables, TypeFamilies #-}
 
 module Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-       ( PrefilteredBlock(..)
+       ( AddrWithId
        , PrefilteredUtxo
-       , AddrWithId
+       , UtxoByAccount
+       , PrefilteredBlock(..)
        , emptyPrefilteredBlock
        , pfbInputs
        , pfbOutputs
@@ -52,6 +53,9 @@ type PrefilteredUtxo = Map AddrWithId Utxo
 
 -- | A mapping from (extended) addresses to the inputs that were spent from them
 type PrefilteredInputs = Map AddrWithId (Set TxIn)
+
+-- | Prefiltered utxo with more structure.
+type UtxoByAccount = Map HdAccountId PrefilteredUtxo
 
 -- | Prefiltered block
 --
@@ -156,7 +160,7 @@ prefilterUtxo' wKey utxo
                                     Map.singleton txIn (txOut, addrId))
 
 -- | Prefilter utxo using walletId and esk
-prefilterUtxo :: HdRootId -> EncryptedSecretKey -> Utxo -> Map HdAccountId PrefilteredUtxo
+prefilterUtxo :: HdRootId -> EncryptedSecretKey -> Utxo -> UtxoByAccount
 prefilterUtxo rootId esk utxo = map (toPrefilteredUtxo id) prefUtxo
     where
         prefUtxo = prefilterUtxo' wKey utxo
