@@ -8,6 +8,7 @@ import qualified Data.Set as S
 import qualified Data.Vector as V
 import Named ((!))
 
+import Cardano.Crypto.Wallet.Types (DerivationIndex)
 import Pos.Core (Address, IsBootstrapEraAddr(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, ShouldCheckPassphrase(..), encToPublic)
@@ -60,7 +61,7 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
     toPair <$>
     Bip32.deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
   where
-    derPath :: [Word32]
+    derPath :: [DerivationIndex]
     derPath = Bip44.encodeBip44DerivationPath bip44DerPath
     toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
     toPair addrSK =
