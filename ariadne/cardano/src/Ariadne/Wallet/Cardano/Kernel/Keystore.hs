@@ -13,6 +13,7 @@
 module Ariadne.Wallet.Cardano.Kernel.Keystore (
       Keystore -- opaque
     , DeletePolicy(..)
+    , DuplicatedWalletKey(..)
       -- * Constructing a keystore
     , keystoreComponent
     , bracketKeystore
