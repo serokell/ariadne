@@ -53,7 +53,8 @@ import Pos.Txp (Utxo)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-  (AddrWithId, PrefilteredBlock(..), PrefilteredUtxo, emptyPrefilteredBlock)
+  (AddrWithId, PrefilteredBlock(..), PrefilteredUtxo, UtxoByAccount,
+  emptyPrefilteredBlock)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
@@ -268,7 +269,7 @@ observableRollbackUseInTestsOnly = runUpdateNoErrors $ do
 -- NOTE: since the genesis Utxo does not come into being through regular transactions,
 --       there is no block metadata to record when we create a wallet
 createHdWallet :: HdRoot
-               -> Map HdAccountId PrefilteredUtxo
+               -> UtxoByAccount
                -> Map HdAccountId AccountName
                -> Update DB (Either HD.CreateHdRootError ())
 createHdWallet newRoot utxoByAccount accountNames = runUpdate' . zoom dbHdWallets $ do

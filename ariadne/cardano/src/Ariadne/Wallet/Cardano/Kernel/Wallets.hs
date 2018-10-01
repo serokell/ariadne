@@ -22,13 +22,15 @@ import Data.Acid.Advanced (update')
 import Pos.Core (Timestamp)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase, emptyPassphrase)
 
-import Ariadne.Wallet.Cardano.Kernel.Accounts (createAccount, CreateAccountError(..))
-import Ariadne.Wallet.Cardano.Kernel.Addresses (createAddress, CreateAddressError (..))
+import Ariadne.Wallet.Cardano.Kernel.Accounts
+  (CreateAccountError(..), createAccount)
+import Ariadne.Wallet.Cardano.Kernel.Addresses
+  (CreateAddressError(..), createAddress)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
   UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (AccountName(..), AssuranceLevel, HdAddressChain(..), HdAccountId, HdRoot, WalletName)
+  (AccountName(..), AssuranceLevel, HdAddressChain(..), HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as HD
@@ -36,8 +38,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
-import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
-import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..), AccountId(..))
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
+import Ariadne.Wallet.Cardano.Kernel.Types (AccountId(..), WalletId(..))
 import Ariadne.Wallet.Cardano.Kernel.Util (getCurrentTimestamp)
 
 import Test.QuickCheck (Arbitrary(..))
@@ -80,23 +82,24 @@ mkHasPP pp = HasNonemptyPassphrase $ pp /= emptyPassphrase
 -------------------------------------------------------------------------------}
 
 -- | Creates a new HD 'Wallet'.
-createHdWallet :: PassiveWallet
-             -> EncryptedSecretKey
-             -- ^ Wallet's encrypted secret key. Should be generated outside.
-             -> HasNonemptyPassphrase
-             -- ^ Whether the newly created wallet has a non-empty passphrase.
-             -> CreateWithAddress
-             -- ^ Whether we need to auto create an account and address for new wallet or not
-             -> AssuranceLevel
-             -- ^ The 'AssuranceLevel' for this wallet, namely after how many
-             -- blocks each transaction is considered 'adopted'. This translates
-             -- in the frontend with a different threshold for the confirmation
-             -- range (@low@, @medium@, @high@).
-             -> WalletName
-             -- ^ The name for this wallet.
-             -> Map HdAccountId PrefilteredUtxo
-             -- ^ Initial utxo for the new wallet.
-             -> IO (Either CreateWalletError HdRoot)
+createHdWallet
+    :: PassiveWallet
+    -> EncryptedSecretKey
+    -- ^ Wallet's encrypted secret key. Should be generated outside.
+    -> HasNonemptyPassphrase
+    -- ^ Whether the newly created wallet has a non-empty passphrase.
+    -> CreateWithAddress
+    -- ^ Whether we need to auto create an account and address for new wallet or not
+    -> AssuranceLevel
+    -- ^ The 'AssuranceLevel' for this wallet, namely after how many
+    -- blocks each transaction is considered 'adopted'. This translates
+    -- in the frontend with a different threshold for the confirmation
+    -- range (@low@, @medium@, @high@).
+    -> WalletName
+    -- ^ The name for this wallet.
+    -> UtxoByAccount
+    -- ^ Initial utxo for the new wallet.
+    -> IO (Either CreateWalletError HdRoot)
 createHdWallet pw esk hasNonemptyPP createWithA assuranceLevel walletName utxoByAccount = do
     -- STEP 1: Insert the 'EncryptedSecretKey' into the 'Keystore'
     let newRootId = HD.eskToHdRootId esk
@@ -142,7 +145,7 @@ createWalletHdSeq :: PassiveWallet
                   -> HD.WalletName
                   -> AssuranceLevel
                   -> EncryptedSecretKey
-                  -> Map HdAccountId PrefilteredUtxo
+                  -> UtxoByAccount
                   -> IO (Either HD.CreateHdRootError HdRoot)
 createWalletHdSeq pw (HasNonemptyPassphrase hasPP) name assuranceLevel esk utxoByAccount = do
     created <- InDb <$> getCurrentTimestamp

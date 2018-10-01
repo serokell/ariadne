@@ -49,7 +49,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (deriveBip44KeyPair)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
 import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
@@ -310,7 +310,7 @@ addWallet ::
     -> WalletFace
     -> EncryptedSecretKey
     -> Maybe WalletName
-    -> Map HdAccountId PrefilteredUtxo
+    -> UtxoByAccount
     -> HasNonemptyPassphrase
     -> CreateWithAddress
     -> AssuranceLevel

@@ -29,7 +29,8 @@ import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), bip44PathToAddressId, decodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
+  (PrefilteredUtxo, UtxoByAccount)
 import Ariadne.Wallet.Cardano.Kernel.Wallets
   (HasNonemptyPassphrase(..), CreateWithAddress(..), mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
@@ -133,7 +134,7 @@ restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assura
 collectUtxo ::
        HasConfiguration
     => EncryptedSecretKey
-    -> CardanoMode (Map HdAccountId PrefilteredUtxo)
+    -> CardanoMode UtxoByAccount
 collectUtxo esk = do
     m <- discoverHDAddressWithUtxo $ Crypto.deriveHDPassphrase $ Crypto.encToPublic esk
     pure $ groupAddresses $ filterAddresses m
@@ -155,15 +156,15 @@ collectUtxo esk = do
                 Nothing           -> Nothing
                 Just bip44DerPath -> Just ((toHdAddressId bip44DerPath, addr), utxo)
 
-    groupAddresses :: PrefilteredUtxo -> Map HdAccountId PrefilteredUtxo
+    groupAddresses :: PrefilteredUtxo -> UtxoByAccount
     groupAddresses =
         -- See https://hackage.haskell.org/package/lens-3.10.1/docs/Control-Lens-Iso.html#v:non
         -- or a comment in Ariadne.Wallet.Backend.AddressDiscovery.discoverHDAddressesWithUtxo
         -- for an explanation of how this works.
-        let step :: Map HdAccountId PrefilteredUtxo ->
+        let step :: UtxoByAccount ->
                     (HdAddressId, Address) ->
                     Utxo ->
-                    Map HdAccountId PrefilteredUtxo
+                    UtxoByAccount
             step utxoByAccount addrWithId@(addressId, _) utxo =
                 utxoByAccount &
                     at (addressId ^. hdAddressIdParent) .
