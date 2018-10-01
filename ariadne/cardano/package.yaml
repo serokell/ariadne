@@ -96,14 +96,19 @@ tests:
       - QuickCheck
       - ariadne-cardano
       - ariadne-core
+      - base16-bytestring
       - bytestring
       - canonical-json
+      - cardano-crypto
       - cardano-sl
       - cardano-sl-core
+      - cardano-sl-crypto
       - cardano-sl-infra
+      - data-default 
       - hspec
       - knit
       - lens
+      - memory
       - ntype
       - optparse-applicative
       - scientific

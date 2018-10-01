@@ -44,7 +44,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (deriveBip44KeyPair)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
-import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
+import Ariadne.Wallet.Cardano.Kernel.Wallets
+  (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
@@ -242,7 +243,6 @@ newAddress pwl WalletFace {..} walletSelRef getPassPhrase voidWrongPass accRef h
   pp <- getPassPhrase walletRef
   walletDb <- pwlGetDBSnapshot pwl
   hdAccId <- resolveAccountRef walletSelRef accRef walletDb
-
   hdAddr <- voidWrongPass walletRef . throwLeftIO $
     pwlCreateAddress pwl pp hdAccId hdAddrChain
 

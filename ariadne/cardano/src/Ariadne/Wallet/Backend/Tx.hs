@@ -27,7 +27,8 @@ import Ariadne.Cardano.Face
 import Ariadne.Cardano.Knit (showCoin)
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
-import Ariadne.Wallet.Cardano.Kernel.Bip32(DerivationPath(..), deriveHDSecretKeyByPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+  (DerivationPath(..), deriveHDSecretKeyByPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet

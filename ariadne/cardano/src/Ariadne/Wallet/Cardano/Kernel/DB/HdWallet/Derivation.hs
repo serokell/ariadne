@@ -3,11 +3,14 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
        , mkHdAddressIx
        , deriveBip44KeyPair
        , deriveFirstBip44KeyPair
+       , deriveBip44KeyPairUnwrapped
        ) where
 
 import qualified Data.Set as S
 import qualified Data.Vector as V
 import Named ((!))
+
+import Cardano.Crypto.Wallet.Types (DerivationIndex)
 
 import Pos.Core (Address, IsBootstrapEraAddr(..))
 import Pos.Core.NetworkMagic (NetworkMagic)
@@ -60,20 +63,10 @@ deriveBip44KeyPair
     -> Bip44DerivationPath
     -> Maybe (Address, EncryptedSecretKey)
 deriveBip44KeyPair nm era pp rootSK bip44DerPath =
-    toPair <$>
-    Bip32.deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
+  deriveBip44KeyPairUnwrapped nm era pp rootSK derPath
   where
-    derPath :: Bip32.DerivationPath
-    derPath = Bip32.DerivationPath $ Bip44.encodeBip44DerivationPath bip44DerPath
-    toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
-    toPair addrSK =
-        ( Bip32.makePubKeyHdwAddressUsingPath
-              nm
-              era
-              derPath
-              ! #root (encToPublic rootSK)
-              ! #address (encToPublic addrSK)
-        , addrSK)
+    derPath :: [DerivationIndex]
+    derPath = Bip44.encodeBip44DerivationPath bip44DerPath
 
 deriveFirstBip44KeyPair
     :: NetworkMagic
@@ -89,6 +82,29 @@ deriveFirstBip44KeyPair nm era pp rootSK =
         , bip44AddressChain = HD.HdChainExternal
         , bip44AddressIndex = HD.HdAddressIx (unsafeMkWord31 0)
         }
+
+-- | For testing purposes
+deriveBip44KeyPairUnwrapped
+    :: NetworkMagic
+    -> IsBootstrapEraAddr
+    -> PassPhrase
+    -> EncryptedSecretKey
+    -> [DerivationIndex]
+    -> Maybe (Address, EncryptedSecretKey)
+deriveBip44KeyPairUnwrapped nm era pp rootSK derPath =
+    toPair <$>
+    Bip32.deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK
+      (Bip32.DerivationPath derPath)
+  where
+    toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
+    toPair addrSK =
+        ( Bip32.makePubKeyHdwAddressUsingPath
+              nm
+              era
+              (Bip32.DerivationPath derPath)
+              ! #root (encToPublic rootSK)
+              ! #address (encToPublic addrSK)
+        , addrSK)
 
 {-------------------------------------------------------------------------------
   Helpers

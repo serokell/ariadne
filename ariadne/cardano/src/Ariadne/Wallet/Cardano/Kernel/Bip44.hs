@@ -3,6 +3,7 @@ module Ariadne.Wallet.Cardano.Kernel.Bip44
        , decodeBip44DerivationPath
        , encodeBip44DerivationPath
        , bip44PathToAddressId
+       , bip44Purpose
        , encodeBip44DerivationPathToAccount
        , encodeBip44DerivationPathFromAccount
        ) where

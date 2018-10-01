@@ -16,6 +16,7 @@ cabal.project.local
 
 # Nix
 result*
+stack-to-nix.yaml
 
 # Runtime
 node-db/

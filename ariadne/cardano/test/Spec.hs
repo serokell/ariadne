@@ -30,6 +30,7 @@ import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Util (postfixLFields)
 
+import Test.Ariadne.Bip44 (bip44PathGen,bip44KeyPairGen)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
 import Test.Ariadne.History.Arbitrary ()
@@ -47,6 +48,9 @@ main :: IO ()
 main = hspec $ do
     configSpec
     knitSpec
+    bip44PathGen
+    bip44KeyPairGen
+
 
 configSpec :: Spec
 configSpec = describe "Ariadne.Config" $ do

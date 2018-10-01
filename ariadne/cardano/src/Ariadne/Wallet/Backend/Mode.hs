@@ -61,6 +61,7 @@ largestHDAddressBoot nm =
         Bip44DerivationPath
         { bip44AccountIndex = maxBound
         , bip44AddressChain = HdChainExternal
-        , bip44AddressIndex = maxBound }
+        , bip44AddressIndex = maxBound
+        }
     goodPk :: PublicKey
     goodPk = fst $ deterministicKeyGen $ BS.replicate 32 0
