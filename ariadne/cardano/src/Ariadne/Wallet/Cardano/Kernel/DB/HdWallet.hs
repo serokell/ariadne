@@ -177,7 +177,7 @@ data HdRootId = HdRootId { getHdRootId :: InDb (Core.AddressHash Core.PublicKey)
 
 instance Arbitrary HdRootId where
   arbitrary = do
-      (_, esk) <- Core.safeDeterministicKeyGen <$> (BS.pack <$> vectorOf 12 arbitrary)
+      (_, esk) <- Core.safeDeterministicKeyGen <$> (BS.pack <$> vectorOf 32 arbitrary)
                                                <*> pure mempty
       pure (eskToHdRootId esk)
 
