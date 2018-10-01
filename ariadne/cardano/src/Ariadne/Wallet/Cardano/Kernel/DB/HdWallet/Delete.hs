@@ -10,6 +10,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete (
 
 import Control.Lens ((%=))
 import Data.SafeCopy (base, deriveSafeCopySimple)
+import qualified Data.Text.Buildable
+import Formatting (bprint, build, (%))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
@@ -60,6 +62,10 @@ instance Exception DeleteHdAccountError where
     toString $ "The account '" <> pretty accountId <> "' does not exist."
   displayException (DeleteUnknownHdAccount (UnknownHdAccountRoot rootId)) =
     toString $ "The corresponding wallet '" <> pretty rootId <> "' does not exist."
+
+instance Buildable DeleteHdAccountError where
+    build (DeleteUnknownHdAccount err) =
+        bprint ("DeleteUnknownHdAccount: " % build) err
 
 deriveSafeCopySimple 1 'base ''DeleteHdRootError
 deriveSafeCopySimple 1 'base ''DeleteHdAccountError

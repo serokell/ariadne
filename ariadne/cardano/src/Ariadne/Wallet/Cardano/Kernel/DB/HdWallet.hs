@@ -279,7 +279,15 @@ data HdAddress = HdAddress {
       -- | Part of the wallet state pertaining to this address,
       -- as stipulated by the wallet specification
     , _hdAddressCheckpoints :: NonEmpty AddrCheckpoint
-    }
+    } deriving Eq
+
+instance Buildable HdAddress where
+    build HdAddress{..} =
+        bprint ("HdAddress { id = "   % build
+                         % " address = " % build
+                         % " checkpoints = <checkpoints> "
+                         % " }"
+               ) _hdAddressId (_fromDb _hdAddressAddress)
 
 {-------------------------------------------------------------------------------
   General-utility functions
