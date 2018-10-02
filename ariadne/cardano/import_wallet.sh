@@ -27,6 +27,17 @@ find ${ARIADNE_WALLET_PATH} ${ARIADNE_TEST_PATH} \
     -name '*.hs' \
     -exec sed -e 's/\bCardano\.Wallet\./Ariadne.Wallet.Cardano./g' -i {} \;
 
+echo "Performing simple adjustments..."
+find ${ARIADNE_WALLET_PATH}/{Kernel,WalletLayer} ${ARIADNE_TEST_PATH} \
+    -name '*.hs' \
+    -exec sed -i \
+        -e 's/pure ()/pass/g' \
+        -e 's/return ()/pass/g' \
+        -e 's/(pass)/pass/g' \
+        -e 's/Map\.toList/toPairs/g' \
+        -e 's/Map\.elems/elems/g' \
+    '{}' \;
+
 echo "Prettifying with stylish-haskell..."
 find ${ARIADNE_WALLET_PATH}/{Kernel,WalletLayer} ${ARIADNE_TEST_PATH} \
     -name '*.hs' \
