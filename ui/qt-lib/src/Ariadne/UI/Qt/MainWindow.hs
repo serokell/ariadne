@@ -16,9 +16,9 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
-import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Repl
 import Ariadne.UI.Qt.Widgets.TopBar
 import Ariadne.UI.Qt.Widgets.Wallet
@@ -43,7 +43,7 @@ initMainWindow langFace uiWalletFace historyFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
   QWidget.resizeRaw mainWindow 960 640
-  
+
   (qWallet, wallet) <- initWallet langFace uiWalletFace
   (qRepl, repl) <- initRepl langFace historyFace
   (qTopBar, topBar) <- initTopBar
