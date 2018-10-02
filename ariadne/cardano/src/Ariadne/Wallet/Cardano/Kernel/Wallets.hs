@@ -71,7 +71,7 @@ newtype HasNonemptyPassphrase = HasNonemptyPassphrase Bool
 
 data CreateWithAddress 
     = WithoutAddress
-    | WithAddress PassPhrase
+    | WithAddress !PassPhrase
 
 mkHasPP :: PassPhrase -> HasNonemptyPassphrase
 mkHasPP pp = HasNonemptyPassphrase $ pp /= emptyPassphrase
@@ -210,10 +210,10 @@ addDefaultAddress
     -> PassPhrase
     -> ExceptT CreateWalletError IO ()
 addDefaultAddress pw walletId passphrase = do 
-    res <- liftIO $ createAccount (AccountName "Unnamed account") walletId pw
-    case res of 
-        Left err      -> throwError $ CreateAccountFailed err
-        Right account -> do
-            let accountId = AccountIdHdSeq $ account ^. HD.hdAccountId
-            eAddress <- liftIO $ createAddress passphrase accountId HdChainExternal pw
-            either (throwError . CreateAddressFailed) (return . const ()) eAddress
+    account <- ExceptT $
+            first CreateAccountFailed
+        <$> createAccount (AccountName "Unnamed account") walletId pw 
+
+    let accountId = AccountIdHdSeq $ account ^. HD.hdAccountId
+    eAddress <- liftIO $ createAddress passphrase accountId HdChainExternal pw
+    either (throwError . CreateAddressFailed) (return . const ()) eAddress
