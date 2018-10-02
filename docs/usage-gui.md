@@ -79,7 +79,8 @@ will open, where you can enter the amount you want to send and receiver's addres
 "SEND" on a wallet, you will have to choose accounts to use as inputs as well. Click on "select
 accounts..." text right of "FROM" and a pop-up will appear, giving you the list of the current
 wallet's accounts along with their balances. Select desired accounts by clicking on their names and
-close the drop-down by clicking anywhere outside it.
+close the drop-down by clicking anywhere outside it. If you don't select any accounts, Cardano
+backend will select some based on default input selection strategy. **TODO** elaborate on this?
 
 Remember that in Cardano you can not have a fraction of ADA less than 0.000001 (10⁻⁶).
 
