@@ -267,4 +267,3 @@ createTwoLinesLabel line1 line2 = do
   QBoxLayout.addWidget layout label2
   QWidget.setLayout widget layout
   return widget
-  
