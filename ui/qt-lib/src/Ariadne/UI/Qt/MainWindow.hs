@@ -16,6 +16,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
 import Ariadne.UI.Qt.Widgets.Repl
@@ -32,6 +33,7 @@ data MainWindow =
     , topBar :: TopBar
     , logs :: Logs
     , help :: Help
+    , settings :: Settings
     }
 
 makeLensesWith postfixLFields ''MainWindow
@@ -47,9 +49,11 @@ initMainWindow langFace uiWalletFace historyFace = do
   (qTopBar, topBar) <- initTopBar
   (qLogs, logs) <- initLogs
   (qHelp, help) <- initHelp langFace
+  (qSettings, settings) <- initSettings
 
   QWidget.setParentWithFlags qLogs mainWindow Dialog
   QWidget.setParentWithFlags qHelp mainWindow Dialog
+  QWidget.setParentWithFlags qSettings mainWindow Dialog
 
   mainLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw mainLayout 0 0 0 0
@@ -109,4 +113,5 @@ connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
   magnify topBarL . doOnLogsAction . runUI showLogsWindow =<< view logsL
   magnify topBarL . doOnHelpAction . runUI showHelpWindow =<< view helpL
+  magnify topBarL . doOnSettingsAction . runUI showSettingsWindow =<< view settingsL
   magnify topBarL . doOnReplButtonClick . runUI toggleRepl =<< view replL

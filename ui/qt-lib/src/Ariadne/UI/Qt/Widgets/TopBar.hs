@@ -4,6 +4,7 @@ module Ariadne.UI.Qt.Widgets.TopBar
   , doOnReplButtonClick
   , doOnLogsAction
   , doOnHelpAction
+  , doOnSettingsAction
   , displayBlockchainInfo
   ) where
 
@@ -38,6 +39,7 @@ data TopBar =
     , replButton :: QPushButton.QPushButton
     , helpButton :: QPushButton.QPushButton
     , logsButton :: QPushButton.QPushButton
+    , settingsButton :: QPushButton.QPushButton
     , syncingIcon :: QIcon.QIcon
     , syncedIcon :: QIcon.QIcon
     }
@@ -92,7 +94,7 @@ initTopBar = do
   replButton <- QPushButton.new
   helpButton <- QPushButton.newWithText ("Help" :: String)
   logsButton <- QPushButton.newWithText ("Logs" :: String)
-
+  settingsButton <- QPushButton.new
   pointingCursor <- QCursor.newWithCursorShape PointingHandCursor
 
   let createSeparator = do
@@ -108,7 +110,7 @@ initTopBar = do
         QWidget.setSizePolicyRaw btn Preferred Maximum
 
   sequence_ $ intersperse createSeparator $ map createButton
-    [syncLabel, replButton, helpButton, logsButton]
+    [syncLabel, replButton, helpButton, logsButton, settingsButton]
 
   QBoxLayout.addLayout topBar navMenu
 
@@ -118,9 +120,11 @@ initTopBar = do
   syncingIcon <- QIcon.newWithFile (":/images/syncing.png" :: String)
   syncedIcon <- QIcon.newWithFile (":/images/synced.png" :: String)
   terminalIcon <- QIcon.newWithFile (":/images/terminal-ic.png" :: String)
+  settingsIcon <- QIcon.newWithFile (":/images/settings-ic.png" :: String)
 
   QAbstractButton.setIcon syncLabel syncingIcon
   QAbstractButton.setIcon replButton terminalIcon
+  QAbstractButton.setIcon settingsButton settingsIcon
 
   return (widget, TopBar{..})
 
@@ -138,6 +142,11 @@ doOnHelpAction :: IO () -> UI TopBar ()
 doOnHelpAction handler = do
   helpButton <- view helpButtonL
   void $ liftIO $ connect_ helpButton QAbstractButton.clickedSignal $ const handler
+
+doOnSettingsAction :: IO () -> UI TopBar ()
+doOnSettingsAction handler = do
+  settingsButton <- view settingsButtonL
+  void $ liftIO $ connect_ settingsButton QAbstractButton.clickedSignal $ const handler
 
 displayBlockchainInfo :: UiBackendStatusUpdate -> UI TopBar ()
 displayBlockchainInfo UiBackendStatusUpdate{..} = do

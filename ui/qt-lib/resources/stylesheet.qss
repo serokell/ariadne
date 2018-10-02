@@ -316,6 +316,104 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: #fafafa;
 }
 
+#settingsDialog QComboBox {
+    border: none;
+    background: transparent;
+    padding-right: 5px;
+    color: rgb(52, 52, 62, 127);
+}
+
+#settingsDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+  }
+
+#settingsDialog QComboBox::down-arrow {
+    image: url(':/images/expand-arrow.png');
+}
+
+#settingsDialog QComboBox QAbstractItemView {
+    border: 1px solid rgba(0, 0, 0, 30);
+    background: #fafafa;
+}
+
+QPushButton[styleRole="settingsTopbarButton"] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border: none;
+    background: transparent;
+    color: rgb(52, 52, 62, 127);
+}
+
+QPushButton[styleRole="settingsTopbarButton"]:checked {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"] {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"]:hover {
+    border: none;
+    background: rgba(0, 202, 157, 60);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"]:pressed {
+    background: rgba(0, 202, 157, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="inverseButton"]:disabled {
+    background: rgba(0, 202, 157, 10);
+    color: rgba(0, 202, 157, 127);
+}
+
+QPushButton[styleRole="inverseSecondaryButton"] {
+    border: none;
+    background: rgba(202, 80, 0, 60);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:hover {
+    background: rgba(202, 80, 0, 90);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:pressed {
+    background: rgba(202, 80, 0, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:disabled {
+    background: rgba(202, 80, 0, 25);
+    color: rgba(202, 80, 0, 127);
+}
+QPushButton[styleRole="linkButton"] {
+    height: 26;
+    width: 26;
+    image: url(':/images/link-ic.png');
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+QPushButton[styleRole="linkButton"]:hover {
+    background: rgba(52, 52, 62, 25);
+}
+QPushButton[styleRole="linkButton"]:pressed {
+    background: rgba(52, 52, 62, 127);
+}
+QPushButton[styleRole="linkButton"]:disabled {
+    background: rgba(52, 52, 62, 0);
+}
+
 QDialog QLabel[styleRole="mnemonicDisplay"] {
     background-color: rgba(13, 23, 23, 10);
     padding-top: 12px;

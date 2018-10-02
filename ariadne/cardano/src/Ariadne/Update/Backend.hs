@@ -7,11 +7,11 @@ import Data.Version (Version(..), parseVersion, showVersion)
 import Network.HTTP.Client
   (Manager, Request(..), httpLbs, parseRequest, responseBody)
 import Network.HTTP.Client.TLS (newTlsManager)
-import Paths_ariadne_cardano (version)
 import System.Wlog (logDebug, logWarning, usingLoggerName)
 import Text.ParserCombinators.ReadP (readP_to_S)
 
 import Ariadne.Config.Update (UpdateConfig(..))
+import Ariadne.Version (currentAriadneVersion)
 
 data FailedToParseResponse = FailedToParseResponse
   deriving (Eq, Show)
@@ -32,7 +32,7 @@ updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
       usingLoggerName "ariadne" . logWarning . fromString $ "Failed to check for an update: " <> displayException e
     Right ver -> do
       usingLoggerName "ariadne" . logDebug . fromString $ "Fetched version from the server: " <> showVersion ver
-      when (ver > version) (notifyUpdate ver ucUpdateUrl)
+      when (ver > currentAriadneVersion) (notifyUpdate ver ucUpdateUrl)
   threadDelay (ucCheckDelay * 1000000)
   updateCheckLoop uc req man notifyUpdate
 
