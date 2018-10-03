@@ -13,6 +13,7 @@ import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
@@ -27,6 +28,16 @@ data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
 data DeleteRequest = DeleteRequest
     { requestResultVar :: !(MVar Bool)
     , requestDelItem   :: !UiDeletingItem
+=======
+import Ariadne.Util
+
+data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
+    { confirmRemoveWidgetUiFace    :: !UiFace
+    , confirmRemoveWidgetResultVar :: !(Maybe (MVar Bool))
+    , confirmRemoveWidgetDelItem   :: !(Maybe (UiDeletingItem))
+    , confirmRemoveWidgetCheck     :: !Bool
+    , confirmRemoveWidgetDialog    :: !DialogState
+>>>>>>> [AD-207] improve TUI dialogs
     }
 
 makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
@@ -37,6 +48,7 @@ initConfirmRemoveWidget uiFace = initWidget $ do
     setWidgetHandleKey handleConfirmRemoveWidgetKey
     setWidgetHandleEvent handleConfirmRemoveWidgetEvent
     setWidgetState ConfirmRemoveWidgetState
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
         { confirmRemoveWidgetUiFace     = uiFace
         , confirmRemoveWidgetDelRequest = Nothing
         , confirmRemoveWidgetCheck      = False
@@ -58,6 +70,25 @@ initConfirmRemoveWidget uiFace = initWidget $ do
     addWidgetEventHandler WidgetNameConfirmRemoveCheck $ \case
         WidgetEventCheckboxToggled -> updateFocusList
         _ -> pass
+=======
+        { confirmRemoveWidgetUiFace    = uiFace
+        , confirmRemoveWidgetResultVar = Nothing
+        , confirmRemoveWidgetDelItem   = Nothing
+        , confirmRemoveWidgetCheck     = False
+        , confirmRemoveWidgetDialog    = newDialogState "Confirm Deletion"
+        }
+    
+    addWidgetChild WidgetNameConfirmRemoveCheck
+        $ initCheckboxWidget "Make sure you have access to backup before \
+                              \continuing. Otherwise you will lose all your \
+                              \funds connected to this."
+        $ widgetParentLens confirmRemoveWidgetCheckL
+
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveContinue "Delete" performContinue
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveCancel "Cancel" performCancel
+>>>>>>> [AD-207] improve TUI dialogs
 
     setWidgetFocusList
         [ WidgetNameConfirmRemoveCheck
@@ -72,6 +103,7 @@ drawConfirmRemoveWidget
 drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
     case confirmRemoveWidgetDelRequest of
         Nothing -> return $ singleDrawing B.emptyWidget
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
         Just DeleteRequest {..} -> do
             widget <- ask
             let drawChild = last . drawWidgetChild focus widget
@@ -88,7 +120,21 @@ drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
                     , drawChild WidgetNameConfirmRemoveName
                     ]
                   else B.emptyWidget
+=======
+        Just _  -> do
+            widget <- ask
+            let drawChild = last . drawWidgetChild focus widget
+            drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
+                [ B.padTopBottom 1 . B.txtWrap $
+                  "Do you really want to delete this" <> itemTypeText <> "?"
+                , drawChild WidgetNameConfirmRemoveCheck
+>>>>>>> [AD-207] improve TUI dialogs
                 ]
+  where
+    itemTypeText = case confirmRemoveWidgetDelItem of
+        Just UiDelWallet -> " wallet"
+        Just UiDelAccount -> " account"
+        _ -> ""
 
 itemTypeFormat :: Format r (UiDeletingItem -> r)
 itemTypeFormat = later $ \case
@@ -116,6 +162,7 @@ handleConfirmRemoveWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
 performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
     \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
         putMVar requestResultVar True *> closeDialog
@@ -129,11 +176,20 @@ performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
 performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
 performCancel = whenJustM (use confirmRemoveWidgetDelRequestL) $
     \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
+=======
+performContinue = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
+    whenM (use confirmRemoveWidgetCheckL) $ putMVar resultVar True *> closeDialog
+
+performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
+performCancel = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
+    putMVar resultVar False *> closeDialog
+>>>>>>> [AD-207] improve TUI dialogs
 
 closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
 closeDialog = do
     UiFace{..} <- use confirmRemoveWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
     confirmRemoveWidgetDelRequestL .= Nothing
     confirmRemoveWidgetCheckL .= False
     confirmRemoveWidgetNameL .= ""
@@ -155,12 +211,23 @@ updateFocusList = do
         [ WidgetNameConfirmRemoveCancel
         , WidgetNameConfirmRemoveContinue
         ]
+=======
+    confirmRemoveWidgetResultVarL .= Nothing
+    confirmRemoveWidgetDelItemL .= Nothing
+    confirmRemoveWidgetCheckL .= False
+>>>>>>> [AD-207] improve TUI dialogs
 
 handleConfirmRemoveWidgetEvent
     :: UiEvent
     -> WidgetEventM ConfirmRemoveWidgetState p ()
 handleConfirmRemoveWidgetEvent = \case
+<<<<<<< 223c107eeadc91a5fb6a68511f53618532393f93
     UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
         confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
         updateFocusList
+=======
+    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmRemove delItem)) -> do
+        confirmRemoveWidgetResultVarL .= Just resVar
+        confirmRemoveWidgetDelItemL   .= Just delItem
+>>>>>>> [AD-207] improve TUI dialogs
     _ -> pass
