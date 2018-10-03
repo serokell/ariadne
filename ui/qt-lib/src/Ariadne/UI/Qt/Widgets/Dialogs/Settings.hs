@@ -6,7 +6,6 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Settings
 
 import Control.Lens (makeLensesWith)
 import Data.Version (showVersion)
-import Universum (toString)
 import Web.Browser (openBrowser)
 
 import Graphics.UI.Qtah.Signal (connect_)
