@@ -5,6 +5,7 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Settings
     ) where
 
 import Control.Lens (makeLensesWith)
+import Data.Text (unpack)
 import Data.Version (showVersion)
 import Web.Browser (openBrowser)
 
@@ -28,6 +29,8 @@ import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UIConfig (changelogUrl, licenseUrl)
 import Ariadne.Util
 import Ariadne.Version (currentAriadneVersion)
+
+
 
 data Settings =
   Settings
@@ -192,9 +195,9 @@ initAboutSettings = do
   let as = AboutSettings{..}
 
   connect_ releaseNotesButton QAbstractButton.clickedSignal
-        $ \_ -> void $ openBrowser changelogUrl
+        $ \_ -> void $ openBrowser $ unpack changelogUrl
   connect_ licenseButton QAbstractButton.clickedSignal
-        $ \_ -> void $ openBrowser licenseUrl
+        $ \_ -> void $ openBrowser $ unpack licenseUrl
 
   return (aboutWidget, as)
 

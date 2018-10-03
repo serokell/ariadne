@@ -4,11 +4,13 @@ module Ariadne.UIConfig
   , aboutUrl
   ) where
 
-licenseUrl :: String
+import Data.Text(Text)
+
+licenseUrl :: Text
 licenseUrl = "https://serokell.io/ariadne/license"
 
-changelogUrl :: String
+changelogUrl :: Text
 changelogUrl = "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md"
 
-aboutUrl :: String
+aboutUrl :: Text
 aboutUrl = "https://github.com/serokell/ariadne"

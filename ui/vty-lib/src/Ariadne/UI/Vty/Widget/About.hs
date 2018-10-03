@@ -9,7 +9,6 @@ import qualified Graphics.Vty as V
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UIConfig (aboutUrl, licenseUrl)
-import Universum (toText)
 
 initAboutWidget :: Widget p
 initAboutWidget =
@@ -49,11 +48,11 @@ aboutBanner defAttr selAttr = V.vertCat
   , V.text' defAttr "Ariadne is distributed under the terms of the MPL 2.0 license."
   , V.horizCat
       [ V.text' defAttr "For details, please, see: "
-      , V.text' selAttr $ Universum.toText licenseUrl
+      , V.text' selAttr licenseUrl
       ]
   , V.text' defAttr ""
   , V.horizCat
       [ V.text' defAttr "The source code is available at "
-      , V.text' selAttr $ Universum.toText aboutUrl
+      , V.text' selAttr aboutUrl
       ]
   ]
