@@ -3,7 +3,9 @@ module Knit.Autocompletion where
 import Data.Maybe (mapMaybe)
 import Data.Semigroup (Option(..), option)
 
+import Knit.Argument
 import Knit.FormattedExprExt
+import Knit.Name
 import Knit.ParseTreeExt
 import Knit.Prelude
 import Knit.Printer
@@ -87,23 +89,43 @@ suggestionExprs procs = skipParensExpr
               ProcCall NoExt cmd
                 . snoc [lhs]
                 . ArgPos (ArgPosPadding (pure padding))
-                . ExprProcCall NoExt
-                <$> suggestedProcCalls
+                . toProcCall
+                <$> suggestableProcs
             [lhs, ArgPos padding1 rhs] ->
               ProcCall NoExt cmd
                 . snoc [lhs]
                 . ArgPos padding1
                 <$> suggestExpr padding rhs
             _ -> invalidOperatorApplication
-        _ -> -- TODO suggest kwargs
-          ProcCall NoExt cmd
-            . snoc args
-            . ArgPos (ArgPosPadding (pure padding))
-            . ExprProcCall NoExt
-            <$> suggestedProcCalls
+        CommandIdName name ->
+          concat
+            [ case find ((== name) . fst) suggestableProcs of
+                Nothing -> []
+                Just (_, params) ->
+                  ProcCall NoExt cmd
+                    . snoc args
+                    . (\param ->
+                        ArgKw
+                          (ArgKwPadding (pure padding) mempty)
+                          param
+                          (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
+                      )
+                    <$> params
+            , ProcCall NoExt cmd
+              . snoc args
+              . ArgPos (ArgPosPadding (pure padding))
+              . toProcCall
+              <$> filter (null . snd) suggestableProcs
+            ]
 
-    suggestedProcCalls =
-      flip mapMaybe procs $ \(SomeCommandProc cp) ->
-        case cpName cp of
-          CommandIdName _ -> Just $ ProcCall NoExt (cpName cp) []
+    suggestableProcs :: [(Name, [Name])]
+    suggestableProcs =
+      flip mapMaybe procs $ \(SomeCommandProc CommandProc{..}) ->
+        case cpName of
+          CommandIdName name -> Just (name, map (^._1) $ getParameters cpArgumentConsumer)
           CommandIdOperator _ -> Nothing
+
+    toProcCall =
+      ExprProcCall NoExt
+        . (\name -> ProcCall NoExt (CommandIdName name) [])
+        . fst
