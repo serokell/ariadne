@@ -1,11 +1,14 @@
 module Knit.Autocompletion where
 
+import Control.Monad.Writer.Strict (runWriter)
 import Data.Maybe (mapMaybe)
-import Data.Semigroup (Option(..), option)
+import Data.Semigroup (Option(..), option, (<>))
+import Data.Text (Text, count, drop, dropEnd, pack, replicate)
 
 import Knit.Argument
 import Knit.FormattedExprExt
 import Knit.Name
+import Knit.Parser
 import Knit.ParseTreeExt
 import Knit.Prelude
 import Knit.Printer
@@ -13,10 +16,39 @@ import Knit.Procedure
 import Knit.Syntax
 import Knit.Tokenizer
 
+suggestions
+  :: forall components proxy.
+     ( KnownSpine components
+     , AllConstrained (ComponentTokenizer components) components
+     , AllConstrained (ComponentTokenToLit components) components
+     , AllConstrained (ComponentCommandProcs components) components
+     , AllConstrained ComponentPrinter components
+     )
+  => proxy components
+  -> Text
+  -> [Text]
+suggestions _ cmd =
+  let
+    openingParens = count "(" cmd
+    closingParens = count ")" cmd
+    addedParens = openingParens - closingParens + 1
+    cmd' = "(" <> cmd <> Data.Text.replicate addedParens ")"
+  in
+    case parseTree @components cmd' of
+      Left _ -> []
+      Right tree ->
+        map (Data.Text.drop 1
+          . dropEnd addedParens
+          . pack
+          . show
+          . ppFormattedExpr)
+        $ suggestionExprs commandProcs addedParens
+        $ fst $ runWriter $ parseTreeToFormattedExpr tree
+
 suggestionExprs
   :: forall components.
      [SomeCommandProc components]
-  -> Word
+  -> Int
   -> Expr FormattedExprExt CommandId components
   -> [Expr FormattedExprExt CommandId components]
 suggestionExprs procs = skipParensExpr
@@ -25,20 +57,20 @@ suggestionExprs procs = skipParensExpr
     didn'tFindParen = error "Core invariant violated: not enough parentheses"
 
     skipParensExpr
-      :: Word
+      :: Int
       -> Expr FormattedExprExt CommandId components
       -> [Expr FormattedExprExt CommandId components]
     skipParensExpr n = \case
       ExprLit NoExt _ -> didn'tFindParen
       ExprProcCall NoExt p -> ExprProcCall NoExt <$> skipParensPc n p
       XExpr (ExprInBrackets l e r) ->
-        if n > 0
+        if n > 1
           then XExpr . exprInBrackets l r <$> skipParensExpr (n - 1) e
           else XExpr . exprInBrackets l mempty <$>
             option (autocompleteExpr e) (flip suggestExpr e) r
 
     skipParensPc
-      :: Word
+      :: Int
       -> ProcCall' FormattedExprExt CommandId components
       -> [ProcCall' FormattedExprExt CommandId components]
     skipParensPc n (ProcCall NoExt cmd args) =
@@ -48,7 +80,7 @@ suggestionExprs procs = skipParensExpr
           ProcCall NoExt cmd . snoc init' <$> skipParensArg n last'
 
     skipParensArg
-      :: Word
+      :: Int
       -> Arg' FormattedExprExt CommandId components
       -> [Arg' FormattedExprExt CommandId components]
     skipParensArg n = \case
