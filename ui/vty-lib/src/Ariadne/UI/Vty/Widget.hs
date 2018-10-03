@@ -429,8 +429,8 @@ drawWidgetChild focus widget@WidgetInfo{..} name =
   where
     withIgnoreVisibility (Widget child) = Widget child{ widgetIgnoreVisibility = widgetIgnoreVisibility }
 
-singleDrawing :: (B.Widget WidgetName) -> WidgetDrawing
-singleDrawing = NE.fromList . (: [])
+singleDrawing :: B.Widget WidgetName -> WidgetDrawing
+singleDrawing = (:| [])
 
 layeredDrawing :: [B.Widget WidgetName] -> WidgetDrawing
 layeredDrawing = NE.fromList

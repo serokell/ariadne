@@ -48,7 +48,7 @@ drawConfirmRemoveWidget
 drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
     case confirmRemoveWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm ConfirmRemove" focus
+        Just _  -> drawInsideDialog "Confirm Remove" focus
             [WidgetNameConfirmRemoveCancel, WidgetNameConfirmRemoveContinue] $
             B.vBox
                 [ B.hCenter $ B.txt "WARNING"
@@ -59,15 +59,15 @@ handleConfirmRemoveWidgetKey
     :: KeyboardEvent
     -> WidgetEventM ConfirmRemoveWidgetState p WidgetEventResult
 handleConfirmRemoveWidgetKey = \case
-    KeyEnter -> performContinue *> return WidgetEventHandled
-    KeyNavigation -> performCancel *> return WidgetEventHandled
+    KeyEnter -> performContinue $> WidgetEventHandled
+    KeyNavigation -> performCancel $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
 performContinue = do
     ConfirmRemoveWidgetState{..} <- get
     whenJust confirmRemoveWidgetResultVar $ \resultVar -> do
-        liftIO $ putMVar resultVar True
+        putMVar resultVar True
         UiFace{..} <- use confirmRemoveWidgetUiFaceL
         liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmRemoveWidgetResultVarL .= Nothing
@@ -77,7 +77,7 @@ performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
 performCancel = do
     ConfirmRemoveWidgetState{..} <- get
     whenJust confirmRemoveWidgetResultVar $ \resultVar -> do
-        liftIO $ putMVar resultVar False
+        putMVar resultVar False
         UiFace{..} <- use confirmRemoveWidgetUiFaceL
         liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmRemoveWidgetResultVarL .= Nothing
