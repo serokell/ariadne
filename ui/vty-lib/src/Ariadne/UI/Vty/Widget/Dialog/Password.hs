@@ -20,6 +20,7 @@ data PasswordWidgetState = PasswordWidgetState
     , passwordWidgetUiFace      :: !UiFace
     , passwordWidgetContent     :: !Text
     , passwordWidgetRecipient   :: !(Maybe (WalletId, CE.Event))
+    , passwordWidgetDialog      :: !DialogState
     }
 
 makeLensesWith postfixLFields ''PasswordWidgetState
@@ -34,11 +35,14 @@ initPasswordWidget putPassword uiFace = initWidget $ do
         , passwordWidgetUiFace      = uiFace
         , passwordWidgetContent     = ""
         , passwordWidgetRecipient   = Nothing
+        , passwordWidgetDialog      = newDialogState "Insert Password"
         }
 
     addWidgetChild WidgetNamePasswordInput $
         initHiddenPasswordWidget (widgetParentLens passwordWidgetContentL)
-    addDialogButton WidgetNamePasswordContinue "Continue" performContinue
+
+    addDialogButton passwordWidgetDialogL
+        WidgetNamePasswordContinue "Continue" performContinue
 
     setWidgetFocusList
         [ WidgetNameSelf
@@ -54,7 +58,7 @@ drawPasswordWidget focus PasswordWidgetState{..} = do
     widget <- ask
     case passwordWidgetRecipient of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Insert Password" focus [WidgetNamePasswordContinue] $
+        Just _  -> drawInsideDialog passwordWidgetDialog focus $
             B.padLeftRight 1 $
             B.hBox
                 [ B.txt "Password: "
@@ -66,6 +70,7 @@ handlePasswordWidgetKey
     -> WidgetEventM PasswordWidgetState p WidgetEventResult
 handlePasswordWidgetKey = \case
     KeyEnter -> performContinue $> WidgetEventHandled
+    KeyNavigation -> return WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM PasswordWidgetState p ()

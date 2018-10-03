@@ -6,12 +6,12 @@ import Control.Lens (makeLensesWith, (.=))
 import qualified Data.Text as T
 
 import qualified Brick as B
-import qualified Brick.Widgets.Center as B
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
+import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
@@ -21,6 +21,10 @@ data ConfirmMnemonicWidgetState = ConfirmMnemonicWidgetState
     , confirmMnemonicWidgetValue             :: ![Text]
     , confirmMnemonicWidgetConfirmationState :: !ConfirmationState
     , confirmMnemonicWidgetResultVar         :: !(Maybe (MVar Bool))
+    , confirmMnemonicWidgetDialog            :: !DialogState
+    , confirmRemoveWidgetCheckScreen         :: !Bool
+    , confirmRemoveWidgetCheckOnDevice       :: !Bool
+    , confirmRemoveWidgetCheckMoved          :: !Bool
     }
 
 data ConfirmationState
@@ -41,13 +45,33 @@ initConfirmMnemonicWidget uiFace = initWidget $ do
         , confirmMnemonicWidgetValue             = []
         , confirmMnemonicWidgetConfirmationState = Before
         , confirmMnemonicWidgetResultVar         = Nothing
+        , confirmRemoveWidgetCheckScreen         = False
+        , confirmRemoveWidgetCheckOnDevice       = False
+        , confirmRemoveWidgetCheckMoved          = False
+        , confirmMnemonicWidgetDialog            = newDialogState "Confirm Mnemonic"
         }
 
     addWidgetChild WidgetNameConfirmMnemonicInput $
         initEditWidget (widgetParentLens confirmMnemonicWidgetContentL)
+    addWidgetChild WidgetNameConfirmMnemonicCheckScreen
+        $ initCheckboxWidget "Make sure nobody looks into your screen unless \
+                              \you want them to have access to your funds."
+        $ widgetParentLens confirmRemoveWidgetCheckScreenL
+    addWidgetChild WidgetNameConfirmMnemonicCheckOnDevice
+        $ initCheckboxWidget "I understand that my money are held securely on \
+                              \this device only, not on the company servers"
+        $ widgetParentLens confirmRemoveWidgetCheckOnDeviceL
+    addWidgetChild WidgetNameConfirmMnemonicCheckMoved
+        $ initCheckboxWidget "I understand that if this application is moved \
+                              \to another device or deleted, my money can be \
+                              \only recovered with the backup phrase which was \
+                              \written down in a secure place"
+        $ widgetParentLens confirmRemoveWidgetCheckMovedL
 
-    addDialogButton WidgetNameConfirmMnemonicCancel "Cancel" performCancel
-    addDialogButton WidgetNameConfirmMnemonicContinue "Continue" performContinue
+    addDialogButton confirmMnemonicWidgetDialogL
+        WidgetNameConfirmMnemonicContinue "Continue" performContinue
+    addDialogButton confirmMnemonicWidgetDialogL
+        WidgetNameConfirmMnemonicCancel "Cancel" performCancel
 
     setWidgetFocusList
         [ WidgetNameSelf
@@ -60,37 +84,50 @@ drawConfirmMnemonicWidget
     :: WidgetName
     -> ConfirmMnemonicWidgetState
     -> WidgetDrawM ConfirmMnemonicWidgetState p WidgetDrawing
-drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} = do
-    widget <- ask
+drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
     case confirmMnemonicWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm Mnemonic" focus
-            [WidgetNameConfirmMnemonicCancel, WidgetNameConfirmMnemonicContinue] $
-            case confirmMnemonicWidgetConfirmationState of
-                Before -> B.vBox
-                    [ B.hCenter $ B.txt "WARNING"
-                    , B.padTopBottom 1 $ B.txtWrap "A set of random words will \
-                      \appear on the next screen. This is your wallet backup \
-                      \phrase. It can be entered in any version of Ariadne \
-                      \application in order to restore your wallet’s funds \
-                      \and private key."
-                    ]
-                DisplayConfirmMnemonic -> B.vBox $ 
-                    [ B.txtWrap "Please make sure you have written down your \
-                      \recovery phrase somewhere safe. You will need this \
-                      \phrase later for next use and recover. Phrase is case \
-                      \sensitive."
-                    , B.padTopBottom 1 $ B.txtWrap $ T.intercalate " " confirmMnemonicWidgetValue
-                    ]
-                RetypeConfirmMnemonic ->
-                    B.padLeftRight 1 $
-                    B.vBox
-                        [ B.txtWrap "Type each word in the correct order to verify your recovery phrase."
-                        , B.padTopBottom 1 $ B.hBox
-                            [ B.txt "ConfirmMnemonic: "
-                            , last $ drawWidgetChild focus widget WidgetNameConfirmMnemonicInput
-                            ]
+        Just _  -> do
+            widget <- ask
+            let drawChild = last . drawWidgetChild focus widget
+            drawInsideDialog confirmMnemonicWidgetDialog focus $
+                case confirmMnemonicWidgetConfirmationState of
+                    Before -> B.vBox
+                        [ B.padTopBottom 1 $ B.txtWrap $
+                          "On the following screen, you will see a set of " <> 
+                          mnemonicSize <> " random words. This is your wallet \
+                          \backup phrase. It can be entered in any version of \
+                          \Ariadne application in order to restore your wallet’s\
+                          \ funds and private key."
+                        , drawChild WidgetNameConfirmMnemonicCheckScreen
                         ]
+                    DisplayConfirmMnemonic -> B.vBox
+                        [ B.padTopBottom 1 $ B.txtWrap $
+                          "Please make sure you have carefully writen down your\
+                          \ recovery phrase somewhere safe. You will need this \
+                          \phrase later for next use and recover. \
+                          \Phrase is case sensitive."
+                        , B.withAttr "selected" $ B.txtWrap mnemonicText
+                        ]
+                    RetypeConfirmMnemonic -> B.vBox $
+                        [ B.txtWrap $
+                          "Type each word in the correct order to verify your\
+                          \ recovery phrase."
+                        , B.padLeftRight 1 $ B.vBox
+                            [ B.padTopBottom 1 $ B.hBox
+                                [ B.txt "RECOVERY PHRASE: "
+                                , drawChild WidgetNameConfirmMnemonicInput
+                                ]
+                            ]
+                        ] ++ if words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
+                        then map drawChild 
+                            [ WidgetNameConfirmMnemonicCheckOnDevice
+                            , WidgetNameConfirmMnemonicCheckMoved
+                            ]
+                        else []
+  where
+    mnemonicSize = show $ length confirmMnemonicWidgetValue
+    mnemonicText = T.intercalate " " confirmMnemonicWidgetValue
 
 handleConfirmMnemonicWidgetKey
     :: KeyboardEvent
@@ -105,32 +142,31 @@ performContinue = do
     ConfirmMnemonicWidgetState{..} <- get
     whenJust confirmMnemonicWidgetResultVar $ \resultVar -> do 
         case confirmMnemonicWidgetConfirmationState of
-            Before -> do
+            Before -> when confirmRemoveWidgetCheckScreen $
                 confirmMnemonicWidgetConfirmationStateL .= DisplayConfirmMnemonic
-            DisplayConfirmMnemonic -> do
+            DisplayConfirmMnemonic ->
                 confirmMnemonicWidgetConfirmationStateL .= RetypeConfirmMnemonic
-            RetypeConfirmMnemonic -> do
-                let mnemonic = confirmMnemonicWidgetValue
-                when (words confirmMnemonicWidgetContent == mnemonic) $ do
-                    putMVar resultVar True
-                    UiFace{..} <- use confirmMnemonicWidgetUiFaceL
-                    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-                    confirmMnemonicWidgetContentL .= ""
-                    confirmMnemonicWidgetValueL .= []
-                    confirmMnemonicWidgetConfirmationStateL .= Before
-                    confirmMnemonicWidgetResultVarL .= Nothing
+            RetypeConfirmMnemonic -> when
+                ( words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
+                && confirmRemoveWidgetCheckOnDevice
+                && confirmRemoveWidgetCheckMoved
+                ) $ putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmMnemonicWidgetState p ()
-performCancel = do
-    ConfirmMnemonicWidgetState{..} <- get
-    whenJust confirmMnemonicWidgetResultVar $ \resultVar -> do
-        putMVar resultVar False
-        UiFace{..} <- use confirmMnemonicWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-        confirmMnemonicWidgetContentL .= ""
-        confirmMnemonicWidgetValueL .= []
-        confirmMnemonicWidgetConfirmationStateL .= Before
-        confirmMnemonicWidgetResultVarL .= Nothing
+performCancel = whenJustM (use confirmMnemonicWidgetResultVarL) $ \resultVar ->
+    putMVar resultVar False *> closeDialog
+
+closeDialog :: WidgetEventM ConfirmMnemonicWidgetState p ()
+closeDialog = do
+    UiFace{..} <- use confirmMnemonicWidgetUiFaceL
+    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
+    confirmMnemonicWidgetContentL .= ""
+    confirmMnemonicWidgetValueL .= []
+    confirmMnemonicWidgetConfirmationStateL .= Before
+    confirmMnemonicWidgetResultVarL .= Nothing
+    confirmRemoveWidgetCheckScreenL .= False
+    confirmRemoveWidgetCheckOnDeviceL .= False
+    confirmRemoveWidgetCheckMovedL .= False
 
 handleConfirmMnemonicWidgetEvent
     :: UiEvent
