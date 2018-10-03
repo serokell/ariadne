@@ -4,12 +4,12 @@ module Ariadne.UI.Vty.Widget.About
 
 import qualified Brick as B
 import qualified Brick.Widgets.Center as B
-import qualified Data.Text as T
 import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UIConfig (aboutUrl, licenseUrl)
+import Universum (toText)
 
 initAboutWidget :: Widget p
 initAboutWidget =
@@ -49,11 +49,11 @@ aboutBanner defAttr selAttr = V.vertCat
   , V.text' defAttr "Ariadne is distributed under the terms of the MPL 2.0 license."
   , V.horizCat
       [ V.text' defAttr "For details, please, see: "
-      , V.text' selAttr $ T.pack licenseUrl
+      , V.text' selAttr $ Universum.toText licenseUrl
       ]
   , V.text' defAttr ""
   , V.horizCat
       [ V.text' defAttr "The source code is available at "
-      , V.text' selAttr $ T.pack aboutUrl
+      , V.text' selAttr $ Universum.toText aboutUrl
       ]
   ]
