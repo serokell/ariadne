@@ -64,7 +64,7 @@ drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} = do
     widget <- ask
     case confirmMnemonicWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm ConfirmMnemonic" focus
+        Just _  -> drawInsideDialog "Confirm Mnemonic" focus
             [WidgetNameConfirmMnemonicCancel, WidgetNameConfirmMnemonicContinue] $
             case confirmMnemonicWidgetConfirmationState of
                 Before -> B.vBox
@@ -96,8 +96,8 @@ handleConfirmMnemonicWidgetKey
     :: KeyboardEvent
     -> WidgetEventM ConfirmMnemonicWidgetState p WidgetEventResult
 handleConfirmMnemonicWidgetKey = \case
-    KeyEnter -> performContinue *> return WidgetEventHandled
-    KeyNavigation -> performCancel *> return WidgetEventHandled
+    KeyEnter -> performContinue $> WidgetEventHandled
+    KeyNavigation -> performCancel $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmMnemonicWidgetState p ()
@@ -111,8 +111,8 @@ performContinue = do
                 confirmMnemonicWidgetConfirmationStateL .= RetypeConfirmMnemonic
             RetypeConfirmMnemonic -> do
                 let mnemonic = confirmMnemonicWidgetValue
-                when (words (confirmMnemonicWidgetContent) == mnemonic) $ do
-                    liftIO $ putMVar resultVar True
+                when (words confirmMnemonicWidgetContent == mnemonic) $ do
+                    putMVar resultVar True
                     UiFace{..} <- use confirmMnemonicWidgetUiFaceL
                     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
                     confirmMnemonicWidgetContentL .= ""
@@ -124,7 +124,7 @@ performCancel :: WidgetEventM ConfirmMnemonicWidgetState p ()
 performCancel = do
     ConfirmMnemonicWidgetState{..} <- get
     whenJust confirmMnemonicWidgetResultVar $ \resultVar -> do
-        liftIO $ putMVar resultVar False
+        putMVar resultVar False
         UiFace{..} <- use confirmMnemonicWidgetUiFaceL
         liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmMnemonicWidgetContentL .= ""

@@ -65,7 +65,7 @@ handlePasswordWidgetKey
     :: KeyboardEvent
     -> WidgetEventM PasswordWidgetState p WidgetEventResult
 handlePasswordWidgetKey = \case
-    KeyEnter -> performContinue *> return WidgetEventHandled
+    KeyEnter -> performContinue $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM PasswordWidgetState p ()

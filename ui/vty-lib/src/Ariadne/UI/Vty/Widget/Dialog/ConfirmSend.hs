@@ -49,7 +49,7 @@ drawConfirmSendWidget
 drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
     case confirmSendWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm ConfirmSend" focus [WidgetNameConfirmSendCancel, WidgetNameConfirmSendContinue] $ B.vBox $
+        Just _  -> drawInsideDialog "Confirm Send" focus [WidgetNameConfirmSendCancel, WidgetNameConfirmSendContinue] $ B.vBox $
             [ B.hCenter $ B.txt "WARNING"] ++
             map (\(address, amount, coin) ->
                     B.padTopBottom 1 $ B.txtWrap $ amount <> " " <> coin <> " to " <> address)
@@ -59,15 +59,15 @@ handleConfirmSendWidgetKey
     :: KeyboardEvent
     -> WidgetEventM ConfirmSendWidgetState p WidgetEventResult
 handleConfirmSendWidgetKey = \case
-    KeyEnter -> performContinue *> return WidgetEventHandled
-    KeyNavigation -> performCancel *> return WidgetEventHandled
+    KeyEnter -> performContinue $> WidgetEventHandled
+    KeyNavigation -> performCancel $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmSendWidgetState p ()
 performContinue = do
     ConfirmSendWidgetState{..} <- get
     whenJust confirmSendWidgetResultVar $ \resultVar -> do
-        liftIO $ putMVar resultVar True
+        putMVar resultVar True
         UiFace{..} <- use confirmSendWidgetUiFaceL
         liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmSendWidgetResultVarL .= Nothing
@@ -77,7 +77,7 @@ performCancel :: WidgetEventM ConfirmSendWidgetState p ()
 performCancel = do
     ConfirmSendWidgetState{..} <- get
     whenJust confirmSendWidgetResultVar $ \resultVar -> do
-        liftIO $ putMVar resultVar False
+        putMVar resultVar False
         UiFace{..} <- use confirmSendWidgetUiFaceL
         liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmSendWidgetResultVarL .= Nothing

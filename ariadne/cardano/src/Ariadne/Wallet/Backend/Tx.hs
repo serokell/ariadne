@@ -112,8 +112,7 @@ sendTx
 
         filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
         filterAccounts ids accounts = accounts @+ toList ids
-    confirmed <- waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs
-    when (not confirmed) $ throwM SendTxNotConfirmed
+    unlessM (waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs) $ throwM SendTxNotConfirmed
     pp <- getPassPhrase walletRef
     voidWrongPass walletRef . runCardanoMode $
         sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion

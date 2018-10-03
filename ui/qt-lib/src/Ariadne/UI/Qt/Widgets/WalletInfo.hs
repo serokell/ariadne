@@ -220,8 +220,8 @@ handleWalletInfoEvent UiLangFace{..} ev = do
 
     WalletInfoConfirmRemove resultVar delItemType ->
       liftIO $ runDelete delItemType >>= \case
-        DoDelete -> liftIO $ putMVar resultVar True
-        Cancel -> liftIO $ putMVar resultVar False
+        DoDelete -> putMVar resultVar True
+        Cancel -> putMVar resultVar False
 
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do

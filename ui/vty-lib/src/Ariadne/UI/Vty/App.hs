@@ -396,7 +396,7 @@ handleAppWidgetEvent = \case
   UiConfirmEvent confirmEvent -> do
     assignWidgetLens (Lens appModalL) $ case confirmEvent of
       UiConfirmRequest _ confirmationType -> ConfirmationMode confirmationType
-      UiConfirmDone ->  NoModal
+      UiConfirmDone -> NoModal
     resetAppFocus
   _ ->
     pass
