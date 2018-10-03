@@ -1,9 +1,13 @@
 module Knit.Autocompletion where
 
 import Control.Monad.Writer.Strict (runWriter)
+import Data.List (isPrefixOf)
 import Data.Maybe (mapMaybe)
 import Data.Semigroup (Option(..), option, (<>))
 import Data.Text (Text, count, drop, dropEnd, pack, replicate)
+import Data.Text.Buildable (build)
+import Data.Text.Lazy (unpack)
+import Data.Text.Lazy.Builder (toLazyText)
 
 import Knit.Argument
 import Knit.FormattedExprExt
@@ -88,7 +92,64 @@ suggestionExprs procs = skipParensExpr
       ArgKw padding name e -> ArgKw padding name <$> skipParensExpr n e
       XArg xxArg -> absurd xxArg
 
-    autocompleteExpr = const []
+    autocompleteExpr
+      :: Expr FormattedExprExt CommandId components
+      -> [Expr FormattedExprExt CommandId components]
+    autocompleteExpr = \case
+      ExprLit NoExt _ -> []
+      ExprProcCall NoExt p -> ExprProcCall NoExt <$> autocompletePc p
+      XExpr (ExprInBrackets _ _ _) -> []
+
+    autocompletePc
+      :: ProcCall' FormattedExprExt CommandId components
+      -> [ProcCall' FormattedExprExt CommandId components]
+    autocompletePc (ProcCall NoExt cmd args) =
+      case cmd of
+        CommandIdOperator OpUnit -> toProcCall <$> suggestableProcs
+        CommandIdOperator OpAndThen ->
+          case args of
+            [lhs, ArgPos padding rhs] ->
+              ProcCall NoExt cmd
+              . snoc [lhs]
+              . ArgPos padding
+              <$> autocompleteExpr rhs
+            _ -> invalidOperatorApplication
+        CommandIdName name ->
+          case unsnoc args of
+            Nothing -> toProcCall <$> filter (isPrefixOf (nameStr name) . nameStr . fst) suggestableProcs
+            Just (init', last') ->
+              ProcCall NoExt cmd . snoc init' <$> autocompleteArg name last'
+
+    autocompleteArg
+      :: Name
+      -> Arg' FormattedExprExt CommandId components
+      -> [Arg' FormattedExprExt CommandId components]
+    autocompleteArg cmdName = \case
+      ArgPos (ArgPosPadding padding) (ExprProcCall NoExt (ProcCall NoExt (CommandIdName name) [])) ->
+        let
+          kwargs =
+            case find ((== cmdName) . fst) suggestableProcs of
+              Nothing -> []
+              Just (_, params) ->
+                  (\param ->
+                    ArgKw
+                      (ArgKwPadding padding mempty)
+                      param
+                      (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
+                  )
+                  <$> filter (isPrefixOf (nameStr name) . show) params
+          procCalls =
+            ArgPos (ArgPosPadding padding)
+            . ExprProcCall NoExt
+            . toProcCall
+            <$> filter
+              (\(proc, params) -> null params && isPrefixOf (nameStr name) (show proc))
+              suggestableProcs
+        in
+          kwargs ++ procCalls
+      ArgPos padding e -> ArgPos padding <$> autocompleteExpr e
+      ArgKw padding name e -> ArgKw padding name <$> autocompleteExpr e
+      XArg xxArg -> absurd xxArg
 
     suggestExpr
       :: SSpan
@@ -121,6 +182,7 @@ suggestionExprs procs = skipParensExpr
               ProcCall NoExt cmd
                 . snoc [lhs]
                 . ArgPos (ArgPosPadding (pure padding))
+                . ExprProcCall NoExt
                 . toProcCall
                 <$> suggestableProcs
             [lhs, ArgPos padding1 rhs] ->
@@ -130,8 +192,9 @@ suggestionExprs procs = skipParensExpr
                 <$> suggestExpr padding rhs
             _ -> invalidOperatorApplication
         CommandIdName name ->
-          concat
-            [ case find ((== name) . fst) suggestableProcs of
+          let
+            kwargs =
+              case find ((== name) . fst) suggestableProcs of
                 Nothing -> []
                 Just (_, params) ->
                   ProcCall NoExt cmd
@@ -143,12 +206,15 @@ suggestionExprs procs = skipParensExpr
                           (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
                       )
                     <$> params
-            , ProcCall NoExt cmd
+            procCalls =
+              ProcCall NoExt cmd
               . snoc args
               . ArgPos (ArgPosPadding (pure padding))
+              . ExprProcCall NoExt
               . toProcCall
               <$> filter (null . snd) suggestableProcs
-            ]
+          in
+            kwargs ++ procCalls
 
     suggestableProcs :: [(Name, [Name])]
     suggestableProcs =
@@ -157,7 +223,6 @@ suggestionExprs procs = skipParensExpr
           CommandIdName name -> Just (name, map (^._1) $ getParameters cpArgumentConsumer)
           CommandIdOperator _ -> Nothing
 
-    toProcCall =
-      ExprProcCall NoExt
-        . (\name -> ProcCall NoExt (CommandIdName name) [])
-        . fst
+    toProcCall = (\name -> ProcCall NoExt (CommandIdName name) []) . fst
+
+    nameStr = unpack . toLazyText . build
