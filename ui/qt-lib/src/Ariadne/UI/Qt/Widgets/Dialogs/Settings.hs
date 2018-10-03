@@ -25,6 +25,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
+import Ariadne.UIConfig (changelogUrl, licenseUrl)
 import Ariadne.Util
 import Ariadne.Version (currentAriadneVersion)
 
@@ -191,9 +192,9 @@ initAboutSettings = do
   let as = AboutSettings{..}
 
   connect_ releaseNotesButton QAbstractButton.clickedSignal
-        $ \_ -> void $ openBrowser "https://github.com/serokell/ariadne/blob/master/CHANGELOG.md"
+        $ \_ -> void $ openBrowser changelogUrl
   connect_ licenseButton QAbstractButton.clickedSignal
-        $ \_ -> void $ openBrowser "https://serokell.io/ariadne/license"
+        $ \_ -> void $ openBrowser licenseUrl
 
   return (aboutWidget, as)
 
