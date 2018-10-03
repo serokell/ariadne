@@ -4,8 +4,6 @@ module Ariadne.UIConfig
   , aboutUrl
   ) where
 
-import Data.Text(Text)
-
 licenseUrl :: Text
 licenseUrl = "https://serokell.io/ariadne/license"
 
