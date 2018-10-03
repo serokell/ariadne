@@ -12,7 +12,6 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets (
     , createWalletHdSeq
     ) where
 
-import Control.Monad.Error.Class (throwError)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
@@ -210,10 +209,13 @@ addDefaultAddress
     -> PassPhrase
     -> ExceptT CreateWalletError IO ()
 addDefaultAddress pw walletId passphrase = do 
-    account <- ExceptT $
-            first CreateAccountFailed
+    account <- ExceptT
+         $  first CreateAccountFailed
         <$> createAccount (AccountName "Unnamed account") walletId pw 
 
     let accountId = AccountIdHdSeq $ account ^. HD.hdAccountId
-    eAddress <- liftIO $ createAddress passphrase accountId HdChainExternal pw
-    either (throwError . CreateAddressFailed) (return . const ()) eAddress
+
+    void $ ExceptT 
+         $ first CreateAddressFailed
+        <$> createAddress passphrase accountId HdChainExternal pw
+
