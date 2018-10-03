@@ -189,7 +189,7 @@ fillSendOptions Send{..} = do
   let UiWalletFace{..} = uiWalletFace
 
   return $ do
-    guard $ not (null address) && not (null accounts) && uiValidateAddress address
+    guard $ not (null address) && uiValidateAddress address
     amount' :: Scientific <- normalize <$> readMaybe amount
     -- Check that amount' has no more than uiCoinPrecision decimal digits
     -- This is checked by QDoubleValidator, but just do be sure check again
