@@ -29,8 +29,6 @@ import Ariadne.UIConfig (changelogUrl, licenseUrl)
 import Ariadne.Util
 import Ariadne.Version (currentAriadneVersion)
 
-
-
 data Settings =
   Settings
     { settings :: QDialog.QDialog
