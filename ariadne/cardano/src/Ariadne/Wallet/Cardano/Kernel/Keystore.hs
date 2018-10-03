@@ -158,6 +158,12 @@ newTestKeystore = liftIO $ runIdentityT $ fromKeystore $ do
     us <- peekUserSecret fp
     Keystore <$> newMVar (InternalStorage us)
   where
+    -- | Generates a new path for the temporary 'Keystore'.
+    -- Unfortunately, System.IO does not expose an API for path
+    -- generation (it is implemented in `openTempFile'`), so
+    -- we create the file, then close the handle and remove it.
+    -- It cannot be left empty since the `instance Bi` for
+    -- 'UserSecret' cannot handle empty files.
     getKeystorePath :: IO FilePath
     getKeystorePath = do
         tempDir <- getTemporaryDirectory
