@@ -5,18 +5,20 @@ module Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
 import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
-import qualified Brick.Widgets.Center as B
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
+import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.Util
 
 data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
     { confirmRemoveWidgetUiFace    :: !UiFace
     , confirmRemoveWidgetResultVar :: !(Maybe (MVar Bool))
     , confirmRemoveWidgetDelItem   :: !(Maybe (UiDeletingItem))
+    , confirmRemoveWidgetCheck     :: !Bool
+    , confirmRemoveWidgetDialog    :: !DialogState
     }
 
 makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
@@ -30,10 +32,20 @@ initConfirmRemoveWidget uiFace = initWidget $ do
         { confirmRemoveWidgetUiFace    = uiFace
         , confirmRemoveWidgetResultVar = Nothing
         , confirmRemoveWidgetDelItem   = Nothing
+        , confirmRemoveWidgetCheck     = False
+        , confirmRemoveWidgetDialog    = newDialogState "Confirm Deletion"
         }
+    
+    addWidgetChild WidgetNameConfirmRemoveCheck
+        $ initCheckboxWidget "Make sure you have access to backup before \
+                              \continuing. Otherwise you will lose all your \
+                              \funds connected to this."
+        $ widgetParentLens confirmRemoveWidgetCheckL
 
-    addDialogButton WidgetNameConfirmRemoveCancel "Cancel" performCancel
-    addDialogButton WidgetNameConfirmRemoveContinue "Continue" performContinue
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveContinue "Delete" performContinue
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveCancel "Cancel" performCancel
 
     setWidgetFocusList
         [ WidgetNameSelf
@@ -48,12 +60,19 @@ drawConfirmRemoveWidget
 drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
     case confirmRemoveWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm Remove" focus
-            [WidgetNameConfirmRemoveCancel, WidgetNameConfirmRemoveContinue] $
-            B.vBox
-                [ B.hCenter $ B.txt "WARNING"
-                , B.padTopBottom 1 $ B.txtWrap "Removing cannot be reverted. Check twice before doing this."
+        Just _  -> do
+            widget <- ask
+            let drawChild = last . drawWidgetChild focus widget
+            drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
+                [ B.padTopBottom 1 . B.txtWrap $
+                  "Do you really want to delete this" <> itemTypeText <> "?"
+                , drawChild WidgetNameConfirmRemoveCheck
                 ]
+  where
+    itemTypeText = case confirmRemoveWidgetDelItem of
+        Just UiDelWallet -> " wallet"
+        Just UiDelAccount -> " account"
+        _ -> ""
 
 handleConfirmRemoveWidgetKey
     :: KeyboardEvent
@@ -64,23 +83,20 @@ handleConfirmRemoveWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
-performContinue = do
-    ConfirmRemoveWidgetState{..} <- get
-    whenJust confirmRemoveWidgetResultVar $ \resultVar -> do
-        putMVar resultVar True
-        UiFace{..} <- use confirmRemoveWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-        confirmRemoveWidgetResultVarL .= Nothing
-        confirmRemoveWidgetDelItemL .= Nothing
+performContinue = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
+    whenM (use confirmRemoveWidgetCheckL) $ putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
-performCancel = do
-    ConfirmRemoveWidgetState{..} <- get
-    whenJust confirmRemoveWidgetResultVar $ \resultVar -> do
-        putMVar resultVar False
-        UiFace{..} <- use confirmRemoveWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-        confirmRemoveWidgetResultVarL .= Nothing
+performCancel = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
+    putMVar resultVar False *> closeDialog
+
+closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
+closeDialog = do
+    UiFace{..} <- use confirmRemoveWidgetUiFaceL
+    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
+    confirmRemoveWidgetResultVarL .= Nothing
+    confirmRemoveWidgetDelItemL .= Nothing
+    confirmRemoveWidgetCheckL .= False
 
 handleConfirmRemoveWidgetEvent
     :: UiEvent
@@ -88,5 +104,5 @@ handleConfirmRemoveWidgetEvent
 handleConfirmRemoveWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest resVar (UiConfirmRemove delItem)) -> do
         confirmRemoveWidgetResultVarL .= Just resVar
-        confirmRemoveWidgetDelItemL .= Just delItem
+        confirmRemoveWidgetDelItemL   .= Just delItem
     _ -> pass

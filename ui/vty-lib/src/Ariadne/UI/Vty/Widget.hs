@@ -133,12 +133,19 @@ data WidgetNamePart
 
   | WidgetNameConfirmMnemonic
   | WidgetNameConfirmMnemonicInput
+  | WidgetNameConfirmMnemonicCheckScreen
+  | WidgetNameConfirmMnemonicCheckOnDevice
+  | WidgetNameConfirmMnemonicCheckMoved
   | WidgetNameConfirmMnemonicContinue
   | WidgetNameConfirmMnemonicCancel
+
   | WidgetNameConfirmRemove
+  | WidgetNameConfirmRemoveCheck
   | WidgetNameConfirmRemoveContinue
   | WidgetNameConfirmRemoveCancel
+
   | WidgetNameConfirmSend
+  | WidgetNameConfirmSendCheck
   | WidgetNameConfirmSendContinue
   | WidgetNameConfirmSendCancel
   deriving (Eq, Ord, Show)

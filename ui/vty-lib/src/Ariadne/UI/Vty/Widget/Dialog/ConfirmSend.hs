@@ -5,18 +5,21 @@ module Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
 import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
-import qualified Brick.Widgets.Center as B
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
+import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
+import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.Util
 
 data ConfirmSendWidgetState = ConfirmSendWidgetState
-    { confirmSendWidgetUiFace            :: !UiFace
-    , confirmSendWidgetOutputList        :: ![(Text, Text, Text)]
-    , confirmSendWidgetResultVar         :: !(Maybe (MVar Bool))
+    { confirmSendWidgetUiFace     :: !UiFace
+    , confirmSendWidgetOutputList :: ![(Text, Text, Text)]
+    , confirmSendWidgetResultVar  :: !(Maybe (MVar Bool))
+    , confirmSendWidgetCheck      :: !Bool
+    , confirmSendWidgetDialog     :: !DialogState
     }
 
 makeLensesWith postfixLFields ''ConfirmSendWidgetState
@@ -27,13 +30,22 @@ initConfirmSendWidget uiFace = initWidget $ do
     setWidgetHandleKey handleConfirmSendWidgetKey
     setWidgetHandleEvent handleConfirmSendWidgetEvent
     setWidgetState ConfirmSendWidgetState
-        { confirmSendWidgetUiFace            = uiFace
-        , confirmSendWidgetOutputList        = []
-        , confirmSendWidgetResultVar         = Nothing
+        { confirmSendWidgetUiFace     = uiFace
+        , confirmSendWidgetOutputList = []
+        , confirmSendWidgetResultVar  = Nothing
+        , confirmSendWidgetCheck      = False
+        , confirmSendWidgetDialog     = newDialogState "Confirm Transaction"
         }
 
-    addDialogButton WidgetNameConfirmSendCancel "Cancel" performCancel
-    addDialogButton WidgetNameConfirmSendContinue "Continue" performContinue
+    addWidgetChild WidgetNameConfirmSendCheck
+        $ initCheckboxWidget "I understand that continuing with this operation\
+                              \ will make it definitive and irreversible."
+        $ widgetParentLens confirmSendWidgetCheckL
+
+    addDialogButton confirmSendWidgetDialogL
+        WidgetNameConfirmSendContinue "Send" performContinue
+    addDialogButton confirmSendWidgetDialogL
+        WidgetNameConfirmSendCancel "Cancel" performCancel
 
     setWidgetFocusList
         [ WidgetNameSelf
@@ -49,11 +61,20 @@ drawConfirmSendWidget
 drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
     case confirmSendWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> drawInsideDialog "Confirm Send" focus [WidgetNameConfirmSendCancel, WidgetNameConfirmSendContinue] $ B.vBox $
-            [ B.hCenter $ B.txt "WARNING"] ++
-            map (\(address, amount, coin) ->
-                    B.padTopBottom 1 $ B.txtWrap $ amount <> " " <> coin <> " to " <> address)
-                confirmSendWidgetOutputList
+        Just _  -> do
+            widget <- ask
+            widgetName <- getWidgetName
+            let drawChild = last . drawWidgetChild focus widget
+            drawInsideDialog confirmSendWidgetDialog focus $ B.vBox
+                [ B.padTopBottom 1 $ B.txtWrap $ "This is the list of this \
+                  \operation's output transitions. Please review them carefully."
+                , scrollingViewport widgetName B.Both . B.vBox $
+                  map (B.txt . transactionLine) confirmSendWidgetOutputList
+                , drawChild WidgetNameConfirmSendCheck
+                ]
+
+transactionLine :: (Text, Text, Text) -> Text
+transactionLine (address, amount, coin) = amount <> " " <> coin <> " to " <> address
 
 handleConfirmSendWidgetKey
     :: KeyboardEvent
@@ -64,24 +85,20 @@ handleConfirmSendWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmSendWidgetState p ()
-performContinue = do
-    ConfirmSendWidgetState{..} <- get
-    whenJust confirmSendWidgetResultVar $ \resultVar -> do
-        putMVar resultVar True
-        UiFace{..} <- use confirmSendWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-        confirmSendWidgetResultVarL .= Nothing
-        confirmSendWidgetOutputListL .= []
+performContinue = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
+    whenM (use confirmSendWidgetCheckL) $ putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmSendWidgetState p ()
-performCancel = do
-    ConfirmSendWidgetState{..} <- get
-    whenJust confirmSendWidgetResultVar $ \resultVar -> do
-        putMVar resultVar False
-        UiFace{..} <- use confirmSendWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-        confirmSendWidgetResultVarL .= Nothing
-        confirmSendWidgetOutputListL .= []
+performCancel = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
+    putMVar resultVar False *> closeDialog
+
+closeDialog :: WidgetEventM ConfirmSendWidgetState p ()
+closeDialog = do
+    UiFace{..} <- use confirmSendWidgetUiFaceL
+    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
+    confirmSendWidgetResultVarL .= Nothing
+    confirmSendWidgetOutputListL .= []
+    confirmSendWidgetCheckL .= False
 
 handleConfirmSendWidgetEvent
     :: UiEvent

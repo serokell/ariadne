@@ -36,8 +36,10 @@ drawCheckboxWidget focused CheckboxWidgetState{..} = do
   return . singleDrawing $
     B.clickable widgetName $
     (if focused then B.withAttr "selected" else id) $
-    B.txt $
-    (if checked then "[X] " else "[ ] ") <> checkboxWidgetTitle
+    B.hBox
+      [ B.txt (if checked then "[X] " else "[ ] ")
+      , B.txtWrap $ checkboxWidgetTitle
+      ]  
 
 handleCheckboxWidgetKey
   :: KeyboardEvent
