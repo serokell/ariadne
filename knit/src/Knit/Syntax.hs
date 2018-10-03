@@ -28,7 +28,7 @@ instance IsString CommandId where
   fromString = CommandIdName . fromString
 
 data NoExt = NoExt
-    deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 data Expr ext cmd components
   = ExprProcCall (XExprProcCall ext cmd components) (ProcCall ext cmd (Expr ext cmd components))

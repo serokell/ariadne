@@ -19,24 +19,24 @@ data FormattedExprExt
 type instance XExprProcCall FormattedExprExt _ _ = NoExt
 type instance XExprLit FormattedExprExt _ _ = NoExt
 type instance XXExpr FormattedExprExt cmd components =
-    FormattedExpr (Expr FormattedExprExt cmd components)
+    ExprInBrackets (Option SSpan) (Expr FormattedExprExt cmd components)
 
 type instance XProcCall FormattedExprExt _ _ = NoExt
 
-type instance XArgPos FormattedExprExt _ = NoExt
-type instance XArgKw FormattedExprExt _ = NoExt
-type instance XXArg FormattedExprExt a = WithPadding (Arg FormattedExprExt a)
+type instance XArgPos FormattedExprExt _ = ArgPosPadding
+type instance XArgKw FormattedExprExt _ = ArgKwPadding
+type instance XXArg FormattedExprExt _ = Void
 
-data FormattedExpr a
-    = ExprWithPadding (WithPadding a)
-    | ExprInParens a
-    deriving (Show, Functor, Foldable, Traversable)
+exprInBrackets :: br -> br -> a -> ExprInBrackets br a
+exprInBrackets l r x = ExprInBrackets l x r
 
-data WithPadding a = WithPadding
-    { wpPrefix :: Option SSpan
-    , wpPostfix :: Option SSpan
-    , wpItem :: a
-    } deriving (Show, Functor, Foldable, Traversable)
+newtype ArgPosPadding = ArgPosPadding (Option SSpan)
+  deriving (Show)
+
+data ArgKwPadding = ArgKwPadding
+  { akpPrefix :: Option SSpan
+  , akpBetween :: Option SSpan
+  } deriving (Show)
 
 spanToDoc :: Option SSpan -> Doc
 spanToDoc = option mempty spanToDoc'
@@ -70,18 +70,18 @@ parseTreeToFormattedExpr =
   \case
     XExpr (ExprInBrackets l e r) ->
       let
-        decoratedE = parseTreeToFormattedExpr e
+        e' = parseTreeToFormattedExpr e
         decorate =
-          XExpr . ExprInParens . XExpr . ExprWithPadding .
-            case getOption $ execWriter decoratedE of
-              Just sp -> WithPadding
+          XExpr .
+            case getOption $ execWriter e' of
+              Just sp -> exprInBrackets
                 (fst l `spanBetween` sp)
                 (sp `spanBetween` fst r)
-              Nothing -> WithPadding
+              Nothing -> exprInBrackets
                 (fst l `spanBetween` fst r)
                 mempty
       in
-        wrapSpan l *> fmap decorate decoratedE <* wrapSpan r
+        wrapSpan l *> fmap decorate e' <* wrapSpan r
     ExprProcCall NoExt pc -> ExprProcCall NoExt <$> pcToFormattedPc pc
     ExprLit tok lit -> wrapSpan tok $> ExprLit NoExt lit
   where
@@ -98,21 +98,21 @@ parseTreeToFormattedExpr =
             Nothing -> procedureWithNoName
         CommandIdOperator op ->
           case (op, tok, args) of
-            (OpAndThen, Just tokSp, [lhs, rhs]) ->
+            (OpAndThen, Just tokSp, [ArgPos NoExt lhs, ArgPos NoExt rhs]) ->
               let
-                decoratedLhs =
-                  decorateWithSpan (argToFormattedArg lhs) $ \sp ->
-                    XArg . WithPadding
-                      mempty
-                      (sp `spanBetween` fst tokSp)
-                decoratedRhs =
-                  decorateWithSpan (argToFormattedArg rhs) $ \sp ->
-                    XArg . WithPadding
-                      (fst tokSp `spanBetween` sp)
-                      mempty
+                lhs' = parseTreeToFormattedExpr lhs
+                lhs'' =
+                  ArgPos (ArgPosPadding $
+                    option mempty (`spanBetween` fst tokSp) $ execWriter lhs')
+                  <$> lhs'
+                rhs' = parseTreeToFormattedExpr rhs
+                rhs'' =
+                  ArgPos (ArgPosPadding $
+                    option mempty (fst tokSp `spanBetween`) $ execWriter rhs')
+                  <$> rhs'
               in
                 ProcCall NoExt cmd <$> liftA3 (\a _ b -> [a, b])
-                    decoratedLhs (wrapSpan tokSp) decoratedRhs
+                    lhs'' (wrapSpan tokSp) rhs''
             (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
 
             (OpUnit, Nothing, []) -> writer (ProcCall NoExt cmd [], Option Nothing)
@@ -121,26 +121,26 @@ parseTreeToFormattedExpr =
             _ -> invalidOperatorApplication
 
     argToFormattedArg
-      :: Arg' ParseTreeExt CommandId components
+      :: (SSpan -> Option SSpan)
+      -> Arg' ParseTreeExt CommandId components
       -> Writer (Option SSpan) (Arg' FormattedExprExt CommandId components)
-    argToFormattedArg = \case
+    argToFormattedArg mkPadding = \case
       XArg xxArg -> absurd xxArg
-      ArgPos NoExt a -> ArgPos NoExt <$> parseTreeToFormattedExpr a
+      ArgPos NoExt a ->
+        let
+          a' = parseTreeToFormattedExpr a
+          padding = ArgPosPadding $ option mempty mkPadding $ execWriter a'
+        in
+          ArgPos padding <$> a'
       ArgKw nameTok name a ->
         let
-          decoratedExpr = parseTreeToFormattedExpr a
-          wrappedExpr = decorateWithSpan decoratedExpr $ \sp ->
-            XExpr . ExprWithPadding . WithPadding
-              (fst nameTok `spanBetween` sp)
-              mempty
+          a' = parseTreeToFormattedExpr a
+          padding = ArgKwPadding
+            { akpPrefix = mkPadding (fst nameTok)
+            , akpBetween = option mempty (fst nameTok `spanBetween`) $ execWriter a'
+            }
         in
-          wrapSpan nameTok $> ArgKw NoExt name <*> wrappedExpr
-
-    decorateWithSpan
-      :: Writer (Option SSpan) a
-      -> (SSpan -> a -> a)
-      -> Writer (Option SSpan) a
-    decorateWithSpan w decorate = option w (\sp -> decorate sp <$> w) $ execWriter w
+          wrapSpan nameTok $> ArgKw padding name <*> a'
 
     argGo
       :: SSpan
@@ -149,13 +149,10 @@ parseTreeToFormattedExpr =
     argGo prevSp [] = (prevSp, [])
     argGo prevSp (arg : args) =
       let
-        decoratedArg = argToFormattedArg arg
-        newSp = option prevSp (prevSp <>) $ execWriter decoratedArg
-        wpPrefix = option mempty (prevSp `spanBetween`) $ execWriter decoratedArg
-        wpPostfix = mempty
-        wpItem = fst $ runWriter decoratedArg
+        arg' = argToFormattedArg (prevSp `spanBetween`) arg
+        newSp = option prevSp (prevSp <>) $ execWriter arg'
       in
-        (XArg WithPadding{..} :) <$> argGo newSp args
+        (fst (runWriter arg') :) <$> argGo newSp args
 
 ppFormattedExpr
   :: forall components.
@@ -166,9 +163,8 @@ ppFormattedExpr =
   \case
     ExprLit NoExt l -> ppLit l
     ExprProcCall NoExt p -> ppProcCall p
-    XExpr (ExprInParens e) -> PP.parens $ ppFormattedExpr e
-    XExpr (ExprWithPadding WithPadding{..}) ->
-      spanToDoc wpPrefix <> ppFormattedExpr wpItem <> spanToDoc wpPostfix
+    XExpr (ExprInBrackets l e r) ->
+      PP.parens $ spanToDoc l <> ppFormattedExpr e <> spanToDoc r
   where
     ppProcCall (ProcCall NoExt commandName args) =
       case commandName of
@@ -176,12 +172,15 @@ ppFormattedExpr =
         CommandIdOperator op -> ppOperatorCall op args
 
     ppOperatorCall OpUnit [] = mempty
-    ppOperatorCall OpAndThen [lhs, rhs] = ppArg lhs <> PP.char ';' <> ppArg rhs
+    ppOperatorCall OpAndThen [ArgPos (ArgPosPadding lp) l, ArgPos (ArgPosPadding rp) r] =
+      ppFormattedExpr l <> spanToDoc lp <> PP.char ';' <>
+      spanToDoc rp <> ppFormattedExpr r
     ppOperatorCall _ _ = invalidOperatorApplication
 
     ppProcedureCall procName args = nameToDoc procName <> mconcat (map ppArg args)
 
     ppArg = \case
-      ArgPos NoExt a -> ppFormattedExpr a
-      ArgKw NoExt name a -> nameToDoc name <> PP.colon <> ppFormattedExpr a
-      XArg WithPadding{..} -> spanToDoc wpPrefix <> ppArg wpItem <> spanToDoc wpPostfix
+      ArgPos (ArgPosPadding prefix) a -> spanToDoc prefix <> ppFormattedExpr a
+      ArgKw (ArgKwPadding prefix between) name a ->
+        spanToDoc prefix <> nameToDoc name <> PP.colon <> spanToDoc between <> ppFormattedExpr a
+      XArg xxArg -> absurd xxArg
