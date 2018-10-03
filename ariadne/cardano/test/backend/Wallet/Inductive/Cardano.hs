@@ -13,22 +13,24 @@ module Wallet.Inductive.Cardano (
 
 import qualified Universum.Unsafe as Unsafe (head)
 
-import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.Read as Kernel
-import Ariadne.Wallet.Cardano.Kernel.Types
-import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, (%))
+import Formatting (bprint, build, sformat, (%))
 
-import Pos.Core (HasConfiguration)
+import Pos.Core (Coin, HasConfiguration)
 import Pos.Core.Chrono
 import Pos.Crypto (EncryptedSecretKey)
 import Pos.Txp (Utxo, formatUtxo)
 
+import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (dbHdWallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
+import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (HdQueryErr)
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read as Spec
 import qualified Ariadne.Wallet.Cardano.Kernel.Internal as Internal
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (prefilterUtxo)
+import Ariadne.Wallet.Cardano.Kernel.Types
+import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Util.Buildable
 import Util.Validated
@@ -256,8 +258,8 @@ equivalentT passiveWallet esk = \mkWallet w ->
                      -> TranslateT EquivalenceViolation m ()
     checkWalletState ctxt@InductiveCtxt{..} accountId = do
         snapshot <- liftIO (Kernel.getWalletSnapshot passiveWallet)
-        cmp "utxo"          utxo         (snapshot `Kernel.accountUtxo` accountId)
-        cmp "totalBalance"  totalBalance (snapshot `Kernel.accountTotalBalance` accountId)
+        cmp "utxo"          utxo         (snapshot `accountUtxo` accountId)
+        cmp "totalBalance"  totalBalance (snapshot `accountTotalBalance` accountId)
         -- TODO: check other properties
       where
         cmp :: ( Interpret h a
@@ -282,6 +284,24 @@ equivalentT passiveWallet esk = \mkWallet w ->
                   , notEquivalentKernel     = kernel
                   }
               inductiveCtxtEvents
+
+        walletQuery' :: forall e' a. (Buildable e')
+                     => Kernel.DB
+                     -> HdQueryErr e' a
+                     -> a
+        walletQuery' snapshot qry = do
+            let res = qry (snapshot ^. dbHdWallets)
+            either err identity res
+            where
+                err = error . sformat build
+
+        accountUtxo :: Kernel.DB -> HD.HdAccountId -> Utxo
+        accountUtxo snapshot hdAccId
+            = walletQuery' snapshot (Spec.queryAccountUtxo hdAccId)
+
+        accountTotalBalance :: Kernel.DB -> HD.HdAccountId -> Coin
+        accountTotalBalance snapshot hdAccId
+            = walletQuery' snapshot (Spec.queryAccountTotalBalance hdAccId)
 
     toCardano :: Interpret h a
               => InductiveCtxt h
