@@ -4,6 +4,7 @@ import Knit.Prelude
 import Knit.Syntax
 import Knit.Tokenizer
 
+-- | Stores information about parsed tokens (spans and tokens themselves).
 data ParseTreeExt
 
 type instance XExprProcCall ParseTreeExt _ _ = NoExt

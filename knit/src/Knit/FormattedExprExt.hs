@@ -2,6 +2,7 @@ module Knit.FormattedExprExt where
 
 import Control.Monad.Writer.Strict hiding ((<>))
 import Data.Semigroup (Option(..), option, (<>))
+import Numeric.Natural
 
 import qualified Data.Loc as L
 import qualified Data.Loc.Span as L
@@ -14,13 +15,20 @@ import Knit.Printer
 import Knit.Syntax
 import Knit.Tokenizer
 
+-- | Stores information for printing expressions in their original form.
 data FormattedExprExt
 
 type instance XExprProcCall FormattedExprExt _ _ = NoExt
 type instance XExprLit FormattedExprExt _ _ = NoExt
+-- | Space between the brackets and nested expression.
 type instance XXExpr FormattedExprExt cmd components =
-    ExprInBrackets (Option SSpan) (Expr FormattedExprExt cmd components)
+    ExprInBrackets Padding (Expr FormattedExprExt cmd components)
 
+-- | Information about the space between procedure and its arguments and between
+-- the arguments is stored with the arguments. Their meaning depends on the
+-- context. In the case of 'OpAndThen' space between the arguments and semicolon
+-- is stored. In the case of 'CommandIdName' each argument stores the space
+-- before itself.
 type instance XProcCall FormattedExprExt _ _ = NoExt
 
 type instance XArgPos FormattedExprExt _ = ArgPosPadding
@@ -30,31 +38,37 @@ type instance XXArg FormattedExprExt _ = Void
 exprInBrackets :: br -> br -> a -> ExprInBrackets br a
 exprInBrackets l r x = ExprInBrackets l x r
 
-newtype ArgPosPadding = ArgPosPadding (Option SSpan)
+-- | To print space between two entities, we first print some amount of newlines
+-- and then print some amount of spaces.
+data Padding = Padding
+  { pLines :: Natural
+  , pColumns :: Natural
+  } deriving (Show, Eq, Ord)
+
+noPadding :: Padding
+noPadding = Padding 0 0
+
+newtype ArgPosPadding = ArgPosPadding Padding
   deriving (Show)
 
 data ArgKwPadding = ArgKwPadding
-  { akpPrefix :: Option SSpan
-  , akpBetween :: Option SSpan
+  { akpPrefix :: Padding
+  , akpBetween :: Padding
   } deriving (Show)
 
-spanToDoc :: Option SSpan -> Doc
-spanToDoc = option mempty spanToDoc'
-  where
-    spanToDoc' :: SSpan -> Doc
-    spanToDoc' (SSpan s) =
-      if L.locLine (L.start s) == L.locLine (L.end s)
-        then PP.string $ replicate (toInt $ L.locColumn (L.end s) - L.locColumn (L.start s)) ' '
-        else PP.string
-          $ replicate (toInt $ L.locLine (L.end s) - L.locLine (L.start s)) '\n'
-          ++ replicate (toInt $ L.locColumn (L.end s) - 1) ' '
+ppPadding :: Padding -> Doc
+ppPadding Padding{..} =
+  PP.string
+    $ replicate (fromIntegral pLines) '\n'
+    ++ replicate (fromIntegral pColumns) ' '
 
-    toInt :: L.ToNat n => n -> Int
-    toInt = fromIntegral . L.toNat
-
-spanBetween :: SSpan -> SSpan -> Option SSpan
-spanBetween (SSpan a) (SSpan b) =
-    maybe mempty (Option . Just . SSpan) $ L.fromToMay (L.end a) (L.start b)
+paddingBetween :: SSpan -> SSpan -> Padding
+paddingBetween (SSpan a) (SSpan b) =
+  if L.locLine (L.end a) == L.locLine (L.start b)
+    then Padding 0 $ L.toNat (L.locColumn (L.start b)) - L.toNat (L.locColumn (L.end a))
+    else Padding
+      (L.toNat (L.locLine (L.start b)) - L.toNat (L.locLine (L.end a)))
+      (L.toNat (L.locColumn (L.start b)) - 1)
 
 procedureWithNoName :: a
 procedureWithNoName = error "Core invariant violated: procedure with no name"
@@ -62,6 +76,9 @@ procedureWithNoName = error "Core invariant violated: procedure with no name"
 opUnitWithAName :: a
 opUnitWithAName = error "Core invariant violated: OpUnit with a name"
 
+-- | Converts parse tree to formatted expression alongside with the span this
+-- expression covers. 'OpUnit' inside brackets is placed right before the
+-- closing bracket i.e. "(<space> OpUnit)" instead of "(OpUnit <space>)".
 parseTreeToFormattedExpr
   :: forall components.
      Expr ParseTreeExt CommandId components
@@ -75,11 +92,11 @@ parseTreeToFormattedExpr =
           XExpr .
             case getOption $ execWriter e' of
               Just sp -> exprInBrackets
-                (fst l `spanBetween` sp)
-                (sp `spanBetween` fst r)
+                (fst l `paddingBetween` sp)
+                (sp `paddingBetween` fst r)
               Nothing -> exprInBrackets
-                (fst l `spanBetween` fst r)
-                mempty
+                (fst l `paddingBetween` fst r)
+                noPadding
       in
         wrapSpan l *> fmap decorate e' <* wrapSpan r
     ExprProcCall NoExt pc -> ExprProcCall NoExt <$> pcToFormattedPc pc
@@ -103,12 +120,12 @@ parseTreeToFormattedExpr =
                 lhs' = parseTreeToFormattedExpr lhs
                 lhs'' =
                   ArgPos (ArgPosPadding $
-                    option mempty (`spanBetween` fst tokSp) $ execWriter lhs')
+                    option noPadding (`paddingBetween` fst tokSp) $ execWriter lhs')
                   <$> lhs'
                 rhs' = parseTreeToFormattedExpr rhs
                 rhs'' =
                   ArgPos (ArgPosPadding $
-                    option mempty (fst tokSp `spanBetween`) $ execWriter rhs')
+                    option noPadding (fst tokSp `paddingBetween`) $ execWriter rhs')
                   <$> rhs'
               in
                 ProcCall NoExt cmd <$> liftA3 (\a _ b -> [a, b])
@@ -121,7 +138,7 @@ parseTreeToFormattedExpr =
             _ -> invalidOperatorApplication
 
     argToFormattedArg
-      :: (SSpan -> Option SSpan)
+      :: (SSpan -> Padding)
       -> Arg' ParseTreeExt CommandId components
       -> Writer (Option SSpan) (Arg' FormattedExprExt CommandId components)
     argToFormattedArg mkPadding = \case
@@ -129,7 +146,7 @@ parseTreeToFormattedExpr =
       ArgPos NoExt a ->
         let
           a' = parseTreeToFormattedExpr a
-          padding = ArgPosPadding $ option mempty mkPadding $ execWriter a'
+          padding = ArgPosPadding $ option noPadding mkPadding $ execWriter a'
         in
           ArgPos padding <$> a'
       ArgKw nameTok name a ->
@@ -137,7 +154,7 @@ parseTreeToFormattedExpr =
           a' = parseTreeToFormattedExpr a
           padding = ArgKwPadding
             { akpPrefix = mkPadding (fst nameTok)
-            , akpBetween = option mempty (fst nameTok `spanBetween`) $ execWriter a'
+            , akpBetween = option noPadding (fst nameTok `paddingBetween`) $ execWriter a'
             }
         in
           wrapSpan nameTok $> ArgKw padding name <*> a'
@@ -149,7 +166,7 @@ parseTreeToFormattedExpr =
     argGo prevSp [] = (prevSp, [])
     argGo prevSp (arg : args) =
       let
-        arg' = argToFormattedArg (prevSp `spanBetween`) arg
+        arg' = argToFormattedArg (prevSp `paddingBetween`) arg
         newSp = option prevSp (prevSp <>) $ execWriter arg'
       in
         (fst (runWriter arg') :) <$> argGo newSp args
@@ -164,7 +181,7 @@ ppFormattedExpr =
     ExprLit NoExt l -> ppLit l
     ExprProcCall NoExt p -> ppProcCall p
     XExpr (ExprInBrackets l e r) ->
-      PP.parens $ spanToDoc l <> ppFormattedExpr e <> spanToDoc r
+      PP.parens $ ppPadding l <> ppFormattedExpr e <> ppPadding r
   where
     ppProcCall (ProcCall NoExt commandName args) =
       case commandName of
@@ -173,14 +190,14 @@ ppFormattedExpr =
 
     ppOperatorCall OpUnit [] = mempty
     ppOperatorCall OpAndThen [ArgPos (ArgPosPadding lp) l, ArgPos (ArgPosPadding rp) r] =
-      ppFormattedExpr l <> spanToDoc lp <> PP.char ';' <>
-      spanToDoc rp <> ppFormattedExpr r
+      ppFormattedExpr l <> ppPadding lp <> PP.char ';' <>
+      ppPadding rp <> ppFormattedExpr r
     ppOperatorCall _ _ = invalidOperatorApplication
 
     ppProcedureCall procName args = nameToDoc procName <> mconcat (map ppArg args)
 
     ppArg = \case
-      ArgPos (ArgPosPadding prefix) a -> spanToDoc prefix <> ppFormattedExpr a
+      ArgPos (ArgPosPadding prefix) a -> ppPadding prefix <> ppFormattedExpr a
       ArgKw (ArgKwPadding prefix between) name a ->
-        spanToDoc prefix <> nameToDoc name <> PP.colon <> spanToDoc between <> ppFormattedExpr a
+        ppPadding prefix <> nameToDoc name <> PP.colon <> ppPadding between <> ppFormattedExpr a
       XArg xxArg -> absurd xxArg
