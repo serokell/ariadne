@@ -264,12 +264,19 @@ walletEventToUI = \case
     Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
       ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
       ConfirmRemove selection  -> UiConfirmRemove $ toUiDeletingItem selection
-      ConfirmSend outLst       -> UiConfirmSend outLst
+      ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
 
 toUiDeletingItem :: WalletSelection -> UiDeletingItem
 toUiDeletingItem = \case
     WSRoot _    -> UiDelWallet
     WSAccount _ -> UiDelAccount
+
+toUiConfirmSendInfo :: ConfirmSendInfo -> UiConfirmSendInfo
+toUiConfirmSendInfo ConfirmSendInfo{..} = UiConfirmSendInfo {..}
+  where
+    csiAddress = confirmSendAddress
+    csiAmount = confirmSendAmount
+    csiCoin = confirmSendCoin
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =
