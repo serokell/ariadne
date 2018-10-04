@@ -1,134 +1,166 @@
-module Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
-    ( initConfirmSendWidget
+module Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
+    ( initConfirmRemoveWidget
     ) where
 
 import Control.Lens (makeLensesWith, (.=))
+import Formatting
 
 import qualified Brick as B
-import qualified Data.Text as T
-import qualified Graphics.Vty as V
-
-import Text.Wrap (WrapSettings (..))
 
 import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
-import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
-import Ariadne.UI.Vty.Widget.Account (cutAddressHash)
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
-import Ariadne.UI.Vty.Widget.Form.List
+import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
-data ConfirmSendWidgetState = ConfirmSendWidgetState
-    { confirmSendWidgetUiFace     :: !UiFace
-    , confirmSendWidgetOutputList :: ![UiConfirmSendInfo]
-    , confirmSendWidgetResultVar  :: !(Maybe (MVar Bool))
-    , confirmSendWidgetCheck      :: !Bool
-    , confirmSendWidgetDialog     :: !DialogState
+data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
+    { confirmRemoveWidgetUiFace     :: !UiFace
+    , confirmRemoveWidgetDelRequest :: !(Maybe DeleteRequest)
+    , confirmRemoveWidgetCheck      :: !Bool
+    , confirmRemoveWidgetName       :: !Text
+    , confirmRemoveWidgetDialog     :: !DialogState
     }
 
-makeLensesWith postfixLFields ''ConfirmSendWidgetState
+data DeleteRequest = DeleteRequest
+    { requestResultVar :: !(MVar Bool)
+    , requestDelItem   :: !UiDeletingItem
+    }
 
-initConfirmSendWidget :: UiFace -> Widget p
-initConfirmSendWidget uiFace = initWidget $ do
-    setWidgetDrawWithFocus drawConfirmSendWidget
-    setWidgetHandleKey handleConfirmSendWidgetKey
-    setWidgetHandleEvent handleConfirmSendWidgetEvent
-    setWidgetScrollable
-    setWidgetState ConfirmSendWidgetState
-        { confirmSendWidgetUiFace     = uiFace
-        , confirmSendWidgetOutputList = []
-        , confirmSendWidgetResultVar  = Nothing
-        , confirmSendWidgetCheck      = False
-        , confirmSendWidgetDialog     = newDialogState sendHeaderMessage
+makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
+
+initConfirmRemoveWidget :: UiFace -> Widget p
+initConfirmRemoveWidget uiFace = initWidget $ do
+    setWidgetDrawWithFocus drawConfirmRemoveWidget
+    setWidgetHandleKey handleConfirmRemoveWidgetKey
+    setWidgetHandleEvent handleConfirmRemoveWidgetEvent
+    setWidgetState ConfirmRemoveWidgetState
+        { confirmRemoveWidgetUiFace     = uiFace
+        , confirmRemoveWidgetDelRequest = Nothing
+        , confirmRemoveWidgetCheck      = False
+        , confirmRemoveWidgetName       = ""
+        , confirmRemoveWidgetDialog     = newDialogState deleteHeaderMessage
         }
+    
+    addWidgetChild WidgetNameConfirmRemoveCheck
+        $ initCheckboxWidget deleteSureMessage
+        $ widgetParentLens confirmRemoveWidgetCheckL
+    addWidgetChild WidgetNameConfirmRemoveName $ initEditWidget $
+        widgetParentLens confirmRemoveWidgetNameL
 
-    addWidgetChild WidgetNameConfirmSendCheck
-        $ initCheckboxWidget sendDefinitiveMessage
-        $ widgetParentLens confirmSendWidgetCheckL
-    addWidgetChild WidgetNameConfirmSendList $
-        initListWidget (widgetParentGetter confirmSendWidgetOutputList) transactionLine
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveContinue "Delete" performContinue
+    addDialogButton confirmRemoveWidgetDialogL
+        WidgetNameConfirmRemoveCancel "Cancel" performCancel
 
-    addDialogButton confirmSendWidgetDialogL
-        WidgetNameConfirmSendContinue "Send" performContinue
-    addDialogButton confirmSendWidgetDialogL
-        WidgetNameConfirmSendCancel "Cancel" performCancel
+    addWidgetEventHandler WidgetNameConfirmRemoveCheck $ \case
+        WidgetEventCheckboxToggled -> updateFocusList
+        _ -> pass
 
     setWidgetFocusList
-        [ WidgetNameConfirmSendList
-        , WidgetNameConfirmSendCheck
-        , WidgetNameConfirmSendCancel
-        , WidgetNameConfirmSendContinue
+        [ WidgetNameConfirmRemoveCheck
+        , WidgetNameConfirmRemoveCancel
+        , WidgetNameConfirmRemoveContinue
         ]
 
-drawConfirmSendWidget
+drawConfirmRemoveWidget
     :: WidgetName
-    -> ConfirmSendWidgetState
-    -> WidgetDrawM ConfirmSendWidgetState p WidgetDrawing
-drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
-    case confirmSendWidgetResultVar of
+    -> ConfirmRemoveWidgetState
+    -> WidgetDrawM ConfirmRemoveWidgetState p WidgetDrawing
+drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
+    case confirmRemoveWidgetDelRequest of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> do
+        Just DeleteRequest {..} -> do
             widget <- ask
-            widgetName <- getWidgetName
             let drawChild = last . drawWidgetChild focus widget
-            drawInsideDialog confirmSendWidgetDialog focus $
-                scrollingViewport widgetName B.Vertical $ B.vBox
-                    [ B.padTopBottom 1 $ B.txtWrap $ sendListMessage
-                    , B.padTopBottom 1 $ drawChild WidgetNameConfirmSendList
-                    , drawChild WidgetNameConfirmSendCheck
+                itemName = delItemName requestDelItem
+                hasNameToConfirm = isJust $ itemNameToConfirm requestDelItem
+            drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
+                [ B.padTopBottom 1 . B.txtWrap $
+                  deleteIntroMkMessage itemTypeFormat itemName requestDelItem
+                , drawChild WidgetNameConfirmRemoveCheck
+                , if confirmRemoveWidgetCheck && hasNameToConfirm
+                  then B.padTopBottom 1 $ B.hBox
+                    [ B.padLeftRight 2 . B.txtWrap $
+                      deleteRetypeMkMessage itemTypeFormat requestDelItem
+                    , drawChild WidgetNameConfirmRemoveName
                     ]
+                  else B.emptyWidget
+                ]
 
-transactionLine :: Bool -> UiConfirmSendInfo -> B.Widget WidgetName
-transactionLine focused UiConfirmSendInfo{..}
-    | focused = B.withAttr "selected" $ wrapped
-    | otherwise = B.Widget B.Greedy B.Fixed renderCut
-  where
-    fundsTo = csiAmount <> " " <> csiCoin <> " to: " 
+itemTypeFormat :: Format r (UiDeletingItem -> r)
+itemTypeFormat = later $ \case
+    UiDelWallet _  -> "wallet"
+    UiDelAccount _ -> "account"
 
-    wrapSetting = WrapSettings {preserveIndentation = True, breakLongWords = True}
-    wrapped = B.txtWrapWith wrapSetting $ fundsTo <> "\n  " <> csiAddress
+-- no confirm is requested for an account (or something with no name)
+itemNameToConfirm :: UiDeletingItem -> Maybe Text
+itemNameToConfirm = \case
+    UiDelWallet maybeName -> maybeName
+    _ -> Nothing
 
-    renderCut = do
-        c <- B.getContext
-        let addressWidth = (c ^. B.availWidthL) - T.length fundsTo
-            addressLength = T.length csiAddress
-            addressCut = cutAddressHash csiAddress addressWidth addressLength
-            img = V.horizCat $ V.text' (c ^. B.attrL) <$> [fundsTo, addressCut]
+-- only for rendering, gives back "this" if it doesn't know any better
+delItemName :: UiDeletingItem -> Text
+delItemName delItem = fromMaybe "this" $ case delItem of
+    UiDelWallet maybeName -> maybeName
+    UiDelAccount maybeName -> maybeName
 
-        return $ B.emptyResult & B.imageL .~ img
-
-handleConfirmSendWidgetKey
+handleConfirmRemoveWidgetKey
     :: KeyboardEvent
-    -> WidgetEventM ConfirmSendWidgetState p WidgetEventResult
-handleConfirmSendWidgetKey = \case
+    -> WidgetEventM ConfirmRemoveWidgetState p WidgetEventResult
+handleConfirmRemoveWidgetKey = \case
     KeyEnter -> performContinue $> WidgetEventHandled
     KeyNavigation -> performCancel $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
-performContinue :: WidgetEventM ConfirmSendWidgetState p ()
-performContinue = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
-    whenM (use confirmSendWidgetCheckL) $ putMVar resultVar True *> closeDialog
+performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
+performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
+    \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
+        putMVar requestResultVar True *> closeDialog
+  where
+    nameNotConfirmed delItem = case itemNameToConfirm delItem of
+        Just nameValue -> do
+            confirmNameValue <- use confirmRemoveWidgetNameL
+            return $ nameValue /= confirmNameValue
+        Nothing -> return False
 
-performCancel :: WidgetEventM ConfirmSendWidgetState p ()
-performCancel = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
-    putMVar resultVar False *> closeDialog
+performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
+performCancel = whenJustM (use confirmRemoveWidgetDelRequestL) $
+    \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
 
-closeDialog :: WidgetEventM ConfirmSendWidgetState p ()
+closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
 closeDialog = do
-    UiFace{..} <- use confirmSendWidgetUiFaceL
+    UiFace{..} <- use confirmRemoveWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmSendWidgetResultVarL .= Nothing
-    confirmSendWidgetOutputListL .= []
-    confirmSendWidgetCheckL .= False
+    confirmRemoveWidgetDelRequestL .= Nothing
+    confirmRemoveWidgetCheckL .= False
+    confirmRemoveWidgetNameL .= ""
 
-handleConfirmSendWidgetEvent
+updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
+updateFocusList = do
+    removeCheck <- use confirmRemoveWidgetCheckL
+    delRequest <- use confirmRemoveWidgetDelRequestL
+    let nameToConfirm = itemNameToConfirm . requestDelItem <$> delRequest
+    lift . setWidgetFocusList $
+        if removeCheck && isJust nameToConfirm
+        then 
+            [ WidgetNameConfirmRemoveCheck
+            , WidgetNameConfirmRemoveName
+            ] <> dialogButtons
+        else WidgetNameConfirmRemoveCheck : dialogButtons
+  where
+    dialogButtons =
+        [ WidgetNameConfirmRemoveCancel
+        , WidgetNameConfirmRemoveContinue
+        ]
+
+handleConfirmRemoveWidgetEvent
     :: UiEvent
-    -> WidgetEventM ConfirmSendWidgetState p ()
-handleConfirmSendWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend sendInfo)) -> do
-        confirmSendWidgetResultVarL .= Just resVar
-        confirmSendWidgetOutputListL .= sendInfo
+    -> WidgetEventM ConfirmRemoveWidgetState p ()
+handleConfirmRemoveWidgetEvent = \case
+    UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
+        confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
+        updateFocusList
     _ -> pass
