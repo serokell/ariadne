@@ -69,7 +69,7 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     { langPutCommand = putCommand commandHandle
     , langPutUiCommand = putUiCommand
     , langParse = Knit.parse
-    , langAutocomplete = autocomplete
+    , langAutocomplete = Knit.suggestions (Proxy @components)
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans
@@ -95,19 +95,6 @@ knitFaceToUI UiFace{..} KnitFace{..} =
       , putCommandOutput = \_ _ ->
           return ()
       }
-
-    commands :: [Text]
-    commands =
-        let
-            names = map (\(Knit.SomeCommandProc p) -> Knit.cpName p) (Knit.commandProcs @components)
-            toCommand = \case
-                Knit.CommandIdName n -> Just $ pretty n
-                Knit.CommandIdOperator _ -> Nothing
-        in
-            mapMaybe toCommand names
-
-    autocomplete :: Text -> [Text]
-    autocomplete c = filter (T.isPrefixOf c) commands
 
     optString key value = if null value then [] else [Knit.ArgKw Knit.NoExt key . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ value]
 

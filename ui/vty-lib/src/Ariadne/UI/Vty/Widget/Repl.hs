@@ -200,9 +200,9 @@ handleReplWidgetKey = \case
           pure options
         Just options -> pure options
       let nextOption = head options
-      zoom replWidgetCurrentAutocompletionL $ put $ Just $ tail options
-      zoom replWidgetCommandL $ put nextOption
+      replWidgetCommandL .= nextOption
       reparse
+      replWidgetCurrentAutocompletionL .= Just (tail options)
       return WidgetEventHandled
     KeyEnter -> do
       ReplWidgetState{..} <- get
@@ -258,6 +258,7 @@ handleReplWidgetEvent = \case
 
 reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do
+  replWidgetCurrentAutocompletionL .= Nothing
   ReplWidgetState{..} <- get
   replWidgetParseResultL .= mkReplParseResult replWidgetLangFace replWidgetCommand
 
