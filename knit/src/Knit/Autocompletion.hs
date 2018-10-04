@@ -145,13 +145,13 @@ suggestionExprs procs = skipParensExpr
                 param
                 (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
             )
-            <$> filter (isPrefixOf (nameStr name) . show) (procParams cmdName)
+            <$> filter (isPrefixOf (nameStr name) . nameStr) (procParams cmdName)
           procCalls =
             ArgPos (ArgPosPadding padding)
             . ExprProcCall NoExt
             . toProcCall
             <$> filter
-              (\(proc, params) -> null params && isPrefixOf (nameStr name) (show proc))
+              (\(proc, params) -> null params && isPrefixOf (nameStr name) (nameStr proc))
               suggestableProcs
         in
           kwargs ++ procCalls
