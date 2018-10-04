@@ -44,7 +44,7 @@ import Test.QuickCheck (Arbitrary(..))
 
 
 data CreateWalletError =
-      CreateWalletFailed HD.CreateHdRootError  
+      CreateWalletFailed HD.CreateHdRootError
       -- ^ When trying to create the 'Wallet', the DB operation failed.
     | CreateAccountFailed CreateAccountError
     | CreateAddressFailed CreateAddressError
@@ -68,7 +68,7 @@ instance Exception CreateWalletError
 
 newtype HasNonemptyPassphrase = HasNonemptyPassphrase Bool
 
-data CreateWithAddress 
+data CreateWithAddress
     = WithoutAddress
     | WithAddress !PassPhrase
 
@@ -117,14 +117,14 @@ createHdWallet pw esk hasNonemptyPP createWithA assuranceLevel walletName utxoBy
             Keystore.delete walletId (pw ^. walletKeystore)
             return . Left $ CreateWalletFailed e
         Right hdRoot -> do
-            case createWithA of 
-                WithoutAddress         -> return (Right hdRoot) 
-                WithAddress passphrase -> do 
+            case createWithA of
+                WithoutAddress         -> return (Right hdRoot)
+                WithAddress passphrase -> do
                     addressRes <- runExceptT $ addDefaultAddress pw walletId passphrase
-                    case addressRes of 
+                    case addressRes of
                         Left e   -> return $ Left e
-                        Right () -> return (Right hdRoot) 
-                
+                        Right () -> return (Right hdRoot)
+
 
 
 
@@ -203,19 +203,19 @@ updateHdWalletAssurance pw hdRootId assuranceLevel =
   Automatic creation of Wallet Account and Address
 -------------------------------------------------------------------------------}
 
-addDefaultAddress 
+addDefaultAddress
     :: PassiveWallet
     -> WalletId
     -> PassPhrase
     -> ExceptT CreateWalletError IO ()
-addDefaultAddress pw walletId passphrase = do 
+addDefaultAddress pw walletId passphrase = do
     account <- ExceptT
          $  first CreateAccountFailed
-        <$> createAccount (AccountName "Unnamed account") walletId pw 
+        <$> createAccount (AccountName "Unnamed account") walletId pw
 
     let accountId = AccountIdHdSeq $ account ^. HD.hdAccountId
 
-    void $ ExceptT 
+    void $ ExceptT
          $ first CreateAddressFailed
         <$> createAddress passphrase accountId HdChainExternal pw
 
