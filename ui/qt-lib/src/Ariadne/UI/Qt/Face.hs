@@ -8,6 +8,7 @@ module Ariadne.UI.Qt.Face
        , UiCommand (..)
        , UiCommandResult (..)
        , UiSendCommandResult (..)
+       , UiNewWalletCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
@@ -108,6 +109,7 @@ data UiCommand
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
+  | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -115,6 +117,10 @@ data UiCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiNewWalletCommandResult
+  = UiNewWalletCommandSuccess
+  | UiNewWalletCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess

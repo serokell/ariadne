@@ -160,6 +160,10 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiNewWallet {} ->
+        Just . UiNewWalletCommandResult .
+          either UiNewWalletCommandFailure (const UiNewWalletCommandSuccess) $
+          fromResult result
       UiRestoreWallet {} ->
         Just . UiRestoreWalletCommandResult .
           either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
