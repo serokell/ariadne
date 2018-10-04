@@ -49,6 +49,7 @@ initConfirmRemoveWidget uiFace = initWidget $ do
 
     setWidgetFocusList
         [ WidgetNameSelf
+        , WidgetNameConfirmRemoveCheck
         , WidgetNameConfirmRemoveContinue
         , WidgetNameConfirmRemoveCancel
         ]

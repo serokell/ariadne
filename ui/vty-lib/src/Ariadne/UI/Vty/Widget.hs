@@ -129,7 +129,6 @@ data WidgetNamePart
   | WidgetNamePassword
   | WidgetNamePasswordInput
   | WidgetNamePasswordContinue
-  | WidgetNamePasswordCancel
 
   | WidgetNameConfirmMnemonic
   | WidgetNameConfirmMnemonicInput
@@ -148,6 +147,7 @@ data WidgetNamePart
   | WidgetNameConfirmSendCheck
   | WidgetNameConfirmSendContinue
   | WidgetNameConfirmSendCancel
+  | WidgetNameConfirmSendList
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree

@@ -46,8 +46,8 @@ initPasswordWidget putPassword uiFace = initWidget $ do
 
     setWidgetFocusList
         [ WidgetNameSelf
-        , WidgetNamePasswordContinue
         , WidgetNamePasswordInput
+        , WidgetNamePasswordContinue
         ]
 
 drawPasswordWidget
