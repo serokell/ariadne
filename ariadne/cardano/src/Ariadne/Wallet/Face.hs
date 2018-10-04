@@ -5,6 +5,7 @@ module Ariadne.Wallet.Face
        , WalletFace(..)
        , WalletEvent(..)
        , ConfirmationType(..)
+       , ConfirmSendInfo(..)
        , WalletReference(..)
        , AccountReference(..)
        , LocalAccountReference(..)
@@ -96,9 +97,16 @@ data WalletEvent
   | WalletRequireConfirm (MVar Bool) ConfirmationType
 
 data ConfirmationType
-  = ConfirmMnemonic [Text]           -- ^ mnemonic
-  | ConfirmRemove WalletSelection    -- ^ selection
-  | ConfirmSend [(Text, Text, Text)] -- ^ lists of outputs (address, amount, coin)
+  = ConfirmMnemonic [Text]        -- ^ mnemonic
+  | ConfirmRemove WalletSelection -- ^ selection
+  | ConfirmSend [ConfirmSendInfo] -- ^ lists of outputs
+
+data ConfirmSendInfo =
+  ConfirmSendInfo
+    { confirmSendAddress :: Text
+    , confirmSendAmount  :: Text
+    , confirmSendCoin    :: Text
+    }
 
 data WalletUIFace =
   WalletUIFace

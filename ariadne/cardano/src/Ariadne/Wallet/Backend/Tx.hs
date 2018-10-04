@@ -204,11 +204,12 @@ sendTx
         , "…"
         ]
 
-    txOutToInfo :: TxOut -> (Text, Text, Text)
-    txOutToInfo TxOut{..} = (outAddress, outAmount, show outCoin)
+    txOutToInfo :: TxOut -> ConfirmSendInfo
+    txOutToInfo TxOut{..} = ConfirmSendInfo {..}
       where
-        outAddress = show $ formatToDoc txOutAddress
-        (outAmount, outCoin) = showCoin $ txOutValue
+        confirmSendAddress = show $ formatToDoc txOutAddress
+        (confirmSendAmount, outCoin) = showCoin $ txOutValue
+        confirmSendCoin = show outCoin
 
 -- Assumes the passphrase is correct!
 walletSigners :: EncryptedSecretKey -> HdWallets -> PassPhrase -> IxSet HdAccount -> HashMap Address SafeSigner

@@ -22,7 +22,7 @@ import Ariadne.Util
 
 data ConfirmSendWidgetState = ConfirmSendWidgetState
     { confirmSendWidgetUiFace     :: !UiFace
-    , confirmSendWidgetOutputList :: ![(Text, Text, Text)]
+    , confirmSendWidgetOutputList :: ![UiConfirmSendInfo]
     , confirmSendWidgetResultVar  :: !(Maybe (MVar Bool))
     , confirmSendWidgetCheck      :: !Bool
     , confirmSendWidgetDialog     :: !DialogState
@@ -85,21 +85,21 @@ drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
                     , drawChild WidgetNameConfirmSendCheck
                     ]
 
-transactionLine :: Bool -> (Text, Text, Text) -> B.Widget WidgetName
-transactionLine focused (address, amount, coin)
+transactionLine :: Bool -> UiConfirmSendInfo -> B.Widget WidgetName
+transactionLine focused UiConfirmSendInfo{..}
     | focused = B.withAttr "selected" $ wrapped
     | otherwise = B.Widget B.Greedy B.Fixed renderCut
   where
-    fundsTo = amount <> " " <> coin <> " to: " 
+    fundsTo = csiAmount <> " " <> csiCoin <> " to: " 
 
     wrapSetting = WrapSettings {preserveIndentation = True, breakLongWords = True}
-    wrapped = B.txtWrapWith wrapSetting $ fundsTo <> "\n  " <> address
+    wrapped = B.txtWrapWith wrapSetting $ fundsTo <> "\n  " <> csiAddress
 
     renderCut = do
         c <- B.getContext
         let addressWidth = (c ^. B.availWidthL) - T.length fundsTo
-            addressLength = T.length address
-            addressCut = cutAddressHash address addressWidth addressLength
+            addressLength = T.length csiAddress
+            addressCut = cutAddressHash csiAddress addressWidth addressLength
             img = V.horizCat $ V.text' (c ^. B.attrL) <$> [fundsTo, addressCut]
 
         return $ B.emptyResult & B.imageL .~ img
@@ -132,8 +132,8 @@ handleConfirmSendWidgetEvent
     :: UiEvent
     -> WidgetEventM ConfirmSendWidgetState p ()
 handleConfirmSendWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend outLst)) -> do
+    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend sendInfo)) -> do
         confirmSendWidgetResultVarL .= Just resVar
-        confirmSendWidgetOutputListL .= outLst
+        confirmSendWidgetOutputListL .= sendInfo
     _ -> pass
 

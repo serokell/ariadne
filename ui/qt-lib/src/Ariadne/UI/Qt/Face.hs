@@ -17,6 +17,7 @@ module Ariadne.UI.Qt.Face
        , UiPasswordEvent (..)
        , UiConfirmEvent (..)
        , UiConfirmationType (..)
+       , UiConfirmSendInfo (..)
        , UiDeletingItem (..)
        , UiFace (..)
 
@@ -136,9 +137,16 @@ data UiConfirmEvent
   = UiConfirmRequest (MVar Bool) UiConfirmationType
 
 data UiConfirmationType
-  = UiConfirmMnemonic [Text]           -- ^ mnemonic
-  | UiConfirmRemove UiDeletingItem     -- ^ selection
-  | UiConfirmSend [(Text, Text, Text)] -- ^ lists of outputs (address, amount, coin)
+  = UiConfirmMnemonic [Text]          -- ^ mnemonic
+  | UiConfirmRemove UiDeletingItem    -- ^ selection
+  | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
+
+data UiConfirmSendInfo =
+  UiConfirmSendInfo 
+    { csiAddress :: Text
+    , csiAmount  :: Text
+    , csiCoin    :: Text
+    }
 
 data UiDeletingItem = UiDelWallet | UiDelAccount deriving Eq
 
