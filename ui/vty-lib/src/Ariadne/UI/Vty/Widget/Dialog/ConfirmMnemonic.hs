@@ -75,9 +75,12 @@ initConfirmMnemonicWidget uiFace = initWidget $ do
 
     setWidgetFocusList
         [ WidgetNameSelf
+        , WidgetNameConfirmMnemonicInput
+        , WidgetNameConfirmMnemonicCheckScreen
+        , WidgetNameConfirmMnemonicCheckOnDevice
+        , WidgetNameConfirmMnemonicCheckMoved
         , WidgetNameConfirmMnemonicContinue
         , WidgetNameConfirmMnemonicCancel
-        , WidgetNameConfirmMnemonicInput
         ]
 
 drawConfirmMnemonicWidget

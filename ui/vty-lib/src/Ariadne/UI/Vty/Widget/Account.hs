@@ -1,5 +1,6 @@
 module Ariadne.UI.Vty.Widget.Account
        ( initAccountWidget
+       , cutAddressHash
        ) where
 
 import Control.Exception (handle)
@@ -134,18 +135,23 @@ drawAddressRow focused AccountAddress{..} =
 
         addressWidth = width - (T.length balance) - 1
         addressLength = T.length accountAddressHash
-        address = if addressWidth >= addressLength
-          then accountAddressHash <> T.replicate (addressWidth - addressLength) " "
-          else
-            T.take ((addressWidth - 3) `div` 2) accountAddressHash <>
-            "..." <>
-            T.takeEnd (addressWidth - 3 - (addressWidth - 3) `div` 2) accountAddressHash
+        address = cutAddressHash accountAddressHash addressWidth addressLength
+            <> T.replicate (addressWidth - addressLength) " "
 
         img = V.horizCat $ V.text' attr <$> [address, " ", balance]
 
       return $
         B.emptyResult
           & B.imageL .~ img
+
+cutAddressHash :: Text -> Int -> Int -> Text
+cutAddressHash addressHash availableWidth addressLength
+    | availableWidth <= 3 = T.replicate availableWidth "."
+    | availableWidth >= addressLength = addressHash
+    | otherwise =
+        T.take ((availableWidth - 3) `div` 2) addressHash <>
+        "..." <>
+        T.takeEnd (availableWidth - 3 - (availableWidth - 3) `div` 2) addressHash
 
 drawAccountWidget :: WidgetName -> AccountWidgetState -> WidgetDrawM AccountWidgetState p WidgetDrawing
 drawAccountWidget focus AccountWidgetState{..} = do

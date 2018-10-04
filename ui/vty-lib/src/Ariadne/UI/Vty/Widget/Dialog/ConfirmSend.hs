@@ -5,13 +5,19 @@ module Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
 import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
+import qualified Data.Text as T
+import qualified Graphics.Vty as V
+
+import Text.Wrap (WrapSettings (..))
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
+import Ariadne.UI.Vty.Widget.Account (cutAddressHash)
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Checkbox
+import Ariadne.UI.Vty.Widget.Form.List
 import Ariadne.Util
 
 data ConfirmSendWidgetState = ConfirmSendWidgetState
@@ -29,6 +35,7 @@ initConfirmSendWidget uiFace = initWidget $ do
     setWidgetDrawWithFocus drawConfirmSendWidget
     setWidgetHandleKey handleConfirmSendWidgetKey
     setWidgetHandleEvent handleConfirmSendWidgetEvent
+    setWidgetScrollable
     setWidgetState ConfirmSendWidgetState
         { confirmSendWidgetUiFace     = uiFace
         , confirmSendWidgetOutputList = []
@@ -41,6 +48,8 @@ initConfirmSendWidget uiFace = initWidget $ do
         $ initCheckboxWidget "I understand that continuing with this operation\
                               \ will make it definitive and irreversible."
         $ widgetParentLens confirmSendWidgetCheckL
+    addWidgetChild WidgetNameConfirmSendList $
+        initListWidget (widgetParentGetter confirmSendWidgetOutputList) transactionLine
 
     addDialogButton confirmSendWidgetDialogL
         WidgetNameConfirmSendContinue "Send" performContinue
@@ -49,6 +58,8 @@ initConfirmSendWidget uiFace = initWidget $ do
 
     setWidgetFocusList
         [ WidgetNameSelf
+        , WidgetNameConfirmSendList
+        , WidgetNameConfirmSendCheck
         , WidgetNameConfirmSendContinue
         , WidgetNameConfirmSendCancel
         ]
@@ -65,16 +76,33 @@ drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
             widget <- ask
             widgetName <- getWidgetName
             let drawChild = last . drawWidgetChild focus widget
-            drawInsideDialog confirmSendWidgetDialog focus $ B.vBox
-                [ B.padTopBottom 1 $ B.txtWrap $ "This is the list of this \
-                  \operation's output transitions. Please review them carefully."
-                , scrollingViewport widgetName B.Both . B.vBox $
-                  map (B.txt . transactionLine) confirmSendWidgetOutputList
-                , drawChild WidgetNameConfirmSendCheck
-                ]
+            drawInsideDialog confirmSendWidgetDialog focus $
+                scrollingViewport widgetName B.Vertical $ B.vBox
+                    [ B.padTopBottom 1 $ B.txtWrap $ "This is the list of this \
+                      \operation's output transitions. \
+                      \Please review them carefully."
+                    , B.padTopBottom 1 $ drawChild WidgetNameConfirmSendList
+                    , drawChild WidgetNameConfirmSendCheck
+                    ]
 
-transactionLine :: (Text, Text, Text) -> Text
-transactionLine (address, amount, coin) = amount <> " " <> coin <> " to " <> address
+transactionLine :: Bool -> (Text, Text, Text) -> B.Widget WidgetName
+transactionLine focused (address, amount, coin)
+    | focused = B.withAttr "selected" $ wrapped
+    | otherwise = B.Widget B.Greedy B.Fixed renderCut
+  where
+    fundsTo = amount <> " " <> coin <> " to: " 
+
+    wrapSetting = WrapSettings {preserveIndentation = True, breakLongWords = True}
+    wrapped = B.txtWrapWith wrapSetting $ fundsTo <> "\n  " <> address
+
+    renderCut = do
+        c <- B.getContext
+        let addressWidth = (c ^. B.availWidthL) - T.length fundsTo
+            addressLength = T.length address
+            addressCut = cutAddressHash address addressWidth addressLength
+            img = V.horizCat $ V.text' (c ^. B.attrL) <$> [fundsTo, addressCut]
+
+        return $ B.emptyResult & B.imageL .~ img
 
 handleConfirmSendWidgetKey
     :: KeyboardEvent
