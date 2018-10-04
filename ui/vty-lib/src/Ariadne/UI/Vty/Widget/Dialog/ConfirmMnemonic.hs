@@ -1,9 +1,9 @@
-module Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
-    ( initConfirmRemoveWidget
+module Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
+    ( initConfirmMnemonicWidget
     ) where
 
 import Control.Lens (makeLensesWith, (.=))
-import Formatting
+import qualified Data.Text as T
 
 import qualified Brick as B
 
@@ -16,151 +16,179 @@ import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
-data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
-    { confirmRemoveWidgetUiFace     :: !UiFace
-    , confirmRemoveWidgetDelRequest :: !(Maybe DeleteRequest)
-    , confirmRemoveWidgetCheck      :: !Bool
-    , confirmRemoveWidgetName       :: !Text
-    , confirmRemoveWidgetDialog     :: !DialogState
+data ConfirmMnemonicWidgetState = ConfirmMnemonicWidgetState
+    { confirmMnemonicWidgetUiFace            :: !UiFace
+    , confirmMnemonicWidgetContent           :: !Text
+    , confirmMnemonicWidgetValue             :: ![Text]
+    , confirmMnemonicWidgetConfirmationState :: !ConfirmationState
+    , confirmMnemonicWidgetResultVar         :: !(Maybe (MVar Bool))
+    , confirmMnemonicWidgetDialog            :: !DialogState
+    , confirmRemoveWidgetCheckScreen         :: !Bool
+    , confirmRemoveWidgetCheckOnDevice       :: !Bool
+    , confirmRemoveWidgetCheckMoved          :: !Bool
     }
 
-data DeleteRequest = DeleteRequest
-    { requestResultVar :: !(MVar Bool)
-    , requestDelItem   :: !UiDeletingItem
-    }
+data ConfirmationState
+  = Before
+  | DisplayConfirmMnemonic
+  | RetypeConfirmMnemonic
 
-makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
+makeLensesWith postfixLFields ''ConfirmMnemonicWidgetState
 
-initConfirmRemoveWidget :: UiFace -> Widget p
-initConfirmRemoveWidget uiFace = initWidget $ do
-    setWidgetDrawWithFocus drawConfirmRemoveWidget
-    setWidgetHandleKey handleConfirmRemoveWidgetKey
-    setWidgetHandleEvent handleConfirmRemoveWidgetEvent
-    setWidgetState ConfirmRemoveWidgetState
-        { confirmRemoveWidgetUiFace     = uiFace
-        , confirmRemoveWidgetDelRequest = Nothing
-        , confirmRemoveWidgetCheck      = False
-        , confirmRemoveWidgetName       = ""
-        , confirmRemoveWidgetDialog     = newDialogState deleteHeaderMessage
+initConfirmMnemonicWidget :: UiFace -> Widget p
+initConfirmMnemonicWidget uiFace = initWidget $ do
+    setWidgetDrawWithFocus drawConfirmMnemonicWidget
+    setWidgetHandleKey handleConfirmMnemonicWidgetKey
+    setWidgetHandleEvent handleConfirmMnemonicWidgetEvent
+    setWidgetState ConfirmMnemonicWidgetState
+        { confirmMnemonicWidgetUiFace            = uiFace
+        , confirmMnemonicWidgetContent           = ""
+        , confirmMnemonicWidgetValue             = []
+        , confirmMnemonicWidgetConfirmationState = Before
+        , confirmMnemonicWidgetResultVar         = Nothing
+        , confirmRemoveWidgetCheckScreen         = False
+        , confirmRemoveWidgetCheckOnDevice       = False
+        , confirmRemoveWidgetCheckMoved          = False
+        , confirmMnemonicWidgetDialog            = newDialogState mnemonicHeaderMessage
         }
-    
-    addWidgetChild WidgetNameConfirmRemoveCheck
-        $ initCheckboxWidget deleteSureMessage
-        $ widgetParentLens confirmRemoveWidgetCheckL
-    addWidgetChild WidgetNameConfirmRemoveName $ initEditWidget $
-        widgetParentLens confirmRemoveWidgetNameL
 
-    addDialogButton confirmRemoveWidgetDialogL
-        WidgetNameConfirmRemoveContinue "Delete" performContinue
-    addDialogButton confirmRemoveWidgetDialogL
-        WidgetNameConfirmRemoveCancel "Cancel" performCancel
+    addWidgetChild WidgetNameConfirmMnemonicInput $
+        initEditWidget (widgetParentLens confirmMnemonicWidgetContentL)
+    addWidgetChild WidgetNameConfirmMnemonicCheckScreen
+        $ initCheckboxWidget mnemonicNoLooksMessage
+        $ widgetParentLens confirmRemoveWidgetCheckScreenL
+    addWidgetChild WidgetNameConfirmMnemonicCheckOnDevice
+        $ initCheckboxWidget mnemonicOnDeviceMessage
+        $ widgetParentLens confirmRemoveWidgetCheckOnDeviceL
+    addWidgetChild WidgetNameConfirmMnemonicCheckMoved
+        $ initCheckboxWidget mnemonicAppMovedMessage
+        $ widgetParentLens confirmRemoveWidgetCheckMovedL
 
-    addWidgetEventHandler WidgetNameConfirmRemoveCheck $ \case
-        WidgetEventCheckboxToggled -> updateFocusList
+    addDialogButton confirmMnemonicWidgetDialogL
+        WidgetNameConfirmMnemonicContinue "Continue" performContinue
+    addDialogButton confirmMnemonicWidgetDialogL
+        WidgetNameConfirmMnemonicCancel "Cancel" performCancel
+
+    addWidgetEventHandler WidgetNameConfirmMnemonicInput $ \case
+        WidgetEventEditChanged -> updateFocusList
         _ -> pass
 
     setWidgetFocusList
-        [ WidgetNameConfirmRemoveCheck
-        , WidgetNameConfirmRemoveCancel
-        , WidgetNameConfirmRemoveContinue
+        [ WidgetNameConfirmMnemonicCheckScreen
+        , WidgetNameConfirmMnemonicCancel
+        , WidgetNameConfirmMnemonicContinue
         ]
 
-drawConfirmRemoveWidget
+drawConfirmMnemonicWidget
     :: WidgetName
-    -> ConfirmRemoveWidgetState
-    -> WidgetDrawM ConfirmRemoveWidgetState p WidgetDrawing
-drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
-    case confirmRemoveWidgetDelRequest of
+    -> ConfirmMnemonicWidgetState
+    -> WidgetDrawM ConfirmMnemonicWidgetState p WidgetDrawing
+drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
+    case confirmMnemonicWidgetResultVar of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just DeleteRequest {..} -> do
+        Just _  -> do
             widget <- ask
             let drawChild = last . drawWidgetChild focus widget
-                itemName = delItemName requestDelItem
-                hasNameToConfirm = isJust $ itemNameToConfirm requestDelItem
-            drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
-                [ B.padTopBottom 1 . B.txtWrap $
-                  deleteIntroMkMessage itemTypeFormat itemName requestDelItem
-                , drawChild WidgetNameConfirmRemoveCheck
-                , if confirmRemoveWidgetCheck && hasNameToConfirm
-                  then B.padTopBottom 1 $ B.hBox
-                    [ B.padLeftRight 2 . B.txtWrap $
-                      deleteRetypeMkMessage itemTypeFormat requestDelItem
-                    , drawChild WidgetNameConfirmRemoveName
-                    ]
-                  else B.emptyWidget
-                ]
+            drawInsideDialog confirmMnemonicWidgetDialog focus $
+                case confirmMnemonicWidgetConfirmationState of
+                    Before -> B.vBox
+                        [ B.padTopBottom 1 . B.txtWrap $
+                          mnemonicBeforeMkMessage mnemonicSize
+                        , drawChild WidgetNameConfirmMnemonicCheckScreen
+                        ]
+                    DisplayConfirmMnemonic -> B.vBox
+                        [ B.padTopBottom 1 . B.txtWrap $ mnemonicDisplayMessage
+                        , B.withAttr "selected" $ B.txtWrap mnemonicText
+                        ]
+                    RetypeConfirmMnemonic -> B.vBox $
+                        [ B.txtWrap mnemonicRetypeMessage
+                        , B.vBox
+                            [ B.padTopBottom 1 $ B.hBox
+                                [ B.padLeftRight 1 $ B.txt $ mnemonicHeaderMessage
+                                , B.padRight (B.Pad 1) $ 
+                                  drawChild WidgetNameConfirmMnemonicInput
+                                ]
+                            ]
+                        ] ++ if words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
+                        then map drawChild 
+                            [ WidgetNameConfirmMnemonicCheckOnDevice
+                            , WidgetNameConfirmMnemonicCheckMoved
+                            ]
+                        else []
+  where
+    mnemonicSize = length confirmMnemonicWidgetValue
+    mnemonicText = T.intercalate " " confirmMnemonicWidgetValue
 
-itemTypeFormat :: Format r (UiDeletingItem -> r)
-itemTypeFormat = later $ \case
-    UiDelWallet _  -> "wallet"
-    UiDelAccount _ -> "account"
-
--- no confirm is requested for an account (or something with no name)
-itemNameToConfirm :: UiDeletingItem -> Maybe Text
-itemNameToConfirm = \case
-    UiDelWallet maybeName -> maybeName
-    _ -> Nothing
-
--- only for rendering, gives back "this" if it doesn't know any better
-delItemName :: UiDeletingItem -> Text
-delItemName delItem = fromMaybe "this" $ case delItem of
-    UiDelWallet maybeName -> maybeName
-    UiDelAccount maybeName -> maybeName
-
-handleConfirmRemoveWidgetKey
+handleConfirmMnemonicWidgetKey
     :: KeyboardEvent
-    -> WidgetEventM ConfirmRemoveWidgetState p WidgetEventResult
-handleConfirmRemoveWidgetKey = \case
+    -> WidgetEventM ConfirmMnemonicWidgetState p WidgetEventResult
+handleConfirmMnemonicWidgetKey = \case
     KeyEnter -> performContinue $> WidgetEventHandled
     KeyNavigation -> performCancel $> WidgetEventHandled
     _ -> return WidgetEventNotHandled
 
-performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
-performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
-    \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
-        putMVar requestResultVar True *> closeDialog
-  where
-    nameNotConfirmed delItem = case itemNameToConfirm delItem of
-        Just nameValue -> do
-            confirmNameValue <- use confirmRemoveWidgetNameL
-            return $ nameValue /= confirmNameValue
-        Nothing -> return False
+performContinue :: WidgetEventM ConfirmMnemonicWidgetState p ()
+performContinue = do
+    ConfirmMnemonicWidgetState{..} <- get
+    whenJust confirmMnemonicWidgetResultVar $ \resultVar -> 
+        case confirmMnemonicWidgetConfirmationState of
+            Before -> when confirmRemoveWidgetCheckScreen $ do
+                confirmMnemonicWidgetConfirmationStateL .= DisplayConfirmMnemonic
+                updateFocusList
+            DisplayConfirmMnemonic -> do
+                confirmMnemonicWidgetConfirmationStateL .= RetypeConfirmMnemonic
+                updateFocusList
+            RetypeConfirmMnemonic -> when
+                ( words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
+                && confirmRemoveWidgetCheckOnDevice
+                && confirmRemoveWidgetCheckMoved
+                ) $ putMVar resultVar True *> closeDialog
 
-performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
-performCancel = whenJustM (use confirmRemoveWidgetDelRequestL) $
-    \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
+performCancel :: WidgetEventM ConfirmMnemonicWidgetState p ()
+performCancel = whenJustM (use confirmMnemonicWidgetResultVarL) $ \resultVar ->
+    putMVar resultVar False *> closeDialog
 
-closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
+closeDialog :: WidgetEventM ConfirmMnemonicWidgetState p ()
 closeDialog = do
-    UiFace{..} <- use confirmRemoveWidgetUiFaceL
+    UiFace{..} <- use confirmMnemonicWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmRemoveWidgetDelRequestL .= Nothing
-    confirmRemoveWidgetCheckL .= False
-    confirmRemoveWidgetNameL .= ""
+    confirmMnemonicWidgetContentL .= ""
+    confirmMnemonicWidgetValueL .= []
+    confirmMnemonicWidgetConfirmationStateL .= Before
+    confirmMnemonicWidgetResultVarL .= Nothing
+    confirmRemoveWidgetCheckScreenL .= False
+    confirmRemoveWidgetCheckOnDeviceL .= False
+    confirmRemoveWidgetCheckMovedL .= False
+    updateFocusList
 
-updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
+updateFocusList :: WidgetEventM ConfirmMnemonicWidgetState p ()
 updateFocusList = do
-    removeCheck <- use confirmRemoveWidgetCheckL
-    delRequest <- use confirmRemoveWidgetDelRequestL
-    let nameToConfirm = itemNameToConfirm . requestDelItem <$> delRequest
-    lift . setWidgetFocusList $
-        if removeCheck && isJust nameToConfirm
-        then 
-            [ WidgetNameConfirmRemoveCheck
-            , WidgetNameConfirmRemoveName
-            ] <> dialogButtons
-        else WidgetNameConfirmRemoveCheck : dialogButtons
+    confirmationState <- use confirmMnemonicWidgetConfirmationStateL
+    lift . setWidgetFocusList =<< case confirmationState of
+        Before -> return $ WidgetNameConfirmMnemonicCheckScreen : dialogButtons
+        DisplayConfirmMnemonic -> return dialogButtons
+        RetypeConfirmMnemonic -> do
+            confirmContent <- use confirmMnemonicWidgetContentL
+            confirmValue <- use confirmMnemonicWidgetValueL
+            return $ if words confirmContent == confirmValue
+                then 
+                    [ WidgetNameConfirmMnemonicInput
+                    , WidgetNameConfirmMnemonicCheckOnDevice
+                    , WidgetNameConfirmMnemonicCheckMoved
+                    ] <> dialogButtons
+                else WidgetNameConfirmMnemonicInput : dialogButtons
   where
     dialogButtons =
-        [ WidgetNameConfirmRemoveCancel
-        , WidgetNameConfirmRemoveContinue
+        [ WidgetNameConfirmMnemonicCancel
+        , WidgetNameConfirmMnemonicContinue
         ]
 
-handleConfirmRemoveWidgetEvent
+handleConfirmMnemonicWidgetEvent
     :: UiEvent
-    -> WidgetEventM ConfirmRemoveWidgetState p ()
-handleConfirmRemoveWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
-        confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
+    -> WidgetEventM ConfirmMnemonicWidgetState p ()
+handleConfirmMnemonicWidgetEvent = \case
+    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmMnemonic mnemonic)) -> do
+        confirmMnemonicWidgetResultVarL .= Just resVar
+        confirmMnemonicWidgetValueL .= mnemonic
         updateFocusList
     _ -> pass
