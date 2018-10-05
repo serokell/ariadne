@@ -15,6 +15,7 @@ import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
+import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
@@ -28,6 +29,8 @@ data Delete =
   Delete
     { delete :: QDialog.QDialog
     , isSure :: QCheckBox.QCheckBox
+    , retypeWidget :: QWidget.QWidget
+    , retypeName :: QLineEdit.QLineEdit
     , deleteButton :: QPushButton.QPushButton
     , itemType :: UiDeletingItem
     }
@@ -38,6 +41,7 @@ initDelete itemType = do
   layout <- createLayout delete
 
   let headerString = toString . T.toUpper $ sformat ("delete " % itemTypeFormat) itemType
+      itemName = fromMaybe "this" $ itemTypeName itemType
 
   QWidget.setWindowTitle delete headerString
 
@@ -45,13 +49,24 @@ initDelete itemType = do
   addHeader layout header
 
   warningLabel <- QLabel.newWithText . toString $ sformat
-    ("Do you really want to delete this " % itemTypeFormat % "?") itemType
+    ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
   QBoxLayout.addWidget layout warningLabel
 
   isSure <- createCheckBox layout CheckboxOnLeft $ sformat
     ("Make sure you have access to backup before continuing. \
      \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
     itemType
+
+  (retypeWidget, retypeLayout) <- createSubWidget
+  addSeparator retypeLayout
+
+  retypeLabel <- QLabel.newWithText . toString $ sformat
+    ("Type " % itemTypeFormat % " name to confirm deletion") itemType
+  retypeName <- QLineEdit.new
+  addRow retypeLayout retypeLabel retypeName
+
+  QBoxLayout.addWidget layout retypeWidget
+  QWidget.hide retypeWidget
 
   buttonsLayout <- QHBoxLayout.new
   cancelButton <- QPushButton.newWithText ("CANCEL" :: String)
@@ -68,6 +83,7 @@ initDelete itemType = do
   let del = Delete{..}
 
   connect_ isSure QAbstractButton.toggledSignal $ isSureToggled del
+  connect_ retypeName QLineEdit.textChangedSignal $ \_ -> revalidate del
   connect_ cancelButton QAbstractButton.clickedSignal $ \_ -> QDialog.reject delete
   connect_ deleteButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept delete
 
@@ -86,18 +102,40 @@ runDelete itemType = do
     QDialog.Rejected -> Cancel
 
 isValid :: Delete -> IO Bool
-isValid Delete{..} = QAbstractButton.isChecked isSure
+isValid Delete{..} = do
+  delIsSure <- QAbstractButton.isChecked isSure
+  delItemName <- T.strip . fromString <$> QLineEdit.text retypeName
+
+  -- We do not ask to retype name for accounts
+  -- (or anything that does not have a name)
+  let isNameChecked = case itemType of
+        UiDelAccount _ -> True
+        UiDelWallet maybeName -> case maybeName of
+          Nothing -> True
+          Just itemName -> delItemName == itemName
+  return $ delIsSure && isNameChecked
+
+isDelWallet :: UiDeletingItem -> Bool
+isDelWallet = \case
+  UiDelWallet _ -> True
+  _ -> False
 
 revalidate :: Delete -> IO ()
 revalidate del@Delete{..} = isValid del >>= QWidget.setEnabled deleteButton
 
 itemTypeFormat :: Format r (UiDeletingItem -> r)
 itemTypeFormat = later $ \case
-  UiDelWallet -> "wallet"
-  UiDelAccount -> "account"
+  UiDelWallet _ -> "wallet"
+  UiDelAccount _ -> "account"
+
+itemTypeName :: UiDeletingItem -> Maybe Text
+itemTypeName = \case
+  UiDelWallet name -> name
+  UiDelAccount name -> name
 
 isSureToggled :: Delete -> Bool -> IO ()
-isSureToggled del@Delete{..} _checked = do
+isSureToggled del@Delete{..} checked = do
   revalidate del
-  when (itemType == UiDelWallet) $ do
+  when (isDelWallet itemType && isJust (itemTypeName itemType)) $ do
+    QWidget.setVisible retypeWidget checked
     QWidget.adjustSize delete
