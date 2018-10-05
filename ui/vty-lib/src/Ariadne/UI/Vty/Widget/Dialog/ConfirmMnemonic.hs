@@ -7,6 +7,7 @@ import qualified Data.Text as T
 
 import qualified Brick as B
 
+import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
@@ -48,24 +49,19 @@ initConfirmMnemonicWidget uiFace = initWidget $ do
         , confirmRemoveWidgetCheckScreen         = False
         , confirmRemoveWidgetCheckOnDevice       = False
         , confirmRemoveWidgetCheckMoved          = False
-        , confirmMnemonicWidgetDialog            = newDialogState "Confirm Mnemonic"
+        , confirmMnemonicWidgetDialog            = newDialogState mnemonicHeaderMessage
         }
 
     addWidgetChild WidgetNameConfirmMnemonicInput $
         initEditWidget (widgetParentLens confirmMnemonicWidgetContentL)
     addWidgetChild WidgetNameConfirmMnemonicCheckScreen
-        $ initCheckboxWidget "Make sure nobody looks into your screen unless \
-                              \you want them to have access to your funds."
+        $ initCheckboxWidget mnemonicNoLooksMessage
         $ widgetParentLens confirmRemoveWidgetCheckScreenL
     addWidgetChild WidgetNameConfirmMnemonicCheckOnDevice
-        $ initCheckboxWidget "I understand that my money are held securely on \
-                              \this device only, not on the company servers"
+        $ initCheckboxWidget mnemonicOnDeviceMessage
         $ widgetParentLens confirmRemoveWidgetCheckOnDeviceL
     addWidgetChild WidgetNameConfirmMnemonicCheckMoved
-        $ initCheckboxWidget "I understand that if this application is moved \
-                              \to another device or deleted, my money can be \
-                              \only recovered with the backup phrase which was \
-                              \written down in a secure place"
+        $ initCheckboxWidget mnemonicAppMovedMessage
         $ widgetParentLens confirmRemoveWidgetCheckMovedL
 
     addDialogButton confirmMnemonicWidgetDialogL
@@ -96,29 +92,19 @@ drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
             drawInsideDialog confirmMnemonicWidgetDialog focus $
                 case confirmMnemonicWidgetConfirmationState of
                     Before -> B.vBox
-                        [ B.padTopBottom 1 $ B.txtWrap $
-                          "On the following screen, you will see a set of " <> 
-                          mnemonicSize <> " random words. This is your wallet \
-                          \backup phrase. It can be entered in any version of \
-                          \Ariadne application in order to restore your wallet’s\
-                          \ funds and private key."
+                        [ B.padTopBottom 1 . B.txtWrap $
+                          mnemonicBeforeMkMessage mnemonicSize
                         , drawChild WidgetNameConfirmMnemonicCheckScreen
                         ]
                     DisplayConfirmMnemonic -> B.vBox
-                        [ B.padTopBottom 1 $ B.txtWrap $
-                          "Please make sure you have carefully writen down your\
-                          \ recovery phrase somewhere safe. You will need this \
-                          \phrase later for next use and recover. \
-                          \Phrase is case sensitive."
+                        [ B.padTopBottom 1 . B.txtWrap $ mnemonicDisplayMessage
                         , B.withAttr "selected" $ B.txtWrap mnemonicText
                         ]
                     RetypeConfirmMnemonic -> B.vBox $
-                        [ B.txtWrap $
-                          "Type each word in the correct order to verify your\
-                          \ recovery phrase."
-                        , B.padLeftRight 1 $ B.vBox
+                        [ B.txtWrap mnemonicRetypeMessage
+                        , B.vBox
                             [ B.padTopBottom 1 $ B.hBox
-                                [ B.txt "RECOVERY PHRASE: "
+                                [ B.padLeftRight 1 $ B.txt $ mnemonicHeaderMessage
                                 , drawChild WidgetNameConfirmMnemonicInput
                                 ]
                             ]
@@ -129,7 +115,7 @@ drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
                             ]
                         else []
   where
-    mnemonicSize = show $ length confirmMnemonicWidgetValue
+    mnemonicSize = length confirmMnemonicWidgetValue
     mnemonicText = T.intercalate " " confirmMnemonicWidgetValue
 
 handleConfirmMnemonicWidgetKey

@@ -10,6 +10,7 @@ import qualified Graphics.Vty as V
 
 import Text.Wrap (WrapSettings (..))
 
+import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Scrolling
@@ -41,12 +42,11 @@ initConfirmSendWidget uiFace = initWidget $ do
         , confirmSendWidgetOutputList = []
         , confirmSendWidgetResultVar  = Nothing
         , confirmSendWidgetCheck      = False
-        , confirmSendWidgetDialog     = newDialogState "Confirm Transaction"
+        , confirmSendWidgetDialog     = newDialogState sendHeaderMessage
         }
 
     addWidgetChild WidgetNameConfirmSendCheck
-        $ initCheckboxWidget "I understand that continuing with this operation\
-                              \ will make it definitive and irreversible."
+        $ initCheckboxWidget sendDefinitiveMessage
         $ widgetParentLens confirmSendWidgetCheckL
     addWidgetChild WidgetNameConfirmSendList $
         initListWidget (widgetParentGetter confirmSendWidgetOutputList) transactionLine
@@ -78,9 +78,7 @@ drawConfirmSendWidget focus ConfirmSendWidgetState{..} = do
             let drawChild = last . drawWidgetChild focus widget
             drawInsideDialog confirmSendWidgetDialog focus $
                 scrollingViewport widgetName B.Vertical $ B.vBox
-                    [ B.padTopBottom 1 $ B.txtWrap $ "This is the list of this \
-                      \operation's output transitions. \
-                      \Please review them carefully."
+                    [ B.padTopBottom 1 $ B.txtWrap $ sendListMessage
                     , B.padTopBottom 1 $ drawChild WidgetNameConfirmSendList
                     , drawChild WidgetNameConfirmSendCheck
                     ]

@@ -3,9 +3,11 @@ module Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
     ) where
 
 import Control.Lens (makeLensesWith, (.=))
+import Formatting
 
 import qualified Brick as B
 
+import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
@@ -15,12 +17,16 @@ import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
 data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
-    { confirmRemoveWidgetUiFace    :: !UiFace
-    , confirmRemoveWidgetResultVar :: !(Maybe (MVar Bool))
-    , confirmRemoveWidgetDelItem   :: !(Maybe UiDeletingItem)
-    , confirmRemoveWidgetCheck     :: !Bool
-    , confirmRemoveWidgetName      :: !Text
-    , confirmRemoveWidgetDialog    :: !DialogState
+    { confirmRemoveWidgetUiFace     :: !UiFace
+    , confirmRemoveWidgetDelRequest :: !(Maybe DeleteRequest)
+    , confirmRemoveWidgetCheck      :: !Bool
+    , confirmRemoveWidgetName       :: !Text
+    , confirmRemoveWidgetDialog     :: !DialogState
+    }
+
+data DeleteRequest = DeleteRequest
+    { requestResultVar :: !(MVar Bool)
+    , requestDelItem   :: !UiDeletingItem
     }
 
 makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
@@ -31,18 +37,15 @@ initConfirmRemoveWidget uiFace = initWidget $ do
     setWidgetHandleKey handleConfirmRemoveWidgetKey
     setWidgetHandleEvent handleConfirmRemoveWidgetEvent
     setWidgetState ConfirmRemoveWidgetState
-        { confirmRemoveWidgetUiFace    = uiFace
-        , confirmRemoveWidgetResultVar = Nothing
-        , confirmRemoveWidgetDelItem   = Nothing
-        , confirmRemoveWidgetCheck     = False
-        , confirmRemoveWidgetName      = ""
-        , confirmRemoveWidgetDialog    = newDialogState "Confirm Deletion"
+        { confirmRemoveWidgetUiFace     = uiFace
+        , confirmRemoveWidgetDelRequest = Nothing
+        , confirmRemoveWidgetCheck      = False
+        , confirmRemoveWidgetName       = ""
+        , confirmRemoveWidgetDialog     = newDialogState deleteHeaderMessage
         }
     
     addWidgetChild WidgetNameConfirmRemoveCheck
-        $ initCheckboxWidget "Make sure you have access to backup before \
-                              \continuing. Otherwise you will lose all your \
-                              \funds connected to this."
+        $ initCheckboxWidget deleteSureMessage
         $ widgetParentLens confirmRemoveWidgetCheckL
     addWidgetChild WidgetNameConfirmRemoveName $ initEditWidget $
         widgetParentLens confirmRemoveWidgetNameL
@@ -65,43 +68,42 @@ drawConfirmRemoveWidget
     -> ConfirmRemoveWidgetState
     -> WidgetDrawM ConfirmRemoveWidgetState p WidgetDrawing
 drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
-    case confirmRemoveWidgetResultVar of
+    case confirmRemoveWidgetDelRequest of
         Nothing -> return $ singleDrawing B.emptyWidget
-        Just _  -> do
+        Just DeleteRequest {..} -> do
             widget <- ask
             let drawChild = last . drawWidgetChild focus widget
+                itemName = delItemName requestDelItem
+                hasNameToConfirm = isJust $ itemNameToConfirm requestDelItem
             drawInsideDialog confirmRemoveWidgetDialog focus $ B.vBox
                 [ B.padTopBottom 1 . B.txtWrap $
-                  "Do you really want to delete " <> itemName <> itemTypeText <> "?"
+                  deleteIntroMkMessage itemTypeFormat itemName requestDelItem
                 , drawChild WidgetNameConfirmRemoveCheck
                 , if confirmRemoveWidgetCheck && hasNameToConfirm
                   then B.padTopBottom 1 $ B.hBox
                     [ B.padLeftRight 1 . B.txtWrap $
-                      "Type" <> itemTypeText <> " name to confirm deletion"
+                      deleteRetypeMkMessage itemTypeFormat requestDelItem
                     , drawChild WidgetNameConfirmRemoveName
                     ]
                   else B.emptyWidget
                 ]
-  where
-    itemTypeText = case confirmRemoveWidgetDelItem of
-        Just (UiDelWallet _) -> " wallet"
-        Just (UiDelAccount _) -> " account"
-        _ -> ""
-    itemName = delItemName confirmRemoveWidgetDelItem
-    hasNameToConfirm = isJust (itemNameToConfirm confirmRemoveWidgetDelItem)
+
+itemTypeFormat :: Format r (UiDeletingItem -> r)
+itemTypeFormat = later $ \case
+    UiDelWallet _  -> "wallet"
+    UiDelAccount _ -> "account"
 
 -- no confirm is requested for an account (or something with no name)
-itemNameToConfirm :: Maybe UiDeletingItem -> Maybe Text
+itemNameToConfirm :: UiDeletingItem -> Maybe Text
 itemNameToConfirm = \case
-    Just (UiDelWallet maybeName) -> maybeName
+    UiDelWallet maybeName -> maybeName
     _ -> Nothing
 
 -- only for rendering, gives back "this" if it doesn't know any better
-delItemName :: Maybe UiDeletingItem -> Text
-delItemName maybeDelItem = fromMaybe "this" $ case maybeDelItem of
-  Just (UiDelWallet maybeName) -> maybeName
-  Just (UiDelAccount maybeName) -> maybeName
-  _ -> Nothing
+delItemName :: UiDeletingItem -> Text
+delItemName delItem = fromMaybe "this" $ case delItem of
+    UiDelWallet maybeName -> maybeName
+    UiDelAccount maybeName -> maybeName
 
 handleConfirmRemoveWidgetKey
     :: KeyboardEvent
@@ -112,26 +114,25 @@ handleConfirmRemoveWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
-performContinue = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
-    unlessM (nameNotConfirmed) $ putMVar resultVar True *> closeDialog
+performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
+    \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
+        putMVar requestResultVar True *> closeDialog
   where
-    nameNotConfirmed = use confirmRemoveWidgetDelItemL >>= \delItem ->
-        case itemNameToConfirm delItem of
-            Just nameValue -> do
-                confirmNameValue <- use confirmRemoveWidgetNameL
-                return $ nameValue /= confirmNameValue
-            Nothing -> return False
+    nameNotConfirmed delItem = case itemNameToConfirm delItem of
+        Just nameValue -> do
+            confirmNameValue <- use confirmRemoveWidgetNameL
+            return $ nameValue /= confirmNameValue
+        Nothing -> return False
 
 performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
-performCancel = whenJustM (use confirmRemoveWidgetResultVarL) $ \resultVar ->
-    putMVar resultVar False *> closeDialog
+performCancel = whenJustM (use confirmRemoveWidgetDelRequestL) $
+    \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
 
 closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
 closeDialog = do
     UiFace{..} <- use confirmRemoveWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmRemoveWidgetResultVarL .= Nothing
-    confirmRemoveWidgetDelItemL .= Nothing
+    confirmRemoveWidgetDelRequestL .= Nothing
     confirmRemoveWidgetCheckL .= False
     confirmRemoveWidgetNameL .= ""
 
@@ -139,7 +140,6 @@ handleConfirmRemoveWidgetEvent
     :: UiEvent
     -> WidgetEventM ConfirmRemoveWidgetState p ()
 handleConfirmRemoveWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmRemove delItem)) -> do
-        confirmRemoveWidgetResultVarL .= Just resVar
-        confirmRemoveWidgetDelItemL   .= Just delItem
+    UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) ->
+        confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
     _ -> pass
