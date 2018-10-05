@@ -2,10 +2,11 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Universum hiding (head, tail)
-import Universum.Unsafe (head, tail)
+import Data.List ((!!))
+import Universum hiding (head, last, tail)
+import Universum.Unsafe (head, last, tail)
 
-import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
+import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
 import Named
 
 import qualified Brick as B
@@ -45,7 +46,8 @@ data ReplWidgetState p =
     , replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
-    , replWidgetCurrentAutocompletion :: !(Maybe [Text])
+    , replWidgetCommandLocation :: !(Int, Int)
+    , replWidgetCurrentAutocompletion :: !(Maybe [(Text, (Int, Int))])
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
     , replWidgetFullsizeGetter :: !(p -> Bool)
@@ -65,6 +67,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       , replWidgetLangFace = langFace
       , replWidgetHistoryFace = historyFace
       , replWidgetCommand = ""
+      , replWidgetCommandLocation = (0, 0)
       , replWidgetCurrentAutocompletion = Nothing
       , replWidgetParseResult = mkReplParseResult langFace ""
       , replWidgetOut = [OutputInfo ariadneBanner]
@@ -72,13 +75,21 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       }
 
     addWidgetChild WidgetNameReplInput $
-      initBaseEditWidget (widgetParentLens replWidgetCommandL) "default" id (Just $ widgetParentGetter spanAttrs) EnterWithBackslash
+      initBaseEditWidget
+        (widgetParentLens replWidgetCommandL)
+        (Just $ Lens $ widgetParentLens replWidgetCommandLocationL)
+        "default"
+        id
+        (Just $ widgetParentGetter spanAttrs)
+        EnterWithBackslash
 
     addWidgetEventHandler WidgetNameReplInput $ \case
       WidgetEventEditChanged -> do
         reparse
         replWidgetCurrentAutocompletionL .= Nothing
         historyUpdate
+      WidgetEventEditLocationChanged -> do
+        replWidgetCurrentAutocompletionL .= Nothing
       _ -> return ()
 
     setWidgetFocusList [WidgetNameReplInput]
@@ -188,19 +199,31 @@ handleReplWidgetKey = \case
         then return WidgetEventNotHandled
         else do
           replWidgetCommandL .= ""
+          replWidgetCommandLocationL .= (0, 0)
           reparse
           return WidgetEventHandled
     KeyAutocomplete -> do
       ReplWidgetState{..} <- get
       options <- case replWidgetCurrentAutocompletion of
         Nothing -> do
-          let options = tail $ cycle
-                $ replWidgetCommand : langAutocomplete replWidgetLangFace replWidgetCommand
+          let
+            ls = T.splitOn "\n" replWidgetCommand
+            (locRow, locColumn) = replWidgetCommandLocation
+            cmdBeforeLocation = T.intercalate "\n"
+              $ snoc (take locRow ls) (T.take locColumn (ls !! locRow))
+            cmdAfterLocation = T.intercalate "\n"
+              $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
+            suggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
+            suggestions' = (`map` suggestions) $ \suggestion ->
+              let ls' = T.splitOn "\n" suggestion
+              in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ last ls'))
+            options = tail $ cycle $ (replWidgetCommand, replWidgetCommandLocation) : suggestions'
           zoom replWidgetCurrentAutocompletionL $ put $ Just options
           pure options
         Just options -> pure options
       let nextOption = head options
-      replWidgetCommandL .= nextOption
+      replWidgetCommandL .= fst nextOption
+      replWidgetCommandLocationL .= snd nextOption
       reparse
       replWidgetCurrentAutocompletionL .= Just (tail options)
       return WidgetEventHandled
@@ -224,6 +247,7 @@ handleReplWidgetKey = \case
                   out = OutputCommand commandId commandSrc [] Nothing
                 zoom replWidgetOutL $ modify (out:)
                 replWidgetCommandL .= ""
+                replWidgetCommandLocationL .= (0, 0)
                 reparse
             widgetName <- B.getName <$> lift get
             liftBrick $ do
@@ -238,7 +262,12 @@ handleReplWidgetKey = \case
     historyNavigate action = do
       ReplWidgetState{..} <- get
       cmd <- liftIO $ action replWidgetHistoryFace
-      whenJust cmd $ assign replWidgetCommandL
+      whenJust cmd $ \cmd' -> do
+        let
+          ls = T.splitOn "\n" cmd'
+          newLoc = (length ls - 1, T.length $ ls !! (length ls - 1))
+        assign replWidgetCommandL cmd'
+        assign replWidgetCommandLocationL newLoc
       reparse
       return WidgetEventHandled
 
