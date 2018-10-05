@@ -7,6 +7,7 @@ import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
 
+import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
@@ -35,7 +36,7 @@ initPasswordWidget putPassword uiFace = initWidget $ do
         , passwordWidgetUiFace      = uiFace
         , passwordWidgetContent     = ""
         , passwordWidgetRecipient   = Nothing
-        , passwordWidgetDialog      = newDialogState "Insert Password"
+        , passwordWidgetDialog      = newDialogState passwordHeaderMessage
         }
 
     addWidgetChild WidgetNamePasswordInput $
@@ -59,9 +60,8 @@ drawPasswordWidget focus PasswordWidgetState{..} = do
     case passwordWidgetRecipient of
         Nothing -> return $ singleDrawing B.emptyWidget
         Just _  -> drawInsideDialog passwordWidgetDialog focus $
-            B.padLeftRight 1 $
             B.hBox
-                [ B.txt "Password: "
+                [ B.padLeftRight 1 $ B.txt passwordLabelMessage
                 , last $ drawWidgetChild focus widget WidgetNamePasswordInput
                 ]
 

@@ -18,6 +18,7 @@ import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UIConfig
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
@@ -39,7 +40,7 @@ initDelete itemType = do
   delete <- QDialog.new
   layout <- createLayout delete
 
-  let headerString = toString . T.toUpper $ sformat ("delete " % itemTypeFormat) itemType
+  let headerString = toString . T.toUpper $ deleteHeaderMkMessage itemTypeFormat itemType
       itemName = fromMaybe "this" $ itemTypeName itemType
 
   QWidget.setWindowTitle delete headerString
@@ -47,20 +48,18 @@ initDelete itemType = do
   header <- QLabel.newWithText headerString
   addHeader layout header
 
-  warningLabel <- QLabel.newWithText . toString $ sformat
-    ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
+  warningLabel <- QLabel.newWithText . toString $
+      deleteIntroMkMessage itemTypeFormat ("<b>" <> itemName <> "</b>") itemType
   QBoxLayout.addWidget layout warningLabel
 
-  isSure <- createCheckBox layout CheckboxOnLeft $ sformat
-    ("Make sure you have access to backup before continuing. \
-     \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
-    itemType
+  isSure <- createCheckBox layout CheckboxOnLeft $
+      deleteSureMkMessage itemTypeFormat itemType
 
   (retypeWidget, retypeLayout) <- createSubWidget
   addSeparator retypeLayout
 
-  retypeLabel <- QLabel.newWithText . toString $ sformat
-    ("Type " % itemTypeFormat % " name to confirm deletion") itemType
+  retypeLabel <- QLabel.newWithText . toString $
+      deleteRetypeMkMessage itemTypeFormat itemType
   retypeName <- QLineEdit.new
   addRow retypeLayout retypeLabel retypeName
 
