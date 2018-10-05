@@ -97,9 +97,9 @@ data WalletEvent
   | WalletRequireConfirm (MVar Bool) ConfirmationType
 
 data ConfirmationType
-  = ConfirmMnemonic [Text]        -- ^ mnemonic
-  | ConfirmRemove WalletSelection -- ^ selection
-  | ConfirmSend [ConfirmSendInfo] -- ^ lists of outputs
+  = ConfirmMnemonic [Text]           -- ^ mnemonic
+  | ConfirmRemove DB WalletSelection -- ^ walletDB, selection
+  | ConfirmSend [ConfirmSendInfo]    -- ^ lists of outputs' info
 
 data ConfirmSendInfo =
   ConfirmSendInfo

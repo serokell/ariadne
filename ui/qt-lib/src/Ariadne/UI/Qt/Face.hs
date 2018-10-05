@@ -154,7 +154,10 @@ data UiConfirmSendInfo =
     , csiCoin    :: Text
     }
 
-data UiDeletingItem = UiDelWallet | UiDelAccount deriving Eq
+data UiDeletingItem
+  = UiDelWallet (Maybe Text)
+  | UiDelAccount (Maybe Text)
+  deriving Eq
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

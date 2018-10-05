@@ -285,7 +285,7 @@ walletEventToUI = \case
   WalletRequireConfirm resVar confirmationType ->
     Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
       ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
-      ConfirmRemove selection  -> UiConfirmRemove $ toUiDeletingItem selection
+      ConfirmRemove _ sel      -> UiConfirmRemove $ toUiDeletingItem sel
       ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
 
 toUiDeletingItem :: WalletSelection -> UiDeletingItem

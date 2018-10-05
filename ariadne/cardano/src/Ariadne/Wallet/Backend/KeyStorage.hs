@@ -416,7 +416,8 @@ removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm = do
     Nothing -> pure Nothing
     -- Throw "Nothing selected" here?
     Just selection -> do
-      unlessM (waitUiConfirm $ ConfirmRemove selection) $ throwM RemoveFailedUnconfirmed
+      walletDb <- pwlGetDBSnapshot pwl
+      unlessM (waitUiConfirm $ ConfirmRemove walletDb selection) $ throwM RemoveFailedUnconfirmed
       case selection of
         WSRoot hdrId -> do
           throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId
