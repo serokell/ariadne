@@ -140,6 +140,7 @@ data WidgetNamePart
 
   | WidgetNameConfirmRemove
   | WidgetNameConfirmRemoveCheck
+  | WidgetNameConfirmRemoveName
   | WidgetNameConfirmRemoveContinue
   | WidgetNameConfirmRemoveCancel
 

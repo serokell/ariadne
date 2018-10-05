@@ -195,8 +195,10 @@ data UiConfirmSendInfo =
     , csiCoin    :: Text
     }
 
-
-data UiDeletingItem = UiDelWallet | UiDelAccount deriving Eq
+data UiDeletingItem
+  = UiDelWallet (Maybe Text)
+  | UiDelAccount (Maybe Text)
+  deriving Eq
 
 ----------------------------------------------------------------------------
 -- UI commands
