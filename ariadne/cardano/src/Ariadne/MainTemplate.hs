@@ -5,7 +5,7 @@ module Ariadne.MainTemplate
        , defaultMain
        ) where
 
-import Control.Concurrent.Async (race_, withAsync)
+import Control.Concurrent.Async (link, race_, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))
 import Data.Version (Version)
@@ -154,7 +154,19 @@ initializeEverything MainSettings {..}
     serviceAction :: IO ()
     serviceAction =
       raceWithUpdateCheckAction $
-      uiAction `race_`
       cardanoAction
 
-  return $ withAsync initAction $ \_ -> serviceAction
+    mainAction :: IO ()
+    mainAction = do
+      initAction
+
+      -- Spawn backend actions in async thread, then run ui action in the main thread
+      -- This is needed because some UI libraries (Qt) insist on livng in the main thread
+      withAsync serviceAction $ \serviceThread -> do
+        -- Make backend rethrow all exceptions in main thread if something goes wrong
+        link serviceThread
+        -- TODO (AD-432) if uiAction blocks exceptions, for example by entering FFI call and not
+        -- returning from it, exceptions from the linked thread won't be rethrown correctly.
+        uiAction
+
+  return mainAction
