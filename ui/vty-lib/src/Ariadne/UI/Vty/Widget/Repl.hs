@@ -316,7 +316,7 @@ isQuitCommand t =
 ariadneBanner :: AdaptiveImage
 ariadneBanner (Named defAttr) _ = V.vertCat $ map (V.text' defAttr)
   [ "             ___         _           __         "
-  , "            /   |  _____(_)___ _____/ /___  ___ "
+  , "            /   |  _____(_)___  ____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
   , "          / ___ |/ /  / / /_/ / /_/ / / / /  __/"
   , "         /_/  |_/_/  /_/\\__,_/\\__,_/_/ /_/\\___/ "
