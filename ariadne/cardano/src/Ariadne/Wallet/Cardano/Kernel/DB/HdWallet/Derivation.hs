@@ -2,21 +2,23 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (
       mkHdAccountIx
     , mkHdAddressIx
     , deriveBip44KeyPair
+    , deriveFirstBip44KeyPair
     ) where
 
 import qualified Data.Set as S
 import qualified Data.Vector as V
 import Named ((!))
 
+import Cardano.Crypto.Wallet.Types (DerivationIndex)
 import Pos.Core (Address, IsBootstrapEraAddr(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, ShouldCheckPassphrase(..), encToPublic)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Bip32 as Bip32
-import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
 import qualified Ariadne.Wallet.Cardano.Kernel.Bip44 as Bip44
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
-import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
+import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31, unsafeMkWord31)
 import qualified Ariadne.Wallet.Cardano.Kernel.Word31 as Word31
 
 -- TODO: make sure that account indexation should be sequential
@@ -60,7 +62,7 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
     toPair <$>
     Bip32.deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
   where
-    derPath :: [Word32]
+    derPath :: [DerivationIndex]
     derPath = Bip44.encodeBip44DerivationPath bip44DerPath
     toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
     toPair addrSK =
@@ -70,6 +72,20 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
               ! #root (encToPublic rootSK)
               ! #address (encToPublic addrSK)
         , addrSK)
+
+deriveFirstBip44KeyPair
+    :: IsBootstrapEraAddr
+    -> PassPhrase
+    -> EncryptedSecretKey
+    -> Maybe (Address, EncryptedSecretKey)
+deriveFirstBip44KeyPair era pp rootSK =
+    deriveBip44KeyPair era pp rootSK bip44DerPath
+  where
+    bip44DerPath = Bip44DerivationPath
+        { bip44AccountIndex = HD.HdAccountIx (unsafeMkWord31 0)
+        , bip44AddressChain = HD.HdChainExternal
+        , bip44AddressIndex = HD.HdAddressIx (unsafeMkWord31 0)
+        }
 
 {-------------------------------------------------------------------------------
   Helpers

@@ -22,13 +22,15 @@ import Data.Acid.Advanced (update')
 import Pos.Core (Timestamp)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase, emptyPassphrase)
 
-import Ariadne.Wallet.Cardano.Kernel.Accounts (createAccount, CreateAccountError(..))
-import Ariadne.Wallet.Cardano.Kernel.Addresses (createAddress, CreateAddressError (..))
+import Ariadne.Wallet.Cardano.Kernel.Accounts
+  (CreateAccountError(..), createAccount)
+import Ariadne.Wallet.Cardano.Kernel.Addresses
+  (CreateAddressError(..), createAddress)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
   UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-  (AccountName(..), AssuranceLevel, HdAddressChain(..), HdAccountId, HdRoot, WalletName)
+  (AccountName(..), AssuranceLevel, HdAddressChain(..), HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as HD
@@ -36,8 +38,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
-import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (PrefilteredUtxo)
-import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..), AccountId(..))
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
+import Ariadne.Wallet.Cardano.Kernel.Types (AccountId(..), WalletId(..))
 import Ariadne.Wallet.Cardano.Kernel.Util (getCurrentTimestamp)
 
 import Test.QuickCheck (Arbitrary(..))
@@ -80,53 +82,62 @@ mkHasPP pp = HasNonemptyPassphrase $ pp /= emptyPassphrase
 -------------------------------------------------------------------------------}
 
 -- | Creates a new HD 'Wallet'.
-createHdWallet :: PassiveWallet
-             -> EncryptedSecretKey
-             -- ^ Wallet's encrypted secret key. Should be generated outside.
-             -> HasNonemptyPassphrase
-             -- ^ Whether the newly created wallet has a non-empty passphrase.
-             -> CreateWithAddress
-             -- ^ Whether we need to auto create an account and address for new wallet or not
-             -> AssuranceLevel
-             -- ^ The 'AssuranceLevel' for this wallet, namely after how many
-             -- blocks each transaction is considered 'adopted'. This translates
-             -- in the frontend with a different threshold for the confirmation
-             -- range (@low@, @medium@, @high@).
-             -> WalletName
-             -- ^ The name for this wallet.
-             -> Map HdAccountId PrefilteredUtxo
-             -- ^ Initial utxo for the new wallet.
-             -> IO (Either CreateWalletError HdRoot)
+createHdWallet
+    :: PassiveWallet
+    -> EncryptedSecretKey
+    -- ^ Wallet's encrypted secret key. Should be generated outside.
+    -> HasNonemptyPassphrase
+    -- ^ Whether the newly created wallet has a non-empty passphrase.
+    -> CreateWithAddress
+    -- ^ Whether we need to auto create an account and address for new wallet or not
+    -> AssuranceLevel
+    -- ^ The 'AssuranceLevel' for this wallet, namely after how many
+    -- blocks each transaction is considered 'adopted'. This translates
+    -- in the frontend with a different threshold for the confirmation
+    -- range (@low@, @medium@, @high@).
+    -> WalletName
+    -- ^ The name for this wallet.
+    -> UtxoByAccount
+    -- ^ Initial utxo for the new wallet.
+    -> IO (Either CreateWalletError HdRoot)
 createHdWallet pw esk hasNonemptyPP createWithA assuranceLevel walletName utxoByAccount = do
+    -- Note: upstream implementation inserted a new HdRoot into acid-state
+    -- first, and then added the new key into the keystore. We do
+    -- this in the reverse order because we want to maintain the
+    -- invariant where having an HdRoot in the acid-state guarantees
+    -- that the corresponding key is present in the keystore.
+    --
     -- STEP 1: Insert the 'EncryptedSecretKey' into the 'Keystore'
-    let newRootId = HD.eskToHdRootId esk
-        walletId = WalletIdHdSeq newRootId
-    -- This may throw an IO exception.
-    Keystore.insert walletId esk (pw ^. walletKeystore)
-    -- STEP 2: Atomically generate the wallet and the initial internal structure in
-    -- an acid-state transaction.
-    res <- createWalletHdSeq
-        pw
-        hasNonemptyPP
-        walletName
-        assuranceLevel
-        esk
-        utxoByAccount
-    case res of
-        Left e -> do
-            Keystore.delete walletId (pw ^. walletKeystore)
-            return . Left $ CreateWalletFailed e
-        Right hdRoot -> do
-            case createWithA of
-                WithoutAddress         -> return (Right hdRoot)
-                WithAddress passphrase -> do
-                    addressRes <- runExceptT $ addDefaultAddress pw walletId passphrase
-                    case addressRes of
-                        Left e   -> return $ Left e
-                        Right () -> return (Right hdRoot)
-
-
-
+    -- This may throw an IO exception, which we rewrap into Either
+    -- in order to follow the general pattern of imported code.
+    let hdrId = HD.eskToHdRootId esk
+        walletId = WalletIdHdSeq hdrId
+    res1 <- try $ Keystore.insert walletId esk (pw ^. walletKeystore)
+    case res1 of
+        Left Keystore.DuplicatedWalletKey ->
+            pure $ Left $ CreateWalletFailed (HD.CreateHdRootExists hdrId)
+        Right () -> do
+            -- STEP 2: Atomically generate the wallet and the initial internal structure in
+            -- an acid-state transaction.
+            res2 <- createWalletHdSeq
+                pw
+                hasNonemptyPP
+                walletName
+                assuranceLevel
+                esk
+                utxoByAccount
+            case res2 of
+                Left e -> do
+                    liftIO $ Keystore.delete walletId (pw ^. walletKeystore)
+                    pure $ Left $ CreateWalletFailed e
+                Right hdRoot -> do
+                    case createWithA of
+                        WithoutAddress         -> return (Right hdRoot)
+                        WithAddress passphrase -> do
+                            addressRes <- runExceptT $ addDefaultAddress pw walletId passphrase
+                            case addressRes of
+                                Left e   -> return $ Left e
+                                Right () -> return (Right hdRoot)
 
 -- | Creates an HD wallet where new accounts and addresses are generated
 -- via sequential index derivation.
@@ -142,7 +153,7 @@ createWalletHdSeq :: PassiveWallet
                   -> HD.WalletName
                   -> AssuranceLevel
                   -> EncryptedSecretKey
-                  -> Map HdAccountId PrefilteredUtxo
+                  -> UtxoByAccount
                   -> IO (Either HD.CreateHdRootError HdRoot)
 createWalletHdSeq pw (HasNonemptyPassphrase hasPP) name assuranceLevel esk utxoByAccount = do
     created <- InDb <$> getCurrentTimestamp

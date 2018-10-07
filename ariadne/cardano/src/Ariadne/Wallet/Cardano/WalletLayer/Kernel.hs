@@ -1,6 +1,6 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
     ( passiveWalletLayerComponent
-    , passiveWalletLayerWithDBComponent
+    , passiveWalletLayerCustomDBComponent
     ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
@@ -41,16 +41,17 @@ passiveWalletLayerComponent logFunction keystore dbPath = do
     acidDB <- buildComponent "Wallet DB"
         (openLocalStateFrom dbPath defDB)
         closeAcidState
-    passiveWalletLayerWithDBComponent logFunction keystore acidDB
+    (pwl, _pw) <- passiveWalletLayerCustomDBComponent logFunction keystore acidDB
+    pure pwl
 
-passiveWalletLayerWithDBComponent
+passiveWalletLayerCustomDBComponent
     :: forall n. (MonadIO n)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
-    -> ComponentM (PassiveWalletLayer n)
-passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
-    w <- Kernel.passiveWalletWithDBComponent logFunction keystore acidDB
+    -> ComponentM (PassiveWalletLayer n, Kernel.PassiveWallet)
+passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
+    w <- Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB
 
     -- Create the wallet worker and its communication endpoint `invoke`.
     invoke <-
@@ -64,8 +65,7 @@ passiveWalletLayerWithDBComponent logFunction keystore acidDB = do
                 }
             )
             (\invoke -> liftIO (invoke Actions.Shutdown))
-    pure $ passiveWalletLayer w invoke
-
+    pure $ (passiveWalletLayer w invoke, w)
   where
     passiveWalletLayer :: Kernel.PassiveWallet
                        -> (Actions.WalletAction Blund -> IO ())

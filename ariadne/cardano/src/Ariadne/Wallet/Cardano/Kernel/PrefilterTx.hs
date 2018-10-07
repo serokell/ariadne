@@ -1,9 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes, ScopedTypeVariables, TypeFamilies #-}
 
 module Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-       ( PrefilteredBlock(..)
+       ( AddrWithId
        , PrefilteredUtxo
-       , AddrWithId
+       , UtxoByAccount
+       , PrefilteredBlock(..)
        , emptyPrefilteredBlock
        , pfbInputs
        , pfbOutputs
@@ -45,13 +46,16 @@ import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 -- | Address extended with an HdAddressId, which embeds information that places
 --   the Address in the context of the Wallet/Accounts/Addresses hierarchy.
-type AddrWithId = (HdAddressId,Address)
+type AddrWithId = (HdAddressId, Address)
 
 -- | A mapping from (extended) addresses to their corresponding Utxo
 type PrefilteredUtxo = Map AddrWithId Utxo
 
 -- | A mapping from (extended) addresses to the inputs that were spent from them
 type PrefilteredInputs = Map AddrWithId (Set TxIn)
+
+-- | Prefiltered utxo with more structure.
+type UtxoByAccount = Map HdAccountId PrefilteredUtxo
 
 -- | Prefiltered block
 --
@@ -71,10 +75,10 @@ data PrefilteredBlock = PrefilteredBlock {
 deriveSafeCopySimple 1 'base ''PrefilteredBlock
 
 pfbInputs :: PrefilteredBlock -> Set TxIn
-pfbInputs PrefilteredBlock {..} = Set.unions $ Map.elems pfbPrefilteredInputs
+pfbInputs PrefilteredBlock {..} = Set.unions $ elems pfbPrefilteredInputs
 
 pfbOutputs :: PrefilteredBlock -> Utxo
-pfbOutputs PrefilteredBlock {..} = Map.unions $ Map.elems pfbPrefilteredUtxo
+pfbOutputs PrefilteredBlock {..} = Map.unions $ elems pfbPrefilteredUtxo
 
 -- | Empty prefiltered block
 --
@@ -148,7 +152,7 @@ prefilterInputs wKey inps
 -- | Prefilter utxo using wallet key
 prefilterUtxo' :: WalletKey -> Utxo -> Map HdAccountId UtxoWithAddrId
 prefilterUtxo' wKey utxo
-    = prefilterResolvedTxPairs wKey mergeF (Map.toList utxo)
+    = prefilterResolvedTxPairs wKey mergeF (toPairs utxo)
     where
         mergeF = Map.fromListWith Map.union . (map f)
 
@@ -156,7 +160,7 @@ prefilterUtxo' wKey utxo
                                     Map.singleton txIn (txOut, addrId))
 
 -- | Prefilter utxo using walletId and esk
-prefilterUtxo :: HdRootId -> EncryptedSecretKey -> Utxo -> Map HdAccountId PrefilteredUtxo
+prefilterUtxo :: HdRootId -> EncryptedSecretKey -> Utxo -> UtxoByAccount
 prefilterUtxo rootId esk utxo = map (toPrefilteredUtxo id) prefUtxo
     where
         prefUtxo = prefilterUtxo' wKey utxo
@@ -181,7 +185,7 @@ toPrefilteredUtxo toHdAddressId =
         -> Map k1 v1
         -> Map k2 [v2]
     groupBy getKey getValue =
-        Map.fromListWith (++) . map (getKey &&& (one . getValue)) . Map.toList
+        Map.fromListWith (++) . map (getKey &&& (one . getValue)) . toPairs
 
 -- | Prefilter resolved transaction pairs.
 --   Also returns a Boolean indicating whether @all@ pairs are "ours"
@@ -224,7 +228,7 @@ extendWithSummary :: Map TxIn (TxOutAux,HdAddressId)
                   -> Map TxIn (TxOutAux,AddressSummary)
                   -- ^ Utxo extended with AddressSummary
 extendWithSummary utxoWithAddrId
-    = Map.fromList $ mapMaybe toAddrSummary (Map.toList utxoWithAddrId)
+    = Map.fromList $ mapMaybe toAddrSummary (toPairs utxoWithAddrId)
     where
         toAddrSummary (txIn,(txOutAux,addressId))
             = case txIn of
@@ -321,7 +325,7 @@ fromUtxoSummary :: Map TxIn (TxOutAux,AddressSummary)
                 -> (PrefilteredUtxo,[AddressSummary])
 fromUtxoSummary summary = (toPrefilteredUtxo addrSummaryId summary, addrs)
     where
-        addrs = map snd $ Map.elems summary
+        addrs = map snd $ elems summary
 
 {-------------------------------------------------------------------------------
   Pretty-printing
@@ -338,7 +342,7 @@ mapBuilderExplicit
 mapBuilderExplicit formatK formatV =
     setBuilder
     . map (\(k, v) -> (formatK k) <> ": " <> (formatV v))
-    . Map.toList
+    . toPairs
 
 prefilteredInputsF :: Format r (PrefilteredInputs -> r)
 prefilteredInputsF = later $ mapBuilderExplicit pairBuilder setBuilder

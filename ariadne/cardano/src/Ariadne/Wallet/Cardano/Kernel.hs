@@ -9,9 +9,7 @@ module Ariadne.Wallet.Cardano.Kernel (
     PassiveWallet -- opaque
   , DB -- opaque
   , WalletId
-  , passiveWalletComponent
-  , passiveWalletWithDBComponent
-  , inMemoryDBComponent
+  , passiveWalletCustomDBComponent
   , init
   , walletLogMessage
   , walletKeystore
@@ -34,7 +32,6 @@ import System.Wlog (Severity(..))
 
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
-import Data.Acid.Memory (openMemoryState)
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
 
@@ -46,7 +43,7 @@ import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
   (ApplyBlock(..), DB, ObservableRollbackUseInTestsOnly(..), Snapshot(..),
-  SwitchToFork(..), defDB)
+  SwitchToFork(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 
@@ -60,25 +57,14 @@ import Pos.Core.Chrono (OldestFirst)
 --
 -- Here and elsewhere we'll want some constraints on this monad here, but
 -- it shouldn't be too specific.
-passiveWalletComponent
-    :: (Severity -> Text -> IO ())
-    -> Keystore
-    -> ComponentM PassiveWallet
-passiveWalletComponent logMsg keystore = do
-    acidDB <- inMemoryDBComponent
-    passiveWalletWithDBComponent logMsg keystore acidDB
 
-passiveWalletWithDBComponent
+passiveWalletCustomDBComponent
     :: (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
     -> ComponentM PassiveWallet
-passiveWalletWithDBComponent logMsg keystore acidDB =
-    buildComponent_ "PassiveWallet" $ initPassiveWallet logMsg keystore acidDB
-
-inMemoryDBComponent
-    :: ComponentM (AcidState DB)
-inMemoryDBComponent = buildComponent_ "InMemoryDB" (openMemoryState defDB)
+passiveWalletCustomDBComponent logMsg keystore acidDB =
+    buildComponent_ "Passive wallet" $ initPassiveWallet logMsg keystore acidDB
 
 {-------------------------------------------------------------------------------
   Manage the Wallet's ESKs

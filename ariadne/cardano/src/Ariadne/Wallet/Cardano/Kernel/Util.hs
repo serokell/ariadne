@@ -118,7 +118,7 @@ modifyAndGetOld f = state $ \old -> let new = f old in (old, new)
 -- If it does, this is clearly a bug and we throw an 'ErrorCall' exception
 -- (crf. 'unsafeAddCoin' implementation).
 utxoBalance :: Core.Utxo -> Core.Coin
-utxoBalance = foldl' updateFn (Core.mkCoin 0) . Map.elems
+utxoBalance = foldl' updateFn (Core.mkCoin 0) . elems
     where
         updateFn :: Core.Coin -> Core.TxOutAux -> Core.Coin
         updateFn acc txOutAux =

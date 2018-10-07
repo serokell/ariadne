@@ -38,7 +38,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
   , hdAccountCheckpoints
   , hdAddressId
   , hdAddressAddress
-  , hdAddressIsUsed
   , hdAddressCheckpoints
     -- ** Composite lenses
   , hdAccountRootId
@@ -178,7 +177,7 @@ data HdRootId = HdRootId { getHdRootId :: InDb (Core.AddressHash Core.PublicKey)
 
 instance Arbitrary HdRootId where
   arbitrary = do
-      (_, esk) <- Core.safeDeterministicKeyGen <$> (BS.pack <$> vectorOf 12 arbitrary)
+      (_, esk) <- Core.safeDeterministicKeyGen <$> (BS.pack <$> vectorOf 32 arbitrary)
                                                <*> pure mempty
       pure (eskToHdRootId esk)
 
@@ -277,16 +276,18 @@ data HdAddress = HdAddress {
       -- | The actual address
     , _hdAddressAddress  :: InDb Core.Address
 
-      -- | Has this address been involved in a transaction?
-      --
-      -- TODO: How is this determined? What is the definition? How is it set?
-      -- TODO: This will likely move to the 'BlockMeta' instead.
-    , _hdAddressIsUsed   :: Bool
-
       -- | Part of the wallet state pertaining to this address,
       -- as stipulated by the wallet specification
     , _hdAddressCheckpoints :: NonEmpty AddrCheckpoint
-    }
+    } deriving Eq
+
+instance Buildable HdAddress where
+    build HdAddress{..} =
+        bprint ("HdAddress { id = "   % build
+                         % " address = " % build
+                         % " checkpoints = <checkpoints> "
+                         % " }"
+               ) _hdAddressId (_fromDb _hdAddressAddress)
 
 {-------------------------------------------------------------------------------
   General-utility functions

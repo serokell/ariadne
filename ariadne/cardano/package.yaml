@@ -112,3 +112,55 @@ tests:
       - text
       - time-units
       - yaml
+  backend-test:
+    <<: *test-common
+    source-dirs: test/backend
+    main: WalletUnitTest.hs
+    dependencies:
+      - acid-state
+      - ariadne-cardano
+      - bytestring
+      - cardano-sl
+      - cardano-sl-block
+      - cardano-sl-client
+      - cardano-sl-core
+      - cardano-sl-core-test
+      - cardano-sl-crypto
+      - cardano-sl-db
+      - cardano-sl-delegation
+      - cardano-sl-lrc
+      - cardano-sl-ssc
+      - cardano-sl-txp
+      - cardano-sl-update
+      - cardano-sl-util
+      - componentm
+      - conduit
+      - constraints
+      - containers
+      - cryptonite
+      - data-default
+      - directory
+      - filepath
+      - formatting
+      - hspec
+      - lens
+      - log-warper
+      - mtl
+      - normaldistribution
+      - optparse-applicative
+      - QuickCheck
+      - quickcheck-instances
+      - random
+      - reflection
+      - safe-exceptions
+      - serokell-util
+      - tabl
+      - text
+      - text-format
+      - time
+      - unliftio-core
+      - unordered-containers
+      - vector
+    ghc-options:
+      # Wallet tests trigger this too often to disable it per-module or fix
+      - -Wno-incomplete-uni-patterns

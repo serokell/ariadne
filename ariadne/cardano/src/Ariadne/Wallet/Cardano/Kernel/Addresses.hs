@@ -164,9 +164,7 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
             (CreateAddressHdSeqGenerationFailed accId)
             mbAddr
 
-        let hdAddress =
-                initHdAddress hdAddressId (InDb newAddress) False firstCheckpoint
-
+        let hdAddress = initHdAddress hdAddressId (InDb newAddress) firstCheckpoint
         res <- liftIO $ update db (CreateHdAddress hdAddress)
 
         case res of

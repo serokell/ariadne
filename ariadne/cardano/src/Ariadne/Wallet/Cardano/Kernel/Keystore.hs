@@ -13,6 +13,7 @@
 module Ariadne.Wallet.Cardano.Kernel.Keystore (
       Keystore -- opaque
     , DeletePolicy(..)
+    , DuplicatedWalletKey(..)
       -- * Constructing a keystore
     , keystoreComponent
     , bracketKeystore
@@ -34,7 +35,9 @@ import Prelude hiding (toList)
 import Control.Concurrent (modifyMVar_, withMVar)
 import Control.Monad.Component (ComponentM, buildComponent)
 import qualified Data.Map as Map
-import System.Directory (getTemporaryDirectory, removeFile)
+import System.Directory
+  (createDirectoryIfMissing, getTemporaryDirectory, removeFile)
+import System.FilePath ((</>))
 import System.IO (hClose, openTempFile)
 
 import Pos.Core (AddressHash, addressHash)
@@ -151,11 +154,25 @@ bracketTestKeystore withKeystore =
 -- directory.
 newTestKeystore :: IO Keystore
 newTestKeystore = liftIO $ runIdentityT $ fromKeystore $ do
-    tempDir         <- liftIO getTemporaryDirectory
-    (tempFile, hdl) <- liftIO $ openTempFile tempDir "keystore.key"
-    liftIO $ hClose hdl
-    us <- peekUserSecret tempFile
+    fp <- liftIO $ getKeystorePath
+    us <- peekUserSecret fp
     Keystore <$> newMVar (InternalStorage us)
+  where
+    -- | Generates a new path for the temporary 'Keystore'.
+    -- Unfortunately, System.IO does not expose an API for path
+    -- generation (it is implemented in `openTempFile'`), so
+    -- we create the file, then close the handle and remove it.
+    -- It cannot be left empty since the `instance Bi` for
+    -- 'UserSecret' cannot handle empty files.
+    getKeystorePath :: IO FilePath
+    getKeystorePath = do
+        tempDir <- getTemporaryDirectory
+        let dir = tempDir </> "ariadne-test"
+        createDirectoryIfMissing False dir
+        (fp, hdl) <- openTempFile dir "keystore.key"
+        hClose hdl
+        removeFile fp
+        pure fp
 
 -- | Release the resources associated with this 'Keystore'.
 releaseKeystore :: DeletePolicy -> Keystore -> IO ()
@@ -235,7 +252,7 @@ delete walletId (Keystore ks) = do
 toList :: Keystore -> IO [(WalletId, EncryptedSecretKey)]
 toList (Keystore ks) =
     withMVar ks $ \(InternalStorage us) ->
-        pure $ map (first hashPubKeyToWalletId) $ Map.toList $ us ^. usWallets
+        pure $ map (first hashPubKeyToWalletId) $ toPairs $ us ^. usWallets
   where
     hashPubKeyToWalletId :: AddressHash PublicKey -> WalletId
     hashPubKeyToWalletId = WalletIdHdSeq . HdRootId . InDb
