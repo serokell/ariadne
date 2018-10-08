@@ -1,6 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Ariadne.Cardano.Arbitrary
-       (
+       ( Arbitrary(..)
+       , genEkgParams
+       , genConfigurationOptions
+       , genValidTimestamp
+       , genMaybe
+       , genValidText
+       , genValidByteString
+       , genValidString
+       , genNetworkAddress
        ) where
 
 import Ariadne.Config.Cardano (CardanoConfig(..))

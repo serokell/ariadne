@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Ariadne.History.Arbitrary
-       (
-       ) where
+module Test.Ariadne.History.Arbitrary () where
 
 import Test.QuickCheck.Arbitrary (Arbitrary(..))
 

@@ -6,9 +6,7 @@
 -- of using 'CardanoMode' (because 'CardanoMode' is not Ariadne's
 -- business), but life is hard.
 
-module Ariadne.Wallet.Backend.Mode
-       (
-       ) where
+module Ariadne.Wallet.Backend.Mode () where
 
 import qualified Data.ByteString as BS
 
