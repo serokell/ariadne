@@ -1,7 +1,8 @@
 module Ariadne.Config.Update
-  ( defaultUpdateConfig
-  , updateFieldModifier
-  , UpdateConfig (..)) where
+       ( defaultUpdateConfig
+       , updateFieldModifier
+       , UpdateConfig (..)
+       ) where
 
 import Ariadne.Config.DhallUtil (interpretInt, injectInt, parseField)
 import qualified Data.HashMap.Strict.InsOrd as Map

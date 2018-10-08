@@ -1,4 +1,6 @@
-module Main where
+module Main
+       ( main
+       ) where
 
 import Control.Monad.Component (ComponentM)
 import NType (N(..))

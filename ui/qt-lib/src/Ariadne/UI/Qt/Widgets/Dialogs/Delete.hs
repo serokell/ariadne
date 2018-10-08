@@ -1,8 +1,8 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Delete
-  ( DeletingItem(..)
-  , DeletionResult(..)
-  , runDelete
-  ) where
+       ( DeletingItem(..)
+       , DeletionResult(..)
+       , runDelete
+       ) where
 
 import qualified Data.Text as T
 import Formatting

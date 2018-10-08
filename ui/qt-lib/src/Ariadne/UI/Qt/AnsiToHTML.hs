@@ -1,8 +1,8 @@
 module Ariadne.UI.Qt.AnsiToHTML
-    ( spanFormat
-    , simpleDocToHTML
-    , csiToHTML
-    ) where
+       ( spanFormat
+       , simpleDocToHTML
+       , csiToHTML
+       ) where
 
 import Formatting
 

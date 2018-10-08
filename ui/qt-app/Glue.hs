@@ -1,8 +1,7 @@
 -- | Glue code between the frontend and the backends.
 
 module Glue
-       (
-         -- * Knit ↔ Qt
+       ( -- * Knit ↔ Qt
          knitFaceToUI
 
          -- * Cardano ↔ Qt

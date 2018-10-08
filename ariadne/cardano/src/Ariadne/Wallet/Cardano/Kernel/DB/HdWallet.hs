@@ -1,68 +1,68 @@
 -- | HD wallets
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (
-    -- * Supporting types
-    WalletName(..)
-  , AccountName(..)
-  , HdAccountIx(..)
-  , HdAddressIx(..)
-  , AssuranceLevel(..)
-  , HasSpendingPassword(..)
-    -- * HD wallet types proper
-  , HdWallets(..)
-  , HdRootId(..)
-  , HdAccountId(..)
-  , HdAddressChain(..)
-  , HdAddressId(..)
-  , HdRoot(..)
-  , HdAccount(..)
-  , HdAddress(..)
-    -- ** Initialiser
-  , initHdWallets
-    -- ** Lenses
-  , hdWalletsRoots
-  , hdWalletsAccounts
-  , hdWalletsAddresses
-  , hdAccountIdParent
-  , hdAccountIdIx
-  , hdAddressIdParent
-  , hdAddressIdIx
-  , hdAddressIdChain
-  , hdRootId
-  , hdRootName
-  , hdRootHasPassword
-  , hdRootAssurance
-  , hdRootCreatedAt
-  , hdAccountId
-  , hdAccountName
-  , hdAccountCurrentCheckpoint
-  , hdAccountCheckpoints
-  , hdAddressId
-  , hdAddressAddress
-  , hdAddressCheckpoints
-    -- ** Composite lenses
-  , hdAccountRootId
-  , hdAddressRootId
-  , hdAddressChain
-  , hdAddressAccountId
-    -- * Unknown identifiers
-  , UnknownHdRoot(..)
-  , UnknownHdAccount(..)
-  , UnknownHdAddress(..)
-  , embedUnknownHdRoot
-  , embedUnknownHdAccount
-    -- * Zoom to parts of the HD wallet
-  , zoomHdRootId
-  , zoomHdAccountId
-  , zoomHdAddressId
-    -- * Zoom variations that create on request
-  , zoomOrCreateHdRoot
-  , zoomOrCreateHdAccount
-  , zoomOrCreateHdAddress
-  , assumeHdRootExists
-  , assumeHdAccountExists
-    -- * General-utility functions
-  , eskToHdRootId
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+       ( -- * Supporting types
+         WalletName(..)
+       , AccountName(..)
+       , HdAccountIx(..)
+       , HdAddressIx(..)
+       , AssuranceLevel(..)
+       , HasSpendingPassword(..)
+         -- * HD wallet types proper
+       , HdWallets(..)
+       , HdRootId(..)
+       , HdAccountId(..)
+       , HdAddressChain(..)
+       , HdAddressId(..)
+       , HdRoot(..)
+       , HdAccount(..)
+       , HdAddress(..)
+         -- ** Initialiser
+       , initHdWallets
+         -- ** Lenses
+       , hdWalletsRoots
+       , hdWalletsAccounts
+       , hdWalletsAddresses
+       , hdAccountIdParent
+       , hdAccountIdIx
+       , hdAddressIdParent
+       , hdAddressIdIx
+       , hdAddressIdChain
+       , hdRootId
+       , hdRootName
+       , hdRootHasPassword
+       , hdRootAssurance
+       , hdRootCreatedAt
+       , hdAccountId
+       , hdAccountName
+       , hdAccountCurrentCheckpoint
+       , hdAccountCheckpoints
+       , hdAddressId
+       , hdAddressAddress
+       , hdAddressCheckpoints
+         -- ** Composite lenses
+       , hdAccountRootId
+       , hdAddressRootId
+       , hdAddressChain
+       , hdAddressAccountId
+         -- * Unknown identifiers
+       , UnknownHdRoot(..)
+       , UnknownHdAccount(..)
+       , UnknownHdAddress(..)
+       , embedUnknownHdRoot
+       , embedUnknownHdAccount
+         -- * Zoom to parts of the HD wallet
+       , zoomHdRootId
+       , zoomHdAccountId
+       , zoomHdAddressId
+         -- * Zoom variations that create on request
+       , zoomOrCreateHdRoot
+       , zoomOrCreateHdAccount
+       , zoomOrCreateHdAddress
+       , assumeHdRootExists
+       , assumeHdAccountExists
+         -- * General-utility functions
+       , eskToHdRootId
+       ) where
 
 import Control.Lens (at)
 import Control.Lens.TH (makeLenses)

@@ -1,20 +1,20 @@
 {-# LANGUAGE RankNTypes #-}
 
 -- | Some utilities for working with acid-state
-module Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState (
-    -- * Acid-state updates with support for errors
-    Update'
-  , runUpdate'
-  , runUpdateNoErrors
-  , mapUpdateErrors
-    -- * Zooming
-  , zoom
-  , zoomDef
-  , zoomCreate
-  , zoomAll
-    -- ** Convenience re-exports
-  , throwError
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
+       ( -- * Acid-state updates with support for errors
+         Update'
+       , runUpdate'
+       , runUpdateNoErrors
+       , mapUpdateErrors
+         -- * Zooming
+       , zoom
+       , zoomDef
+       , zoomCreate
+       , zoomAll
+         -- ** Convenience re-exports
+       , throwError
+       ) where
 
 import Control.Monad.Except
 import Data.Acid (Update)

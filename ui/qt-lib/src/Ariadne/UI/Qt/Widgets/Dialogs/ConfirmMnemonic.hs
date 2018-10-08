@@ -1,7 +1,7 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
-  ( ConfirmMnemonicResult(..)
-  , runConfirmMnemonic
-  ) where
+       ( ConfirmMnemonicResult(..)
+       , runConfirmMnemonic
+       ) where
 
 import Formatting
 

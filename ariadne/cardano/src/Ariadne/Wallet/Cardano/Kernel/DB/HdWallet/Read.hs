@@ -7,29 +7,29 @@
 -- filtering and sorting. If we want the 'IxSet' stuff to be local to the
 -- "Kernel.DB" namespace (which would be a good thing), then filtering and
 -- sorting (and maybe even pagination) will need to happen here.
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (
-    -- | * Infrastructure
-    HdQuery
-  , HdQueryErr
-    -- | * Derived balance
-  , hdRootBalance
-  , hdAccountBalance
-  , hdAddressBalance
-    -- | Accumulate all accounts/addresses
-  , readAllHdRoots
-  , readAllHdAccounts
-  , readAllHdAddresses
-    -- | All wallets/accounts/addresses
-  , readAccountsByRootId
-  , readAddressesByRootId
-  , readAddressesByAccountId
-    -- | Single wallets/accounts/addresses
-  , readHdRoot
-  , readHdAccount
-  , readHdAccountCurrentCheckpoint
-  , readHdAddress
-  , readHdAddressByCardanoAddress
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+       ( -- | * Infrastructure
+         HdQuery
+       , HdQueryErr
+         -- | * Derived balance
+       , hdRootBalance
+       , hdAccountBalance
+       , hdAddressBalance
+         -- | Accumulate all accounts/addresses
+       , readAllHdRoots
+       , readAllHdAccounts
+       , readAllHdAddresses
+         -- | All wallets/accounts/addresses
+       , readAccountsByRootId
+       , readAddressesByRootId
+       , readAddressesByAccountId
+         -- | Single wallets/accounts/addresses
+       , readHdRoot
+       , readHdAccount
+       , readHdAccountCurrentCheckpoint
+       , readHdAddress
+       , readHdAddressByCardanoAddress
+       ) where
 
 import Control.Lens (at)
 

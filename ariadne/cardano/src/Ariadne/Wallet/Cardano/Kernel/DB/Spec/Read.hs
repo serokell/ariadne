@@ -1,11 +1,11 @@
 -- | READ-only operations on the wallet-spec state
-module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read (
-    -- * Queries
-    queryAccountTotalBalance
-  , queryAccountUtxo
-  , queryAccountAvailableUtxo
-  , queryAccountAvailableBalance
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
+       ( -- * Queries
+         queryAccountTotalBalance
+       , queryAccountUtxo
+       , queryAccountAvailableUtxo
+       , queryAccountAvailableBalance
+       ) where
 
 import qualified Data.Map.Strict as Map
 

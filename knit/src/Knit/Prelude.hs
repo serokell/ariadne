@@ -1,7 +1,7 @@
 module Knit.Prelude
-  ( module X
-  , uprism
-  ) where
+       ( module X
+       , uprism
+       ) where
 
 import Prelude as X
 

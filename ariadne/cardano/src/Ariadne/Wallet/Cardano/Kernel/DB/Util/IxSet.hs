@@ -1,38 +1,38 @@
 {-# LANGUAGE ConstraintKinds, RankNTypes #-}
 
 -- | Infrastructure for working with indexed sets
-module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (
-    -- * Primary keys
-    HasPrimKey(..)
-  , OrdByPrimKey -- opaque
-    -- * Wrapper around IxSet
-  , IndicesOf
-  , IxSet
-  , Indexable
-    -- * Building 'Indexable' instances
-  , deleteIxAll
-  , ixFun
-  , ixList
-    -- * Queries
-  , getEQ
-  , member
-  , size
-  , getOne
-  , toMap
-    -- * Modification
-  , updateIxManyM
-    -- * Construction
-  , fromList
-  , singleton
-  , omap
-  , otraverse
-  , emptyIxSet
-    -- * Destruction
-  , toAscList
-  , toList
-    -- * Indexing
-  , (@+)
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+       ( -- * Primary keys
+         HasPrimKey(..)
+       , OrdByPrimKey -- opaque
+         -- * Wrapper around IxSet
+       , IndicesOf
+       , IxSet
+       , Indexable
+         -- * Building 'Indexable' instances
+       , deleteIxAll
+       , ixFun
+       , ixList
+         -- * Queries
+       , getEQ
+       , member
+       , size
+       , getOne
+       , toMap
+         -- * Modification
+       , updateIxManyM
+         -- * Construction
+       , fromList
+       , singleton
+       , omap
+       , otraverse
+       , emptyIxSet
+         -- * Destruction
+       , toAscList
+       , toList
+         -- * Indexing
+       , (@+)
+       ) where
 
 import Prelude hiding (toList)
 

@@ -1,9 +1,9 @@
 -- | UPDATE operations on HD wallets
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update (
-    updateHdRootAssurance
-  , updateHdRootName
-  , updateHdAccountName
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Update
+       ( updateHdRootAssurance
+       , updateHdRootName
+       , updateHdAccountName
+       ) where
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState

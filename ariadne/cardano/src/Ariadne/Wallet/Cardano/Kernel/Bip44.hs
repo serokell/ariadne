@@ -1,11 +1,11 @@
 module Ariadne.Wallet.Cardano.Kernel.Bip44
-    ( Bip44DerivationPath (..)
-    , decodeBip44DerivationPath
-    , encodeBip44DerivationPath
-    , bip44PathToAddressId
-    , encodeBip44DerivationPathToAccount
-    , encodeBip44DerivationPathFromAccount
-    ) where
+       ( Bip44DerivationPath (..)
+       , decodeBip44DerivationPath
+       , encodeBip44DerivationPath
+       , bip44PathToAddressId
+       , encodeBip44DerivationPathToAccount
+       , encodeBip44DerivationPathFromAccount
+       ) where
 
 import Pos.Crypto.HD (firstHardened, firstNonHardened, isHardened)
 

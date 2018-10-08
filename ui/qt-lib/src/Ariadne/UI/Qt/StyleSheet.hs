@@ -1,6 +1,6 @@
 module Ariadne.UI.Qt.StyleSheet
-  ( styleSheet
-  ) where
+       ( styleSheet
+       ) where
 
 import Data.FileEmbed
 

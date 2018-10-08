@@ -1,4 +1,6 @@
-module Ariadne.Cardano.Backend (createCardanoBackend) where
+module Ariadne.Cardano.Backend
+       ( createCardanoBackend
+       ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
 

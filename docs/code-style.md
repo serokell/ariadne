@@ -239,7 +239,14 @@ Use singular when naming modules (e.g. use `Data.Map` and
 
 ### Export Lists
 
-Format export lists as follows:
+Always use explicit exports. If an export list is empty write it on one line,
+for example:
+
+```haskell
+module Test.Ariadne.Cardano.Arbitrary () where
+```
+
+Otherwise, format export lists as follows:
 
 ```haskell
 module Data.Set
@@ -258,9 +265,7 @@ Some clarifications:
 1. Use 7 spaces indentation for export list (so that bracket is below
    the first letter in module name).
 2. You can split export list into sections or just write all as single section.
-3. It is strongly adviced to sort each section alpabetically. However,
-   classes, data types and type aliases should be written before
-   functions.
+3. Classes, data types and type aliases should be written before functions.
 
 ### Imports
 

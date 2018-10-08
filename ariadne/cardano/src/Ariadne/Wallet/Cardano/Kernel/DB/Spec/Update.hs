@@ -1,15 +1,15 @@
 -- | UPDATE operations on the wallet-spec state
-module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update (
-    -- * Errors
-  NewPendingFailed(..)
-    -- * Updates
-  , newPending
-  , cancelPending
-  , applyBlock
-  , switchToFork
-    -- * Testing
-  , observableRollbackUseInTestsOnly
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Update
+       ( -- * Errors
+         NewPendingFailed(..)
+         -- * Updates
+       , newPending
+       , cancelPending
+       , applyBlock
+       , switchToFork
+         -- * Testing
+       , observableRollbackUseInTestsOnly
+       ) where
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
 

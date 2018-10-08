@@ -1,7 +1,7 @@
 module Ariadne.UI.Vty.App
-  ( initApp
-  , app
-  ) where
+       ( initApp
+       , app
+       ) where
 
 import Control.Lens (makeLensesWith, uses, (%=), (.=))
 import Data.Char (toLower)

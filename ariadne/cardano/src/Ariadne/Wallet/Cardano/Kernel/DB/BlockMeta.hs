@@ -1,13 +1,13 @@
 -- | Block metadata conform the wallet specification
-module Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (
-    -- * Block metadata
-    BlockMeta(..)
-  , AddressMeta(..)
-    -- ** Lenses
-  , addressMetaIsUsed
-  , blockMetaAddressMeta
-  , blockMetaSlotId
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
+       ( -- * Block metadata
+         BlockMeta(..)
+       , AddressMeta(..)
+         -- ** Lenses
+       , addressMetaIsUsed
+       , blockMetaAddressMeta
+       , blockMetaSlotId
+       ) where
 
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as Map

@@ -1,8 +1,8 @@
 module Ariadne.UI.Qt.MainWindow
-    ( MainWindow
-    , initMainWindow
-    , handleMainWindowEvent
-    ) where
+       ( MainWindow
+       , initMainWindow
+       , handleMainWindowEvent
+       ) where
 
 import Control.Lens (magnify, makeLensesWith)
 

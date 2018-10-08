@@ -1,20 +1,20 @@
 -- | UPDATE operations on the wallet-spec state
-module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util (
-    PendingTxs
-  , Balance
-  , available
-  , balance
-  , balanceI
-  , disjoint
-  , isValidPendingTx
-  , pendingUtxo
-  , txAuxInputSet
-  , txIns
-  , utxoInputs
-  , unionTxOuts
-  , utxoRemoveInputs
-  , utxoRestrictToInputs
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util
+       ( PendingTxs
+       , Balance
+       , available
+       , balance
+       , balanceI
+       , disjoint
+       , isValidPendingTx
+       , pendingUtxo
+       , txAuxInputSet
+       , txIns
+       , utxoInputs
+       , unionTxOuts
+       , utxoRemoveInputs
+       , utxoRestrictToInputs
+       ) where
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map

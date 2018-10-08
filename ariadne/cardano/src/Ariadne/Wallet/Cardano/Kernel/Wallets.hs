@@ -1,16 +1,16 @@
-module Ariadne.Wallet.Cardano.Kernel.Wallets (
-      createHdWallet
-    , updateHdWalletName
-    , updateHdWalletAssurance
-    , deleteHdWallet
-    , HasNonemptyPassphrase(..)
-    , mkHasPP
-    , CreateWithAddress(..)
-      -- * Errors
-    , CreateWalletError(..)
-    -- * Internal & testing use only
-    , createWalletHdSeq
-    ) where
+module Ariadne.Wallet.Cardano.Kernel.Wallets
+       ( createHdWallet
+       , updateHdWalletName
+       , updateHdWalletAssurance
+       , deleteHdWallet
+       , HasNonemptyPassphrase(..)
+       , mkHasPP
+       , CreateWithAddress(..)
+         -- * Errors
+       , CreateWalletError(..)
+       -- * Internal & testing use only
+       , createWalletHdSeq
+       ) where
 
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))

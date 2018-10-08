@@ -1,6 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Knit.Parser where
+module Knit.Parser
+       ( ComponentLitGrammar(..)
+       , ParseError (..)
+       , tok
+       , parseErrorSpans
+       , inBrackets
+       , gComponentsLit
+       , gExpr
+       , mkExprGroup
+       , pExpr
+       , parse
+       ) where
 
 import Control.Applicative as A
 import Control.Applicative.Combinators.NonEmpty (sepBy1)

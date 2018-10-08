@@ -1,4 +1,13 @@
-module Knit.Printer where
+module Knit.Printer
+       ( ComponentPrinter(..)
+       , PrettyPrintValue
+       , ppLit
+       , ppToken
+       , ppExpr
+       , ppValue
+       , nameToDoc
+       , text
+       ) where
 
 import Data.List as List
 import Data.Monoid

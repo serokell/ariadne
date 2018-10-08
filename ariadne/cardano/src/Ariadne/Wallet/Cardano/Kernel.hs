@@ -4,24 +4,24 @@
 -- Cardano specific types (except those types that appear in the translation
 -- of the UTxO DSL), so that we can test it outside of a node context also
 -- (in unit tests).
-module Ariadne.Wallet.Cardano.Kernel (
-    -- * Passive wallet
-    PassiveWallet -- opaque
-  , DB -- opaque
-  , WalletId
-  , passiveWalletCustomDBComponent
-  , init
-  , walletLogMessage
-  , walletKeystore
-    -- ** Respond to block chain events
-  , applyBlock
-  , applyBlocks
-  , switchToFork
-    -- *** Testing
-  , observableRollbackUseInTestsOnly
-    -- ** The only effectful getter you will ever need
-  , getWalletSnapshot
-  ) where
+module Ariadne.Wallet.Cardano.Kernel
+       ( -- * Passive wallet
+         PassiveWallet -- opaque
+       , DB -- opaque
+       , WalletId
+       , passiveWalletCustomDBComponent
+       , init
+       , walletLogMessage
+       , walletKeystore
+         -- ** Respond to block chain events
+       , applyBlock
+       , applyBlocks
+       , switchToFork
+         -- *** Testing
+       , observableRollbackUseInTestsOnly
+         -- ** The only effectful getter you will ever need
+       , getWalletSnapshot
+       ) where
 
 import Prelude hiding (init)
 

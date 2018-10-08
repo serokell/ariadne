@@ -1,9 +1,9 @@
 module Ariadne.Config.History
-  ( defaultHistoryConfig
-  , historyFieldModifier
-  , HistoryConfig (..)
-  , hcPathL
-  ) where
+       ( defaultHistoryConfig
+       , historyFieldModifier
+       , HistoryConfig (..)
+       , hcPathL
+       ) where
 
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map

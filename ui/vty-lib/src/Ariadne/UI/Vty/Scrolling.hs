@@ -1,12 +1,12 @@
 module Ariadne.UI.Vty.Scrolling
-     ( ScrollingAction(..)
-     , keyToScrollingAction
-     , handleScrollingEvent
-     , scrollToEnd
-     , fixedViewport
-     , scrollingViewport
-     , fixedScrollingViewport
-     ) where
+       ( ScrollingAction(..)
+       , keyToScrollingAction
+       , handleScrollingEvent
+       , scrollToEnd
+       , fixedViewport
+       , scrollingViewport
+       , fixedScrollingViewport
+       ) where
 
 import Ariadne.UI.Vty.Keyboard
 

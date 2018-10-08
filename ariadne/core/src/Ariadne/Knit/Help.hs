@@ -1,4 +1,6 @@
-module Ariadne.Knit.Help (generateKnitHelp) where
+module Ariadne.Knit.Help
+       ( generateKnitHelp
+       ) where
 
 import qualified Universum.Unsafe as Unsafe (tail)
 

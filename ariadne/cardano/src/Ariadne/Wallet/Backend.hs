@@ -1,8 +1,8 @@
 module Ariadne.Wallet.Backend
-  ( WalletFace(..)
-  , WalletPreface(..)
-  , createWalletBackend
-  ) where
+       ( WalletFace(..)
+       , WalletPreface(..)
+       , createWalletBackend
+       ) where
 
 import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))

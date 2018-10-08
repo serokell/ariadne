@@ -1,28 +1,28 @@
-module Ariadne.Wallet.Cardano.Kernel.Util (
-    -- * Lists
-    at
-    -- * Maps and sets
-  , disjoint
-  , withoutKeys
-  , restrictKeys
-    -- * Dealing with OldestFirst/NewestFirst
-  , liftOldestFirstF
-  , liftNewestFirstF
-  , liftOldestFirst
-  , liftNewestFirst
-    -- * Probabilities
-  , Probability
-  , toss
-    -- * MonadState utilities
-  , modifyAndGetOld
-  , modifyAndGetNew
-    -- * Operations on UTxO
-  , utxoBalance
-  , utxoRestrictToInputs
-  , paymentAmount
-    -- * General-utility functions
-  , getCurrentTimestamp
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.Util
+       ( -- * Lists
+         at
+         -- * Maps and sets
+       , disjoint
+       , withoutKeys
+       , restrictKeys
+         -- * Dealing with OldestFirst/NewestFirst
+       , liftOldestFirstF
+       , liftNewestFirstF
+       , liftOldestFirst
+       , liftNewestFirst
+         -- * Probabilities
+       , Probability
+       , toss
+         -- * MonadState utilities
+       , modifyAndGetOld
+       , modifyAndGetNew
+         -- * Operations on UTxO
+       , utxoBalance
+       , utxoRestrictToInputs
+       , paymentAmount
+         -- * General-utility functions
+       , getCurrentTimestamp
+       ) where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

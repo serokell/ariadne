@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Ariadne.Update.Arbitrary
-       (
-       ) where
+module Test.Ariadne.Update.Arbitrary () where
 
 import Test.QuickCheck.Arbitrary (Arbitrary(..))
 import Test.QuickCheck.Gen (elements)

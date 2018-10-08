@@ -1,40 +1,40 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Wallet state as mandated by the wallet specification
-module Ariadne.Wallet.Cardano.Kernel.DB.Spec (
-    -- * Wallet state as mandated by the spec
-    Pending(..)
-  , PendingTxs
-  , Balance
-  , AccCheckpoint(..)
-  , AccCheckpoints
-  , AddrCheckpoint(..)
-  , AddrCheckpoints
-  , emptyPending
-  , singletonPending
-  , unionPending
-  , removePending
-  , emptyAccCheckpoint
-  , emptyAddrCheckpoint
-    -- ** Lenses
-  , pendingTransactions
-  , accCheckpointUtxo
-  , accCheckpointUtxoBalance
-  , accCheckpointPending
-  , accCheckpointBlockMeta
-  , accCheckpointAddressMeta
-  , addrCheckpointUtxo
-  , addrCheckpointUtxoBalance
-    -- ** Lenses into the current checkpoint
-  , currentAccCheckpoint
-  , currentAccUtxo
-  , currentAccUtxoBalance
-  , currentAccPending
-  , currentAccPendingTxs
-  , currentAccBlockMeta
-  , currentAddrCheckpoint
-  , currentAddrUtxo
-  , currentAddrUtxoBalance
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.Spec
+       ( -- * Wallet state as mandated by the spec
+         Pending(..)
+       , PendingTxs
+       , Balance
+       , AccCheckpoint(..)
+       , AccCheckpoints
+       , AddrCheckpoint(..)
+       , AddrCheckpoints
+       , emptyPending
+       , singletonPending
+       , unionPending
+       , removePending
+       , emptyAccCheckpoint
+       , emptyAddrCheckpoint
+         -- ** Lenses
+       , pendingTransactions
+       , accCheckpointUtxo
+       , accCheckpointUtxoBalance
+       , accCheckpointPending
+       , accCheckpointBlockMeta
+       , accCheckpointAddressMeta
+       , addrCheckpointUtxo
+       , addrCheckpointUtxoBalance
+         -- ** Lenses into the current checkpoint
+       , currentAccCheckpoint
+       , currentAccUtxo
+       , currentAccUtxoBalance
+       , currentAccPending
+       , currentAccPendingTxs
+       , currentAccBlockMeta
+       , currentAddrCheckpoint
+       , currentAddrUtxo
+       , currentAddrUtxoBalance
+       ) where
 
 import Prelude hiding (elems)
 

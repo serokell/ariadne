@@ -1,4 +1,9 @@
-module Ariadne.TaskManager.Face where
+module Ariadne.TaskManager.Face
+       ( TaskId(..)
+       , TaskManagerFace(..)
+       , EvalErrorException(..)
+       , NoTaskException(..)
+       ) where
 
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)

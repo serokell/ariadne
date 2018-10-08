@@ -1,9 +1,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Ariadne.Wallet.Cardano.Kernel.DB.InDb (
-    InDb(..)
-  , fromDb
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.InDb
+       ( InDb(..)
+       , fromDb
+       ) where
 
 import Control.Lens.TH (makeLenses)
 import Data.Coerce (coerce)

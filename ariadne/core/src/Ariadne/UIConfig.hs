@@ -1,8 +1,8 @@
 module Ariadne.UIConfig
-  ( licenseUrl
-  , changelogUrl
-  , aboutUrl
-  ) where
+       ( licenseUrl
+       , changelogUrl
+       , aboutUrl
+       ) where
 
 licenseUrl :: Text
 licenseUrl = "https://serokell.io/ariadne/license"

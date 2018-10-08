@@ -2,36 +2,36 @@
 {-# OPTIONS_GHC -fno-warn-deriving-typeable #-}
 
 -- | Acid-state database for the wallet kernel
-module Ariadne.Wallet.Cardano.Kernel.DB.AcidState (
-    -- * Top-level database
-    DB(..)
-  , dbHdWallets
-  , defDB
-    -- * Acid-state operations
-    -- ** Snapshot
-  , Snapshot(..)
-    -- ** Spec mandated updates
-  , NewPending(..)
-  , CancelPending(..)
-  , ApplyBlock(..)
-  , SwitchToFork(..)
-    -- ** Updates on HD wallets
-    -- *** CREATE
-  , CreateHdWallet(..)
-  , CreateHdAccount(..)
-  , CreateHdAddress(..)
-    -- *** UPDATE
-  , UpdateHdWalletName(..)
-  , UpdateHdWalletAssurance(..)
-  , UpdateHdAccountName(..)
-    -- *** DELETE
-  , DeleteHdRoot(..)
-  , DeleteHdAccount(..)
-    -- * Errors
-  , NewPendingError
-    -- * Testing
-  , ObservableRollbackUseInTestsOnly(..)
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+       ( -- * Top-level database
+         DB(..)
+       , dbHdWallets
+       , defDB
+         -- * Acid-state operations
+         -- ** Snapshot
+       , Snapshot(..)
+         -- ** Spec mandated updates
+       , NewPending(..)
+       , CancelPending(..)
+       , ApplyBlock(..)
+       , SwitchToFork(..)
+         -- ** Updates on HD wallets
+         -- *** CREATE
+       , CreateHdWallet(..)
+       , CreateHdAccount(..)
+       , CreateHdAddress(..)
+         -- *** UPDATE
+       , UpdateHdWalletName(..)
+       , UpdateHdWalletAssurance(..)
+       , UpdateHdAccountName(..)
+         -- *** DELETE
+       , DeleteHdRoot(..)
+       , DeleteHdAccount(..)
+         -- * Errors
+       , NewPendingError
+         -- * Testing
+       , ObservableRollbackUseInTestsOnly(..)
+       ) where
 
 import Control.Lens (at, non, to)
 import Control.Lens.TH (makeLenses)

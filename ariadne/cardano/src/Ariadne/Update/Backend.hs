@@ -1,4 +1,6 @@
-module Ariadne.Update.Backend where
+module Ariadne.Update.Backend
+       ( runUpdateCheck
+       ) where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception.Safe (throwIO)

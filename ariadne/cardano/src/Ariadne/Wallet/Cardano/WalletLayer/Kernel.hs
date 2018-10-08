@@ -1,7 +1,7 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
-    ( passiveWalletLayerComponent
-    , passiveWalletLayerCustomDBComponent
-    ) where
+       ( passiveWalletLayerComponent
+       , passiveWalletLayerCustomDBComponent
+       ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
 

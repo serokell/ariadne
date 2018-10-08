@@ -1,22 +1,22 @@
 module Ariadne.Wallet.Face
-  ( module Ariadne.Cardano.Face
-  , InputSelectionPolicy (..)
+       ( module Ariadne.Cardano.Face
+       , InputSelectionPolicy (..)
 
-  , WalletFace(..)
-  , WalletEvent(..)
-  , WalletReference(..)
-  , AccountReference(..)
-  , LocalAccountReference(..)
-  , WalletSelection(..)
-  , WalletName(..)
-  , Mnemonic(..)
-  , WalletRestoreType (..)
-  , WalletUIFace(..)
+       , WalletFace(..)
+       , WalletEvent(..)
+       , WalletReference(..)
+       , AccountReference(..)
+       , LocalAccountReference(..)
+       , WalletSelection(..)
+       , WalletName(..)
+       , Mnemonic(..)
+       , WalletRestoreType (..)
+       , WalletUIFace(..)
 
-  , SomeWalletPassException(..)
-  , walletPassExceptionToException
-  , walletPassExceptionFromException
-  ) where
+       , SomeWalletPassException(..)
+       , walletPassExceptionToException
+       , walletPassExceptionFromException
+       ) where
 
 import Data.Typeable (cast)
 import qualified GHC.Show as Show (Show (show))

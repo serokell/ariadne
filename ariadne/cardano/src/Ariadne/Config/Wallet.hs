@@ -1,10 +1,11 @@
 module Ariadne.Config.Wallet
-  ( defaultWalletConfig
-  , wcEntropySizeL
-  , wcKeyfilePathL
-  , wcAcidDBPathL
-  , walletFieldModifier
-  , WalletConfig (..)) where
+       ( defaultWalletConfig
+       , wcEntropySizeL
+       , wcKeyfilePathL
+       , wcAcidDBPathL
+       , walletFieldModifier
+       , WalletConfig (..)
+       ) where
 
 import Control.Lens (makeLensesWith)
 import qualified Data.HashMap.Strict.InsOrd as Map

@@ -1,4 +1,6 @@
-module Ariadne.Config.TH (getCommitHash) where
+module Ariadne.Config.TH
+       ( getCommitHash
+       ) where
 
 import Data.Char (isSpace)
 import Formatting (sformat, string, (%))
