@@ -239,7 +239,14 @@ Use singular when naming modules (e.g. use `Data.Map` and
 
 ### Export Lists
 
-Always use explicit exports. Format export lists as follows:
+Always use explicit exports. If an export list is empty write it on one line,
+for example:
+
+```haskell
+module Test.Ariadne.Cardano.Arbitrary () where
+```
+
+Otherwise, format export lists as follows:
 
 ```haskell
 module Data.Set
