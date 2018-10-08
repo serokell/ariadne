@@ -5,8 +5,7 @@ module Ariadne.UI.Qt.Widgets.Wallet
        , handleWalletEvent
        ) where
 
-import Universum
-
+import qualified Control.Concurrent.Event as CE
 import Control.Lens (magnify, makeLensesWith)
 import Data.Tree (Tree(..))
 import Graphics.UI.Qtah.Signal (connect_)
@@ -22,9 +21,11 @@ import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.InsertPassword
 import Ariadne.UI.Qt.Widgets.WalletInfo
 import Ariadne.UI.Qt.Widgets.WalletTree
 import Ariadne.Util
+import Ariadne.UX.PasswordManager
 
 data Wallet =
   Wallet
@@ -37,13 +38,13 @@ data Wallet =
 
 makeLensesWith postfixLFields ''Wallet
 
-initWallet :: UiLangFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
-initWallet langFace = do
+initWallet :: UiLangFace -> UiWalletFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
+initWallet langFace uiWalletFace = do
   itemModel <- initItemModel
   selectionModel <- QItemSelectionModel.newWithModel itemModel
 
-  (qWalletTree, walletTree) <- initWalletTree langFace itemModel selectionModel
-  (qWalletInfo, walletInfo) <- initWalletInfo langFace itemModel selectionModel
+  (qWalletTree, walletTree) <- initWalletTree langFace uiWalletFace itemModel selectionModel
+  (qWalletInfo, walletInfo) <- initWalletInfo langFace uiWalletFace itemModel selectionModel
 
   layout <- QHBoxLayout.new
   QObject.setObjectName layout ("walletLayout" :: String)
@@ -83,36 +84,39 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
-  | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
+  | WalletPasswordRequest WalletId CE.Event
 
 handleWalletEvent
   :: UiLangFace
+  -> PutPassword
   -> WalletEvent
   -> UI Wallet ()
-handleWalletEvent langFace ev = do
+handleWalletEvent langFace putPass ev = do
   Wallet{..} <- ask
   case ev of
     WalletUpdateEvent wallets selection selectionInfo -> do
       lift $ updateModel itemModel selectionModel wallets selection
-      whenJust selectionInfo $
-        magnify walletInfoL . handleWalletInfoEvent langFace .
-          WalletInfoSelectionChange
+      magnify walletInfoL . handleWalletInfoEvent langFace $ case selectionInfo of
+        Just selectionInfo' -> WalletInfoSelectionChange selectionInfo'
+        Nothing -> WalletInfoDeselect
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
-    WalletNewWalletCommandResult commandId result ->
-      magnify walletTreeL $ handleWalletTreeEvent langFace $
-        WalletTreeNewWalletCommandResult commandId result
     WalletRestoreWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeRestoreWalletCommandResult commandId result
     WalletNewAccountCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAccountCommandResult commandId result
-    WalletNewAddressCommandResult _ _ -> return ()
+    WalletNewAddressCommandResult commandId result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoNewAddressCommandResult commandId result
+    WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
+      InsertPasswordCanceled -> pass
+      InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
 
 updateModel
   :: QStandardItemModel.QStandardItemModel
@@ -125,6 +129,11 @@ updateModel model selectionModel wallets selection = do
   rootRowCount <- QStandardItem.rowCount root
   mapM_ (\(idx, item) -> toModelItem root rootRowCount idx (idx, item)) $ enumerate wallets
   QStandardItem.removeRows root (length wallets) (rootRowCount - length wallets)
+  whenNothing_ selection $ do
+    -- Apparently in order for the QTreeView to drop selection, you need to do `clearSelection`
+    -- Doing `clearCurrentIndex` just in case
+    QItemSelectionModel.clearCurrentIndex selectionModel
+    QItemSelectionModel.clearSelection selectionModel
   where
     selPath = (\UiWalletTreeSelection{..} -> wtsWalletIdx:wtsPath) <$> selection
     toModelItem
@@ -137,7 +146,7 @@ updateModel model selectionModel wallets selection = do
       let path = (fromIntegral walletIdx):wtiPath
 
       item <- if idx < parentRowCount
-        then QStandardItem.child parent $ fromIntegral idx
+        then QStandardItem.child parent idx
         else do
           newItem <- QStandardItem.new
           QStandardItem.appendRowItem parent newItem

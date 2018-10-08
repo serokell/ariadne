@@ -1,10 +1,8 @@
 module Ariadne.UI.Qt.Widgets.Help
-    ( Help
-    , initHelp
-    , showHelpWindow
-    ) where
-
-import Universum
+       ( Help
+       , initHelp
+       , showHelpWindow
+       ) where
 
 import qualified Data.Text as T
 

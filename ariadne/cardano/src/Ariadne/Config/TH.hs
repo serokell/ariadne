@@ -1,11 +1,10 @@
-module Ariadne.Config.TH (getCommitHash) where
+module Ariadne.Config.TH
+       ( getCommitHash
+       ) where
 
-import Universum
-
-import Control.Exception.Safe (tryAny)
 import Data.Char (isSpace)
 import Formatting (sformat, string, (%))
-import Language.Haskell.TH (ExpQ, litE, stringL, runIO)
+import Language.Haskell.TH (ExpQ, litE, runIO, stringL)
 import System.Process (readProcess)
 
 getCommitHash :: ExpQ

@@ -1,8 +1,8 @@
-module Main where
+module Main
+       ( main
+       ) where
 
-import Universum
-
-import NType (N (..))
+import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
@@ -19,10 +19,11 @@ main = defaultMain mainSettings
     mainSettings :: MainSettings UiComponents UiFace UiLangFace
     mainSettings = MainSettings
         { msCommitHash = $(getCommitHash)
-        , msCreateUI = const createAriadneUI
+        , msCreateUI = const $ const createAriadneUI
         , msPutWalletEventToUI = putWalletEventToUI
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI
-        , msKnitFaceToUI = knitFaceToUI
+        , msPutPasswordEventToUI = putPasswordEventToUI
+        , msKnitFaceToUI = \uiFace knitFace _ -> knitFaceToUI uiFace knitFace
         , msUiExecContext = const $ Base ()
         }

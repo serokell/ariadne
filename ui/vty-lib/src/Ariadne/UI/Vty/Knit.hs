@@ -1,6 +1,7 @@
-module Ariadne.UI.Vty.Knit where
-
-import Universum hiding (preview)
+module Ariadne.UI.Vty.Knit
+       ( UI
+       , ComponentExecContext(..)
+       ) where
 
 import Ariadne.UI.Vty.Face
 import Knit
@@ -60,7 +61,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
       CommandProc
         { cpName = "help"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandHelp
             return $ toValue ValueUnit
@@ -69,7 +70,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
     , CommandProc
         { cpName = "logs"
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
             putUiEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit

@@ -1,6 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Knit.Parser where
+module Knit.Parser
+       ( ComponentTokenToLit(..)
+       , ParseError (..)
+       , parseErrorSpans
+       , gComponentsLit
+       , gExpr
+       , mkExprGroup
+       , pExpr
+       , parse
+       , parseTree
+       ) where
 
 import Control.Applicative as A
 import Control.Lens

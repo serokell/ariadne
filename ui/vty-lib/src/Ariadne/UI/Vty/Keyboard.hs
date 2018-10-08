@@ -1,11 +1,9 @@
 module Ariadne.UI.Vty.Keyboard
-     ( KeyboardEvent(..)
-     , KeyboardEditEvent(..)
-     , vtyToKey
-     , vtyToEditKey
-     ) where
-
-import Universum
+       ( KeyboardEvent(..)
+       , KeyboardEditEvent(..)
+       , vtyToKey
+       , vtyToEditKey
+       ) where
 
 import Graphics.Vty
 

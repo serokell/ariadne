@@ -1,11 +1,11 @@
 -- | READ-only operations on the wallet-spec state
-module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read (
-    -- * Queries
-    queryAccountTotalBalance
-  , queryAccountUtxo
-  ) where
-
-import Universum
+module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
+       ( -- * Queries
+         queryAccountTotalBalance
+       , queryAccountUtxo
+       , queryAccountAvailableUtxo
+       , queryAccountAvailableBalance
+       ) where
 
 import qualified Data.Map.Strict as Map
 
@@ -55,6 +55,12 @@ accountUtxoBalance = view (accCheckpointUtxoBalance . fromDb)
 accountPendingTxs :: AccCheckpoint -> PendingTxs
 accountPendingTxs = view (accCheckpointPending . pendingTransactions . fromDb)
 
+-- | The Available UtxO is the cached utxo balance minus any (pending) spent utxo
+accountAvailableUtxo :: AccCheckpoint -> Utxo
+accountAvailableUtxo c =
+    let pendingIns = txIns (accountPendingTxs c)
+    in utxoRemoveInputs (accountUtxo c) pendingIns
+
 -- | The Available Balance is the cached utxo balance minus any (pending) spent utxo
 accountAvailableBalance :: AccCheckpoint -> Core.Coin
 accountAvailableBalance c =
@@ -78,7 +84,7 @@ accountChange ours
 -- | The Account Total Balance is the 'available' balance plus any 'change'
 --
 -- NOTE: computing 'total balance' requires filtering "our" addresses, which requires
---       the full set of addresses for this Account AccCheckpoint
+--       the full set of addresses for this AccCheckpoint
 accountTotalBalance :: IxSet HdAddress -> AccCheckpoint -> Core.Coin
 accountTotalBalance addrs c
     = add' availableBalance changeBalance
@@ -103,5 +109,18 @@ queryAccountTotalBalance accountId db
 queryAccountUtxo :: HdAccountId -> HD.HdQueryErr UnknownHdAccount Utxo
 queryAccountUtxo accountId db
     = accountUtxo <$> checkpoint
+    where
+        checkpoint = HD.readHdAccountCurrentCheckpoint accountId db
+
+queryAccountAvailableUtxo :: HdAccountId -> HD.HdQueryErr UnknownHdAccount Utxo
+queryAccountAvailableUtxo accountId db
+    = accountAvailableUtxo <$> checkpoint
+    where
+        checkpoint = HD.readHdAccountCurrentCheckpoint accountId db
+
+queryAccountAvailableBalance :: HdAccountId
+                             -> HD.HdQueryErr UnknownHdAccount Core.Coin
+queryAccountAvailableBalance accountId db
+    = accountAvailableBalance <$> checkpoint
     where
         checkpoint = HD.readHdAccountCurrentCheckpoint accountId db

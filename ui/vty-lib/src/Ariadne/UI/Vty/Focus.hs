@@ -1,8 +1,6 @@
 module Ariadne.UI.Vty.Focus
-     ( withFocusIndicator
-     ) where
-
-import Universum
+       ( withFocusIndicator
+       ) where
 
 import qualified Brick as B
 import qualified Graphics.Vty as V

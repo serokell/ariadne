@@ -3,14 +3,16 @@ module Ariadne.UI.Cli.Face
        , UiLangFace (..)
 
        , UiEvent (..)
+       , UiPasswordEvent (..)
        , UiCommandId (..)
        , UiCommandEvent (..)
        ) where
 
-import Universum
-
 import Data.Loc.Span (Span)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+import qualified Control.Concurrent.Event as CE
+
+import Ariadne.UX.PasswordManager (WalletId)
 
 ----------------------------------------------------------------------------
 -- Faces
@@ -41,6 +43,11 @@ data UiLangFace = forall err expr. UiLangFace
 -- capture /what the UI can handle/, not what the backends can generate.
 data UiEvent
   = UiCommandEvent UiCommandId UiCommandEvent
+  | UiPasswordEvent UiPasswordEvent
+
+-- | Ui event triggered by the password manager
+data UiPasswordEvent
+  = UiPasswordRequest WalletId CE.Event
 
 data UiCommandId = UiCommandId
   { -- This field is used to compare whether two command identifiers are equal.

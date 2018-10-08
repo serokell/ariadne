@@ -1,10 +1,7 @@
 module Ariadne.Util
-    ( atomicRunStateIORef'
-    , postfixLFields
-    )
-    where
-
-import Universum
+       ( atomicRunStateIORef'
+       , postfixLFields
+       ) where
 
 import Control.Lens (LensRules, lensField, lensRules, mappingNamer)
 

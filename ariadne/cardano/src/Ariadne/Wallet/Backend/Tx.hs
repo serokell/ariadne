@@ -4,20 +4,16 @@ module Ariadne.Wallet.Backend.Tx
        ( sendTx
        ) where
 
-import Universum hiding (list)
+import Prelude hiding (list)
 
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Buildable
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
 import Control.Natural ((:~>)(..))
-import Data.Acid (AcidState, query)
-import Data.Map (findWithDefault)
 import Formatting (bprint, build, formatToString, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
-import Pos.Client.KeyStorage (getSecretDefault)
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
 import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
@@ -26,7 +22,6 @@ import Pos.Crypto.HD (ShouldCheckPassphrase(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Launcher (HasConfigurations)
 import Pos.Util (maybeThrow)
-import Pos.Util.UserSecret (usWallets)
 
 import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.KeyStorage
@@ -38,6 +33,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
+import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
 data SendTxException
@@ -59,6 +55,10 @@ instance Buildable SendTxException where
             bprint ("Account #"%int%" doesn't exist in "%build) idx rootId
 
 instance Exception SendTxException where
+    toException e = case e of
+        SendTxIncorrectPassPhrase -> walletPassExceptionToException e
+        _ -> SomeException e
+    fromException = walletPassExceptionFromException
     displayException = toString . prettyL
 
 -- | Send a transaction from selected to wallet to the list of
@@ -68,20 +68,22 @@ instance Exception SendTxException where
 -- Otherwise inputs will be selected from all accounts in the wallet.
 sendTx ::
        (HasConfigurations)
-    => AcidState DB
+    => PassiveWalletLayer IO
     -> WalletFace
     -> CardanoFace
     -> IORef (Maybe WalletSelection)
     -> (Doc -> IO ())
-    -> PassPhrase
+    -> (WalletReference -> IO PassPhrase)
+    -> (WalletReference -> IO TxId -> IO TxId)
     -> WalletReference
     -> [LocalAccountReference]
     -> InputSelectionPolicy
     -> NonEmpty TxOut
     -> IO TxId
-sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walletRef accRefs isp outs = do
+sendTx pwl WalletFace {..} CardanoFace {..} walletSelRef printAction getPassPhrase voidWrongPass walletRef accRefs isp outs = do
+    -- TODO: call newPending here
     let NT runCardanoMode = cardanoRunCardanoMode
-    walletDb <- query acidDb Snapshot
+    walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-
         resolveWalletRefThenRead walletSelRef walletRef
@@ -92,9 +94,9 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
 
         filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
         filterAccounts ids accounts = accounts @+ toList ids
-
-    runCardanoMode $
-        sendTxDo wallets walletRootId filteredAccounts =<< cardanoGetDiffusion
+    pp <- getPassPhrase walletRef
+    voidWrongPass walletRef . runCardanoMode $
+        sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
   where
     -- Returns list of accounts which can be used.
     -- 'Nothing' means all accounts can be used.
@@ -124,18 +126,16 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
     sendTxDo ::
            HdWallets
         -> HdRootId
+        -> PassPhrase
         -> IxSet HdAccount
         -> Diffusion CardanoMode
         -> CardanoMode TxId
-    sendTxDo wallets walletRootId accountsToUse diffusion = do
-        us <- getSecretDefault
-        let pubAddrHash = _fromDb (unHdRootId walletRootId)
-            -- Wallets creation and deletion organized in a such way that
-            -- an absence of a key is not possible.
-            esk = findWithDefault
-                (error "Bug: _usWallets has no such key.")
-                pubAddrHash
-                (us ^. usWallets)
+    sendTxDo wallets walletRootId pp accountsToUse diffusion = do
+        -- Wallet creation and deletion is organized in such way that
+        -- the absence of a key is not possible.
+        esk <- liftIO $ fromMaybe
+            (error "Bug: Keystore has no such key.")
+            <$> pwlLookupKeystore pwl walletRootId
 
         maybeThrow SendTxIncorrectPassPhrase $
             checkPassMatches pp esk
@@ -147,7 +147,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
         ourAddresses <-
             maybeThrow
                 (SendTxNoAddresses walletRootId)
-                (nonEmpty $ HM.keys signersMap)
+                (nonEmpty $ keys signersMap)
         -- We pick one of the accounts to generate change address in it.
         ourAccount <-
             maybeThrow
@@ -156,7 +156,7 @@ sendTx acidDb WalletFace {..} CardanoFace {..} walletSelRef printAction pp walle
         let ourAccountId = ourAccount ^. hdAccountId
         let newChangeAddress = walletNewAddress
                 (AccountRefByHdAccountId ourAccountId)
-                HdChainInternal pp
+                HdChainInternal
         (txAux, _) <-
             prepareMTx
                 cardanoProtocolMagic

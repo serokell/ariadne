@@ -1,45 +1,27 @@
-let
-  nixpkgs = fetchTarball "https://github.com/serokell/nixpkgs/archive/master.tar.gz";
-  serokell-overlay = fetchGit "ssh://git@github.com/serokell/serokell-overlay";
-in
+{ pkgs ? import ./pkgs.nix, shell ? false }: with pkgs;
 
-with import nixpkgs {
-  config.allowUnfree = true;
-  overlays = [ (import "${serokell-overlay}/pkgs") ];
-};
+stackToNix {
+  # TODO: implement filtering in stack-to-nix
+  root = lib.cleanSource ./.;
 
-let
-  closure = (stackClosure haskell.compiler.ghc822 ./.).override {
-    overrides = final: previous: with haskell.lib; {
-      ariadne-cardano = haskell.lib.doCheck (overrideCabal previous.ariadne-cardano (super: {
-        buildTools = [ git ];
-      }));
+  inherit shell;
 
-      ariadne-qt-lib = disableLibraryProfiling (overrideCabal previous.ariadne-qt-lib (super: {
-        # https://github.com/NixOS/nixpkgs/issues/25585
-        # RPATH of binary contains a forbidden reference to /tmp/nix-build...
-        preFixup = ''rm -rf "$(pwd)"'';
-        enableSharedExecutables = true;
+  overrides = final: previous: with haskell.lib; {
+    ariadne-cardano = overrideCabal previous.ariadne-cardano (super: {
+      buildTools = [ git ];
+    });
 
-        # Our custom Setup.hs calls `rcc` from Qt and links to libQt5Core
-        librarySystemDepends = [ qt5.qtbase ];
-        libraryToolDepends = [ qt5.qtbase ];
-      }));
+    ariadne-qt-lib = overrideCabal previous.ariadne-qt-lib (super: {
+      libraryToolDepends = (super.libraryToolDepends or []) ++ [ qt5.qtbase ];
+      librarySystemDepends = (super.librarySystemDepends or []) ++ [ qt5.qtbase ];
+    });
 
-      knit = overrideCabal previous.knit (super: with final; {
-        doCheck = true;
-        testDepends = [ hspec universum ];
-      });
+    qtah = overrideCabal previous.qtah (super: {
+      libraryToolDepends = with qt5; [ qtbase qttools ];
+    });
 
-      qtah-cpp = overrideCabal previous.qtah-cpp (super: {
-        librarySystemDepends = [ qt5.qtbase ];
-      });
-
-      qtah = overrideCabal previous.qtah (super: {
-        libraryToolDepends = [ qt5.qtbase ];
-      });
-    };
+    qtah-cpp = overrideCabal previous.qtah-cpp (super: {
+      librarySystemDepends = with qt5; [ qtbase qttools ];
+    });
   };
-in
-
-{ inherit (closure) ariadne-cli-app ariadne-vty-app ariadne-qt-app; }
+}

@@ -1,15 +1,17 @@
-module Main where
-
-import Universum
+module Main
+       ( main
+       ) where
 
 import Control.Monad.Component (ComponentM)
-import NType (N (..))
+import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Qt
-import Ariadne.UI.Qt.Face (UiLangFace)
+import Ariadne.UI.Qt.Face (UiLangFace, UiWalletFace(..))
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
+import Ariadne.Wallet.Face (WalletUIFace(..))
 
 import Glue
 
@@ -25,11 +27,23 @@ main = defaultMain mainSettings
         , msPutWalletEventToUI = putWalletEventToUI
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Nothing
+        , msPutPasswordEventToUI = putPasswordEventToUI
         , msKnitFaceToUI = knitFaceToUI
         , msUiExecContext = const $ Base ()
         }
 
-    createUI :: CommandHistory -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI history =
-        let historyFace = historyToUI history
-        in createAriadneUI historyFace
+    createUI
+        :: WalletUIFace
+        -> CommandHistory
+        -> PutPassword
+        -> ComponentM (UiFace, UiLangFace -> IO ())
+    createUI WalletUIFace{..} history putPass =
+        let
+          historyFace = historyToUI history
+          uiWalletFace = UiWalletFace
+            { uiGenerateMnemonic = walletGenerateMnemonic
+            , uiDefaultEntropySize = walletDefaultEntropySize
+            , uiValidateAddress = walletValidateAddress
+            , uiCoinPrecision = walletCoinPrecision
+            }
+        in createAriadneUI uiWalletFace historyFace putPass

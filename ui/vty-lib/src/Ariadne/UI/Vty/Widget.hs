@@ -48,12 +48,10 @@ module Ariadne.UI.Vty.Widget
        , handleWidgetScroll
        , handleWidgetEvent
 
-       -- Re-exports
+         -- Re-exports
        , ReifiedLens'
        , ReifiedLens(..)
        ) where
-
-import Universum
 
 import Control.Lens
   (ReifiedLens(..), ReifiedLens', assign, makeLensesWith, to, (%=), (.=))
@@ -123,6 +121,9 @@ data WidgetNamePart
   | WidgetNameAccountSend
   | WidgetNameAccountAddressGenerateButton
   | WidgetNameAccountAddressList
+
+  | WidgetNamePassword
+  | WidgetNamePasswordInput
   deriving (Eq, Ord, Show)
 
 -- | Unique widget name, describing its location in widget tree

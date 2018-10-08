@@ -1,4 +1,14 @@
-module Knit.Printer where
+module Knit.Printer
+       ( ComponentPrinter(..)
+       , PrettyPrintValue
+       , invalidOperatorApplication
+       , ppLit
+       , ppToken
+       , ppExpr
+       , ppValue
+       , nameToDoc
+       , text
+       ) where
 
 import Data.List as List
 import Data.Semigroup ((<>))

@@ -1,0 +1,23 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-core
+
+library:
+  <<: *lib-common
+  dependencies:
+    - Earley
+    - ansi-wl-pprint
+    - async
+    - componentm
+    - concurrent-extra
+    - containers
+    - formatting
+    - knit
+    - lens
+    - megaparsec
+    - ntype
+    - o-clock
+    - sqlite-simple
+    - text
+    - time
+    - transformers

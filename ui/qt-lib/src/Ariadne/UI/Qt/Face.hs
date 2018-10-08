@@ -8,12 +8,13 @@ module Ariadne.UI.Qt.Face
        , UiCommand (..)
        , UiCommandResult (..)
        , UiSendCommandResult (..)
-       , UiNewWalletCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
        , UiLangFace (..)
+       , UiWalletFace (..)
        , UiHistoryFace (..)
+       , UiPasswordEvent (..)
        , UiFace (..)
 
        , UiWalletTreeItem (..)
@@ -27,11 +28,14 @@ module Ariadne.UI.Qt.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
+import qualified Control.Concurrent.Event as CE
 import Data.Loc.Span (Span)
+import Data.Scientific (Scientific)
 import Data.Tree (Tree)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+import Ariadne.UX.PasswordManager
+import Serokell.Data.Memory.Units (Byte)
 
 data UiCommandId =
   UiCommandId
@@ -83,21 +87,21 @@ data UiEvent
   | UiCommandResult UiCommandId UiCommandResult
   | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
+  | UiPasswordEvent UiPasswordEvent
 
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiSend Text Text  -- ^ Address, amount
-  | UiNewWallet Text (Maybe Text) -- ^ Name, password
+  | UiSend Word [Word] Text Scientific -- ^ Wallet idx, accounts, address, amount
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
-  | UiNewAddress
+  | UiNewAddress Word Word -- ^ Wallet index, account index
   | UiKill Natural
+  | UiRemoveCurrentItem
 
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
-  | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -105,10 +109,6 @@ data UiCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
-
-data UiNewWalletCommandResult
-  = UiNewWalletCommandSuccess [Text]
-  | UiNewWalletCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess
@@ -119,8 +119,12 @@ data UiNewAccountCommandResult
   | UiNewAccountCommandFailure Text
 
 data UiNewAddressCommandResult
-  = UiNewAddressCommandSuccess
+  = UiNewAddressCommandSuccess Word Word Text
   | UiNewAddressCommandFailure Text
+
+-- | Ui event triggered by the password manager
+data UiPasswordEvent
+  = UiPasswordRequest WalletId CE.Event
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =
@@ -133,6 +137,15 @@ data UiLangFace =
   , langParseErrSpans :: err -> [Span]
   , langGetHelp :: [Doc]
   }
+
+-- Interface for the wallet
+data UiWalletFace =
+  UiWalletFace
+    { uiGenerateMnemonic :: Byte -> IO [Text]
+    , uiDefaultEntropySize :: Byte
+    , uiValidateAddress :: Text -> Bool
+    , uiCoinPrecision :: Int
+    }
 
 -- Interface for the command history
 data UiHistoryFace =
@@ -174,6 +187,8 @@ type UiWalletTree = Tree UiWalletTreeItem
 -- to be an issue, we may consider changing it.
 type TreePath = [Word]
 
+type NonEmptyPath = NonEmpty Word
+
 data UiWalletTreeSelection =
   UiWalletTreeSelection
     { wtsWalletIdx :: Word
@@ -193,14 +208,14 @@ data UiWalletInfo = UiWalletInfo
 data UiAccountInfo = UiAccountInfo
   { uaciLabel :: !(Maybe Text)
   , uaciWalletIdx :: !Word
-  , uaciPath :: !TreePath
+  , uaciPath :: !NonEmptyPath
   , uaciBalance :: !(Text, UiCurrency)
   , uaciAddresses :: ![UiAddressInfo]
   }
 
 data UiAddressInfo = UiAddressInfo
   { uadiWalletIdx :: !Word
-  , uadiPath :: !TreePath
+  , uadiPath :: !NonEmptyPath
   , uadiAddress :: !Text
   , uadiBalance :: !(Text, UiCurrency)
   }

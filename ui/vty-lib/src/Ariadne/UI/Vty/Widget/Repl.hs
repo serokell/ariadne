@@ -2,12 +2,10 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Data.List ((!!))
-import Universum hiding (last)
-import Universum.Unsafe (last)
-
 import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
+import Data.List ((!!))
 import Named
+import Universum.Unsafe (last)
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -81,7 +79,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
         (widgetParentLens replWidgetCommandL)
         (Just $ Lens $ widgetParentLens replWidgetCommandLocationL)
         "default"
-        id
+        (Just id)
         (Just $ widgetParentGetter spanAttrs)
         EnterWithBackslash
 
@@ -92,7 +90,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
         historyUpdate
       WidgetEventEditLocationChanged -> do
         replWidgetCurrentAutocompletionL .= Nothing
-      _ -> return ()
+      _ -> pass
 
     setWidgetFocusList [WidgetNameReplInput]
 
@@ -200,16 +198,14 @@ handleReplWidgetKey = \case
       if null replWidgetCommand
         then return WidgetEventNotHandled
         else do
-          replWidgetCommandL .= ""
-          replWidgetCommandLocationL .= (0, 0)
-          reparse
+          clearCommand
           return WidgetEventHandled
     KeyAutocomplete -> handleAutocompleteKey Z.tail
     KeyEnter -> do
       ReplWidgetState{..} <- get
       if
         | null replWidgetCommand ->
-            return ()
+            pass
         | isQuitCommand replWidgetCommand ->
             liftIO $ putUiEvent replWidgetUiFace $ UiCommandAction UiCommandQuit
         | otherwise -> do
@@ -224,9 +220,7 @@ handleReplWidgetKey = \case
                   commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
                   out = OutputCommand commandId commandSrc [] Nothing
                 zoom replWidgetOutL $ modify (out:)
-                replWidgetCommandL .= ""
-                replWidgetCommandLocationL .= (0, 0)
-                reparse
+                clearCommand
             widgetName <- B.getName <$> lift get
             liftBrick $ do
               B.invalidateCacheEntry widgetName
@@ -266,7 +260,7 @@ handleAutocompleteKey move = do
         prefixSuggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
         suggestions = (`map` prefixSuggestions) $ \suggestion ->
           let ls' = T.splitOn "\n" suggestion
-          in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ last ls'))
+          in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ Universum.Unsafe.last ls'))
         suggestionMap = M.fromList
           $ zip [0..]
           $ (replWidgetCommand, replWidgetCommandLocation) : suggestions
@@ -288,15 +282,27 @@ handleReplWidgetEvent
   :: UiEvent
   -> WidgetEventM (ReplWidgetState p) p ()
 handleReplWidgetEvent = \case
-  UiCommandEvent commandId commandEvent -> do
-    zoom (replWidgetOutL . traversed) $
-      modify (updateCommandResult commandId commandEvent)
-    widgetName <- B.getName <$> lift get
-    liftBrick $ do
-      B.invalidateCacheEntry widgetName
-      scrollToEnd widgetName
-  _ ->
-    return ()
+    UiCommandEvent commandId commandEvent -> case commandEvent of
+        UiCommandWidget doc -> do
+            ReplWidgetState{..} <- get
+            liftIO $ historyAddCommand replWidgetHistoryFace $ show doc
+            let commandSrc (Named defAttr) (Named w) = pprDoc defAttr w doc
+                out = OutputCommand commandId commandSrc [] Nothing
+            zoom replWidgetOutL $ modify (out:)
+        _ -> do
+            zoom (replWidgetOutL . traversed) $
+              modify (updateCommandResult commandId commandEvent)
+            widgetName <- B.getName <$> lift get
+            liftBrick $ do
+              B.invalidateCacheEntry widgetName
+              scrollToEnd widgetName
+    _ -> pass
+
+clearCommand :: WidgetEventM (ReplWidgetState p) p ()
+clearCommand = do
+  replWidgetCommandL .= ""
+  replWidgetCommandLocationL .= (0, 0)
+  reparse
 
 reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do
@@ -345,6 +351,7 @@ updateCommandResult
               (V.text' (defAttr `V.withBackColor` V.red) "Error")
               (pprDoc defAttr w doc)
         UiCommandOutput _ -> oldResultImage
+        UiCommandWidget _ -> oldResultImage
     messages =
       case commandEvent of
         UiCommandSuccess _ -> oldMessages
@@ -352,6 +359,7 @@ updateCommandResult
         UiCommandOutput doc ->
           let message (Named defAttr) (Named w) = pprDoc defAttr w doc
           in message:oldMessages
+        UiCommandWidget _ -> oldMessages
 updateCommandResult _ _ outCmd = outCmd
 
 spanAttrs :: ReplWidgetState p -> (Int, Int) -> B.AttrName

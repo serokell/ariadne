@@ -1,13 +1,11 @@
 module Ariadne.UX.CommandHistory
-    ( CommandHistory
-    , openCommandHistory
-    , addCommand
-    , setPrefix
-    , toNextCommand
-    , toPrevCommand
-    ) where
-
-import Universum
+       ( CommandHistory
+       , openCommandHistory
+       , addCommand
+       , setPrefix
+       , toNextCommand
+       , toPrevCommand
+       ) where
 
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Text as T
@@ -94,4 +92,4 @@ resetCurrentCommandId ch =
     queryResult <- query_ conn "SELECT COALESCE(MAX(id), 0) FROM history" :: IO [[Int]]
     case queryResult of
       [[maxId]] -> writeIORef (currentCommandId ch) (maxId + 1)
-      _ -> return ()
+      _ -> pass

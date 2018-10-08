@@ -1,15 +1,14 @@
 -- | Transaction metadata conform the wallet specification
-module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta (
-    -- * Transaction metadata
-    module Types
+module Ariadne.Wallet.Cardano.Kernel.DB.TxMeta
+       ( -- * Transaction metadata
+         module Types
 
-  -- * Handy re-export to not leak our current choice of storage backend.
-  , openMetaDB
-  ) where
+         -- * Handy re-export to not leak our current choice of storage backend.
+       , openMetaDB
+       ) where
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Sqlite as ConcreteStorage
 import Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types as Types
-import Universum
 
 -- Concrete instantiation of 'MetaDBHandle'
 

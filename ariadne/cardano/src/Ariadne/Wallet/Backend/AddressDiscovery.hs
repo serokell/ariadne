@@ -4,14 +4,12 @@ module Ariadne.Wallet.Backend.AddressDiscovery
        , discoverHDAddressesWithUtxo
        ) where
 
-import Universum
-
 import Control.Lens (at, non, (?~))
 import Data.Conduit (runConduitRes, (.|))
 import qualified Data.Conduit.List as CL
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import UnliftIO (MonadUnliftIO)
-import qualified Data.List.NonEmpty as NE
 
 import Pos.Core (AddrAttributes(..), Address, addrAttributesUnwrapped)
 import Pos.Core.Txp (TxOutAux(..), txOutAddress)
@@ -29,7 +27,7 @@ discoverHDAddressWithUtxo ::
     => HDPassphrase
     -> m AddressWithPathToUtxoMap
 discoverHDAddressWithUtxo walletPassphrase =
-    NE.head <$> discoverHDAddressesWithUtxo (one walletPassphrase)
+    head <$> discoverHDAddressesWithUtxo (one walletPassphrase)
 
 -- | This is heavily based on @Pos.Crypto.HDDiscovery.discoverHDAddresses@.
 discoverHDAddressesWithUtxo

@@ -1,0 +1,26 @@
+steps:
+  - command: nix-build release.nix -A ariadne-hlint -o hlint
+    agents:
+      system: x86_64-linux
+    artifact_paths:
+    - hlint/*.html
+    label: hlint
+
+  - command: nix-build --no-out-link
+    agents:
+      system: x86_64-linux
+    label: build
+
+  - wait
+
+  - command: nix-build release.nix -A ariadne-vty-app-flatpak -o ariadne-vty.flatpak
+    agents:
+      system: x86_64-linux
+    artifact_paths:
+    - ariadne-vty.flatpak
+    label: flatpak
+
+  - command: nix-build shell.nix --no-out-link
+    agents:
+      system: x86_64-linux
+    label: shell

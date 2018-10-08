@@ -1,0 +1,47 @@
+<<: !include "../hpack/definitions.yaml"
+
+name: knit
+
+<<: *meta
+default-extensions: *default-extensions
+ghc-options: *ghc-options
+dependencies:
+  - base >= 4.7 && < 5
+
+library:
+  <<: *lib-common
+  default-extensions:
+    - NoImplicitPrelude
+  dependencies:
+    - Earley
+    - QuickCheck
+    - ansi-wl-pprint
+    - containers
+    - formatting
+    - generic-arbitrary
+    - lens
+    - loc
+    - megaparsec
+    - mtl
+    - ntype
+    - parser-combinators
+    - quickcheck-instances
+    - scientific
+    - split
+    - text
+    - text-format
+    - validation
+
+tests:
+  knit-test:
+    <<: *test-common
+    default-extensions:
+      - NoImplicitPrelude
+    dependencies:
+      - QuickCheck
+      - hspec
+      - knit
+      - loc
+      - megaparsec
+      - text
+      - universum

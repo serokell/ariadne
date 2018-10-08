@@ -1,6 +1,33 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Knit.Tokenizer where
+module Knit.Tokenizer
+       ( SSpan(..)
+       , BracketSide(..)
+       , Tokenizer
+       , ComponentToken
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , Token(..)
+
+       , _BracketSideOpening
+       , _BracketSideClosing
+       , _Token
+       , _TokenSquareBracket
+       , _TokenParenthesis
+       , _TokenEquals
+       , _TokenSemicolon
+       , _TokenName
+       , _TokenKey
+       , _TokenUnknown
+
+       , toToken
+       , fromToken
+       , tokenize
+       , detokenize
+       , tokenize'
+       , longestMatch
+       , pSomeAlphaNum
+       ) where
 
 import Control.Applicative as A
 import Control.Lens
@@ -250,7 +277,7 @@ withSpan p = do
     position1 <- posToLoc <$> getPosition
     t <- p
     position2 <- posToLoc <$> getPosition
-    return $ (SSpan $ spanFromTo position1 position2, t)
+    return (SSpan $ spanFromTo position1 position2, t)
   where
     posToLoc :: SourcePos -> Loc
     posToLoc SourcePos{..} = uncurry loc

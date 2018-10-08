@@ -1,9 +1,7 @@
 module Ariadne.UI.Vty
-  ( UiFace(..)
-  , createAriadneUI
-  ) where
-
-import Universum
+       ( UiFace(..)
+       , createAriadneUI
+       ) where
 
 import qualified Brick as B
 import Brick.BChan
@@ -12,6 +10,7 @@ import qualified Graphics.Vty as V
 
 import Ariadne.UI.Vty.App
 import Ariadne.UI.Vty.Face
+import Ariadne.UX.PasswordManager
 
 type UiAction = UiLangFace -> IO ()
 
@@ -19,12 +18,12 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: UiFeatures -> UiHistoryFace -> ComponentM (UiFace, UiAction)
-createAriadneUI features historyFace = buildComponent_ "UI-Vty" $ do
+createAriadneUI :: UiFeatures -> UiHistoryFace -> PutPassword -> ComponentM (UiFace, UiAction)
+createAriadneUI features historyFace putPass = buildComponent_ "UI-Vty" $ do
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan
 
-  return (uiFace, runUI eventChan features uiFace historyFace)
+  return (uiFace, runUI eventChan features putPass uiFace historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
@@ -32,11 +31,12 @@ createAriadneUI features historyFace = buildComponent_ "UI-Vty" $ do
 runUI
   :: BChan UiEvent
   -> UiFeatures
+  -> PutPassword
   -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI eventChan features uiFace historyFace langFace = do
+runUI eventChan features putPass uiFace historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -67,7 +67,7 @@ runUI eventChan features uiFace historyFace langFace = do
     app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initApp features uiFace langFace historyFace)
+    (initApp features putPass uiFace langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name

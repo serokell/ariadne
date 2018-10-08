@@ -2,8 +2,6 @@ module Ariadne.UI.Vty.Widget.AddWallet
        ( initAddWalletWidget
        ) where
 
-import Universum
-
 import Control.Lens (assign, makeLensesWith, (.=))
 
 import qualified Brick as B
@@ -85,7 +83,7 @@ initAddWalletWidget langFace features =
 
     addWidgetEventHandler WidgetNameAddWalletNewButton $ \case
       WidgetEventButtonPressed -> performCreateWallet
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameAddWalletRestoreName $
       initEditWidget $ widgetParentLens addWalletRestoreNameL
@@ -100,7 +98,7 @@ initAddWalletWidget langFace features =
 
     addWidgetEventHandler WidgetNameAddWalletRestoreButton $ \case
       WidgetEventButtonPressed -> performRestoreWallet
-      _ -> return ()
+      _ -> pass
 
     setWidgetFocusList
       [ WidgetNameAddWalletNewName
@@ -117,6 +115,7 @@ initAddWalletWidget langFace features =
 -- View
 ----------------------------------------------------------------------------
 
+{-# ANN drawAddWalletWidget ("HLint: ignore Use list comprehension" :: Text) #-}
 drawAddWalletWidget :: WidgetName -> AddWalletWidgetState -> WidgetDrawM AddWalletWidgetState p (B.Widget WidgetName)
 drawAddWalletWidget focus AddWalletWidgetState{..} = do
   widget <- ask
@@ -164,7 +163,7 @@ handleAddWalletWidgetEvent
   :: UiEvent
   -> WidgetEventM AddWalletWidgetState p ()
 handleAddWalletWidgetEvent = \case
-  UiWalletEvent UiWalletUpdate{..} 
+  UiWalletEvent UiWalletUpdate{..}
     | isJust wuSelectionInfo -> do
         addWalletNewResultL .= NewResultNone
         addWalletRestoreResultL .= RestoreResultNone
@@ -179,7 +178,7 @@ handleAddWalletWidgetEvent = \case
           UiNewWalletCommandFailure err -> do
             addWalletNewResultL .= NewResultError err
       _ ->
-        return ()
+        pass
   UiCommandResult commandId (UiRestoreWalletCommandResult result) -> do
     use addWalletRestoreResultL >>= \case
       RestoreResultWaiting commandId' | commandId == commandId' ->
@@ -192,9 +191,9 @@ handleAddWalletWidgetEvent = \case
           UiRestoreWalletCommandFailure err -> do
             addWalletRestoreResultL .= RestoreResultError err
       _ ->
-        return ()
+        pass
   _ ->
-    return ()
+    pass
 
 ----------------------------------------------------------------------------
 -- Actions
@@ -206,7 +205,7 @@ performCreateWallet = do
   name <- use addWalletNewNameL
   passphrase <- use addWalletNewPassL
   use addWalletNewResultL >>= \case
-    NewResultWaiting _ -> return ()
+    NewResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiNewWallet $ UiNewWalletArgs name passphrase) >>=
       assign addWalletNewResultL . either NewResultError NewResultWaiting
 
@@ -218,6 +217,6 @@ performRestoreWallet = do
   passphrase <- use addWalletRestorePassL
   full <- use addWalletRestoreFullL
   use addWalletRestoreResultL >>= \case
-    RestoreResultWaiting _ -> return ()
+    RestoreResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRestoreWallet $ UiRestoreWalletArgs name mnemonic passphrase full) >>=
       assign addWalletRestoreResultL . either RestoreResultError RestoreResultWaiting

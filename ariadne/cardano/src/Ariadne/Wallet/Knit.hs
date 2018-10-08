@@ -1,18 +1,43 @@
-module Ariadne.Wallet.Knit where
+module Ariadne.Wallet.Knit
+       ( Wallet
 
-import Universum hiding (preview)
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentTokenToLit(..)
+       , ComponentPrinter(..)
+       , ComponentCommandRepr(..)
+       , ComponentLitToValue(..)
+       , ComponentExecContext(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
 
-import qualified Data.ByteArray as ByteArray
+       , refreshStateCommandName
+       , newAddressCommandName
+       , newAccountCommandName
+       , newWalletCommandName
+       , restoreCommandName
+       , restoreFromFileCommandName
+       , selectCommandName
+       , sendCommandName
+       , balanceCommandName
+       , renameCommandName
+       , removeCommandName
 
-import Control.Lens hiding (parts, (<&>))
+       , getWalletRefArg
+       ) where
+
+import Control.Lens (makePrisms)
 import Serokell.Data.Memory.Units (fromBytes)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
 import Pos.Core (AddressHash)
-import Pos.Crypto (PassPhrase, PublicKey, decodeAbstractHash)
-import Pos.Crypto.Hashing (hashRaw, unsafeCheatingHashCoerce)
-import Pos.Crypto.Signing (emptyPassphrase)
+import Pos.Crypto (PublicKey, decodeAbstractHash)
+import Pos.Crypto.Hashing (unsafeCheatingHashCoerce)
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec.Char as P
 
@@ -107,7 +132,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
       CommandProc
         { cpName = refreshStateCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
             walletRefreshState
             return $ toValue ValueUnit
@@ -122,10 +147,10 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
               \case Nothing -> HdChainExternal
                     Just True -> HdChainExternal
                     Just False -> HdChainInternal
-            passphrase <- getPassPhraseArg
-            pure (accountRef, chain, passphrase)
-        , cpRepr = \(accountRef, chain, passphrase) -> CommandAction $ \WalletFace{..} -> do
-            toValue . ValueAddress <$> walletNewAddress accountRef chain passphrase
+            pure (accountRef, chain)
+        , cpRepr = \(accountRef, chain) -> CommandAction $ \WalletFace{..} -> do
+            newAddr <- walletNewAddress accountRef chain
+            return . toValue $ ValueAddress newAddr
         , cpHelp = "Generate and add a new address to the specified account. When \
                    \no account is specified, uses the selected account."
         }
@@ -146,12 +171,11 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = newWalletCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            passPhrase <- getPassPhraseArg
             name <- fmap WalletName <$> getArgOpt tyString "name"
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
-            return (passPhrase, name, mbEntropySize)
-        , cpRepr = \(passPhrase, name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
-            mnemonic <- walletNewWallet passPhrase name mbEntropySize
+            return (name, mbEntropySize)
+        , cpRepr = \(name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
+            mnemonic <- walletNewWallet name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
         , cpHelp = "Generate a new wallet and add to the storage. \
                    \The result is the mnemonic to restore this wallet."
@@ -160,15 +184,14 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = restoreCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            passPhrase <- getPassPhraseArg
             name <- fmap WalletName <$> getArgOpt tyString "name"
             mnemonic <- Mnemonic <$> getArg tyString "mnemonic"
             restoreType <- getArg tyBool "full" <&>
                 \case False -> WalletRestoreQuick
                       True -> WalletRestoreFull
-            return (passPhrase, name, mnemonic, restoreType)
-        , cpRepr = \(passPhrase, name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} ->
-            toValue ValueUnit <$ walletRestore passPhrase name mnemonic restoreType
+            return (name, mnemonic, restoreType)
+        , cpRepr = \(name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} -> do
+            toValue ValueUnit <$ walletRestore name mnemonic restoreType
         , cpHelp = "Restore a wallet from mnemonic. " <>
                    "A passphrase can be specified to encrypt the resulting " <>
                    "wallet (it doesn't have to be the same as the one used " <>
@@ -210,14 +233,13 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = do
             walletRef <- getWalletRefArgOpt
             accRefs <- getArgMany tyLocalAccountRef "account"
-            passPhrase <- getPassPhraseArg
             outs <- getArgSome tyTxOut "out"
             isp <- fromMaybe defaultInputSelectionPolicy <$>
                 getArgOpt tyInputSelectionPolicy "policy"
-            return (walletRef, accRefs, passPhrase, isp, outs)
-        , cpRepr = \(walletRef, accRefs, passPhrase, isp, outs) -> CommandAction $
+            return (walletRef, accRefs, isp, outs)
+        , cpRepr = \(walletRef, accRefs, isp, outs) -> CommandAction $
           \WalletFace{..} -> do
-            txId <- walletSend passPhrase walletRef accRefs isp outs
+            txId <- walletSend walletRef accRefs isp outs
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp =
             "Send a transaction from the specified wallet. When no wallet \
@@ -235,7 +257,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = balanceCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
             toValue . ValueCoin <$> walletBalance
         , cpHelp = "Get balance of the currently selected item"
@@ -252,7 +274,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = removeCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pure ()
+        , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
             walletRemove
             return $ toValue ValueUnit
@@ -267,7 +289,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         in CommandProc
           { cpName = name
           , cpArgumentPrepare = id
-          , cpArgumentConsumer = pure ()
+          , cpArgumentConsumer = pass
           , cpRepr = \() -> CommandAction $ \_ ->
               pure (toValue (ValueInputSelectionPolicy policy))
           , cpHelp =
@@ -344,13 +366,15 @@ tyInputSelectionPolicy =
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's
 -- always "wallet", we can move it outside if it appears to be
 -- necessary.
-getWalletRefArgOpt ::
-       (Elem components Core, Elem components Wallet) => ArgumentConsumer components WalletReference
+getWalletRefArgOpt
+    :: (Elem components Core, Elem components Wallet)
+    => ArgumentConsumer components WalletReference
 getWalletRefArgOpt =
     fromMaybe WalletRefSelection <$> getArgOpt tyWalletRef "wallet"
 
-getWalletRefArg ::
-       (Elem components Core, Elem components Wallet) => ArgumentConsumer components WalletReference
+getWalletRefArg
+    :: (Elem components Core, Elem components Wallet)
+    => ArgumentConsumer components WalletReference
 getWalletRefArg = getArg tyWalletRef "wallet"
 
 -- Maybe "account" shouldn't be hardcoded here, but currently it's
@@ -366,9 +390,3 @@ getAccountRefArgOpt =
     convert walletRef = \case
         Nothing -> AccountRefSelection
         Just e -> AccountRefByUIindex e walletRef
-
-mkPassPhrase :: Maybe Text -> PassPhrase
-mkPassPhrase = maybe emptyPassphrase (ByteArray.convert . hashRaw . encodeUtf8)
-
-getPassPhraseArg :: Elem components Core => ArgumentConsumer components PassPhrase
-getPassPhraseArg = mkPassPhrase <$> getArgOpt tyString "pass"

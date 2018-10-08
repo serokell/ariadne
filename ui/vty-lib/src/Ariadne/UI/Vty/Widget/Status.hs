@@ -2,10 +2,8 @@ module Ariadne.UI.Vty.Widget.Status
        ( initStatusWidget
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith, (.=))
-import Data.List as List
+import qualified Data.List as List
 import Data.Version (Version, showVersion)
 
 import qualified Brick as B
@@ -50,7 +48,7 @@ drawStatusWidget StatusWidgetState{..} =
     B.vLimit 1 $
     B.padRight B.Max $
     B.hBox $
-    List.intersperse B.vBorder $
+    intersperse B.vBorder $
     List.map drawItem $ catMaybes items
   where
     items :: [Maybe (Text, Text)]
@@ -87,4 +85,4 @@ handleStatusWidgetEvent = \case
     statusWidgetNewVersionL .= Just nvVersion
     statusWidgetUpdateURLL .= Just nvUpdateURL
   _ ->
-    return ()
+    pass

@@ -1,21 +1,19 @@
 module Ariadne.UI.Vty.Scrolling
-     ( ScrollingAction(..)
-     , keyToScrollingAction
-     , handleScrollingEvent
-     , scrollToEnd
-     , fixedViewport
-     , scrollingViewport
-     , fixedScrollingViewport
-     ) where
-
-import Universum
+       ( ScrollingAction(..)
+       , keyToScrollingAction
+       , handleScrollingEvent
+       , scrollToEnd
+       , fixedViewport
+       , scrollingViewport
+       , fixedScrollingViewport
+       ) where
 
 import Ariadne.UI.Vty.Keyboard
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as BR
-import qualified Graphics.Vty as V
 import qualified Control.Monad.Trans.Reader as R
+import qualified Graphics.Vty as V
 
 data ScrollingAction
   = ScrollingLineUp
@@ -111,7 +109,7 @@ fixedScrollingViewport
 fixedScrollingViewport = withScrollBar fixedViewport
 
 withScrollBar
-    :: (Ord n, Show n)
+    :: Ord n
     => (n -> B.ViewportType -> B.Widget n -> B.Widget n)
     -> n
     -> B.ViewportType

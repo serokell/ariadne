@@ -1,8 +1,7 @@
 module Ariadne.UI.Qt.StyleSheet
-  ( styleSheet
-  ) where
+       ( styleSheet
+       ) where
 
-import Data.Text
 import Data.FileEmbed
 
 styleSheet :: Text

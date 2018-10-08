@@ -8,10 +8,16 @@
   <file>images/send-ic.png</file>
   <file>images/receive-ic.png</file>
   <file>images/ada-symbol-big-dark.png</file>
+  <file>images/ada-symbol-small-dark.png</file>
   <file>images/branch-closed.png</file>
   <file>images/branch-open.png</file>
   <file>images/add-ic.png</file>
   <file>images/hide-pass-ic.png</file>
+  <file>images/expand-arrow.png</file>
+  <file>images/expand-arrow-open.png</file>
+  <file>images/clipboard-small-ic.png</file>
+  <file>images/link-ic.png</file>
+  <file>images/settings-ic.png</file>
   <file>museo/MuseoSansCyrl_100.otf</file>
   <file>museo/MuseoSansCyrl_300.otf</file>
   <file>museo/MuseoSansCyrl_500.otf</file>

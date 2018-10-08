@@ -1,4 +1,11 @@
-module Knit.Procedure where
+module Knit.Procedure
+       ( ComponentCommandRepr
+       , CommandProc(..)
+       , ComponentCommandProcs(..)
+       , SomeCommandProc(..)
+       , commandProcs
+       , resolveProcNames
+       ) where
 
 import Control.Lens
 import Data.List as List

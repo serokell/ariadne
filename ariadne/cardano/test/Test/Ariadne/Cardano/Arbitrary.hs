@@ -1,10 +1,17 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Ariadne.Cardano.Arbitrary where
-
-import Universum
+module Test.Ariadne.Cardano.Arbitrary
+       ( Arbitrary(..)
+       , genEkgParams
+       , genConfigurationOptions
+       , genValidTimestamp
+       , genMaybe
+       , genValidText
+       , genValidByteString
+       , genValidString
+       , genNetworkAddress
+       ) where
 
 import Ariadne.Config.Cardano (CardanoConfig(..))
-import Data.Text (pack)
 import Data.Time.Units (fromMicroseconds)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.Network.Types (NodeName(..))
@@ -21,7 +28,6 @@ instance Arbitrary CardanoConfig where
     arbitrary = do
         ccDbPath <- genMaybe genValidString
         ccRebuildDB <- arbitrary
-        ccKeyfilePath <- genValidString
         ccNetworkTopology <- genMaybe genValidString
         ccNetworkNodeId <- genMaybe $ NodeName <$> genValidText
         ccNetworkPort <- arbitrary
@@ -54,7 +60,7 @@ genMaybe :: Gen a -> Gen (Maybe a)
 genMaybe g = oneof [pure Nothing, Just <$> g]
 
 genValidText :: Gen Text
-genValidText = fmap pack genValidString
+genValidText = fmap toText genValidString
 
 genValidByteString :: Gen ByteString
 genValidByteString = fmap B8.pack genValidString

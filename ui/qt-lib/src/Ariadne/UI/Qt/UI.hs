@@ -1,8 +1,10 @@
-module Ariadne.UI.Qt.UI where
-
-import Universum
-
-import qualified Data.ByteString as BS
+module Ariadne.UI.Qt.UI
+       ( UI
+       , QVariantCastable(..)
+       , runUI
+       , connectSignal
+       , setProperty
+       ) where
 
 import Graphics.UI.Qtah.Signal (Signal, connect_)
 
@@ -23,8 +25,8 @@ class QVariantCastable a where
   fromQVariant :: (QVariant.QVariantValue v) => v -> IO a
 
 instance QVariantCastable Int where
-  toQVariant = QVariant.newWithInt . fromIntegral
-  fromQVariant = return . fromIntegral <=< QVariant.toInt
+  toQVariant = QVariant.newWithInt
+  fromQVariant = QVariant.toInt
 
 instance QVariantCastable Word where
   toQVariant = QVariant.newWithUInt . fromIntegral
@@ -34,12 +36,10 @@ instance QVariantCastable a => QVariantCastable [a] where
   toQVariant = QVariant.newWithList <=< mapM toQVariant
   fromQVariant = mapM fromQVariant <=< QVariant.toList
 
--- This will be removed once qtah changes `setProperty` method to require something sane
--- instead of `CString`.
+-- QObject.setProperty expects QVariant. Explicit QVariant creation every time
+-- is boring, so this wrappers does it
 setProperty ::
   (QObject.QObjectPtr obj, ToString a, ToString b) =>
-  obj -> a -> b -> IO Bool
+  obj -> a -> b -> IO ()
 setProperty object name value = do
-  let packedName = encodeUtf8 $ toString name
-  qValue <- QVariant.newWithString $ toString value
-  BS.useAsCString packedName (\qName -> QObject.setProperty object qName qValue)
+  QObject.setProperty object (toString name) =<< QVariant.newWithString (toString value)

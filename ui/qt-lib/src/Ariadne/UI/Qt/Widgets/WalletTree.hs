@@ -6,10 +6,7 @@ module Ariadne.UI.Qt.Widgets.WalletTree
        , handleWalletTreeEvent
        ) where
 
-import Universum hiding (intercalate)
-
 import Control.Lens (makeLensesWith)
-import Data.Text (intercalate)
 import Graphics.UI.Qtah.Signal (connect_)
 
 import Data.Bits
@@ -32,6 +29,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
 import Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
 import Ariadne.Util
 
@@ -46,10 +44,11 @@ makeLensesWith postfixLFields ''WalletTree
 
 initWalletTree
   :: UiLangFace
+  -> UiWalletFace
   -> QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
   -> IO (QWidget.QWidget, WalletTree)
-initWalletTree langFace itemModel selectionModel = do
+initWalletTree langFace uiWalletFace itemModel selectionModel = do
   widget <- QWidget.new
   QObject.setObjectName widget ("walletTreePane" :: String)
 
@@ -74,24 +73,34 @@ initWalletTree langFace itemModel selectionModel = do
   QBoxLayout.setStretch layout 0 2
   QBoxLayout.addStretchOf layout 1
 
-  connect_ newWalletBtn QAbstractButton.clickedSignal $ addWalletClicked langFace WalletTree{..}
+  connect_ newWalletBtn QAbstractButton.clickedSignal $ addWalletClicked langFace uiWalletFace WalletTree{..}
 
   QWidget.setLayout widget layout
 
   return (widget, WalletTree{..})
 
-addWalletClicked :: UiLangFace -> WalletTree -> Bool -> IO ()
-addWalletClicked UiLangFace{..} WalletTree{..} _checked =
+addWalletClicked :: UiLangFace -> UiWalletFace -> WalletTree -> Bool -> IO ()
+addWalletClicked langFace@UiLangFace{..} uiWalletFace walletTree@WalletTree{..} _checked =
   runNewWallet >>= \case
-    NewWalletCanceled -> return ()
-    NewWalletAccepted NewWalletParameters{..} -> void $ langPutUiCommand $
+    NewWalletCanceled -> pass
+    NewWalletAccepted NewWalletParameters{..} ->
       case nwSpecifier of
-        NewWalletName -> UiNewWallet nwName nwPassword
-        NewWalletMnemonic mnemonic full -> UiRestoreWallet nwName nwPassword mnemonic full
+        NewWalletName -> doCreateNewWallet langFace uiWalletFace walletTree nwName nwPassword
+        NewWalletMnemonic mnemonic full -> void $ langPutUiCommand $
+          UiRestoreWallet nwName nwPassword mnemonic full
+
+doCreateNewWallet :: UiLangFace -> UiWalletFace -> WalletTree -> Text -> Maybe Text -> IO ()
+doCreateNewWallet UiLangFace{..} UiWalletFace{..} WalletTree{..} name password = do
+  mnemonic <- uiGenerateMnemonic uiDefaultEntropySize
+  confirmationResult <- runConfirmMnemonic mnemonic
+
+  case confirmationResult of
+    ConfirmMnemonicSuccess -> void $ langPutUiCommand $ UiRestoreWallet name password (unwords mnemonic) False
+    ConfirmMnemonicFailure -> void $ QMessageBox.critical treeView ("Error" :: String)
+      ("You failed to verify the mnemonic. Please try creating a new wallet again." :: String)
 
 data WalletTreeEvent
-  = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult
-  | WalletTreeRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
+  = WalletTreeRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
 
 handleWalletTreeEvent
   :: UiLangFace
@@ -100,12 +109,6 @@ handleWalletTreeEvent
 handleWalletTreeEvent UiLangFace{..} ev = do
   WalletTree{..} <- ask
   lift $ case ev of
-    WalletTreeNewWalletCommandResult _commandId result -> case result of
-      UiNewWalletCommandSuccess mnemonic -> do
-        void $ QMessageBox.information treeView ("Success" :: String) $
-          toString $ "This is your wallet mnemonic. Save it.\n\n" <> intercalate " " mnemonic
-      UiNewWalletCommandFailure err -> do
-        void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
     WalletTreeRestoreWalletCommandResult _commandId result -> case result of
       UiRestoreWalletCommandSuccess -> do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet created" :: String)

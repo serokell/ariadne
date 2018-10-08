@@ -2,10 +2,8 @@ module Ariadne.UI.Vty.Widget.Wallet
        ( initWalletWidget
        ) where
 
-import Universum
-
 import Control.Exception (handle)
-import Control.Lens (assign, ix, makeLensesWith, (%=), (.=))
+import Control.Lens (assign, ix, makeLensesWith, uses, (%=), (.=))
 import System.Hclip (ClipboardException, setClipboard)
 
 import qualified Brick as B
@@ -122,19 +120,19 @@ initWalletWidget langFace UiFeatures{..} =
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
       WidgetEventButtonPressed -> performRename
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameWalletExportButton $
       initButtonWidget "Export"
     addWidgetEventHandler WidgetNameWalletExportButton $ \case
       WidgetEventButtonPressed -> performExport
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameWalletAccountList $
       initListWidget (widgetParentGetter walletAccounts) drawAccountRow
     addWidgetEventHandler WidgetNameWalletAccountList $ \case
       WidgetEventListSelected idx -> toggleAccount idx
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameWalletNewAccountName $
       initEditWidget $ widgetParentLens walletNewAccountNameL
@@ -142,12 +140,13 @@ initWalletWidget langFace UiFeatures{..} =
       initButtonWidget "Create"
     addWidgetEventHandler WidgetNameWalletNewAccountButton $ \case
       WidgetEventButtonPressed -> performNewAccount
-      _ -> return ()
+      _ -> pass
 
     addWidgetChild WidgetNameWalletSend $
-      initSendWidget langFace $
-        Just $ widgetParentGetter
-        (\WalletWidgetState{..} -> map walletAccountIdx $ filter walletAccountSelected $ walletAccounts)
+      initSendWidget langFace
+        (Just $ widgetParentGetter $ map uwiWalletIdx . walletInfo)
+        (Just $ widgetParentGetter $
+          map walletAccountIdx . filter walletAccountSelected . walletAccounts)
 
     withWidgetState updateFocusList
 
@@ -302,21 +301,21 @@ handleWalletWidgetEvent = \case
             use walletBalanceL >>= \case
               BalanceResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
-                    void . liftIO . langPutUiCommand $ UiKill taskId
-              _ -> return ()
-            liftIO (langPutUiCommand UiBalance) >>=
+                    void . liftIO . langPutUISilentCommand $ UiKill taskId
+              _ -> pass
+            liftIO (langPutUISilentCommand UiBalance) >>=
               assign walletBalanceL . either BalanceResultError BalanceResultWaiting
         whenM (use walletTxHistoryEnabledL) $ do
           use walletTxHistoryL >>= \case
             TxHistoryResultWaiting commandId
               | Just taskId <- cmdTaskId commandId ->
-                  void . liftIO . langPutUiCommand $ UiKill taskId
-            _ -> return ()
-          liftIO (langPutUiCommand UiTxHistory) >>=
+                  void . liftIO . langPutUISilentCommand $ UiKill taskId
+            _ -> pass
+          liftIO (langPutUISilentCommand UiTxHistory) >>=
             assign walletTxHistoryL . either TxHistoryResultError TxHistoryResultWaiting
 
         updateFocusList
-      _ -> return ()
+      _ -> pass
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     walletRenameResultL %= \case
       RenameResultWaiting commandId' | commandId == commandId' ->
@@ -350,7 +349,7 @@ handleWalletWidgetEvent = \case
           UiExportCommandFailure err -> do
             walletExportResultL .= ExportResultError err
       _ ->
-        return ()
+        pass
   UiCommandResult commandId (UiNewAccountCommandResult result) -> do
     use walletNewAccountResultL >>= \case
       NewAccountResultWaiting commandId' | commandId == commandId' ->
@@ -361,9 +360,9 @@ handleWalletWidgetEvent = \case
           UiNewAccountCommandFailure err -> do
             walletNewAccountResultL .= NewAccountResultError err
       _ ->
-        return ()
+        pass
   _ ->
-    return ()
+    pass
 
 ----------------------------------------------------------------------------
 -- Actions
@@ -393,7 +392,7 @@ performRename = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNameL
   use walletRenameResultL >>= \case
-    RenameResultWaiting _ -> return ()
+    RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
 
@@ -401,7 +400,7 @@ performExport :: WidgetEventM WalletWidgetState p ()
 performExport = do
   UiLangFace{..} <- use walletLangFaceL
   use walletExportResultL >>= \case
-    ExportResultWaiting _ -> return ()
+    ExportResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiExport) >>=
       assign walletExportResultL . either ExportResultError ExportResultWaiting
 
@@ -413,7 +412,8 @@ performNewAccount :: WidgetEventM WalletWidgetState p ()
 performNewAccount = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNewAccountNameL
+  wIdx <- uses walletInfoL $ map uwiWalletIdx
   use walletNewAccountResultL >>= \case
-    NewAccountResultWaiting _ -> return ()
-    _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs name) >>=
+    NewAccountResultWaiting _ -> pass
+    _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs wIdx name) >>=
       assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting

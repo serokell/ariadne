@@ -42,6 +42,24 @@ QPushButton[styleRole="secondaryButton"]:hover:pressed {
 QPushButton[styleRole="secondaryButton"]:hover {
     background: rgba(52, 52, 62, 51);
 }
+QPushButton[styleRole="secondaryButton"]:disabled {
+    background: rgba(52, 52, 62, 12);
+}
+
+QPushButton[styleRole="dangerButton"] {
+    background: #ca5000;
+    color: #ffffff;
+}
+QPushButton[styleRole="dangerButton"]:hover:pressed {
+    background: #b04600;
+    color: #ffffff;
+}
+QPushButton[styleRole="dangerButton"]:hover {
+    background: #e35b00;
+}
+QPushButton[styleRole="dangerButton"]:disabled {
+    background: rgba(202, 80, 0, 77);
+}
 
 QScrollBar {
     border: none;
@@ -237,12 +255,18 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     font-weight: normal;
 }
 
-#newWalletDialog QLabel {
+QDialog QWidget[styleRole="dialogHeader"] {
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Museo Sans Cyrl 500";
+}
+
+QDialog QLabel {
     /* Otherwise bold letters look ugly */
     font-family: "Museo Sans Cyrl 500";
 }
 
-#newWalletDialog #createButton {
+QDialog QPushButton[dialogButtonRole="dialogAction"] {
     font-weight: bold;
     padding-top: 14px;
     padding-bottom: 14px;
@@ -250,7 +274,7 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     padding-right: 80px;
 }
 
-#newWalletDialog QLineEdit, #newWalletDialog QLineEdit:focus {
+QDialog QLineEdit, QDialog QLineEdit:focus {
     border-top: none;
     border-left: none;
     border-right: none;
@@ -258,24 +282,21 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
     background: transparent;
 }
 
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"] {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"] {
     border: none;
     background: transparent;
     padding: 0;
 }
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:hover {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"]:hover {
     background: rgba(52, 52, 62, 12);
 }
-#newWalletDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
+QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: rgba(52, 52, 62, 48);
 }
 
 #newWalletDialog QComboBox {
     border: none;
     background: transparent;
-    font-size: 14px;
-    font-weight: bold;
-    font-family: "Museo Sans Cyrl 500";
 
     selection-background-color: #f0f0f0;
     selection-color: #34343e;
@@ -293,6 +314,154 @@ QFrame[styleRole="separator"][orientation~="horizontal"] {
 #newWalletDialog QComboBox QAbstractItemView {
     border: 1px solid rgba(0, 0, 0, 30);
     background: #fafafa;
+}
+
+#settingsDialog QComboBox {
+    border: none;
+    background: transparent;
+    padding-right: 5px;
+    color: rgb(52, 52, 62, 127);
+}
+
+#settingsDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+  }
+
+#settingsDialog QComboBox::down-arrow {
+    image: url(':/images/expand-arrow.png');
+}
+
+#settingsDialog QComboBox QAbstractItemView {
+    border: 1px solid rgba(0, 0, 0, 30);
+    background: #fafafa;
+}
+
+QPushButton[styleRole="settingsTopbarButton"] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border: none;
+    background: transparent;
+    color: rgb(52, 52, 62, 127);
+}
+
+QPushButton[styleRole="settingsTopbarButton"]:checked {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"] {
+    border: none;
+    background: rgba(0, 202, 157, 25);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"]:hover {
+    border: none;
+    background: rgba(0, 202, 157, 60);
+    color: #00ca9d;
+}
+
+QPushButton[styleRole="inverseButton"]:pressed {
+    background: rgba(0, 202, 157, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="inverseButton"]:disabled {
+    background: rgba(0, 202, 157, 10);
+    color: rgba(0, 202, 157, 127);
+}
+
+QPushButton[styleRole="inverseSecondaryButton"] {
+    border: none;
+    background: rgba(202, 80, 0, 60);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:hover {
+    background: rgba(202, 80, 0, 90);
+    color: #ca5000;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:pressed {
+    background: rgba(202, 80, 0, 255);
+    color: #ffffff;
+}
+
+QPushButton[styleRole="inverseSecondaryButton"]:disabled {
+    background: rgba(202, 80, 0, 25);
+    color: rgba(202, 80, 0, 127);
+}
+QPushButton[styleRole="linkButton"] {
+    height: 26;
+    width: 26;
+    image: url(':/images/link-ic.png');
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+QPushButton[styleRole="linkButton"]:hover {
+    background: rgba(52, 52, 62, 25);
+}
+QPushButton[styleRole="linkButton"]:pressed {
+    background: rgba(52, 52, 62, 127);
+}
+QPushButton[styleRole="linkButton"]:disabled {
+    background: rgba(52, 52, 62, 0);
+}
+
+QDialog QLabel[styleRole="mnemonicDisplay"] {
+    background-color: rgba(13, 23, 23, 10);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
+
+    font-weight: bold;
+    qproperty-alignment: "AlignCenter";
+}
+
+QDialog QPushButton[styleRole="receiveAccordionHeader"] {
+    font-weight: bold;
+    background: transparent;
+    border: none;
+    color: #34343e;
+}
+
+QDialog QPushButton[styleRole="copyAddressButton"] {
+    background: transparent;
+    border: none;
+    color: rgba(52, 52, 62, 127);
+    padding-left: 0;
+    padding-right: 0;
+}
+QDialog QPushButton[styleRole="copyAddressButton"]:hover {
+    background: rgba(52, 52, 62, 12);
+}
+QDialog QPushButton[styleRole="copyAddressButton"]:hover:pressed {
+    background: rgba(52, 52, 62, 25);
+}
+
+QDialog QWidget#accountsSelector {
+    background: #f0f0f0;
+    border: 1px solid rgba(52, 52, 62, 51);
+    border-radius: 2px;
+}
+
+QDialog QLabel#accountsSelectorDisplay {
+    /* QSS text-align property works only for buttons and progress bars */
+    qproperty-alignment: AlignRight;
+}
+
+QDialog QLineEdit#sendAmountEdit, QDialog QLineEdit#sendAmountEdit:focus {
+    border: none;
+    font-size: 20px;
+    color: #34343e;
+
+    qproperty-alignment: AlignRight;
 }
 
 /* vim: ft=css

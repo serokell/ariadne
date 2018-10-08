@@ -75,7 +75,7 @@ Ariadne using the 12 word mnemonic.
 When you select a wallet or an account, you can see its balance and send 
 transactions using the form provided. You must fill at least one receiver's 
 address. To add or remove address lines, use `[ - ]` / `[ + ]` buttons on
-the right. If the wallet has a passphrase, you need to specify that as well. 
+the right. If the wallet has a passphrase, you need to specify that as well.
 When sending a transaction from a wallet, you can also choose which accounts 
 to use as inputs using a list just above the form. Use Enter, Space or 
 mouse click to select accounts.
@@ -123,16 +123,15 @@ in the same order as in help:
 
 You can also specify some of the command's optional arguments without 
 specifying others. For example, `new-wallet` command creates a new wallet and 
-expects three arguments: `pass`, `name` and `entropy-size`. There are two ways 
-to call it. You can call it with both the passphrase and name, omitting the 
-argument names:
+expects two arguments: `name` and `entropy-size`. There are two ways to call it. 
+You can call it with both the name and entropy size, omitting the argument names:
 
-    new-wallet "cat" "test"
+    new-wallet "test" 16
 
-Or, if you want to use the default (empty) passphrase, but need to give the 
-wallet a name, you can specify only the second argument:
+Or, if you want to use no name, but need to use an entropy size for the wallet, 
+you can specify only the second argument:
 
-    new-wallet name: "test"
+    new-wallet entropy-size: 16
 
 `Knit` language has literals of several formats:
 
@@ -189,20 +188,21 @@ Finally, the commands which will help you manage your `ADA` wallet. Each
 command will be annotated with its arguments and their types. Optional 
 arguments will be marked with "`?`".
 
-- `new-wallet pass: String? name: String? entropy-size: Int?`: create a new 
-  wallet with a passphrase, name and size of entropy. Size of entropy 
-  influences the security of your wallet and the length of the mnemonic. 
-  Default value is 16 bytes, leading to mnemonics of 13 words. Ariadne
-  mnemonics follow [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) 
+- `new-wallet name: String? entropy-size: Int?`: create a new wallet with a 
+  name and size of entropy. Size of entropy influences the security of your 
+  wallet and the length of the mnemonic. Default value is 16 bytes, leading 
+  to mnemonics of 13 words. Ariadne mnemonics follow 
+  [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) 
   with an addition of one extra word as mentioned above.
+  Created Wallet will also have a default auto generated account and address.
 - `new-account wallet: WalletId or Word name: String?`: create a new account
   in the specified or currently selected wallet. You can specify a wallet 
   either by its ID or by its (zero-based) index in the wallet tree.
-- `new-address wallet: WalletId or Word account: Word pass: String?`: create 
-  a new address, supplying a passphrase for the wallet, if any. This command 
-  will use either the currently selected account or the one specified by 
-  `wallet` and `account` arguments. Once again, you can either use an ID or an 
-  index of a wallet. Account is refered by its index in the wallet tree.
+- `new-address wallet: WalletId or Word account: Word`: create a new address. 
+  This command will use either the currently selected account or the one 
+  specified by `wallet` and `account` arguments. Once again, you can either 
+  use an ID or an index of a wallet.
+  Account is refered by its index in the wallet tree.
 - `balance`: get balance of the currently selected wallet or account.
 - `select wallet: WalletId or Word a: Word?`: select an item. Specify a wallet 
   by its ID or index and then, optionally, specify an index of an acccount 
@@ -210,12 +210,10 @@ arguments will be marked with "`?`".
   fourth wallet.
 - `rename name: String`: give a new name to the currently selected wallet or account.
 - `remove`: remove the currently selected wallet or account.
-- `restore pass: String? name: String? mnemonic: String full: Bool`: restore 
-  a wallet from mnemonic. A passphrase is used to encrypt the restored wallet
-  in Ariadne, it does not have to be the same as the passphrase the old wallet 
-  was encrypted with. `full` argument specifies whether Ariadne should perform 
-  a full restore (find all used accounts and addresses of the restored wallet in
-  the blockchain).
+- `restore name: String? mnemonic: String full: Bool`: restore a wallet from 
+  mnemonic. `full` argument specifies whether Ariadne should perform a full 
+  restore (find all used accounts and addresses of the restored wallet in the 
+  blockchain).
 - `restore-from-daedalus-file name: String? file: FilePath full: Bool`: restore
   wallet from Daedalus's secret file. `full` argument has the same effect as 
   the `restore` command. Please note that the restored wallet will have the 
@@ -223,7 +221,7 @@ arguments will be marked with "`?`".
 
 There is also a command to send a transaction from your wallet:
 
-    send wallet: (String or Word)? account: (String or Word)* pass: String? policy: InputSelectionPolicy? out: TxOut+
+    send wallet: (String or Word)? account: (String or Word)* policy: InputSelectionPolicy? out: TxOut+
 
 Since one transaction can have multiple outputs, you have to pass these outputs 
 to the `send` command. An output is constructed with the `tx-out` command, 
@@ -246,10 +244,9 @@ So, to construct an output, do this:
 Note that the receiver's address does not take quotes.
 
 Finally, send a transaction by giving the `send` command a list of outputs 
-(`out` argument), wallet passphrase (`pass` argument) if any, and optionally 
-wallet's name or index (`wallet` argument) as well as a list of source accounts 
-(as names or indices). If you don't specify a wallet, the currently selected
-one will be used.
+(`out` argument), and optionally wallet's name or index (`wallet` argument) as 
+well as a list of source accounts (as names or indices). If you don't specify a 
+wallet, the currently selected one will be used.
 
 Transaction inputs are selected automatically from a set of accounts that 
 depends on the `account` arguments and the current selection:
@@ -269,8 +266,7 @@ By default, the `security` policy is used.
 Here's an example:
 
 ```
-send pass: "cat"
-     out:(tx-out sxtitePxjp5dcfm1u8gWgDBGMCEZMhGa6kUPu8VHhqpCtBDPExrJTTCCUHKkyEJSgjb41JT5Tfh1QXb7uUpgjyBKMw 2ADA)
+send out:(tx-out sxtitePxjp5dcfm1u8gWgDBGMCEZMhGa6kUPu8VHhqpCtBDPExrJTTCCUHKkyEJSgjb41JT5Tfh1QXb7uUpgjyBKMw 2ADA)
      out:(tx-out sxtitePxjp65TKMXHNaLsBbJywqdYW4xLJzNVvT7ksTvVR1AVxFTH8PivZa2VtfcD9bu62MWKu6dnjbreSZCdsuDB1 100000Lovelace)
 ```
 

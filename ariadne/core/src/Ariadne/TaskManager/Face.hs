@@ -1,6 +1,9 @@
-module Ariadne.TaskManager.Face where
-
-import Universum
+module Ariadne.TaskManager.Face
+       ( TaskId(..)
+       , TaskManagerFace(..)
+       , EvalErrorException(..)
+       , NoTaskException(..)
+       ) where
 
 import Control.Concurrent.Async
 import Control.Exception (Exception, SomeException)

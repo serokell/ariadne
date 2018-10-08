@@ -1,11 +1,27 @@
-module Ariadne.TaskManager.Knit where
+module Ariadne.TaskManager.Knit
+       ( TaskManager
 
-import Universum hiding (preview)
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentCommandRepr(..)
+       , ComponentExecContext(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentLitToValue(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentTokenToLit(..)
+       , ComponentPrinter(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
+
+       , killCommandName
+       ) where
 
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Exception
-import Control.Lens
+import Control.Lens (makePrisms)
 import Formatting hiding (text)
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P

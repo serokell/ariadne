@@ -6,10 +6,9 @@ module Ariadne.Wallet.Cardano.Kernel.Bip32
        , makePubKeyHdwAddressUsingPath
        ) where
 
-import Universum
-
 import Named (Named(..))
 
+import Cardano.Crypto.Wallet.Types (DerivationIndex)
 import Pos.Core.Common (Address, IsBootstrapEraAddr(..), makePubKeyHdwAddress)
 import Pos.Crypto.HD
   (ShouldCheckPassphrase(..), deriveHDPassphrase, deriveHDSecretKey,
@@ -17,7 +16,7 @@ import Pos.Crypto.HD
 import Pos.Crypto.Signing (EncryptedSecretKey, PassPhrase, PublicKey)
 
 -- TODO(AD-248): make it a newtype
-type DerivationPath = [Word32]
+type DerivationPath = [DerivationIndex]
 
 -- | Like 'deriveHDSecretKey' from Cardano, but can derive not only
 -- direct descendant.

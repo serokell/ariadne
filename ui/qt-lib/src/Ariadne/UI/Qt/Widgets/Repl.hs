@@ -5,8 +5,6 @@ module Ariadne.UI.Qt.Widgets.Repl
        , toggleRepl
        ) where
 
-import Universum
-
 import Control.Lens (makeLensesWith)
 import Formatting
 
@@ -197,7 +195,7 @@ scrollDown _ maxValue = do
 
 handleReplEvent :: UiCommandId -> UiCommandEvent -> UI Repl ()
 handleReplEvent commandId event = do
-  commandOutputs <- view commandOutputsL >>= liftIO . readIORef
+  commandOutputs <- view commandOutputsL >>= readIORef
   whenJust (find isThisCommand commandOutputs) $ liftIO . updateCommandResult event
 
   where

@@ -1,121 +1,77 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 -- | The kernel of the wallet implementation
 --
 -- The goal is to keep this module mostly self-contained, and not use to many
 -- Cardano specific types (except those types that appear in the translation
 -- of the UTxO DSL), so that we can test it outside of a node context also
 -- (in unit tests).
-module Ariadne.Wallet.Cardano.Kernel (
-    -- * Passive wallet
-    PassiveWallet -- opaque
-  , WalletId
-  , accountUtxo
-  , accountTotalBalance
-  , applyBlock
-  , applyBlocks
-  , passiveWalletComponent
-  , initPassiveWallet
-  , createWalletHdRnd
-  , init
-  , walletLogMessage
-  , walletPassive
-  , wallets
-    -- * Active wallet
-  , ActiveWallet -- opaque
-  , activeWalletComponent
-  , newPending
-  ) where
+module Ariadne.Wallet.Cardano.Kernel
+       ( -- * Passive wallet
+         PassiveWallet -- opaque
+       , DB -- opaque
+       , WalletId
+       , passiveWalletCustomDBComponent
+       , init
+       , walletLogMessage
+       , walletKeystore
+         -- ** Respond to block chain events
+       , applyBlock
+       , applyBlocks
+       , switchToFork
+         -- *** Testing
+       , observableRollbackUseInTestsOnly
+         -- ** The only effectful getter you will ever need
+       , getWalletSnapshot
+       ) where
 
-import Universum hiding (State, init)
+import Prelude hiding (init)
 
-import Control.Concurrent.STM.TVar (readTVar)
-import Control.Lens.TH
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Data.Map.Strict as Map
-import Data.Time.Clock.POSIX (getPOSIXTime)
-
-import Formatting (build, sformat)
 
 import System.Wlog (Severity(..))
 
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 
-import Ariadne.Wallet.Cardano.Kernel.Diffusion (WalletDiffusion(..))
+import Ariadne.Wallet.Cardano.Kernel.Internal
+
+import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
+import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
-  (PrefilteredBlock(..), prefilterBlock, prefilterUtxo)
-import Ariadne.Wallet.Cardano.Kernel.Types (WalletESKs, WalletId(..))
+  (PrefilteredBlock(..), prefilterBlock)
+import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (ApplyBlock(..), CreateHdWallet(..), DB, NewPending(..), NewPendingError,
-  Snapshot(..), dbHdWallets)
-import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta (BlockMeta(..))
+  (ApplyBlock(..), DB, ObservableRollbackUseInTestsOnly(..), Snapshot(..),
+  SwitchToFork(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create as HD
-import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (HdQueryErr)
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read as Spec
 
-
-import Pos.Core (AddressHash, Coin, Timestamp(..), TxAux(..))
-
-import Pos.Core.Chrono (OldestFirst(..))
-import Pos.Crypto (EncryptedSecretKey, PublicKey)
-import Pos.Txp (Utxo)
-import Pos.Util.UserSecret (UserSecret, usWallets)
-
-{-------------------------------------------------------------------------------
-  Passive wallet
--------------------------------------------------------------------------------}
-
--- | Passive wallet
---
--- A passive wallet can receive and process blocks, keeping track of state,
--- but cannot send new transactions.
---
-data PassiveWallet = PassiveWallet {
-      -- | Send log message
-      _walletLogMessage :: Severity -> Text -> IO ()     -- ^ Logger
-    , _walletUS         :: TVar UserSecret               -- ^ Wallet user secret
-    , _wallets          :: AcidState DB                  -- ^ Database handle
-    }
-
-makeLenses ''PassiveWallet
+import Pos.Core.Chrono (OldestFirst)
 
 {-------------------------------------------------------------------------------
   Passive Wallet Resource Management
 -------------------------------------------------------------------------------}
 
 -- | Allocate wallet resources
-passiveWalletComponent ::
-       (Severity -> Text -> IO ())
-    -> TVar UserSecret
+--
+-- Here and elsewhere we'll want some constraints on this monad here, but
+-- it shouldn't be too specific.
+
+passiveWalletCustomDBComponent
+    :: (Severity -> Text -> IO ())
+    -> Keystore
     -> AcidState DB
     -> ComponentM PassiveWallet
-passiveWalletComponent _walletLogMessage us db =
-    buildComponent_ "PassiveWallet" $ initPassiveWallet _walletLogMessage us db
+passiveWalletCustomDBComponent logMsg keystore acidDB =
+    buildComponent_ "Passive wallet" $ initPassiveWallet logMsg keystore acidDB
 
 {-------------------------------------------------------------------------------
-  Manage the WalletESKs Map
+  Manage the Wallet's ESKs
 -------------------------------------------------------------------------------}
 
--- | Insert an ESK, indexed by WalletId, to the WalletESK map
-insertWalletESK :: PassiveWallet -> WalletId -> EncryptedSecretKey -> IO ()
-insertWalletESK _ _ _ = pure ()
--- Implementation commented out for now
---insertWalletESK pw wid esk = pure ()
---    = modifyMVar_ (pw ^. walletESKs) (return . f)
---    where f = Map.insert wid esk
-
-withWalletESKs :: forall a. PassiveWallet -> (WalletESKs -> IO a) -> IO a
-withWalletESKs pw f = atomically (readTVar (pw ^. walletUS)) >>= \us ->
-    let
-        esks = Map.mapKeys (WalletIdHdRnd . HdRootId . InDb) (us ^. usWallets)
-    in
-        f esks
+withKeystore :: forall a. PassiveWallet -> (Keystore -> IO a) -> IO a
+withKeystore pw action = action (pw ^. walletKeystore)
 
 {-------------------------------------------------------------------------------
   Wallet Initialisers
@@ -123,56 +79,19 @@ withWalletESKs pw f = atomically (readTVar (pw ^. walletUS)) >>= \us ->
 
 -- | Initialise Passive Wallet with empty Wallets collection
 initPassiveWallet :: (Severity -> Text -> IO ())
-                  -> TVar UserSecret
+                  -> Keystore
                   -> AcidState DB
                   -> IO PassiveWallet
-initPassiveWallet logMessage us db = return $ PassiveWallet logMessage us db
+initPassiveWallet logMessage keystore db = do
+    return $ PassiveWallet logMessage keystore db
 
 -- | Initialize the Passive wallet (specified by the ESK) with the given Utxo
 --
 -- This is separate from allocating the wallet resources, and will only be
 -- called when the node is initialized (when run in the node proper).
 init :: PassiveWallet -> IO ()
-init PassiveWallet{..} = _walletLogMessage Info "Passive Wallet kernel initialized"
-
-{-------------------------------------------------------------------------------
-  Wallet Creation
--------------------------------------------------------------------------------}
-
--- | Creates an HD wallet with randomly generated addresses.
---
--- Prefilters the Utxo before passing it to the Acidstate update.
-
--- Adds an HdRoot and HdAccounts (which are discovered during prefiltering of utxo).
--- (In the case of empty utxo, no HdAccounts are created.)
--- May fail with CreateHdWalletError if the HdRootId already exists
-
--- The ESK is indexed by WalletId and added to the WalletESK map.
-createWalletHdRnd :: PassiveWallet
-                  -> HD.WalletName
-                  -> HasSpendingPassword
-                  -> AssuranceLevel
-                  -> (AddressHash PublicKey, EncryptedSecretKey)
-                  -> Utxo
-                  -> IO (Either HD.CreateHdRootError [HdAccountId])
-createWalletHdRnd pw@PassiveWallet{..} name spendingPassword assuranceLevel (pk,esk) utxo = do
-    created <- InDb <$> getCurrentTimestamp
-    let newRoot = HD.initHdRoot rootId name spendingPassword assuranceLevel created
-
-    res <- update' _wallets $ CreateHdWallet newRoot utxoByAccount Map.empty
-    either (return . Left) insertESK res
-    where
-        utxoByAccount = prefilterUtxo rootId esk utxo
-        accountIds    = Map.keys utxoByAccount
-
-        rootId        = HD.HdRootId . InDb $ pk
-        walletId      = WalletIdHdRnd rootId
-
-        insertESK _arg = insertWalletESK pw walletId esk >> return (Right accountIds)
-
--- (NOTE: we are abandoning the 'Mockable time' strategy of the Cardano code base)
-getCurrentTimestamp :: IO Timestamp
-getCurrentTimestamp = Timestamp . round . (* 1000000) <$> getPOSIXTime
+init PassiveWallet{..} =
+    _walletLogMessage Info $ "Passive Wallet kernel initialized."
 
 {-------------------------------------------------------------------------------
   Passive Wallet API implementation
@@ -185,11 +104,8 @@ prefilterBlock' :: PassiveWallet
                 -> ResolvedBlock
                 -> IO (Map HdAccountId PrefilteredBlock)
 prefilterBlock' pw b =
-    withWalletESKs pw $ \esks ->
-        return
-        $ Map.unions
-        $ map prefilterBlock_
-        $ Map.toList esks
+    withKeystore pw $ \ks ->
+        (Map.unions . map prefilterBlock_) <$> Keystore.toList ks
     where
         prefilterBlock_ (wid,esk) = prefilterBlock wid esk b
 
@@ -200,12 +116,9 @@ applyBlock :: PassiveWallet
 applyBlock pw@PassiveWallet{..} b
     = do
         blocksByAccount <- prefilterBlock' pw b
-        -- TODO(@uroboros/ryan) do proper metadata initialisation (as part of CBR-239: Support history tracking and queries)
-        let blockMeta = BlockMeta . InDb $ Map.empty
-
         -- apply block to all Accounts in all Wallets
         unless (null blocksByAccount) $
-            update' _wallets $ ApplyBlock (blocksByAccount, blockMeta)
+            update' _wallets $ ApplyBlock blocksByAccount
 
 -- | Apply multiple blocks, one at a time, to all wallets in the PassiveWallet
 --
@@ -215,55 +128,25 @@ applyBlocks :: PassiveWallet
             -> IO ()
 applyBlocks = mapM_ . applyBlock
 
-{-------------------------------------------------------------------------------
-  Active wallet
--------------------------------------------------------------------------------}
-
--- | Active wallet
+-- | Switch to a new fork
 --
--- An active wallet can do everything the passive wallet can, but also
--- send new transactions.
-data ActiveWallet = ActiveWallet {
-      -- | The underlying passive wallet
-      walletPassive   :: PassiveWallet
+-- NOTE: The Ouroboros protocol says that this is only valid if the number of
+-- resolved blocks exceeds the length of blocks to roll back.
+switchToFork :: PassiveWallet
+             -> Int             -- ^ Number of blocks to roll back
+             -> [ResolvedBlock] -- ^ Blocks in the new fork
+             -> IO ()
+switchToFork pw@PassiveWallet{..} n bs = do
+    blockssByAccount <- mapM (prefilterBlock' pw) bs
+    update' _wallets $ SwitchToFork n blockssByAccount
 
-      -- | The wallet diffusion layer
-    , walletDiffusion :: WalletDiffusion
-    }
-
--- | Initialize the active wallet
-activeWalletComponent ::
-       PassiveWallet -> WalletDiffusion -> ComponentM ActiveWallet
-activeWalletComponent walletPassive walletDiffusion =
-    return ActiveWallet{..}
-
--- | Submit a new pending transaction
+-- | Observable rollback
 --
--- Will fail if the HdAccountId does not exist or if some inputs of the
--- new transaction are not available for spending.
-newPending :: ActiveWallet -> HdAccountId -> TxAux -> IO (Either NewPendingError ())
-newPending ActiveWallet{..} accountId tx
-  = update' (walletPassive ^. wallets) $ NewPending accountId (InDb tx)
+-- Only used for tests. See 'switchToFork'.
+observableRollbackUseInTestsOnly :: PassiveWallet -> IO ()
+observableRollbackUseInTestsOnly PassiveWallet{..} =
+    update' _wallets $ ObservableRollbackUseInTestsOnly
 
-{-------------------------------------------------------------------------------
-  Wallet Account read-only API
--------------------------------------------------------------------------------}
-
-walletQuery' :: forall e a. (Buildable e)
-             => PassiveWallet
-             -> HdQueryErr e a
-             -> IO a
-walletQuery' pw qry= do
-    snapshot <- query' (pw ^. wallets) Snapshot
-    let res = qry (snapshot ^. dbHdWallets)
-    either err return res
-    where
-        err = error . sformat build
-
-accountUtxo :: PassiveWallet -> HdAccountId -> IO Utxo
-accountUtxo pw accountId
-    = walletQuery' pw (Spec.queryAccountUtxo accountId)
-
-accountTotalBalance :: PassiveWallet -> HdAccountId -> IO Coin
-accountTotalBalance pw accountId
-    = walletQuery' pw (Spec.queryAccountTotalBalance accountId)
+-- | The only effectful query on this 'PassiveWallet'.
+getWalletSnapshot :: PassiveWallet -> IO DB
+getWalletSnapshot pw = query' (pw ^. wallets) Snapshot

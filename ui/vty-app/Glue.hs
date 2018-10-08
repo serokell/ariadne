@@ -1,8 +1,7 @@
 -- | Glue code between the frontend and the backends.
 
 module Glue
-       (
-         -- * Knit ↔ Vty
+       ( -- * Knit ↔ Vty
          knitFaceToUI
 
          -- * Cardano ↔ Vty
@@ -17,14 +16,15 @@ module Glue
 
          -- * Command history ↔ Vty
        , historyToUI
+
+         -- * Password Manager ↔ Vty
+       , putPasswordEventToUI
        ) where
 
-import Universum
-
+import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
-import qualified Data.Text as T
 import Data.Tree (Tree(..))
 import Data.Unique
 import qualified Data.Vector as V
@@ -37,6 +37,7 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Vty.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter
 
@@ -63,11 +64,13 @@ knitFaceToUI
      )
   => UiFace
   -> KnitFace components
+  -> PutPassword
   -> UiLangFace
-knitFaceToUI UiFace{..} KnitFace{..} =
+knitFaceToUI UiFace{..} KnitFace{..} putPass =
   UiLangFace
-    { langPutCommand = putCommand commandHandle
-    , langPutUiCommand = putUiCommand
+    { langPutCommand = putCommand False Nothing
+    , langPutUiCommand = putUiCommand False
+    , langPutUISilentCommand = putUiCommand True
     , langParse = Knit.parse
     , langAutocomplete = Knit.suggestions (Proxy @components)
     , langPpExpr = Knit.ppExpr
@@ -76,75 +79,129 @@ knitFaceToUI UiFace{..} KnitFace{..} =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand handle expr = do
+    putCommand silent mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (handle cid) $ expr
-    commandHandle commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
-      , putCommandOutput = \tid doc ->
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle silent mOp cid) $ expr
+
+    putUiCommand silent op = case opToExpr op of
+      Left err -> return $ Left err
+      Right expr -> do
+        whenJust (extractPass op) pushPassword
+        comId <- putCommand silent (Just op) expr
+        unless silent $
+          putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        return $ Right comId
+
+    commandHandle silent mOp commandId = KnitCommandHandle
+      { putCommandResult = \mtid result -> do
+          unless silent $
+            whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
+          whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
+      , putCommandOutput = \tid doc -> unless silent $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
       }
 
-    putUiCommand op = case opToExpr op of
-      Left err -> return $ Left err
-      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
-    uiCommandHandle op commandId = KnitCommandHandle
-      { putCommandResult = \mtid result ->
-          whenJust (resultToUI result op) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
-      , putCommandOutput = \_ _ ->
-          return ()
-      }
+    extractPass = \case
+      UiNewWallet UiNewWalletArgs{..} -> Just (unwaPassphrase, WalletIdTemporary)
+      UiRestoreWallet UiRestoreWalletArgs{..} -> Just (urwaPassphrase, WalletIdTemporary)
+      UiSend UiSendArgs{..} -> Just (usaPassphrase, maybe WalletIdSelected WalletIdByUiIndex usaWalletIdx)
+      _ -> Nothing
+    pushPassword (password, walletId) = putPass walletId password Nothing
 
-    optString key value = if null value then [] else [Knit.ArgKw Knit.NoExt key . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ value]
+    optString key value
+      | null value = []
+      | otherwise =
+        [ Knit.ArgKw Knit.NoExt key
+        . Knit.ExprLit Knit.NoExt
+        . Knit.toLit
+        . Knit.LitString
+        $ value
+        ]
+    justOptNumber key = maybe [] $ \value ->
+      [ Knit.ArgKw Knit.NoExt key
+      . Knit.ExprLit Knit.NoExt
+      . Knit.toLit
+      . Knit.LitNumber
+      $ fromIntegral value
+      ]
 
     opToExpr = \case
       UiSelect ws ->
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.selectCommandName
-           (map (Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
+            (map
+              ( Knit.ArgPos Knit.NoExt
+              . Knit.ExprLit Knit.NoExt
+              . Knit.toLit
+              . Knit.LitNumber
+              . fromIntegral
+              )
+              ws
+            )
           )
       UiSend UiSendArgs{..} -> do
         argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
           argAddress <- decodeTextAddress usoAddress
           argCoin <- readEither usoAmount
-          Right $ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $ Knit.ProcCall Knit.NoExt Knit.txOutCommandName
-            [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $ argAddress
-            , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $ argCoin
-            ]
+          Right $ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $
+            Knit.ProcCall Knit.NoExt Knit.txOutCommandName
+              [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $
+                argAddress
+              , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $
+                argCoin
+              ]
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.sendCommandName $
-            map (Knit.ArgKw Knit.NoExt "account" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
-            argOutputs ++
-            optString "pass" usaPassphrase
+            justOptNumber "wallet" usaWalletIdx ++
+            map
+              ( Knit.ArgKw Knit.NoExt "account"
+              . Knit.ExprLit Knit.NoExt
+              . Knit.toLit
+              . Knit.LitNumber
+              . fromIntegral
+              )
+              usaAccounts ++
+            argOutputs
           )
+      UiFee UiFeeArgs{..} -> do
+        -- TODO: Proper fee requesting should be implemented as part of AD-397
+        Right $ Knit.ExprProcCall Knit.NoExt
+          (Knit.ProcCall Knit.NoExt (Knit.CommandIdOperator Knit.OpUnit) [])
       UiKill commandId ->
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.killCommandName
-            [Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
+            [ Knit.ArgPos Knit.NoExt
+            . Knit.ExprLit Knit.NoExt
+            . Knit.toLit
+            . Knit.LitTaskId
+            . TaskId
+            $ commandId
+            ]
           )
       UiNewWallet UiNewWalletArgs{..} -> do
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.newWalletCommandName $
-            optString "name" unwaName ++
-            optString "pass" unwaPassphrase
+            optString "name" unwaName
           )
       UiNewAccount UiNewAccountArgs{..} -> do
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.newAccountCommandName $
+            justOptNumber "wallet" unaaWalletIdx ++
             optString "name" unaaName
           )
-      UiNewAddress -> do
+      UiNewAddress UiNewAddressArgs{..} -> do
         Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName [])
+          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName $
+            justOptNumber "wallet" unadaWalletIdx ++
+            justOptNumber "account" unadaAccountIdx
+          )
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.restoreCommandName $
             [ Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ urwaMnemonic
             , Knit.ArgKw Knit.NoExt "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
-            optString "name" urwaName ++
-            optString "pass" urwaPassphrase
+            optString "name" urwaName
           )
       UiRename UiRenameArgs{..} -> do
         Right $ Knit.ExprProcCall Knit.NoExt
@@ -159,6 +216,8 @@ knitFaceToUI UiFace{..} KnitFace{..} =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiFee{} ->
+        Just . UiFeeCommandResult . UiFeeCommandSuccess $ "not implemented"
       UiNewWallet{} ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case
@@ -194,7 +253,7 @@ commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
   UiCommandId
     { cmdIdEqObject = fromIntegral (hashUnique u)
-    , cmdTaskIdRendered = fmap (\(TaskId i) -> T.pack $ '<' : show i ++ ">") mi
+    , cmdTaskIdRendered = fmap (\(TaskId i) -> toText $ '<' : show i ++ ">") mi
     , cmdTaskId = fmap (\(TaskId i) -> i) mi
     }
 
@@ -347,3 +406,11 @@ historyToUI ch = UiHistoryFace
   , historyNextCommand = toNextCommand ch
   , historyPrevCommand = toPrevCommand ch
   }
+
+----------------------------------------------------------------------------
+-- Glue between the Password Manager and Vty frontend
+----------------------------------------------------------------------------
+
+putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest walletId cEvent

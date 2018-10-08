@@ -1,14 +1,14 @@
-module Ariadne.Cardano.Backend (createCardanoBackend) where
+module Ariadne.Cardano.Backend
+       ( createCardanoBackend
+       ) where
 
-import Universum
+import qualified Universum.Unsafe as Unsafe (fromJust)
 
-import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Trans.Reader (withReaderT)
 import Control.Natural ((:~>)(..), type (~>))
 import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
-import Data.Maybe (fromJust)
 import Data.Ratio ((%))
 import Mockable (Production(..), runProduction)
 import Pos.Context (NodeContext(..))
@@ -28,7 +28,7 @@ import Pos.Txp (txpGlobalSettings)
 import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
 import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
-import Pos.Util.UserSecret (UserSecret, usVss, userSecret)
+import Pos.Util.UserSecret (usVss)
 import Pos.WorkMode (RealMode)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, (</>))
@@ -44,9 +44,8 @@ import Ariadne.Config.Cardano
 createCardanoBackend ::
        CardanoConfig
     -> BListenerHandle
-    -> (TVar UserSecret -> IO ())
     -> ComponentM (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
-createCardanoBackend cardanoConfig bHandle addUs = buildComponent_ "Cardano" $ do
+createCardanoBackend cardanoConfig bHandle = buildComponent_ "Cardano" $ do
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
   let confOpts = ccConfigurationOptions cardanoConfig
@@ -60,7 +59,7 @@ createCardanoBackend cardanoConfig bHandle addUs = buildComponent_ "Cardano" $ d
           , cardanoGetDiffusion = getDiffusion diffusionVar
           , cardanoProtocolMagic = protocolMagic
           }
-          , runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar cardanoConfig)
+          , runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar cardanoConfig)
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -71,13 +70,12 @@ runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
     => ProtocolMagic
     -> BListenerHandle
-    -> (TVar UserSecret -> IO ())
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
     -> CardanoConfig
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
+runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
     cardanoConfig sendCardanoEvent = do
   let loggingParams = mkLoggingParams cardanoConfig
       getLoggerConfig LoggingParams{..} = do
@@ -98,7 +96,7 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
   let setupLoggers = setupLogging Nothing loggerConfig
   bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
       nodeParams <- getNodeParams cardanoConfig
-      let vssSK = fromJust $ npUserSecret nodeParams ^. usVss
+      let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
               [ updateTriggerWorker
@@ -129,9 +127,7 @@ runCardanoNode protocolMagic bHandle addUs cardanoContextVar diffusionVar
             $ \(setProperLogConfig -> nr@NodeResources{..}) ->
                 Production .
                 runRealMode protocolMagic nr .
-                convertMode $ \diff -> do
-                    ctx <- ask
-                    liftIO . addUs $ ctx ^. userSecret
+                convertMode $ \diff ->
                     runNode protocolMagic nr workers diff
       runProduction runMode
 

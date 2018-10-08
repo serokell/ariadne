@@ -107,7 +107,7 @@ suggestionExprs procs = skipParensExpr
     autocompleteExpr = \case
       ExprLit NoExt _ -> []
       ExprProcCall NoExt p -> ExprProcCall NoExt <$> autocompletePc p
-      XExpr (ExprInBrackets _ _ _) -> []
+      XExpr ExprInBrackets{} -> []
 
     autocompletePc
       :: ProcCall' FormattedExprExt CommandId components
@@ -167,7 +167,7 @@ suggestionExprs procs = skipParensExpr
     suggestExpr padding = \case
       ExprLit NoExt _ -> []
       ExprProcCall NoExt p -> ExprProcCall NoExt <$> suggestPc padding p
-      XExpr (ExprInBrackets _ _ _) -> []
+      XExpr ExprInBrackets{} -> []
 
     suggestPc
       :: Padding

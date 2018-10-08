@@ -1,19 +1,25 @@
 module Ariadne.Wallet.Face
-  ( module Ariadne.Cardano.Face
-  , InputSelectionPolicy (..)
+       ( module Ariadne.Cardano.Face
+       , InputSelectionPolicy (..)
 
-  , WalletFace(..)
-  , WalletEvent(..)
-  , WalletReference(..)
-  , AccountReference(..)
-  , LocalAccountReference(..)
-  , WalletSelection(..)
-  , WalletName(..)
-  , Mnemonic(..)
-  , WalletRestoreType (..)
-  ) where
+       , WalletFace(..)
+       , WalletEvent(..)
+       , WalletReference(..)
+       , AccountReference(..)
+       , LocalAccountReference(..)
+       , WalletSelection(..)
+       , WalletName(..)
+       , Mnemonic(..)
+       , WalletRestoreType (..)
+       , WalletUIFace(..)
 
-import Universum
+       , SomeWalletPassException(..)
+       , walletPassExceptionToException
+       , walletPassExceptionFromException
+       ) where
+
+import Data.Typeable (cast)
+import qualified GHC.Show as Show (Show (show))
 
 import Serokell.Data.Memory.Units (Byte)
 
@@ -62,12 +68,11 @@ data WalletRestoreType
 
 data WalletFace =
   WalletFace
-    { walletNewAddress ::
-        AccountReference -> HdAddressChain -> PassPhrase -> IO Address
+    { walletNewAddress :: AccountReference -> HdAddressChain -> IO Address
     , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
-    , walletNewWallet :: PassPhrase -> Maybe WalletName -> Maybe Byte -> IO [Text]
+    , walletNewWallet :: Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
-        PassPhrase -> Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
+        Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
     , walletRestoreFromFile ::
         Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
     , walletRename :: Text -> IO ()
@@ -75,7 +80,7 @@ data WalletFace =
     , walletRefreshState :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
-        PassPhrase -> WalletReference -> [LocalAccountReference] ->
+        WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, DB)
     , walletBalance :: IO Coin
@@ -87,3 +92,35 @@ data WalletFace =
 -- handle.
 data WalletEvent =
   WalletStateSetEvent DB (Maybe WalletSelection)
+
+data WalletUIFace =
+  WalletUIFace
+    { walletGenerateMnemonic :: Byte -> IO [Text]
+    , walletDefaultEntropySize :: Byte
+    , walletValidateAddress :: Text -> Bool
+    , walletCoinPrecision :: Int
+    }
+
+-- | Superclass for wallet password exceptions
+data SomeWalletPassException =
+  forall e . Exception e => SomeWalletPassException e
+
+instance Show SomeWalletPassException where
+  show (SomeWalletPassException e) = displayException e
+
+instance Exception SomeWalletPassException
+
+walletPassExceptionToException :: Exception e => e -> SomeException
+walletPassExceptionToException = toException . SomeWalletPassException
+
+walletPassExceptionFromException :: Exception e => SomeException -> Maybe e
+walletPassExceptionFromException e = case onlyWalletPassFromException e of
+    Just walletPassException -> Just walletPassException
+    Nothing -> do
+        SomeException a <- fromException e
+        cast a
+  where
+    onlyWalletPassFromException :: Exception e => SomeException -> Maybe e
+    onlyWalletPassFromException x = do
+        SomeWalletPassException a <- fromException x
+        cast a

@@ -1,6 +1,6 @@
-module Ariadne.TaskManager.Backend (createTaskManagerFace) where
-
-import Universum
+module Ariadne.TaskManager.Backend
+       ( createTaskManagerFace
+       ) where
 
 import Control.Concurrent.Async
 import Control.Lens as L

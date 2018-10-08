@@ -1,8 +1,7 @@
 -- | Glue code between the frontend and the backends.
 
 module Glue
-       (
-         -- * Knit ↔ Qt
+       ( -- * Knit ↔ Qt
          knitFaceToUI
 
          -- * Cardano ↔ Qt
@@ -13,10 +12,12 @@ module Glue
 
          -- * Command history ↔ Vty
        , historyToUI
+
+         -- * Password Manager ↔ Vty
+       , putPasswordEventToUI
        ) where
 
-import Universum
-
+import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Control.Lens (ix)
 import Data.Double.Conversion.Text (toFixed)
@@ -31,6 +32,7 @@ import Ariadne.Knit.Face
 import Ariadne.TaskManager.Face
 import Ariadne.UI.Qt.Face
 import Ariadne.UX.CommandHistory
+import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter
 
@@ -56,8 +58,9 @@ knitFaceToUI
      )
   => UiFace
   -> KnitFace components
+  -> PutPassword
   -> UiLangFace
-knitFaceToUI UiFace{..} KnitFace{..} =
+knitFaceToUI UiFace{..} KnitFace{..} putPass =
   UiLangFace
     { langPutCommand = putCommand commandHandle
     , langPutUiCommand = putUiCommand
@@ -80,74 +83,88 @@ knitFaceToUI UiFace{..} KnitFace{..} =
 
     putUiCommand op = case opToExpr op of
       Left err -> return $ Left err
-      Right expr -> fmap Right $ putCommand (uiCommandHandle op) expr
+      Right expr -> do
+        whenJust (extractPass op) pushPassword
+        fmap Right $ putCommand (uiCommandHandle op) expr
     uiCommandHandle op commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (resultToUI result op) $
             putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \_ _ ->
-          return ()
+          pass
       }
+
+    extractPass = \case
+      UiRestoreWallet _ maybePass _ _ -> maybePass
+      _ -> Nothing
+    pushPassword password = putPass WalletIdTemporary password Nothing
 
     opToExpr = \case
       UiSelect ws ->
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.selectCommandName
-           (map (Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber . fromIntegral) ws)
-          )
+        Right $ Knit.ExprProcCall Knit.NoExt $
+          Knit.ProcCall Knit.NoExt Knit.selectCommandName $
+            map
+              (Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber
+                . fromIntegral)
+              ws
       UiKill commandId ->
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.killCommandName
-            [Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
-          )
-      UiSend address amount -> do
+        Right $ Knit.ExprProcCall Knit.NoExt $
+          Knit.ProcCall Knit.NoExt Knit.killCommandName
+            [Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitTaskId
+              . TaskId $ commandId]
+      UiSend wallet accounts address amount -> do
         argAddress <- decodeTextAddress address
-        argCoin <- readEither amount
         Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.sendCommandName
-            [ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $ Knit.ProcCall Knit.NoExt Knit.txOutCommandName
-                [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $ argAddress
-                , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $ argCoin
+          (Knit.ProcCall Knit.NoExt Knit.sendCommandName $
+            [ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $
+              Knit.ProcCall Knit.NoExt Knit.txOutCommandName
+                [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $
+                  argAddress
+                , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $
+                  amount
                 ]
-            ]
+            , Knit.ArgKw Knit.NoExt "wallet" . Knit.ExprLit Knit.NoExt . Knit.toLit
+              . Knit.LitNumber . fromIntegral $ wallet
+            ] ++
+            map
+              (Knit.ArgKw Knit.NoExt "account" . Knit.ExprLit Knit.NoExt . Knit.toLit
+                . Knit.LitNumber . fromIntegral)
+              accounts
           )
-      UiNewWallet name password -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newWalletCommandName $
-            [Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name]
-            ++ maybe []
-              ((:[]) . Knit.ArgKw Knit.NoExt "pass" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString) password
-          )
-      UiRestoreWallet name password mnemonic full -> do
+      UiRestoreWallet name _ mnemonic full -> do
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.restoreCommandName $
-            [ Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name
-            , Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ mnemonic
+            [ Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit
+              . Knit.LitString $ name
+            , Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit
+              . Knit.LitString $ mnemonic
             , Knit.ArgKw Knit.NoExt "full" . Knit.componentInflate . Knit.ValueBool $ full
             ]
-            ++ maybe []
-              ((:[]) . Knit.ArgKw Knit.NoExt "pass" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString) password
           )
       UiNewAccount name -> do
         Right $ Knit.ExprProcCall Knit.NoExt
           (Knit.ProcCall Knit.NoExt Knit.newAccountCommandName
-            [Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ name]
+            [Knit.ArgKw Knit.NoExt "name" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $
+              name]
           )
-      UiNewAddress -> do
+      UiNewAddress wIdx aIdx -> do
+        Right $ Knit.ExprProcCall Knit.NoExt $
+          Knit.ProcCall Knit.NoExt Knit.newAddressCommandName
+            [ Knit.ArgKw Knit.NoExt "wallet" . Knit.ExprLit Knit.NoExt . Knit.toLit
+              . Knit.LitNumber . fromIntegral $ wIdx
+            , Knit.ArgKw Knit.NoExt "account" . Knit.ExprLit Knit.NoExt . Knit.toLit
+              . Knit.LitNumber . fromIntegral $ aIdx
+            ]
+
+      UiRemoveCurrentItem -> do
         Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName [])
+          (Knit.ProcCall Knit.NoExt Knit.removeCommandName [])
 
     resultToUI result = \case
-      UiSend _ _ ->
+      UiSend {} ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
-            _ -> Left "Unrecognized return value"
-      UiNewWallet _ _ ->
-        Just . UiNewWalletCommandResult .
-          either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
-          fromResult result >>= fromValue >>= \case
-            Knit.ValueList l -> Right [s | Just (Knit.ValueString s) <- Knit.fromValue <$> l]
             _ -> Left "Unrecognized return value"
       UiRestoreWallet {} ->
         Just . UiRestoreWalletCommandResult .
@@ -157,10 +174,12 @@ knitFaceToUI UiFace{..} KnitFace{..} =
         Just . UiNewAccountCommandResult .
           either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
           fromResult result
-      UiNewAddress ->
+      UiNewAddress wIdx aIdx ->
         Just . UiNewAddressCommandResult .
-          either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
-          fromResult result
+          either UiNewAddressCommandFailure (UiNewAddressCommandSuccess wIdx aIdx) $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueAddress a -> Right $ pretty a
+            _ -> Left "Unrecognized return value"
       _ -> Nothing
 
     fromResult = \case
@@ -301,14 +320,14 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
       UiAccountInfo
         { uaciLabel = Just _uadName
         , uaciWalletIdx = uwsWalletIdx
-        , uaciPath = [fromIntegral _uadAccountIdx]
+        , uaciPath = fromIntegral _uadAccountIdx :| []
         , uaciBalance = balance _uadBalance
-        , uaciAddresses = address [fromIntegral _uadAccountIdx] <$> V.toList _uadAddresses
+        , uaciAddresses = address (fromIntegral _uadAccountIdx) <$> V.toList _uadAddresses
         }
     address acPath UiAddressData{..} =
       UiAddressInfo
         { uadiWalletIdx = uwsWalletIdx
-        , uadiPath = acPath ++ [fromIntegral _uiadAddressIdx]
+        , uadiPath = acPath :| [fromIntegral _uiadAddressIdx]
         , uadiAddress = pretty _uiadAddress
         , uadiBalance = balance _uiadBalance
         }
@@ -328,3 +347,10 @@ historyToUI ch = UiHistoryFace
   , historyPrevCommand = toPrevCommand ch
   }
 
+----------------------------------------------------------------------------
+-- Glue between the Password Manager and Vty frontend
+----------------------------------------------------------------------------
+
+putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest walletId cEvent

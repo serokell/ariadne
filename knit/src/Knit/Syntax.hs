@@ -1,6 +1,35 @@
 {-# LANGUAGE ConstraintKinds #-}
 
-module Knit.Syntax where
+module Knit.Syntax
+       ( Operator(..)
+       , CommandId(..)
+
+       , NoExt(..)
+
+       , Expr(..)
+       , XExprProcCall
+       , XExprLit
+       , XXExpr
+       , ForallXExpr
+
+       , ComponentLit
+       , Lit(..)
+
+       , ProcCall(..)
+       , ProcCall'
+       , XProcCall
+       , ForallXProcCall
+
+       , Arg(..)
+       , Arg'
+       , XArgPos
+       , XArgKw
+       , XXArg
+       , ForallXArg
+
+       , toLit
+       , fromLit
+       ) where
 
 import Data.String
 import GHC.Exts (Constraint)

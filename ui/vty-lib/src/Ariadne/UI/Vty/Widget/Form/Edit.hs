@@ -3,15 +3,13 @@ module Ariadne.UI.Vty.Widget.Form.Edit
        , initBaseEditWidget
        , initEditWidget
        , initPasswordWidget
+       , initHiddenPasswordWidget
        ) where
-
-import Universum
 
 import Control.Lens (makeLensesWith, (.=))
 import Data.Char (isSpace)
 import Data.List ((!!))
 import Data.Text.Zipper (TextZipper)
-import Prelude (until)
 
 import qualified Brick as B
 import qualified Data.Text as T
@@ -36,7 +34,7 @@ data EditWidgetState p =
     , editWidgetTextLens :: !(ReifiedLens' p Text)
     , editWidgetLocationLens :: !(Maybe (ReifiedLens' p (Int, Int)))
     , editWidgetAttr :: !B.AttrName
-    , editWidgetCharTransform :: !(Char -> Char)
+    , editWidgetCharTransform :: !(Maybe (Char -> Char))
     , editWidgetCharAttr :: !(Maybe (p -> (Int, Int) -> B.AttrName))
     , editWidgetEnterMode :: !EnterMode
     }
@@ -47,7 +45,7 @@ initBaseEditWidget
   :: Lens' p Text
   -> Maybe (ReifiedLens' p (Int, Int))
   -> B.AttrName
-  -> (Char -> Char)
+  -> Maybe (Char -> Char)
   -> Maybe (p -> (Int, Int) -> B.AttrName)
   -> EnterMode
   -> Widget p
@@ -70,13 +68,16 @@ initBaseEditWidget textLens locationLens attr charTransform charAttr enterMode =
       }
 
 initEditWidget :: Lens' p Text -> Widget p
-initEditWidget lens = initBaseEditWidget lens Nothing "edit" id Nothing EnterIgnore
+initEditWidget lens = initBaseEditWidget lens Nothing "edit" (Just id) Nothing EnterIgnore
 
 initMultilineEditWidget :: Lens' p Text -> Widget p
-initMultilineEditWidget lens = initBaseEditWidget lens Nothing "edit" id Nothing EnterNewLine
+initMultilineEditWidget lens = initBaseEditWidget lens Nothing "edit" (Just id) Nothing EnterNewLine
 
 initPasswordWidget :: Lens' p Text -> Widget p
-initPasswordWidget lens = initBaseEditWidget lens Nothing "edit" (const '*') Nothing EnterIgnore
+initPasswordWidget lens = initBaseEditWidget lens Nothing "edit" (Just $ const '*') Nothing EnterIgnore
+
+initHiddenPasswordWidget :: Lens' p Text -> Widget p
+initHiddenPasswordWidget lens = initBaseEditWidget lens Nothing "edit" Nothing Nothing EnterIgnore
 
 drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p (B.Widget WidgetName)
 drawEditWidget _focused widgetState@EditWidgetState{..} = do
@@ -101,23 +102,26 @@ drawEditWidget _focused widgetState@EditWidgetState{..} = do
         width = max 1 $ rdrCtx ^. B.availWidthL
         chunks = chunksOf' width <$> ls
 
-        rowToImg r line =
-          [ V.horizCat $
-            [ V.char (attrFn (r, c)) $ editWidgetCharTransform char
-            | (c, char) <- zip [1 + subRow * width..] $ toString subLine
-            ] ++
-            [ V.text' defAttr $ T.replicate (width - length subLine) " " ]
-          | (subRow, subLine) <- zip [0..] line
-          ]
+        rowToImg r line = case editWidgetCharTransform of
+          Nothing -> [ V.text' defAttr $ T.replicate (width) " " ]
+          Just charTransform ->
+            [ V.horizCat $
+              [ V.char (attrFn (r, c)) $ charTransform char
+              | (c, char) <- zip [1 + subRow * width..] $ toString subLine
+              ] ++
+              [ V.text' defAttr $ T.replicate (width - length subLine) " " ]
+            | (subRow, subLine) <- zip [0..] line
+            ]
 
         img = V.vertCat $ concat [ rowToImg r line | (r, line) <- zip [1..] chunks ]
 
-        cursor = B.CursorLocation (B.Location (col'', row'')) $ Just widgetName
+        cursor = B.CursorLocation (B.Location location) $ Just widgetName
           where
             row' = min row $ length chunks - 1
             col' = min col $ sum $ map length $ chunks !! row'
             row'' = (sum $ map length $ take row' $ chunks) + col' `div` width
             col'' = col' `rem` width
+            location = maybe (0, 0) (const (col'', row'')) editWidgetCharTransform
 
       return $
         B.emptyResult
@@ -216,7 +220,7 @@ handleEditWidgetMouseDown
 handleEditWidgetMouseDown (B.Location (col, row)) = do
     EditWidgetState{..} <- get
     whenJustM (B.getName <$> lift get >>= liftBrick . B.lookupViewport) $ \vp -> do
-      let width = vp ^. B.vpSize ^. _1
+      let width = vp ^. (B.vpSize . _1)
       ls <- T.splitOn "\n" <$> useWidgetLens editWidgetTextLens
       modifyZipper $ safeMoveCursor $ go 0 (row, col - 1) width ls
     return WidgetEventHandled
@@ -285,3 +289,10 @@ smartBreakLine :: TextZipper Text -> TextZipper Text
 smartBreakLine tz =
   let indentation = T.takeWhile isSpace (TZ.currentLine tz)
   in TZ.insertMany indentation (TZ.breakLine tz)
+
+until :: (a -> Bool) -> (a -> a) -> a -> a
+until p f = go
+  where
+    go x
+      | p x = x
+      | otherwise = go (f x)

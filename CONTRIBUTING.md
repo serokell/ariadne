@@ -2,8 +2,9 @@
 
 ## Bug Reports
 
-Please [open an issue](https://github.com/serokell/ariadne/issues) if
-you find a bug.
+Please [open an issue](https://issues.serokell.io/newIssue?project=AD)
+if you find a bug. Note: you need to login (e. g. using your GitHub
+account) first.
 
 The more detailed your report is, the faster it can be resolved.
 
@@ -36,4 +37,5 @@ configuration file requires `stylish-haskell` version `0.8.1.0` or newer.
 
 We have a [Makefile](Makefile) which provides shortcuts for the most
 common developers' activities, like building with flags suitable for
-development, testing, applying `stylish-haskell`.
+development, testing, applying `stylish-haskell` and `hlint`, building
+Haddock documentation.

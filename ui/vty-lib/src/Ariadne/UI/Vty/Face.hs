@@ -13,12 +13,15 @@ module Ariadne.UI.Vty.Face
        , UiBackendStatusUpdate (..)
        , UiWalletEvent (..)
        , UiNewVersionEvent (..)
+       , UiPasswordEvent (..)
 
        , UiCommand (..)
        , UiSendOutput (..)
        , UiSendArgs (..)
+       , UiFeeArgs (..)
        , UiNewWalletArgs (..)
        , UiNewAccountArgs (..)
+       , UiNewAddressArgs (..)
        , UiRestoreWalletArgs (..)
        , UiRenameArgs (..)
 
@@ -28,6 +31,7 @@ module Ariadne.UI.Vty.Face
        , UiTxHistoryRow (..)
        , UiTxHistoryCommandResult (..)
        , UiSendCommandResult (..)
+       , UiFeeCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
@@ -45,12 +49,13 @@ module Ariadne.UI.Vty.Face
        , UiSelectionInfo(..)
        ) where
 
-import Universum
-
+import qualified Control.Concurrent.Event as CE
 import Data.Loc.Span (Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
+
+import Ariadne.UX.PasswordManager (WalletId)
 
 -- | UI library settings for a particular currency implementation
 -- Mostly boolean flags for enabled widgets
@@ -78,6 +83,7 @@ data UiFace = UiFace
 data UiLangFace = forall err expr. UiLangFace
   { langPutCommand :: expr -> IO UiCommandId
   , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
+  , langPutUISilentCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
   , langAutocomplete :: Text -> [Text]
   , langPpExpr :: expr -> Doc
@@ -108,6 +114,7 @@ data UiEvent
   | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
   | UiNewVersionEvent UiNewVersionEvent
+  | UiPasswordEvent UiPasswordEvent
 
 data UiCommandId = UiCommandId
   { -- This field is used to compare whether two command identifiers are equal.
@@ -131,6 +138,7 @@ data UiCommandEvent
   = UiCommandSuccess Doc
   | UiCommandFailure Doc
   | UiCommandOutput Doc
+  | UiCommandWidget Doc
 
 -- UI event triggered by REPL command
 data UiCommandAction
@@ -161,6 +169,11 @@ data UiNewVersionEvent = UiNewVersion
   , nvUpdateURL :: Text
   }
 
+-- | Ui event triggered by the password manager
+data UiPasswordEvent
+  = UiPasswordRequest WalletId CE.Event
+  | UiPasswordSent
+
 ----------------------------------------------------------------------------
 -- UI commands
 ----------------------------------------------------------------------------
@@ -171,9 +184,10 @@ data UiCommand
   | UiBalance
   | UiTxHistory
   | UiSend UiSendArgs
+  | UiFee UiFeeArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
-  | UiNewAddress
+  | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
   | UiExport
@@ -185,9 +199,16 @@ data UiSendOutput = UiSendOutput
   }
 
 data UiSendArgs = UiSendArgs
-  { usaAccounts :: ![Word32]
+  { usaWalletIdx :: !(Maybe Word)
+  , usaAccounts :: ![Word32]
   , usaOutputs :: [UiSendOutput]
   , usaPassphrase :: !Text
+  }
+
+data UiFeeArgs = UiFeeArgs
+  { ufaWalletIdx :: !(Maybe Word)
+  , ufaAccounts :: ![Word32]
+  , ufaOutputs :: [UiSendOutput]
   }
 
 data UiNewWalletArgs = UiNewWalletArgs
@@ -196,7 +217,13 @@ data UiNewWalletArgs = UiNewWalletArgs
   }
 
 data UiNewAccountArgs = UiNewAccountArgs
-  { unaaName :: !Text
+  { unaaWalletIdx :: !(Maybe Word)
+  , unaaName :: !Text
+  }
+
+data UiNewAddressArgs = UiNewAddressArgs
+  { unadaWalletIdx :: !(Maybe Word)
+  , unadaAccountIdx :: !(Maybe Word)
   }
 
 data UiRestoreWalletArgs = UiRestoreWalletArgs
@@ -219,6 +246,7 @@ data UiCommandResult
   = UiBalanceCommandResult UiBalanceCommandResult
   | UiTxHistoryCommandResult UiTxHistoryCommandResult
   | UiSendCommandResult UiSendCommandResult
+  | UiFeeCommandResult UiFeeCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -233,6 +261,10 @@ data UiBalanceCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiFeeCommandResult
+  = UiFeeCommandSuccess Text
+  | UiFeeCommandFailure Text
 
 data UiTxHistoryRowPart = UiTxHistoryRowPart
   { uthrpAddress :: Text

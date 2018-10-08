@@ -1,13 +1,11 @@
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
 module Ariadne.Config.CLI
-    ( getConfig
-    -- * Exported for testing
-    , opts
-    , mergeConfigs
-    ) where
-
-import Universum
+       ( getConfig
+         -- * Exported for testing
+       , opts
+       , mergeConfigs
+       ) where
 
 import Control.Lens (makeLensesWith, zoom, (%=))
 import Data.List.Utils (replace)
@@ -17,7 +15,7 @@ import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import Options.Applicative
-  (auto, help, long, metavar, option, strOption, switch, value)
+  (auto, help, long, metavar, option, showDefault, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne_cardano (version)
 import Pos.Core.Slotting (Timestamp(..))
@@ -29,28 +27,32 @@ import Serokell.Data.Memory.Units (Byte, fromBytes)
 import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
-  (XdgDirectory(..), doesFileExist, getCurrentDirectory, getXdgDirectory)
+  (XdgDirectory(..), createDirectoryIfMissing, doesFileExist,
+  getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, acHistoryL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, acWalletL, defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
-import Ariadne.Config.History (hcPathL)
-import Ariadne.Config.Wallet (WalletConfig(..), walletFieldModifier)
+import Ariadne.Config.History
+import Ariadne.Config.Update
+import Ariadne.Config.Wallet
+  (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
 import Ariadne.Util
 
 -- All leaves have type Maybe a to provide an ability to override any field
 -- except EkgParams due to its parser
 data CLI_AriadneConfig = CLI_AriadneConfig
-    { cli_acCardano :: CLI_CardanoConfig
-    , cli_acWallet :: CLI_WalletConfig
+    { cli_acCardano :: !CLI_CardanoConfig
+    , cli_acWallet :: !CLI_WalletConfig
+    , cli_acUpdate :: !CLI_UpdateConfig
+    , cli_acHistory :: !CLI_HistoryConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
     { cli_dbPath :: !(Maybe FilePath)
     , cli_rebuildDB :: !(Maybe Bool)
-    , cli_keyfilePath :: !(Maybe FilePath)
     , cli_networkTopology :: !(Maybe FilePath)
     , cli_networkNodeId :: !(Maybe NodeName)
     , cli_networkPort :: !(Maybe Word16)
@@ -68,11 +70,24 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     } deriving (Eq, Show, Generic)
 
 data CLI_WalletConfig = CLI_WalletConfig
-    { cli_wcEntropySize :: Maybe Byte
+    { cli_wcEntropySize :: !(Maybe Byte)
+    , cli_wcKeyfilePath :: !(Maybe FilePath)
+    , cli_wcAcidDBPath  :: !(Maybe FilePath)
+    } deriving (Eq, Show)
+
+data CLI_UpdateConfig = CLI_UpdateConfig
+    { cli_ucVersionCheckUrl :: !(Maybe Text)
+    , cli_ucUpdateUrl :: !(Maybe Text)
+    , cli_ucCheckDelay :: !(Maybe Int)
+    } deriving (Eq, Show)
+
+data CLI_HistoryConfig = CLI_HistoryConfig
+    { cli_hcPath :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_CardanoConfig
+makeLensesWith postfixLFields ''CLI_HistoryConfig
 
 makeLensesWith postfixLFields ''ConfigurationOptions
 
@@ -83,12 +98,11 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     merge :: Maybe a -> a -> a
     merge = flip fromMaybe
 
-    -- TODO: AD-175 Overridable update configuration
     mergedAriadneConfig = AriadneConfig
         { acCardano = mergedCardanoConfig
         , acWallet = mergedWalletConfig
-        , acUpdate = acUpdate defaultAc
-        , acHistory = acHistory defaultAc
+        , acUpdate = mergedUpdateConfig
+        , acHistory = mergedHistoryConfig
         }
 
     -- Merge Wallet config
@@ -97,6 +111,10 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     mergedWalletConfig = WalletConfig
         { wcEntropySize =
             cli_wcEntropySize overrideWc `merge` wcEntropySize defaultWc
+        , wcKeyfilePath =
+            cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
+        , wcAcidDBPath =
+            cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
         }
 
     -- Merge Cardano config
@@ -114,8 +132,6 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         { ccDbPath = (overrideCC ^. cli_dbPathL) <|> ccDbPath defaultCC
         , ccRebuildDB =
             merge (overrideCC ^. cli_rebuildDBL) (ccRebuildDB defaultCC)
-        , ccKeyfilePath =
-            merge (overrideCC ^. cli_keyfilePathL) (ccKeyfilePath defaultCC)
         , ccNetworkTopology  =
             (overrideCC ^. cli_networkTopologyL) <|> ccNetworkTopology defaultCC
         , ccNetworkNodeId =
@@ -136,6 +152,22 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , cfoKey = merge (overrideCO ^. cli_cfoKeyL) (defaultCO ^. cfoKeyL)
         , cfoSystemStart = (overrideCO ^. cli_cfoSystemStartL) <|> (defaultCO ^. cfoSystemStartL)
         , cfoSeed = (overrideCO ^. cli_cfoSeedL) <|> (defaultCO ^. cfoSeedL)
+        }
+
+    -- Merge Update config
+    overrideUc = cli_acUpdate overrideAc
+    defaultUc = acUpdate defaultAc
+    mergedUpdateConfig = defaultUc
+        { ucVersionCheckUrl = merge (cli_ucVersionCheckUrl overrideUc) (ucVersionCheckUrl defaultUc)
+        , ucUpdateUrl = merge (cli_ucUpdateUrl overrideUc) (ucUpdateUrl defaultUc)
+        , ucCheckDelay = merge (cli_ucCheckDelay overrideUc) (ucCheckDelay defaultUc)
+        }
+
+    -- Merge History config
+    overrideHc = cli_acHistory overrideAc
+    defaultHc = acHistory defaultAc
+    mergedHistoryConfig = defaultHc
+        { hcPath = merge (overrideHc ^. cli_hcPathL) (defaultHc ^. hcPathL)
         }
 
 data ConfigDirectories = ConfigDirectories
@@ -161,6 +193,9 @@ getConfig commitHash = do
     (fromDhall @AriadneConfig $ toDhallImport configPath)
     (do
       putStrLn $ sformat ("File "%string%" not found. Default config will be used.") configPath
+      -- If default config is used we create data directory because
+      -- all data is put there.
+      createDirectoryIfMissing True xdgDataPath
       return (defaultAriadneConfig xdgDataPath))
 
   let config = resolvePaths unresolvedConfig configPath configDirs
@@ -175,27 +210,29 @@ getConfig commitHash = do
         let resolve_ = resolve ariadneConfigDir configDirs
         zoom acCardanoL $ do
           ccDbPathL %= fmap resolve_
-          ccKeyfilePathL %= resolve_
           ccNetworkTopologyL %= fmap resolve_
           ccLogConfigL %= fmap resolve_
           ccLogPrefixL %= fmap resolve_
           ccConfigurationOptionsL.cfoFilePathL %= resolve_
         zoom acHistoryL $ do
           hcPathL %= resolve_
+        zoom acWalletL $ do
+          wcAcidDBPathL %= resolve_
+          wcKeyfilePathL %= resolve_
+
 
       resolve :: FilePath -> ConfigDirectories -> FilePath -> FilePath
       resolve prefix ConfigDirectories{..} path
-        | isPrefixOf "@DATA" path = replace "@DATA" cdDataDir path
-        | isPrefixOf "@PWD" path = replace "@PWD" cdPWD path
+        | "@DATA" `isPrefixOf` path = replace "@DATA" cdDataDir path
+        | "@PWD" `isPrefixOf` path = replace "@PWD" cdPWD path
         | isAbsoluteConsiderTilde path = path
         | otherwise = prefix </> path
 
       isAbsoluteConsiderTilde :: FilePath -> Bool
-      isAbsoluteConsiderTilde p = if buildOS == Windows
-        then isAbsolute p
-        else if isPrefixOf "~/" p
-          then True
-          else isAbsolute p
+      isAbsoluteConsiderTilde p
+        | buildOS == Windows = isAbsolute p
+        | "~/" `isPrefixOf` p = True
+        | otherwise = isAbsolute p
 
       toDhallImport :: FilePath -> D.Text
       toDhallImport = fromString . f
@@ -214,6 +251,7 @@ parseOptions :: FilePath -> Opt.Parser (FilePath, Bool, CLI_AriadneConfig)
 parseOptions xdgConfigPath = do
   configPath <- strOption $ mconcat
     [ long "config"
+    , showDefault
     , metavar "FILEPATH"
     , value (xdgConfigPath </> "ariadne-config.dhall")
     , help "Path to ariadne .dhall configuration file"
@@ -229,6 +267,8 @@ cliAriadneConfigParser :: Opt.Parser CLI_AriadneConfig
 cliAriadneConfigParser = do
   cli_acCardano <- cliCardanoConfigParser
   cli_acWallet <- cliWalletParser
+  cli_acUpdate <- cliUpdateParser
+  cli_acHistory <- cliHistoryParser
   pure CLI_AriadneConfig {..}
 
 cliWalletParser :: Opt.Parser CLI_WalletConfig
@@ -238,12 +278,50 @@ cliWalletParser = do
      , metavar "BYTE"
      , help "Entropy size in bytes, valid values are: [16, 20, 24, 28, 32]"
      ]
+  cli_wcKeyfilePath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameWallet "wcKeyfilePath"
+    , metavar "FILEPATH"
+    , help "Path to file with secret key."
+    ]
+  cli_wcAcidDBPath <- optional $ strOption $ mconcat
+     [ long $ toOptionNameWallet "wcAcidDBPath"
+     , metavar "FilePath"
+     , help "Wallets database path"
+     ]
   pure CLI_WalletConfig {..}
   where
   parseEntropy = fromParsec byte >>= \b -> if b `elem` [16, 20, 24, 28, 32]
     then return b
     else err b
   err inp = Opt.readerError $ "Invalid entropy size " <> (show inp) <> ". Chose one of [16, 20, 24, 28, 32]"
+
+cliUpdateParser :: Opt.Parser CLI_UpdateConfig
+cliUpdateParser = do
+  cli_ucVersionCheckUrl <- optional $ strOption $ mconcat
+    [ long $ toOptionNameUpdate "ucVersionCheckUrl"
+    , metavar "URL"
+    , help "URL used to get the latest software version"
+    ]
+  cli_ucUpdateUrl <- optional $ strOption $ mconcat
+    [ long $ toOptionNameUpdate "ucUpdateUrl"
+    , metavar "URL"
+    , help "URL displayed in the message about a new version"
+    ]
+  cli_ucCheckDelay  <- optional $ option auto $ mconcat
+    [ long $ toOptionNameUpdate "ucCheckDelay"
+    , metavar "INT'"
+    , help "How often to check for a new version (in seconds)"
+    ]
+  pure CLI_UpdateConfig {..}
+
+cliHistoryParser :: Opt.Parser CLI_HistoryConfig
+cliHistoryParser = do
+  cli_hcPath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameHistory "hcPath"
+    , metavar "FILEPATH"
+    , help "Path to file with command history."
+    ]
+  pure CLI_HistoryConfig {..}
 
 cliCardanoConfigParser :: Opt.Parser CLI_CardanoConfig
 cliCardanoConfigParser = do
@@ -258,11 +336,6 @@ cliCardanoConfigParser = do
     , metavar "BOOL"
     , help "If node's database already exists, discard its contents \
     \and create a new one from scratch."
-    ]
-  cli_keyfilePath <- optional $ strOption $ mconcat
-    [ long $ toOptionNameCardano "ccKeyfilePath"
-    , metavar "FILEPATH"
-    , help "Path to file with secret key (we use it for Daedalus)."
     ]
   cli_networkTopology <- optional $ strOption $ mconcat
     [ long $ toOptionNameCardano "ccNetworkTopology"
@@ -343,3 +416,9 @@ toOptionNameCardano = ("cardano:" <>) . toString . cardanoFieldModifier
 
 toOptionNameWallet :: D.Text -> String
 toOptionNameWallet =  ("wallet:" <>) . toString . walletFieldModifier
+
+toOptionNameUpdate :: D.Text -> String
+toOptionNameUpdate = ("update:" <>) . toString . updateFieldModifier
+
+toOptionNameHistory :: D.Text -> String
+toOptionNameHistory = ("history:" <>) . toString . historyFieldModifier

@@ -1,6 +1,8 @@
-module Ariadne.Knit.Face where
-
-import Universum
+module Ariadne.Knit.Face
+       ( KnitCommandResult(..)
+       , KnitCommandHandle(..)
+       , KnitFace(..)
+       ) where
 
 import Control.Exception (SomeException)
 import Data.List.NonEmpty (NonEmpty)

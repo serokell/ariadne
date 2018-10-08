@@ -13,9 +13,8 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
        , eskToHDPassphrase
        , selectOwnAddresses
        , decryptAddress
+       , decryptAddressRaw
        ) where
-
-import Universum
 
 import qualified Data.List.NonEmpty as NE
 import Pos.Client.Txp.History (TxHistoryEntry(..))
@@ -35,7 +34,7 @@ import Ariadne.Wallet.Cardano.Kernel.Bip44
 data WAddressMeta = WAddressMeta
     { _wamDerivationPath :: Bip44DerivationPath
     , _wamAddress        :: Address
-    } deriving (Eq, Ord, Show, Generic, Typeable)
+    } deriving (Eq, Ord, Show, Generic)
 
 type OwnTxInOuts = [((TxIn, TxOutAux), WAddressMeta)]
 
@@ -80,10 +79,7 @@ buildTHEntryExtra hdPass (WithHash tx txId, NE.toList -> undoL) (mDiff, mTs) =
     THEntryExtra {..}
 
 eskToHDPassphrase :: EncryptedSecretKey -> HDPassphrase
-eskToHDPassphrase encSK = do
-    let pubKey = encToPublic encSK
-    let hdPass = deriveHDPassphrase pubKey
-    hdPass
+eskToHDPassphrase = deriveHDPassphrase . encToPublic
 
 selectOwnAddresses
     :: HDPassphrase
@@ -95,7 +91,11 @@ selectOwnAddresses hdPass getAddr =
 
 decryptAddress :: HDPassphrase -> Address -> Maybe WAddressMeta
 decryptAddress hdPass addr = do
-    hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
-    derPathList <- unpackHDAddressAttr hdPass hdPayload
+    derPathList <- decryptAddressRaw hdPass addr
     derPath <- decodeBip44DerivationPath derPathList
     pure $ WAddressMeta derPath addr
+
+decryptAddressRaw :: HDPassphrase -> Address -> Maybe [Word32]
+decryptAddressRaw hdPass addr = do
+    hdPayload <- aaPkDerivationPath $ addrAttributesUnwrapped addr
+    unpackHDAddressAttr hdPass hdPayload

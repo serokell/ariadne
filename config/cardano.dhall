@@ -9,7 +9,6 @@
 , rebuild-db = False
 , db-path = ["@DATA/db-mainnet"] : Optional Text
 , ekg-params = [] : Optional { IP : Text, PORT : Natural }
-, keyfile = ["@DATA/secret-mainnet.key"] : Optional Text
 , default-port = [+3000] : Optional Natural
 , node-id = ["node0"] : Optional Text
 , topology = [] : Optional Text

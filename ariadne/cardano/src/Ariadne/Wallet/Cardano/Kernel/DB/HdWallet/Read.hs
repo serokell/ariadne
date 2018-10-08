@@ -7,39 +7,40 @@
 -- filtering and sorting. If we want the 'IxSet' stuff to be local to the
 -- "Kernel.DB" namespace (which would be a good thing), then filtering and
 -- sorting (and maybe even pagination) will need to happen here.
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (
-    -- | * Infrastructure
-    HdQuery
-  , HdQueryErr
-    -- | * Derived balance
-  , hdRootBalance
-  , hdAccountBalance
-  , hdAddressBalance
-    -- | Accumulate all accounts/addresses
-  , readAllHdRoots
-  , readAllHdAccounts
-  , readAllHdAddresses
-    -- | All wallets/accounts/addresses
-  , readAccountsByRootId
-  , readAddressesByRootId
-  , readAddressesByAccountId
-    -- | Single wallets/accounts/addresses
-  , readHdRoot
-  , readHdAccount
-  , readHdAccountCurrentCheckpoint
-  , readHdAddress
-  ) where
-
-import Universum
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
+       ( -- | * Infrastructure
+         HdQuery
+       , HdQueryErr
+         -- | * Derived balance
+       , hdRootBalance
+       , hdAccountBalance
+       , hdAddressBalance
+         -- | Accumulate all accounts/addresses
+       , readAllHdRoots
+       , readAllHdAccounts
+       , readAllHdAddresses
+         -- | All wallets/accounts/addresses
+       , readAccountsByRootId
+       , readAddressesByRootId
+       , readAddressesByAccountId
+         -- | Single wallets/accounts/addresses
+       , readHdRoot
+       , readHdAccount
+       , readHdAccountCurrentCheckpoint
+       , readHdAddress
+       , readHdAddressByCardanoAddress
+       ) where
 
 import Control.Lens (at)
 
-import Pos.Core (Coin, sumCoins)
+import Pos.Core (Address, Coin, sumCoins)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
+
+{-# ANN module ("HLint: ignore Unnecessary hiding" :: Text) #-}
 
 {-------------------------------------------------------------------------------
   Infrastructure
@@ -135,14 +136,20 @@ readHdRoot :: HdRootId -> HdQueryErr UnknownHdRoot HdRoot
 readHdRoot rootId = aux . view (at rootId) . readAllHdRoots
   where
     aux :: Maybe a -> Either UnknownHdRoot a
-    aux = maybe (Left (UnknownHdRoot rootId)) Right
+    aux = maybeToRight (UnknownHdRoot rootId)
 
 -- | Look up the specified account
 readHdAccount :: HdAccountId -> HdQueryErr UnknownHdAccount HdAccount
-readHdAccount accId = aux . view (at accId) . readAllHdAccounts
-  where
-    aux :: Maybe a -> Either UnknownHdAccount a
-    aux = maybe (Left (UnknownHdAccount accId)) Right
+readHdAccount accId = do
+    res <- view (at accId) . readAllHdAccounts
+    case res of
+         Just account -> return (Right account)
+         Nothing -> do
+             let rootId = accId ^. hdAccountIdParent
+             -- Offer a better diagnostic on what went wrong.
+             either (\_ -> Left (UnknownHdAccountRoot rootId))
+                    (\_ -> Left (UnknownHdAccount accId))
+                   <$> readHdRoot rootId
 
 -- | Look up the specified account and return the current checkpoint
 readHdAccountCurrentCheckpoint :: HdAccountId -> HdQueryErr UnknownHdAccount AccCheckpoint
@@ -154,4 +161,14 @@ readHdAddress :: HdAddressId -> HdQueryErr UnknownHdAddress HdAddress
 readHdAddress addrId = aux . view (at addrId) . readAllHdAddresses
   where
     aux :: Maybe a -> Either UnknownHdAddress a
-    aux = maybe (Left (UnknownHdAddress addrId)) Right
+    aux = maybeToRight (UnknownHdAddress addrId)
+
+-- | Look up the specified address by its associated Cardano's 'Address'.
+readHdAddressByCardanoAddress :: Address -> HdQueryErr UnknownHdAddress HdAddress
+readHdAddressByCardanoAddress cardanoAddr = do
+    aux . IxSet.getEQ cardanoAddr . readAllHdAddresses
+  where
+    aux :: IxSet HdAddress -> Either UnknownHdAddress HdAddress
+    aux ixset = case IxSet.getOne ixset of
+                     Just x  -> Right x
+                     Nothing -> Left (UnknownHdCardanoAddress cardanoAddr)

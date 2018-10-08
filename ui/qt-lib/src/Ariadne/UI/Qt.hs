@@ -1,15 +1,14 @@
 module Ariadne.UI.Qt
-  ( UiFace(..)
-  , createAriadneUI
-  ) where
-
-import Universum
+       ( UiFace(..)
+       , createAriadneUI
+       ) where
 
 import Control.Concurrent
 import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
-import Ariadne.UI.Qt.Face (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace)
+import Ariadne.UI.Qt.Face
+  (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -25,18 +24,24 @@ import Control.Concurrent.STM.TBQueue
 import Ariadne.UI.Qt.MainWindow
 import Ariadne.UI.Qt.StyleSheet
 import Ariadne.UI.Qt.UI
+import Ariadne.UX.PasswordManager
 
 type UiAction = UiLangFace -> IO ()
 
 type UiEventBQueue = TBQueue UiEvent
 
-createAriadneUI :: UiHistoryFace -> ComponentM (UiFace, UiAction)
-createAriadneUI historyFace = buildComponent_ "UI-Qt" $ do
+createAriadneUI
+  :: UiWalletFace
+  -> UiHistoryFace
+  -> PutPassword
+  -> ComponentM (UiFace, UiAction)
+createAriadneUI uiWalletFace historyFace putPass = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
   return
     ( mkUiFace eventQueue dispatcherIORef
-    , runUIEventLoop eventQueue dispatcherIORef historyFace)
+    , runUIEventLoop eventQueue dispatcherIORef uiWalletFace historyFace putPass
+    )
 
 fonts :: [Text]
 fonts =
@@ -49,8 +54,14 @@ fonts =
   , "MuseoSansCyrl_italic_300.ttf"
   ]
 
-runUIEventLoop :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiHistoryFace -> UiAction
-runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
+runUIEventLoop
+  :: UiEventBQueue
+  -> IORef (Maybe QObject.QObject)
+  -> UiWalletFace
+  -> UiHistoryFace
+  -> PutPassword
+  -> UiAction
+runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
     QApplication.setStyleSheet app $ toString styleSheet
     QApplication.setWindowIcon app =<< QIcon.newWithFile (":/images/yarn-ic.png" :: String)
@@ -59,9 +70,9 @@ runUIEventLoop eventIORef dispatcherIORef historyFace langFace =
 
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
-    mainWindow <- initMainWindow langFace historyFace
-    void $ Event.onEvent eventDispatcher $
-      \(_ :: QEvent.QEvent) -> handleAppEvent langFace eventIORef mainWindow >> return True
+    mainWindow <- initMainWindow langFace uiWalletFace historyFace
+    void $ Event.onEvent eventDispatcher $ \(_ :: QEvent.QEvent) ->
+        handleAppEvent langFace putPass eventIORef mainWindow >> return True
 
     QCoreApplication.exec
 
@@ -83,6 +94,7 @@ mkUiFace eventBQueue dispatcherIORef =
         whenJustM (readIORef dispatcherIORef) postEventToQt
     }
 
+{-# ANN qtEventSubLoop ("HLint: ignore Redundant return" :: Text) #-}
 qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
 qtEventSubLoop _ _ 0 = return $ Right ()
 qtEventSubLoop eventBQueue handler depth = do
@@ -94,7 +106,13 @@ qtEventSubLoop eventBQueue handler depth = do
   -- QCoreApplication.processEvents
   return next
 
-handleAppEvent :: UiLangFace -> UiEventBQueue -> MainWindow -> IO ()
-handleAppEvent langFace eventBQueue mainWindow = loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
+handleAppEvent
+  :: UiLangFace
+  -> PutPassword
+  -> UiEventBQueue
+  -> MainWindow
+  -> IO ()
+handleAppEvent langFace putPass eventBQueue mainWindow =
+    loopM (qtEventSubLoop eventBQueue doHandleOneEvent) 5
   where
-    doHandleOneEvent event = runUI (handleMainWindowEvent langFace event) mainWindow
+    doHandleOneEvent event = runUI (handleMainWindowEvent langFace putPass event) mainWindow

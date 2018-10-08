@@ -4,17 +4,46 @@ set -e
 
 CARDANO_SL_PATH=${1:-../cardano-sl}
 ARIADNE_WALLET_PATH=ariadne/cardano/src/Ariadne/Wallet/Cardano
+ARIADNE_TEST_PATH=ariadne/cardano/test/backend
 
-mkdir -p ${ARIADNE_WALLET_PATH}
+mkdir -p ${ARIADNE_WALLET_PATH} ${ARIADNE_TEST_PATH}
 
 echo "Copying code from cardano-sl"
-rsync -av --delete "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/Kernel* ${ARIADNE_WALLET_PATH}
+rsync -av --delete \
+    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/Kernel* \
+    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/WalletLayer.hs \
+    ${ARIADNE_WALLET_PATH}
+rsync -av --delete \
+    "${CARDANO_SL_PATH}"/wallet-new/src/Cardano/Wallet/WalletLayer/{Kernel.hs,Types.hs} \
+    ${ARIADNE_WALLET_PATH}/WalletLayer
+
+echo "Copying tests from cardano-sl"
+rsync -av --delete \
+    "${CARDANO_SL_PATH}"/wallet-new/test/unit/ \
+    ${ARIADNE_TEST_PATH}
 
 echo "Renaming modules..."
-find ariadne/cardano/src/Ariadne/Wallet/Cardano/ -name '*.hs' -exec sed -e 's/\bCardano\.Wallet\./Ariadne.Wallet.Cardano./g' -i {} \;
+find ${ARIADNE_WALLET_PATH} ${ARIADNE_TEST_PATH} \
+    -name '*.hs' \
+    -exec sed -e 's/\bCardano\.Wallet\./Ariadne.Wallet.Cardano./g' -i {} \;
+
+echo "Performing simple adjustments..."
+find ${ARIADNE_WALLET_PATH}/{Kernel,WalletLayer} ${ARIADNE_TEST_PATH} \
+    -name '*.hs' \
+    -exec sed -i \
+        -e 's/pure ()/pass/g' \
+        -e 's/return ()/pass/g' \
+        -e 's/(pass)/pass/g' \
+        -e 's/Map\.toList/toPairs/g' \
+        -e 's/Map\.elems/elems/g' \
+    '{}' \;
 
 echo "Prettifying with stylish-haskell..."
-find ariadne/cardano/src/Ariadne/Wallet/Cardano/Kernel -name '*.hs' -exec stylish-haskell -i -v {} \+
+find ${ARIADNE_WALLET_PATH}/{Kernel,WalletLayer} ${ARIADNE_TEST_PATH} \
+    -name '*.hs' \
+    -exec stylish-haskell -i -v -c .stylish-haskell.yaml {} \;
 
 echo "Here are all new modules:"
-find ariadne/cardano/src/Ariadne/Wallet/Cardano/ -name '*.hs' -exec sed -n -e 's/^module \([^ (]\+\).*/\1/p' {} \; | sort
+find ${ARIADNE_WALLET_PATH} ${ARIADNE_TEST_PATH} \
+    -name '*.hs' \
+    -exec sed -n -e 's/^module \([^ (]\+\).*/\1/p' {} \; | sort

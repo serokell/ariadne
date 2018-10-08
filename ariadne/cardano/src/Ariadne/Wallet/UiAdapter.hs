@@ -1,30 +1,28 @@
 module Ariadne.Wallet.UiAdapter
-  ( UiWalletData(..)
-  , UiAccountData(..)
-  , UiWalletSelection(..)
-  , UiAddressData(..)
-  -- * Lens
-  , uwdName
-  , uwdId
-  , uwdAccounts
-  , uwdBalance
+       ( UiWalletData(..)
+       , UiAccountData(..)
+       , UiWalletSelection(..)
+       , UiAddressData(..)
+         -- * Lens
+       , uwdName
+       , uwdId
+       , uwdAccounts
+       , uwdBalance
 
-  , uadName
-  , uadAccountIdx
-  , uadAddresses
-  , uadBalance
+       , uadName
+       , uadAccountIdx
+       , uadAddresses
+       , uadBalance
 
-  , uiadAddress
-  , uiadAddressIdx
-  , uiadBalance
-  --
-  , toUiWalletDatas
-  , toUiWalletSelection
-  , formatAddressHash
-  , formatHdRootId
-  ) where
-
-import Universum
+       , uiadAddress
+       , uiadAddressIdx
+       , uiadBalance
+         --
+       , toUiWalletDatas
+       , toUiWalletSelection
+       , formatAddressHash
+       , formatHdRootId
+       ) where
 
 import qualified Data.Vector as V
 import Formatting (sformat, (%))
@@ -33,7 +31,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
 
 import Pos.Core (AddressHash, unsafeIntegerToCoin)
@@ -165,4 +163,4 @@ formatAddressHash :: AddressHash a -> Text
 formatAddressHash = sformat ("#" % hashHexF)
 
 formatHdRootId :: HdRootId -> Text
-formatHdRootId = formatAddressHash . _fromDb . unHdRootId
+formatHdRootId = formatAddressHash . _fromDb . getHdRootId

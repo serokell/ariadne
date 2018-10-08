@@ -1,0 +1,25 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-vty-app
+
+executables:
+  ariadne:
+    <<: *exec-common
+    source-dirs: .
+    dependencies:
+      - ansi-wl-pprint
+      - ariadne-cardano
+      - ariadne-core
+      - ariadne-vty-lib
+      - async
+      - componentm
+      - concurrent-extra
+      - containers
+      - double-conversion
+      - knit
+      - lens
+      - named
+      - ntype
+      - text
+      - vector
+      - vinyl

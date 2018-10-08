@@ -1,0 +1,31 @@
+<<: !include "../../hpack/module.yaml"
+
+name: ariadne-vty-lib
+
+library:
+  <<: *lib-common
+  ghc-options:
+    - -Wno-unused-top-binds
+  dependencies:
+    - Earley
+    - Hclip
+    - ansi-terminal
+    - ansi-wl-pprint
+    - ariadne-core
+    - brick
+    - componentm
+    - concurrent-extra
+    - containers
+    - directory
+    # UI is independent of Knit, but provides Knit command bindings
+    - knit
+    - lens
+    - loc
+    - named
+    - serokell-util
+    - streams
+    - text
+    - text-zipper
+    - transformers
+    - vector
+    - vty

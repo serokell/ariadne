@@ -1,4 +1,4 @@
-.PHONY: dev dev-core dev-cardano dev-cli dev-vty dev-qt test stylish clean
+.PHONY: dev dev-core dev-cardano dev-cli dev-vty dev-qt test haddock haddock-no-deps stylish lint clean
 
 CORE_PACKAGES = ariadne-core
 CARDANO_PACKAGES = ariadne-cardano
@@ -41,8 +41,19 @@ dev-qt:
 test:
 	stack test knit ariadne-cardano
 
+# Run haddock for all packages.
+haddock:
+	stack haddock
+
+# Run haddock for all our packages, but not for dependencies.
+haddock-no-deps:
+	stack haddock --no-haddock-deps
+
 stylish:
 	stylish-haskell -i `find ariadne knit ui -iname '*.hs'`
+
+lint:
+	scripts/lint.sh
 
 clean:
 	stack clean

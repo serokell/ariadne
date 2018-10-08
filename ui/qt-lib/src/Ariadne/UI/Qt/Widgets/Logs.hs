@@ -1,11 +1,9 @@
 module Ariadne.UI.Qt.Widgets.Logs
-    ( Logs
-    , initLogs
-    , displayLogMessage
-    , showLogsWindow
-    ) where
-
-import Universum
+       ( Logs
+       , initLogs
+       , displayLogMessage
+       , showLogsWindow
+       ) where
 
 import Formatting
 

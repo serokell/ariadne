@@ -1,6 +1,6 @@
 module Knit
-  ( module X
-  ) where
+       ( module X
+       ) where
 
 import NType as X
 

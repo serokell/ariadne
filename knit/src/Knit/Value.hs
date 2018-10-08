@@ -3,7 +3,13 @@
 Values manipulated by Knit programs during evaluation/execution.
 
 -}
-module Knit.Value where
+module Knit.Value
+       ( ComponentValue
+       , ValueUnion
+       , Value(..)
+       , toValue
+       , fromValue
+       ) where
 
 import Knit.Prelude
 

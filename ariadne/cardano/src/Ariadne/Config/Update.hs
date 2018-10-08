@@ -1,11 +1,10 @@
 module Ariadne.Config.Update
-  ( defaultUpdateConfig
-  , updateFieldModifier
-  , UpdateConfig (..)) where
+       ( defaultUpdateConfig
+       , updateFieldModifier
+       , UpdateConfig (..)
+       ) where
 
-import Universum
-
-import Ariadne.Config.DhallUtil (interpretInt, parseField)
+import Ariadne.Config.DhallUtil (interpretInt, injectInt, parseField)
 import qualified Data.HashMap.Strict.InsOrd as Map
 import qualified Dhall as D
 import Dhall.Core (Expr(..))
@@ -49,3 +48,29 @@ instance D.Interpret UpdateConfig where
                 [(updateFieldModifier "ucVersionCheckUrl", D.expected D.strictText)
                 ,(updateFieldModifier "ucUpdateUrl", D.expected D.strictText)
                 ,(updateFieldModifier "ucCheckDelay", D.expected interpretInt)])
+
+instance D.Inject UpdateConfig where
+    injectWith _ = injectUpdateConfig
+
+injectUpdateConfig :: D.InputType UpdateConfig
+injectUpdateConfig = D.InputType {..}
+  where
+      embed UpdateConfig {..} = RecordLit
+          (Map.fromList
+              [ (updateFieldModifier "ucVersionCheckUrl",
+                D.embed (D.inject @Text) ucVersionCheckUrl)
+              , (updateFieldModifier "ucUpdateUrl",
+                D.embed (D.inject @Text) ucUpdateUrl)
+              , (updateFieldModifier "ucCheckDelay",
+                D.embed injectInt ucCheckDelay)
+              ])
+
+      declared = Record
+          (Map.fromList
+              [ (updateFieldModifier "ucVersionCheckUrl",
+                D.declared (D.inject @Text))
+              , (updateFieldModifier "ucUpdateUrl",
+                D.declared (D.inject @Text))
+              , (updateFieldModifier "ucCheckDelay",
+                D.declared injectInt)
+              ])

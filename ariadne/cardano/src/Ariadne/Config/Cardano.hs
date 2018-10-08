@@ -1,26 +1,24 @@
 module Ariadne.Config.Cardano
-       (
-         -- * Config type
+       ( -- * Config type
          CardanoConfig (..)
 
-       -- * Defaults
+         -- * Defaults
        , defaultLoggerConfig
        , defaultConfigurationYaml
        , defaultGenesisJson
        , defaultCardanoConfig
 
-       -- * Helpers
+         -- * Helpers
        , cardanoFieldModifier
 
-       -- * Construction of various stuff
+         -- * Construction of various stuff
        , mkLoggingParams
        , getNodeParams
        , gtSscParams
 
-       -- * Lenses
+         -- * Lenses
        , ccDbPathL
        , ccRebuildDBL
-       , ccKeyfilePathL
        , ccNetworkTopologyL
        , ccNetworkNodeIdL
        , ccNetworkPortL
@@ -29,12 +27,9 @@ module Ariadne.Config.Cardano
        , ccConfigurationOptionsL
        , ccEkgParamsL
 
-
-       -- * Exports for tests
+         -- * Exports for tests
        , defaultTopology
        ) where
-
-import Universum
 
 import Control.Lens (makeLensesWith)
 import Data.Default (def)
@@ -48,6 +43,10 @@ import Dhall.Core (Expr(..))
 import qualified Dhall.Core as Core
 import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
+import System.Directory (getTemporaryDirectory)
+import System.FilePath ((</>))
+import System.Wlog (LoggerConfig, usingLoggerName)
+
 import Pos.Behavior (BehaviorConfig(..))
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
@@ -65,12 +64,10 @@ import Pos.Launcher
 import Pos.Ssc (SscParams(..))
 import Pos.Update (UpdateParams(..))
 import Pos.Util.UserSecret (peekUserSecret)
-import System.FilePath ((</>))
-import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
-import Ariadne.Util
+import Ariadne.Util (postfixLFields)
 
 ----------------------------------------------------------------------------
 -- Type definition
@@ -81,7 +78,6 @@ import Ariadne.Util
 data CardanoConfig = CardanoConfig
     { ccDbPath :: !(Maybe FilePath)
     , ccRebuildDB :: !Bool
-    , ccKeyfilePath :: !FilePath
     , ccNetworkTopology :: !(Maybe FilePath)
     , ccNetworkNodeId :: !(Maybe NodeName)
     , ccNetworkPort :: !Word16
@@ -168,7 +164,6 @@ defaultCardanoConfig dataDir =
     CardanoConfig
         { ccDbPath = (dataDir </> ) <$> dbPath defaultCommonNodeArgs
         , ccRebuildDB = rebuildDB defaultCommonNodeArgs
-        , ccKeyfilePath = dataDir </> keyfilePath defaultCommonNodeArgs
         , ccNetworkTopology = ncoTopology nco
         , ccNetworkNodeId = ncoSelf nco
         , ccNetworkPort = ncoPort nco
@@ -209,7 +204,6 @@ getNodeParams :: HasConfiguration => CardanoConfig -> IO NodeParams
 getNodeParams conf@(CardanoConfig
     ccDbPath
     ccRebuildDB
-    ccKeyfilePath
     ccNetworkTopology
     ccNetworkNodeId
     ccNetworkPort
@@ -232,11 +226,13 @@ getNodeParams conf@(CardanoConfig
         baseParams = BaseParams { bpLoggingParams = mkLoggingParams conf }
 
     networkConfig <- intNetworkConfigOpts' defaultTopology nco
-    -- 'defaultCommonNodeArgs' is passed to 'prepareUserSecret' because we do
-    -- not care what will be put into 'UserSecret'
-    -- (it is essential only for core nodes)
+
+    -- Now that all key management is done by the wallet, the node's
+    -- key storage may be safely created in a temporary location.
+    tempDir <- liftIO getTemporaryDirectory
+    let usPath = tempDir </> "ariadne-deprecated-keyfile-please-ignore"
     (primarySK, userSecret) <-
-        prepareUserSecret defaultCommonNodeArgs =<< peekUserSecret ccKeyfilePath
+        prepareUserSecret defaultCommonNodeArgs =<< peekUserSecret usPath
     pure NodeParams
         { npDbPathM = ccDbPath
         , npRebuildDb = ccRebuildDB
@@ -286,7 +282,6 @@ cardanoFieldModifier = f
 
     f "ccDbPath" = "db-path"
     f "ccRebuildDB" = "rebuild-db"
-    f "ccKeyfilePath" = "keyfile"
     f "ccNetworkTopology" = "topology"
     f "ccNetworkNodeId" = "node-id"
     f "ccNetworkPort" = "default-port"
@@ -353,8 +348,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
     extractOut (RecordLit fields) = do
       ccDbPath <- parseFieldCardano fields "ccDbPath" (D.maybe interpretFilePath)
       ccRebuildDB <- parseFieldCardano fields "ccRebuildDB" D.auto
-      ccKeyfilePath <- defalultIfNothing "secret.key" $
-          parseFieldCardano fields "ccKeyfilePath" (D.maybe interpretFilePath)
       ccNetworkTopology <-
           parseFieldCardano fields "ccNetworkTopology" (D.maybe interpretFilePath)
       ccNetworkNodeId <-
@@ -372,7 +365,6 @@ interpretCardanoConfig = D.Type extractOut expectedOut
     expectedOut = Record $ Map.fromList
         [ (cardanoFieldModifier "ccDbPath", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccRebuildDB", D.expected (D.auto :: D.Type Bool))
-        , (cardanoFieldModifier "ccKeyfilePath", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccNetworkTopology", D.expected (D.maybe interpretFilePath))
         , (cardanoFieldModifier "ccNetworkNodeId", D.expected (D.maybe interpretNodeName))
         , (cardanoFieldModifier "ccNetworkPort", D.expected (D.maybe interpretWord16))
@@ -446,8 +438,6 @@ injectCardanoConfig = D.InputType {..}
                 D.embed (injectMaybe injectFilePath) ccDbPath)
               , (cardanoFieldModifier "ccRebuildDB",
                 D.embed D.inject ccRebuildDB)
-              , (cardanoFieldModifier "ccKeyfilePath",
-                D.embed (injectMaybe injectFilePath) (Just ccKeyfilePath))
               , (cardanoFieldModifier "ccNetworkTopology",
                 D.embed (injectMaybe injectFilePath) ccNetworkTopology)
               , (cardanoFieldModifier "ccNetworkNodeId",
@@ -469,7 +459,6 @@ injectCardanoConfig = D.InputType {..}
         (Map.fromList
           [ (cardanoFieldModifier "ccDbPath", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccRebuildDB", D.declared (D.inject :: D.InputType Bool))
-          , (cardanoFieldModifier "ccKeyfilePath", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccNetworkTopology", D.declared (injectMaybe injectFilePath))
           , (cardanoFieldModifier "ccNetworkNodeId",  D.declared (injectMaybe injectNodeName))
           , (cardanoFieldModifier "ccNetworkPort", D.declared (injectMaybe injectWord16))

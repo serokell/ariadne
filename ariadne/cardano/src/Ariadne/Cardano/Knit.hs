@@ -1,8 +1,28 @@
-module Ariadne.Cardano.Knit where
+module Ariadne.Cardano.Knit
+       ( Cardano
+       , Currency(..)
 
-import Universum hiding (preview)
+       , ComponentValue(..)
+       , ComponentInflate(..)
+       , ComponentLit(..)
+       , ComponentToken(..)
+       , ComponentTokenizer(..)
+       , ComponentDetokenizer(..)
+       , ComponentTokenToLit(..)
+       , ComponentPrinter(..)
+       , ComponentCommandRepr(..)
+       , ComponentLitToValue(..)
+       , ComponentExecContext(..)
+       , ComponentCommandExec(..)
+       , ComponentCommandProcs(..)
 
-import Control.Lens hiding (parts)
+       , showCoin
+       , txOutCommandName
+       , tyPublicKey
+       , tyTxOut
+       ) where
+
+import Control.Lens (makePrisms, prism')
 import Control.Natural (type (~>))
 import Data.List as List
 import Data.Scientific
@@ -99,7 +119,7 @@ instance Elem components Cardano => ComponentTokenizer components Cardano where
         toParsecError . fmap unsafeCheatingHashCoerce $ decodeAbstractHash str
       pCoin :: Tokenizer Scientific
       pCoin = do
-        n <- P.signed (return ()) P.scientific
+        n <- P.signed pass P.scientific
         u <- (adaMultiplier <$ P.string' "ADA") <|> (1 <$ P.string' "Lovelace")
 
         return (u * n)

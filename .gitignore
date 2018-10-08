@@ -1,10 +1,12 @@
 # Cabal
+cabal.project
 dist
 dist-newstyle
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.project.local
 .ghc.environment*
+*.cabal
 
 # Profiling
 *.prof
@@ -12,17 +14,8 @@ cabal.project.local
 # Stack
 .stack-work
 
-# Emacs
-TAGS
-.dir-locals.el
-
-# Vim
-tags
-*.swp
-
-# Intellij
-*.iml
-.idea/
+# Nix
+result*
 
 # Runtime
 node-db/
@@ -34,9 +27,21 @@ secret-mainnet.key.lock
 ariadne_history
 ariadne_history.db
 db-mainnet
-.wallet-db/
+wallet-db/
 config/cardano-configuration.yaml
 config/mainnet-genesis.json
 
 # Qt resources
 ui/qt-lib/resources/*.cpp
+
+# Emacs
+TAGS
+.dir-locals.el
+
+# Intellij
+*.iml
+.idea/
+
+# Vim
+tags
+*.swp

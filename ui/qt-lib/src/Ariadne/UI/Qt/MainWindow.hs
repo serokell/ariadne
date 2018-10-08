@@ -1,10 +1,8 @@
 module Ariadne.UI.Qt.MainWindow
-    ( MainWindow
-    , initMainWindow
-    , handleMainWindowEvent
-    ) where
-
-import Universum
+       ( MainWindow
+       , initMainWindow
+       , handleMainWindowEvent
+       ) where
 
 import Control.Lens (magnify, makeLensesWith)
 
@@ -18,12 +16,14 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
-import Ariadne.UI.Qt.Widgets.TopBar
 import Ariadne.UI.Qt.Widgets.Repl
+import Ariadne.UI.Qt.Widgets.TopBar
 import Ariadne.UI.Qt.Widgets.Wallet
 import Ariadne.Util
+import Ariadne.UX.PasswordManager
 
 data MainWindow =
   MainWindow
@@ -33,24 +33,27 @@ data MainWindow =
     , topBar :: TopBar
     , logs :: Logs
     , help :: Help
+    , settings :: Settings
     }
 
 makeLensesWith postfixLFields ''MainWindow
 
-initMainWindow :: UiLangFace -> UiHistoryFace -> IO MainWindow
-initMainWindow langFace historyFace = do
+initMainWindow :: UiLangFace -> UiWalletFace -> UiHistoryFace -> IO MainWindow
+initMainWindow langFace uiWalletFace historyFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
   QWidget.resizeRaw mainWindow 960 640
 
-  (qWallet, wallet) <- initWallet langFace
+  (qWallet, wallet) <- initWallet langFace uiWalletFace
   (qRepl, repl) <- initRepl langFace historyFace
   (qTopBar, topBar) <- initTopBar
   (qLogs, logs) <- initLogs
   (qHelp, help) <- initHelp langFace
+  (qSettings, settings) <- initSettings
 
   QWidget.setParentWithFlags qLogs mainWindow Dialog
   QWidget.setParentWithFlags qHelp mainWindow Dialog
+  QWidget.setParentWithFlags qSettings mainWindow Dialog
 
   mainLayout <- QVBoxLayout.new
   QLayout.setContentsMarginsRaw mainLayout 0 0 0 0
@@ -74,8 +77,12 @@ initMainWindow langFace historyFace = do
 
   return MainWindow{..}
 
-handleMainWindowEvent :: UiLangFace -> UiEvent -> UI MainWindow ()
-handleMainWindowEvent langFace = \case
+handleMainWindowEvent
+  :: UiLangFace
+  -> PutPassword
+  -> UiEvent
+  -> UI MainWindow ()
+handleMainWindowEvent langFace putPass = \case
   UiBackendEvent (UiBackendLogEvent message) ->
     magnify logsL $ displayLogMessage message
   UiBackendEvent (UiBackendStatusUpdateEvent update) ->
@@ -84,20 +91,27 @@ handleMainWindowEvent langFace = \case
     magnify replL $ handleReplEvent commandId result
   UiCommandResult commandId commandResult -> case commandResult of
     UiSendCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletSendCommandResult commandId result
-    UiNewWalletCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletNewWalletCommandResult commandId result
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletSendCommandResult commandId result
     UiRestoreWalletCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletRestoreWalletCommandResult commandId result
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletRestoreWalletCommandResult commandId result
     UiNewAccountCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletNewAccountCommandResult commandId result
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletNewAccountCommandResult commandId result
     UiNewAddressCommandResult result ->
-      magnify walletL $ handleWalletEvent langFace $ WalletNewAddressCommandResult commandId result
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletNewAddressCommandResult commandId result
   UiWalletEvent UiWalletUpdate{..} ->
-    magnify walletL $ handleWalletEvent langFace $ WalletUpdateEvent wuTrees wuSelection wuSelectionInfo
+    magnify walletL $ handleWalletEvent langFace putPass $
+        WalletUpdateEvent wuTrees wuSelection wuSelectionInfo
+  UiPasswordEvent (UiPasswordRequest walletRef cEvent) ->
+    magnify walletL $ handleWalletEvent langFace putPass $
+        WalletPasswordRequest walletRef cEvent
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do
   magnify topBarL . doOnLogsAction . runUI showLogsWindow =<< view logsL
   magnify topBarL . doOnHelpAction . runUI showHelpWindow =<< view helpL
+  magnify topBarL . doOnSettingsAction . runUI showSettingsWindow =<< view settingsL
   magnify topBarL . doOnReplButtonClick . runUI toggleRepl =<< view replL

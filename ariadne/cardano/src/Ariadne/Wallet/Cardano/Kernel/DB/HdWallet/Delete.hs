@@ -1,24 +1,71 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 -- | DELETE operatiosn on HD wallets
-module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete (
-    deleteHdRoot
-  , deleteHdAccount
-  ) where
+module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete
+       ( DeleteHdAccountError(..)
+       , DeleteHdRootError(..)
+       , deleteHdRoot
+       , deleteHdAccount
+       ) where
 
-import Universum
-
-import Control.Lens (at, (.=))
+import Control.Lens ((%=))
+import Data.SafeCopy (base, deriveSafeCopySimple)
+import qualified Data.Text.Buildable
+import Formatting (bprint, build, (%))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet
 
 {-------------------------------------------------------------------------------
   DELETE
 -------------------------------------------------------------------------------}
 
--- | Delete a wallet
-deleteHdRoot :: HdRootId -> Update' HdWallets e ()
-deleteHdRoot rootId = zoom hdWalletsRoots $ at rootId .= Nothing
+-- | Delete a wallet with the whole subtree (addresses and accounts).
+deleteHdRoot :: HdRootId -> Update' HdWallets DeleteHdRootError ()
+deleteHdRoot rootId = do
+  zoomHdRootId DeleteUnknownHdRoot rootId $ pass
+  hdWalletsAddresses %= deleteIxAll rootId
+  hdWalletsAccounts  %= deleteIxAll rootId
+  hdWalletsRoots     %= deleteIxAll rootId
 
--- | Delete an account
-deleteHdAccount :: HdAccountId -> Update' HdWallets UnknownHdRoot ()
-deleteHdAccount accId = zoom hdWalletsAccounts $ at accId .= Nothing
+-- | Delete an account with its addresses.
+deleteHdAccount :: HdAccountId -> Update' HdWallets DeleteHdAccountError ()
+deleteHdAccount accId = do
+  zoomHdAccountId DeleteUnknownHdAccount accId $ pass
+  hdWalletsAddresses %= deleteIxAll accId
+  hdWalletsAccounts  %= deleteIxAll accId
+
+
+{-------------------------------------------------------------------------------
+  Errors
+-------------------------------------------------------------------------------}
+
+-- | Errors thrown by 'deleteHdWallet'
+data DeleteHdRootError =
+    -- | We don't have a wallet with the specified ID
+    DeleteUnknownHdRoot UnknownHdRoot
+    deriving (Eq, Show)
+
+-- | Errors thrown by 'deleteHdAccount'
+data DeleteHdAccountError =
+    -- | The specified account could not be found
+    DeleteUnknownHdAccount UnknownHdAccount
+    deriving (Eq, Show)
+
+instance Exception DeleteHdRootError where
+  displayException (DeleteUnknownHdRoot (UnknownHdRoot rootId)) =
+    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+
+instance Exception DeleteHdAccountError where
+  displayException (DeleteUnknownHdAccount (UnknownHdAccount accountId)) =
+    toString $ "The account '" <> pretty accountId <> "' does not exist."
+  displayException (DeleteUnknownHdAccount (UnknownHdAccountRoot rootId)) =
+    toString $ "The corresponding wallet '" <> pretty rootId <> "' does not exist."
+
+instance Buildable DeleteHdAccountError where
+    build (DeleteUnknownHdAccount err) =
+        bprint ("DeleteUnknownHdAccount: " % build) err
+
+deriveSafeCopySimple 1 'base ''DeleteHdRootError
+deriveSafeCopySimple 1 'base ''DeleteHdAccountError
