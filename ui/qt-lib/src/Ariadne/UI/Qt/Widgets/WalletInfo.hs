@@ -33,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmSend
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
 import Ariadne.UI.Qt.Widgets.Dialogs.Request
 import Ariadne.UI.Qt.Widgets.Dialogs.Send
@@ -159,6 +160,7 @@ data WalletInfoEvent
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
   | WalletInfoConfirmRemove (MVar Bool) UiDeletingItem
+  | WalletInfoConfirmSend (MVar Bool) [UiConfirmSendInfo]
 
 handleWalletInfoEvent
   :: UiLangFace
@@ -222,6 +224,11 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       liftIO $ runDelete delItemType >>= \case
         DoDelete -> putMVar resultVar True
         Cancel -> putMVar resultVar False
+
+    WalletInfoConfirmSend resultVar sendInfo ->
+      liftIO $ runConfirmSend sendInfo >>= \case
+        ConfirmationAccepted -> putMVar resultVar True
+        ConfirmationCanceled -> putMVar resultVar False
 
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
