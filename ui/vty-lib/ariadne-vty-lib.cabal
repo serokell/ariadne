@@ -34,6 +34,7 @@ library
     , loc
     , text-zipper
     , serokell-util
+    , streams
     , vector
     , named
     -- UI is independent of Knit, but provides Knit command bindings

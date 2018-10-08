@@ -3,16 +3,18 @@ module Ariadne.UI.Vty.Widget.Repl
        ) where
 
 import Data.List ((!!))
-import Universum hiding (head, last, tail)
-import Universum.Unsafe (head, last, tail)
+import Universum hiding (last)
+import Universum.Unsafe (last)
 
 import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
 import Named
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Data.IntMap.Strict as M
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
+import qualified Data.Stream.Infinite.Functional.Zipper as Z
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -47,7 +49,7 @@ data ReplWidgetState p =
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
     , replWidgetCommandLocation :: !(Int, Int)
-    , replWidgetCurrentAutocompletion :: !(Maybe [(Text, (Int, Int))])
+    , replWidgetCurrentAutocompletion :: !(Maybe (Z.Zipper (Text, (Int, Int))))
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
     , replWidgetFullsizeGetter :: !(p -> Bool)
@@ -202,31 +204,7 @@ handleReplWidgetKey = \case
           replWidgetCommandLocationL .= (0, 0)
           reparse
           return WidgetEventHandled
-    KeyAutocomplete -> do
-      ReplWidgetState{..} <- get
-      options <- case replWidgetCurrentAutocompletion of
-        Nothing -> do
-          let
-            ls = T.splitOn "\n" replWidgetCommand
-            (locRow, locColumn) = replWidgetCommandLocation
-            cmdBeforeLocation = T.intercalate "\n"
-              $ snoc (take locRow ls) (T.take locColumn (ls !! locRow))
-            cmdAfterLocation = T.intercalate "\n"
-              $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
-            suggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
-            suggestions' = (`map` suggestions) $ \suggestion ->
-              let ls' = T.splitOn "\n" suggestion
-              in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ last ls'))
-            options = tail $ cycle $ (replWidgetCommand, replWidgetCommandLocation) : suggestions'
-          zoom replWidgetCurrentAutocompletionL $ put $ Just options
-          pure options
-        Just options -> pure options
-      let nextOption = head options
-      replWidgetCommandL .= fst nextOption
-      replWidgetCommandLocationL .= snd nextOption
-      reparse
-      replWidgetCurrentAutocompletionL .= Just (tail options)
-      return WidgetEventHandled
+    KeyAutocomplete -> handleAutocompleteKey Z.tail
     KeyEnter -> do
       ReplWidgetState{..} <- get
       if
@@ -270,6 +248,41 @@ handleReplWidgetKey = \case
         assign replWidgetCommandLocationL newLoc
       reparse
       return WidgetEventHandled
+
+handleAutocompleteKey
+  :: (forall a. (Z.Zipper a -> Z.Zipper a))
+  -> WidgetEventM (ReplWidgetState p) p WidgetEventResult
+handleAutocompleteKey move = do
+  ReplWidgetState{..} <- get
+  options <- case replWidgetCurrentAutocompletion of
+    Nothing -> do
+      let
+        ls = T.splitOn "\n" replWidgetCommand
+        (locRow, locColumn) = replWidgetCommandLocation
+        cmdBeforeLocation = T.intercalate "\n"
+          $ snoc (take locRow ls) (T.take locColumn (ls !! locRow))
+        cmdAfterLocation = T.intercalate "\n"
+          $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
+        prefixSuggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
+        suggestions = (`map` prefixSuggestions) $ \suggestion ->
+          let ls' = T.splitOn "\n" suggestion
+          in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ last ls'))
+        suggestionMap = M.fromList
+          $ zip [0..]
+          $ (replWidgetCommand, replWidgetCommandLocation) : suggestions
+        mapSize = M.size suggestionMap
+        options = Z.toSequence $ \i ->
+            suggestionMap M.! (fromInteger (i `mod` fromIntegral mapSize))
+      zoom replWidgetCurrentAutocompletionL $ put $ Just options
+      pure options
+    Just options -> pure options
+  let newOptions = move options
+  let suggestedOption = Z.head newOptions
+  replWidgetCommandL .= fst suggestedOption
+  replWidgetCommandLocationL .= snd suggestedOption
+  reparse
+  replWidgetCurrentAutocompletionL .= Just newOptions
+  return WidgetEventHandled
 
 handleReplWidgetEvent
   :: UiEvent
