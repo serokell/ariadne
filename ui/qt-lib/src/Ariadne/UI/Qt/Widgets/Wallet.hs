@@ -129,7 +129,9 @@ handleWalletEvent langFace putPass ev = do
       UiConfirmRemove deletingItem ->
         magnify walletInfoL $ handleWalletInfoEvent langFace $
           WalletInfoConfirmRemove resultVar deletingItem
-      UiConfirmSend _ -> pass -- TODO: part of [AD-389]
+      UiConfirmSend sendInfo ->
+        magnify walletInfoL $ handleWalletInfoEvent langFace $
+          WalletInfoConfirmSend resultVar sendInfo
 
 updateModel
   :: QStandardItemModel.QStandardItemModel
