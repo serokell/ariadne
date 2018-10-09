@@ -8,6 +8,7 @@ module Ariadne.UI.Qt.Face
        , UiCommand (..)
        , UiCommandResult (..)
        , UiSendCommandResult (..)
+       , UiNewWalletCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
@@ -15,6 +16,10 @@ module Ariadne.UI.Qt.Face
        , UiWalletFace (..)
        , UiHistoryFace (..)
        , UiPasswordEvent (..)
+       , UiConfirmEvent (..)
+       , UiConfirmationType (..)
+       , UiConfirmSendInfo (..)
+       , UiDeletingItem (..)
        , UiFace (..)
 
        , UiWalletTreeItem (..)
@@ -88,11 +93,13 @@ data UiEvent
   | UiBackendEvent UiBackendEvent
   | UiWalletEvent UiWalletEvent
   | UiPasswordEvent UiPasswordEvent
+  | UiConfirmEvent UiConfirmEvent
 
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
   | UiSend Word [Word] Text Scientific -- ^ Wallet idx, accounts, address, amount
+  | UiNewWallet Text (Maybe Text) -- ^ Name, password
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress Word Word -- ^ Wallet index, account index
@@ -102,6 +109,7 @@ data UiCommand
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
+  | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
@@ -109,6 +117,10 @@ data UiCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiNewWalletCommandResult
+  = UiNewWalletCommandSuccess
+  | UiNewWalletCommandFailure Text
 
 data UiRestoreWalletCommandResult
   = UiRestoreWalletCommandSuccess
@@ -125,6 +137,27 @@ data UiNewAddressCommandResult
 -- | Ui event triggered by the password manager
 data UiPasswordEvent
   = UiPasswordRequest WalletId CE.Event
+
+-- | Ui event to handle confirmations
+data UiConfirmEvent
+  = UiConfirmRequest (MVar Bool) UiConfirmationType
+
+data UiConfirmationType
+  = UiConfirmMnemonic [Text]          -- ^ mnemonic
+  | UiConfirmRemove UiDeletingItem    -- ^ selection
+  | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
+
+data UiConfirmSendInfo =
+  UiConfirmSendInfo 
+    { csiAddress :: Text
+    , csiAmount  :: Text
+    , csiCoin    :: Text
+    }
+
+data UiDeletingItem
+  = UiDelWallet (Maybe Text)
+  | UiDelAccount (Maybe Text)
+  deriving Eq
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

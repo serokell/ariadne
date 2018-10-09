@@ -30,10 +30,10 @@ initHelpWidget UiLangFace{..} =
       { helpWidgetData = langGetHelp
       }
 
-drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p (B.Widget WidgetName)
+drawHelpWidget :: HelpWidgetState -> WidgetDrawM HelpWidgetState p WidgetDrawing
 drawHelpWidget HelpWidgetState{..} = do
   widgetName <- getWidgetName
-  return $
+  return . singleDrawing $
     scrollingViewport widgetName B.Vertical $
     B.cached widgetName $
     B.Widget

@@ -35,14 +35,14 @@ initListWidget itemsGetter drawItem =
       }
 
 {-# ANN drawListWidget ("HLint: ignore Use zipWith" :: Text) #-}
-drawListWidget :: Bool -> ListWidgetState p a -> WidgetDrawM (ListWidgetState p a) p (B.Widget WidgetName)
+drawListWidget :: Bool -> ListWidgetState p a -> WidgetDrawM (ListWidgetState p a) p WidgetDrawing
 drawListWidget focused ListWidgetState{..} = do
   widgetName <- getWidgetName
   items <- listWidgetItemsGetter <$> lift ask
   let
     location = clampToList items listWidgetLocation
     drawItem (idx, item) = listWidgetDrawItem (focused && idx == location) item
-  return $
+  return . singleDrawing $
     B.clickable widgetName $
     B.vBox $
     map drawItem $ zip [0..] items

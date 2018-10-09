@@ -115,11 +115,11 @@ walletsToItems wallets selection initialized =
 -- View
 ----------------------------------------------------------------------------
 
-drawTreeWidget :: TreeWidgetState -> WidgetDrawM TreeWidgetState p (B.Widget WidgetName)
+drawTreeWidget :: TreeWidgetState -> WidgetDrawM TreeWidgetState p WidgetDrawing
 drawTreeWidget TreeWidgetState{..} = do
   widgetName <- getWidgetName
   ignoreVisibility <- getIgnoreVisibility
-  return $
+  return . singleDrawing $
     fixedScrollingViewport widgetName B.Vertical $
     B.Widget
       { B.hSize = B.Fixed

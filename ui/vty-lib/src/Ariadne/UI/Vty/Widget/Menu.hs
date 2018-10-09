@@ -51,12 +51,12 @@ initMenuWidget xs lens =
       , menuWidgetSelectionLens = Lens lens
       }
 
-drawMenuWidget :: Eq a => Bool -> MenuWidgetState p a -> WidgetDrawM (MenuWidgetState p a) p (B.Widget WidgetName)
+drawMenuWidget :: Eq a => Bool -> MenuWidgetState p a -> WidgetDrawM (MenuWidgetState p a) p WidgetDrawing
 drawMenuWidget focused MenuWidgetState{..} = do
   widgetName <- getWidgetName
   selection <- viewWidgetLens menuWidgetSelectionLens
 
-  return $
+  return . singleDrawing $
     B.withAttr "menu" $
     B.hCenter $
     B.clickable widgetName $

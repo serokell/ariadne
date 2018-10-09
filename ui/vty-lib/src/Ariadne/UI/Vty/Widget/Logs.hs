@@ -38,10 +38,10 @@ initLogsWidget =
       , logsWidgetFollow = True
       }
 
-drawLogsWidget :: LogsWidgetState -> WidgetDrawM LogsWidgetState p (B.Widget WidgetName)
+drawLogsWidget :: LogsWidgetState -> WidgetDrawM LogsWidgetState p WidgetDrawing
 drawLogsWidget LogsWidgetState{..} = do
   widgetName <- getWidgetName
-  return $
+  return . singleDrawing $
     (if logsWidgetFollow then id else (B.<+> B.padTop B.Max (B.str " v"))) $
     fixedViewport widgetName B.Both $
     B.cached widgetName $

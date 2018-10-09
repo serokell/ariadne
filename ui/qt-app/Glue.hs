@@ -95,6 +95,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       }
 
     extractPass = \case
+      UiNewWallet _ maybePass -> maybePass
       UiRestoreWallet _ maybePass _ _ -> maybePass
       _ -> Nothing
     pushPassword password = putPass WalletIdTemporary password Nothing
@@ -121,6 +122,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             , Knit.ArgKw "wallet" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wallet
             ] ++
             map (Knit.ArgKw "account" . Knit.ExprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts
+          )
+      UiNewWallet name _ -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.newWalletCommandName $
+            [ Knit.ArgKw "name" . Knit.ExprLit . Knit.toLit . Knit.LitString $ name
+            ]
           )
       UiRestoreWallet name _ mnemonic full -> do
         Right $ Knit.ExprProcCall
@@ -152,6 +159,10 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiNewWallet {} ->
+        Just . UiNewWalletCommandResult .
+          either UiNewWalletCommandFailure (const UiNewWalletCommandSuccess) $
+          fromResult result
       UiRestoreWallet {} ->
         Just . UiRestoreWalletCommandResult .
           either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
@@ -252,7 +263,21 @@ walletEventToUI = \case
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
         ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
+  WalletRequireConfirm resVar confirmationType ->
+    Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
+      ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
+      ConfirmRemove db sel     -> UiConfirmRemove $
+        case walletSelectionToInfo (toUiWalletDatas db) $ toUiWalletSelection db sel of
+          UiSelectionWallet UiWalletInfo {..} -> UiDelWallet uwiLabel
+          UiSelectionAccount UiAccountInfo {..} -> UiDelAccount uaciLabel
+      ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
 
+toUiConfirmSendInfo :: ConfirmSendInfo -> UiConfirmSendInfo
+toUiConfirmSendInfo ConfirmSendInfo{..} = UiConfirmSendInfo {..}
+  where
+    csiAddress = confirmSendAddress
+    csiAmount = confirmSendAmount
+    csiCoin = confirmSendCoin
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiWalletTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =

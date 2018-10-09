@@ -116,17 +116,17 @@ initAddWalletWidget langFace features =
 ----------------------------------------------------------------------------
 
 {-# ANN drawAddWalletWidget ("HLint: ignore Use list comprehension" :: Text) #-}
-drawAddWalletWidget :: WidgetName -> AddWalletWidgetState -> WidgetDrawM AddWalletWidgetState p (B.Widget WidgetName)
+drawAddWalletWidget :: WidgetName -> AddWalletWidgetState -> WidgetDrawM AddWalletWidgetState p WidgetDrawing
 drawAddWalletWidget focus AddWalletWidgetState{..} = do
   widget <- ask
   widgetName <- getWidgetName
 
   let
-    drawChild = drawWidgetChild focus widget
+    drawChild = last . drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . T.takeEnd 13 . (T.append $ T.replicate 13 " ")
     padBottom = B.padBottom (B.Pad 1)
 
-  return $
+  return . singleDrawing $
     scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $

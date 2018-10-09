@@ -17,6 +17,7 @@ library:
     - concurrent-extra
     - containers
     - directory
+    - formatting
     # UI is independent of Knit, but provides Knit command bindings
     - knit
     - lens
@@ -28,3 +29,4 @@ library:
     - transformers
     - vector
     - vty
+    - word-wrap

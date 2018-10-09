@@ -84,10 +84,12 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
+  | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
   | WalletPasswordRequest WalletId CE.Event
+  | WalletConfirmationRequest (MVar Bool) UiConfirmationType
 
 handleWalletEvent
   :: UiLangFace
@@ -105,6 +107,9 @@ handleWalletEvent langFace putPass ev = do
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
+    WalletNewWalletCommandResult commandId result ->
+      magnify walletTreeL $ handleWalletTreeEvent langFace $
+        WalletTreeNewWalletCommandResult commandId result
     WalletRestoreWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeRestoreWalletCommandResult commandId result
@@ -117,6 +122,14 @@ handleWalletEvent langFace putPass ev = do
     WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
       InsertPasswordCanceled -> pass
       InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
+    WalletConfirmationRequest resultVar confirmationType -> case confirmationType of
+      UiConfirmMnemonic mnemonic ->
+        magnify walletTreeL $ handleWalletTreeEvent langFace $
+          WalletTreeConfirmMnemonic resultVar mnemonic
+      UiConfirmRemove deletingItem ->
+        magnify walletInfoL $ handleWalletInfoEvent langFace $
+          WalletInfoConfirmRemove resultVar deletingItem
+      UiConfirmSend _ -> pass -- TODO: part of [AD-389]
 
 updateModel
   :: QStandardItemModel.QStandardItemModel

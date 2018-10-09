@@ -1,6 +1,5 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Delete
-       ( DeletingItem(..)
-       , DeletionResult(..)
+       ( DeletionResult(..)
        , runDelete
        ) where
 
@@ -19,49 +18,48 @@ import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UIConfig
+import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
-data DeletingItem = DelWallet | DelAccount deriving Eq
 data DeletionResult = DoDelete | Cancel deriving Eq
 
 data Delete =
   Delete
     { delete :: QDialog.QDialog
     , isSure :: QCheckBox.QCheckBox
-    , itemName :: Text
     , retypeWidget :: QWidget.QWidget
     , retypeName :: QLineEdit.QLineEdit
     , deleteButton :: QPushButton.QPushButton
-    , itemType :: DeletingItem
+    , itemType :: UiDeletingItem
     }
 
-initDelete :: DeletingItem -> Text -> IO Delete
-initDelete itemType itemName = do
+initDelete :: UiDeletingItem -> IO Delete
+initDelete itemType = do
   delete <- QDialog.new
   layout <- createLayout delete
 
-  let headerString = toString . T.toUpper $ sformat ("delete " % itemTypeFormat) itemType
+  let headerString = toString . T.toUpper $ deleteHeaderMkMessage itemTypeFormat itemType
+      itemName = fromMaybe "this" $ itemTypeName itemType
 
   QWidget.setWindowTitle delete headerString
 
   header <- QLabel.newWithText headerString
   addHeader layout header
 
-  warningLabel <- QLabel.newWithText . toString $ sformat
-    ("Do you really want to delete <b>" % stext % "</b> " % itemTypeFormat % "?") itemName itemType
+  warningLabel <- QLabel.newWithText . toString $
+      deleteIntroMkMessage itemTypeFormat ("<b>" <> itemName <> "</b>") itemType
   QBoxLayout.addWidget layout warningLabel
 
-  isSure <- createCheckBox layout CheckboxOnLeft $ sformat
-    ("Make sure you have access to backup before continuing. \
-     \Otherwise you will lose all your funds connected to this " % itemTypeFormat % ".")
-    itemType
+  isSure <- createCheckBox layout CheckboxOnLeft $
+      deleteSureMkMessage itemTypeFormat itemType
 
   (retypeWidget, retypeLayout) <- createSubWidget
   addSeparator retypeLayout
 
-  retypeLabel <- QLabel.newWithText . toString $ sformat
-    ("Type " % itemTypeFormat % " name to confirm deletion") itemType
+  retypeLabel <- QLabel.newWithText . toString $
+      deleteRetypeMkMessage itemTypeFormat itemType
   retypeName <- QLineEdit.new
   addRow retypeLayout retypeLabel retypeName
 
@@ -91,9 +89,9 @@ initDelete itemType itemName = do
 
   return del
 
-runDelete :: DeletingItem -> Text -> IO DeletionResult
-runDelete itemType itemName = do
-  del@Delete{delete = delete} <- initDelete itemType itemName
+runDelete :: UiDeletingItem -> IO DeletionResult
+runDelete itemType = do
+  del@Delete{delete = delete} <- initDelete itemType
   result <- toEnum <$> QDialog.exec delete
   valid <- isValid del
 
@@ -107,19 +105,35 @@ isValid Delete{..} = do
   delItemName <- T.strip . fromString <$> QLineEdit.text retypeName
 
   -- We do not ask to retype name for accounts
-  return $ delIsSure && (itemType /= DelWallet || delItemName == itemName)
+  -- (or anything that does not have a name)
+  let isNameChecked = case itemType of
+        UiDelAccount _ -> True
+        UiDelWallet maybeName -> case maybeName of
+          Nothing -> True
+          Just itemName -> delItemName == itemName
+  return $ delIsSure && isNameChecked
+
+isDelWallet :: UiDeletingItem -> Bool
+isDelWallet = \case
+  UiDelWallet _ -> True
+  _ -> False
 
 revalidate :: Delete -> IO ()
 revalidate del@Delete{..} = isValid del >>= QWidget.setEnabled deleteButton
 
-itemTypeFormat :: Format r (DeletingItem -> r)
+itemTypeFormat :: Format r (UiDeletingItem -> r)
 itemTypeFormat = later $ \case
-  DelWallet -> "wallet"
-  DelAccount -> "account"
+  UiDelWallet _ -> "wallet"
+  UiDelAccount _ -> "account"
+
+itemTypeName :: UiDeletingItem -> Maybe Text
+itemTypeName = \case
+  UiDelWallet name -> name
+  UiDelAccount name -> name
 
 isSureToggled :: Delete -> Bool -> IO ()
 isSureToggled del@Delete{..} checked = do
   revalidate del
-  when (itemType == DelWallet) $ do
+  when (isDelWallet itemType && isJust (itemTypeName itemType)) $ do
     QWidget.setVisible retypeWidget checked
     QWidget.adjustSize delete
