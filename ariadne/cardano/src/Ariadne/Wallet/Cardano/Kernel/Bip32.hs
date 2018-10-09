@@ -6,7 +6,7 @@ module Ariadne.Wallet.Cardano.Kernel.Bip32
        , makePubKeyHdwAddressUsingPath
        ) where
 
-import Named (Named(..))
+import Named ((:!), pattern Arg)
 
 import Cardano.Crypto.Wallet.Types (DerivationIndex)
 import Pos.Core.Common (Address, IsBootstrapEraAddr(..), makePubKeyHdwAddress)
@@ -38,8 +38,8 @@ deriveHDSecretKeyByPath shouldCheck pp sk derPath =
 makePubKeyHdwAddressUsingPath ::
        IsBootstrapEraAddr
     -> DerivationPath
-    -> PublicKey `Named` "root" -> PublicKey `Named` "address" -> Address
-makePubKeyHdwAddressUsingPath era derPath (Named rootPK) (Named addrPK) =
+    -> "root" :! PublicKey  -> "address" :! PublicKey  -> Address
+makePubKeyHdwAddressUsingPath era derPath (Arg rootPK) (Arg addrPK) =
     makePubKeyHdwAddress era hdPayload addrPK
   where
     hdPP = deriveHDPassphrase rootPK
