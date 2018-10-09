@@ -72,17 +72,17 @@ data WalletFace =
   WalletFace
     { walletNewAddress :: AccountReference -> HdAddressChain -> IO Address
     , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
-    , walletNewWallet :: Maybe WalletName -> Maybe Byte -> IO [Text]
+    , walletNewWallet :: Bool -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
         Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
     , walletRestoreFromFile ::
         Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
     , walletRename :: Text -> IO ()
-    , walletRemove :: IO ()
+    , walletRemove :: Bool -> IO ()
     , walletRefreshState :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
-        WalletReference -> [LocalAccountReference] ->
+        Bool -> WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, DB)
     , walletBalance :: IO Coin

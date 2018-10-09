@@ -303,14 +303,17 @@ newWallet ::
     -> WalletFace
     -> IO PassPhrase
     -> (ConfirmationType -> IO Bool)
+    -> Bool
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-newWallet pwl walletConfig face getPassTemp waitUiConfirm mbWalletName mbEntropySize = do
+newWallet pwl walletConfig face getPassTemp waitUiConfirm noConfirm mbWalletName mbEntropySize = do
   pp <- getPassTemp
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   mnemonic <- generateMnemonic entropySize
-  unlessM (waitUiConfirm $ ConfirmMnemonic mnemonic) $ throwM WGFailedUnconfirmedMnemonic
+  unless noConfirm $
+    unlessM (waitUiConfirm $ ConfirmMnemonic mnemonic) $
+      throwM WGFailedUnconfirmedMnemonic
   let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
       (_, esk) = safeDeterministicKeyGen seed pp
   mnemonic <$
@@ -408,15 +411,18 @@ removeSelection
   -> WalletFace
   -> IORef (Maybe WalletSelection)
   -> (ConfirmationType -> IO Bool)
+  -> Bool
   -> IO ()
-removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm = do
+removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
   mWalletSel <- readIORef walletSelRef
   newSelection <- case mWalletSel of
     Nothing -> pure Nothing
     -- Throw "Nothing selected" here?
     Just selection -> do
       walletDb <- pwlGetDBSnapshot pwl
-      unlessM (waitUiConfirm $ ConfirmRemove walletDb selection) $ throwM RemoveFailedUnconfirmed
+      unless noConfirm $
+        unlessM (waitUiConfirm $ ConfirmRemove walletDb selection) $
+          throwM RemoveFailedUnconfirmed
       case selection of
         WSRoot hdrId -> do
           throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId

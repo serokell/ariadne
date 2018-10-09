@@ -57,13 +57,11 @@ initConfirmSendWidget uiFace = initWidget $ do
         WidgetNameConfirmSendCancel "Cancel" performCancel
 
     setWidgetFocusList
-        [ WidgetNameSelf
-        , WidgetNameConfirmSendList
+        [ WidgetNameConfirmSendList
         , WidgetNameConfirmSendCheck
-        , WidgetNameConfirmSendContinue
         , WidgetNameConfirmSendCancel
+        , WidgetNameConfirmSendContinue
         ]
-
 
 drawConfirmSendWidget
     :: WidgetName

@@ -166,6 +166,7 @@ data WidgetEvent
   | WidgetEventButtonPressed
   | WidgetEventEditChanged
   | WidgetEventListSelected Int
+  | WidgetEventCheckboxToggled
 
 -- | Result of handling a UI event
 --

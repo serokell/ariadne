@@ -60,5 +60,6 @@ handleCheckboxWidgetMouseDown _ = do
 
 toggle :: WidgetEventM (CheckboxWidgetState p) p ()
 toggle = do
+  widgetEvent WidgetEventCheckboxToggled
   CheckboxWidgetState{..} <- get
   useWidgetLens checkboxWidgetLens >>= assignWidgetLens checkboxWidgetLens . not

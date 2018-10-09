@@ -174,9 +174,10 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = do
             name <- fmap WalletName <$> getArgOpt tyString "name"
             mbEntropySize <- (fmap . fmap) (fromBytes . toInteger) (getArgOpt tyInt "entropy-size")
-            return (name, mbEntropySize)
-        , cpRepr = \(name, mbEntropySize) -> CommandAction $ \WalletFace{..} -> do
-            mnemonic <- walletNewWallet name mbEntropySize
+            noConfirm <- getNoConfirmArgOpt
+            return (name, mbEntropySize, noConfirm)
+        , cpRepr = \(name, mbEntropySize, noConfirm) -> CommandAction $ \WalletFace{..} -> do
+            mnemonic <- walletNewWallet noConfirm name mbEntropySize
             return $ toValue $ ValueList $ map (toValue . ValueString) mnemonic
         , cpHelp = "Generate a new wallet and add to the storage. \
                    \The result is the mnemonic to restore this wallet."
@@ -237,10 +238,11 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             outs <- getArgSome tyTxOut "out"
             isp <- fromMaybe defaultInputSelectionPolicy <$>
                 getArgOpt tyInputSelectionPolicy "policy"
-            return (walletRef, accRefs, isp, outs)
-        , cpRepr = \(walletRef, accRefs, isp, outs) -> CommandAction $
+            noConfirm <- getNoConfirmArgOpt
+            return (walletRef, accRefs, isp, outs, noConfirm)
+        , cpRepr = \(walletRef, accRefs, isp, outs, noConfirm) -> CommandAction $
           \WalletFace{..} -> do
-            txId <- walletSend walletRef accRefs isp outs
+            txId <- walletSend noConfirm walletRef accRefs isp outs
             return . toValue . ValueHash . unsafeCheatingHashCoerce $ txId
         , cpHelp =
             "Send a transaction from the specified wallet. When no wallet \
@@ -275,9 +277,9 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
     , CommandProc
         { cpName = removeCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pass
-        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
-            walletRemove
+        , cpArgumentConsumer = getNoConfirmArgOpt
+        , cpRepr = \(noConfirm) -> CommandAction $ \WalletFace{..} -> do
+            walletRemove noConfirm
             return $ toValue ValueUnit
         , cpHelp = "Remove currently selected item"
         }
@@ -391,3 +393,8 @@ getAccountRefArgOpt =
     convert walletRef = \case
         Nothing -> AccountRefSelection
         Just e -> AccountRefByUIindex e walletRef
+
+getNoConfirmArgOpt
+    :: (Elem components Core)
+    => ArgumentConsumer components Bool
+getNoConfirmArgOpt = fromMaybe False <$> getArgOpt tyBool "no-confirm"

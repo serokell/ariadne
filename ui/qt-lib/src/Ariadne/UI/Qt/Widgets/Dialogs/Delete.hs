@@ -1,6 +1,5 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Delete
-       ( DeletingItem(..)
-       , DeletionResult(..)
+       ( DeletionResult(..)
        , runDelete
        ) where
 

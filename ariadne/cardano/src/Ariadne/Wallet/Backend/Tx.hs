@@ -80,6 +80,7 @@ sendTx ::
     -> (WalletReference -> IO PassPhrase)
     -> (WalletReference -> IO TxId -> IO TxId)
     -> (ConfirmationType -> IO Bool)
+    -> Bool
     -> WalletReference
     -> [LocalAccountReference]
     -> InputSelectionPolicy
@@ -94,6 +95,7 @@ sendTx
     getPassPhrase
     voidWrongPass
     waitUiConfirm
+    noConfirm
     walletRef
     accRefs
     isp
@@ -112,7 +114,9 @@ sendTx
 
         filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
         filterAccounts ids accounts = accounts @+ toList ids
-    unlessM (waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs) $ throwM SendTxNotConfirmed
+    unless noConfirm $
+        unlessM (waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs) $
+            throwM SendTxNotConfirmed
     pp <- getPassPhrase walletRef
     voidWrongPass walletRef . runCardanoMode $
         sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion

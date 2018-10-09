@@ -55,12 +55,14 @@ initConfirmRemoveWidget uiFace = initWidget $ do
     addDialogButton confirmRemoveWidgetDialogL
         WidgetNameConfirmRemoveCancel "Cancel" performCancel
 
+    addWidgetEventHandler WidgetNameConfirmRemoveCheck $ \case
+        WidgetEventCheckboxToggled -> updateFocusList
+        _ -> pass
+
     setWidgetFocusList
-        [ WidgetNameSelf
-        , WidgetNameConfirmRemoveCheck
-        , WidgetNameConfirmRemoveName
-        , WidgetNameConfirmRemoveContinue
+        [ WidgetNameConfirmRemoveCheck
         , WidgetNameConfirmRemoveCancel
+        , WidgetNameConfirmRemoveContinue
         ]
 
 drawConfirmRemoveWidget
@@ -136,10 +138,29 @@ closeDialog = do
     confirmRemoveWidgetCheckL .= False
     confirmRemoveWidgetNameL .= ""
 
+updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
+updateFocusList = do
+    removeCheck <- use confirmRemoveWidgetCheckL
+    delRequest <- use confirmRemoveWidgetDelRequestL
+    let nameToConfirm = itemNameToConfirm . requestDelItem <$> delRequest
+    lift . setWidgetFocusList $
+        if removeCheck && isJust nameToConfirm
+        then 
+            [ WidgetNameConfirmRemoveCheck
+            , WidgetNameConfirmRemoveName
+            ] <> dialogButtons
+        else WidgetNameConfirmRemoveCheck : dialogButtons
+  where
+    dialogButtons =
+        [ WidgetNameConfirmRemoveCancel
+        , WidgetNameConfirmRemoveContinue
+        ]
+
 handleConfirmRemoveWidgetEvent
     :: UiEvent
     -> WidgetEventM ConfirmRemoveWidgetState p ()
 handleConfirmRemoveWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) ->
+    UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
         confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
+        updateFocusList
     _ -> pass
