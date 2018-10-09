@@ -3,7 +3,7 @@ module Ariadne.UI.Vty.Widget.Repl
        ) where
 
 import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
-import Named
+import Named ((:!), pattern Arg, (!))
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -23,7 +23,7 @@ import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
 type AdaptiveImage =
-  Named V.Attr "def_attr" -> Named Int "width" -> V.Image
+  "def_attr" :! V.Attr  -> "width" :! Int -> V.Image
 
 data OutputElement
   = OutputCommand UiCommandId AdaptiveImage [AdaptiveImage] (Maybe AdaptiveImage)
@@ -195,12 +195,12 @@ handleReplWidgetKey = \case
             liftIO $ historyAddCommand replWidgetHistoryFace replWidgetCommand
             case replWidgetParseResult of
               ReplParseFailure{..} -> do
-                let out = OutputInfo $ \(Named defAttr) (Named w) -> pprDoc defAttr w rpfParseErrDoc
+                let out = OutputInfo $ \(Arg defAttr) (Arg w) -> pprDoc defAttr w rpfParseErrDoc
                 zoom replWidgetOutL $ modify (out:)
               ReplParseSuccess{..} -> do
                 commandId <- liftIO rpfPutCommand
                 let
-                  commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
+                  commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w rpfExprDoc
                   out = OutputCommand commandId commandSrc [] Nothing
                 zoom replWidgetOutL $ modify (out:)
                 replWidgetCommandL .= ""
@@ -230,7 +230,7 @@ handleReplWidgetEvent = \case
         UiCommandWidget doc -> do
             ReplWidgetState{..} <- get
             liftIO $ historyAddCommand replWidgetHistoryFace $ show doc
-            let commandSrc (Named defAttr) (Named w) = pprDoc defAttr w doc
+            let commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w doc
                 out = OutputCommand commandId commandSrc [] Nothing
             zoom replWidgetOutL $ modify (out:)
         _ -> do
@@ -281,9 +281,9 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \(Named defAttr) (Named w) -> pprDoc defAttr w doc
+          Just $ \(Arg defAttr) (Arg w) -> pprDoc defAttr w doc
         UiCommandFailure doc ->
-          Just $ \(Named defAttr) (Named w) ->
+          Just $ \(Arg defAttr) (Arg w) ->
             V.vertJoin
               (V.text' (defAttr `V.withBackColor` V.red) "Error")
               (pprDoc defAttr w doc)
@@ -294,7 +294,7 @@ updateCommandResult
         UiCommandSuccess _ -> oldMessages
         UiCommandFailure _ -> oldMessages
         UiCommandOutput doc ->
-          let message (Named defAttr) (Named w) = pprDoc defAttr w doc
+          let message (Arg defAttr) (Arg w) = pprDoc defAttr w doc
           in message:oldMessages
         UiCommandWidget _ -> oldMessages
 updateCommandResult _ _ outCmd = outCmd
@@ -314,7 +314,7 @@ isQuitCommand t =
   T.strip t `elem` ["quit", "q", ":quit", ":q", "exit"]
 
 ariadneBanner :: AdaptiveImage
-ariadneBanner (Named defAttr) _ = V.vertCat $ map (V.text' defAttr)
+ariadneBanner (Arg defAttr) _ = V.vertCat $ map (V.text' defAttr)
   [ "             ___         _           __         "
   , "            /   |  _____(_)___  ____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
