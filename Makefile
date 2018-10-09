@@ -2,7 +2,6 @@
 
 CORE_PACKAGES = ariadne-core
 CARDANO_PACKAGES = ariadne-cardano
-CLI_PACKAGES = ariadne-cli
 VTY_PACKAGES = ariadne-vty-app
 QT_PACKAGES = ariadne-qt-app
 
@@ -24,10 +23,6 @@ dev-core:
 # Useful because logs will be printed.
 dev-cardano:
 	stack build $(CARDANO_PACKAGES) $(STACK_DEV_OPTIONS)
-
-# Build only CLI with development options.
-dev-cli:
-	stack build $(CLI_PACKAGES) $(STACK_DEV_OPTIONS)
 
 # Build only TUI with development options.
 dev-vty:
