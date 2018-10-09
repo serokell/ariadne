@@ -61,7 +61,6 @@ import Control.Lens
 
 import qualified Brick as B
 import qualified Brick.Focus as B
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 import Ariadne.UI.Vty.Face
@@ -441,8 +440,8 @@ drawWidgetChild focus widget@WidgetInfo{..} name =
 singleDrawing :: B.Widget WidgetName -> WidgetDrawing
 singleDrawing = (:| [])
 
-layeredDrawing :: [B.Widget WidgetName] -> WidgetDrawing
-layeredDrawing = NE.fromList
+layeredDrawing :: B.Widget WidgetName -> [B.Widget WidgetName] -> WidgetDrawing
+layeredDrawing = (:|)
 
 ----------------------------------------------------------------------------
 -- Widget event handling

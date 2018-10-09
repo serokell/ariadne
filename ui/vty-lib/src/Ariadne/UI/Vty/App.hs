@@ -255,11 +255,12 @@ drawAppWidget focus AppWidgetState{..} = do
   modal <- viewWidgetLens (Lens appModalL)
   return $ case modal of
     NoModal -> singleDrawing screenDraw
-    PasswordMode -> layeredDrawing [drawChild WidgetNamePassword, screenDraw]
-    ConfirmationMode confirmationType -> case confirmationType of
-      UiConfirmMnemonic _ -> layeredDrawing [drawChild WidgetNameConfirmMnemonic, screenDraw]
-      UiConfirmRemove _   -> layeredDrawing [drawChild WidgetNameConfirmRemove, screenDraw]
-      UiConfirmSend _     -> layeredDrawing [drawChild WidgetNameConfirmSend, screenDraw]
+    PasswordMode -> layeredDrawing (drawChild WidgetNamePassword) [screenDraw]
+    ConfirmationMode confirmationType -> (`layeredDrawing` [screenDraw]) $
+      case confirmationType of
+        UiConfirmMnemonic _ -> (drawChild WidgetNameConfirmMnemonic)
+        UiConfirmRemove _   -> (drawChild WidgetNameConfirmRemove)
+        UiConfirmSend _     -> (drawChild WidgetNameConfirmSend)
 
 handleAppEvent
   :: B.BrickEvent WidgetName UiEvent
