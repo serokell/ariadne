@@ -15,8 +15,6 @@ Update/                         @hithroc
 Wallet/                         @Pastafarianist @gromakovsky
 
 # UIs
-ui/cli-app                      @goodsoft
-ui/cli-lib                      @goodsoft
 ui/qt-app                       @goodsoft @maksbotan
 ui/qt-lib                       @goodsoft @maksbotan
 ui/vty-app                      @goodsoft
