@@ -83,7 +83,7 @@ drawConfirmRemoveWidget focus ConfirmRemoveWidgetState{..} =
                 , drawChild WidgetNameConfirmRemoveCheck
                 , if confirmRemoveWidgetCheck && hasNameToConfirm
                   then B.padTopBottom 1 $ B.hBox
-                    [ B.padLeftRight 1 . B.txtWrap $
+                    [ B.padLeftRight 2 . B.txtWrap $
                       deleteRetypeMkMessage itemTypeFormat requestDelItem
                     , drawChild WidgetNameConfirmRemoveName
                     ]

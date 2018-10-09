@@ -61,7 +61,8 @@ drawPasswordWidget focus PasswordWidgetState{..} = do
         Just _  -> drawInsideDialog passwordWidgetDialog focus $
             B.hBox
                 [ B.padLeftRight 1 $ B.txt passwordLabelMessage
-                , last $ drawWidgetChild focus widget WidgetNamePasswordInput
+                , B.padRight (B.Pad 1) $ last $
+                  drawWidgetChild focus widget WidgetNamePasswordInput
                 ]
 
 handlePasswordWidgetKey

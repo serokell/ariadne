@@ -32,7 +32,7 @@ drawButtonWidget focused ButtonWidgetState{..} = do
   widgetName <- getWidgetName
   return . singleDrawing $
     B.clickable widgetName $
-    (if focused then B.withAttr "selected" else id) $
+    (if focused then B.withAttr "selected" else B.withAttr "default") $
     B.txt $
     "[ " <> buttonWidgetTitle <> " ]"
 

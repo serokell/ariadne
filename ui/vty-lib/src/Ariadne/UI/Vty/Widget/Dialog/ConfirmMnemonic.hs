@@ -105,7 +105,8 @@ drawConfirmMnemonicWidget focus ConfirmMnemonicWidgetState{..} =
                         , B.vBox
                             [ B.padTopBottom 1 $ B.hBox
                                 [ B.padLeftRight 1 $ B.txt $ mnemonicHeaderMessage
-                                , drawChild WidgetNameConfirmMnemonicInput
+                                , B.padRight (B.Pad 1) $ 
+                                  drawChild WidgetNameConfirmMnemonicInput
                                 ]
                             ]
                         ] ++ if words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue

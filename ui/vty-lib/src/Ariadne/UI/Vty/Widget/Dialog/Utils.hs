@@ -47,7 +47,7 @@ drawInsideDialog DialogState{..} focus widgetDrawing = do
         B.hLimit 70 .
         B.vLimit 20 $
         B.vBox
-            [ B.padAll 1 . B.padTopBottom 1 $ widgetDrawing
+            [ B.withAttr "default" $ B.padAll 1 . B.padTopBottom 1 $ widgetDrawing
             , B.padLeftRight 1 . B.hBox . (B.vLimit 1 (B.fill ' ') :) $
               map drawChild dialogButtons
             ]
