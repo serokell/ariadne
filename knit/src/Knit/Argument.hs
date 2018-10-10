@@ -36,7 +36,8 @@ import Data.Text
 import Numeric.Natural (Natural)
 
 import Knit.Name (Name(..))
-import Knit.Syntax (Arg(..), ForallXArg, NoExt(..))
+import Knit.Prelude
+import Knit.Syntax (Arg(..), ForallXArg, NoExt(..), XXArg)
 import Knit.Value (Value)
 
 data ArgumentError = ArgumentError
@@ -185,7 +186,7 @@ getArgSome
 getArgSome = GetArg ArgCardSome
 
 runArgumentConsumer :: forall ext components a.
-       Ord (Value components)
+       (Ord (Value components), XXArg ext (Value components) ~ Void)
     => ArgumentConsumer components a
     -> ArgumentConsumerState ext components
     -> (Maybe a, ArgumentConsumerState ext components)
@@ -225,7 +226,8 @@ runArgumentConsumer ac acs = case ac of
             (mResult, acs'')
 
 lookupArgWithCard ::
-       ArgCardinality f
+       (XXArg ext (Value components) ~ Void)
+    => ArgCardinality f
     -> Name
     -> [Arg ext (Value components)]
     -> Either ArgumentError (f (Value components), [Arg ext (Value components)])
@@ -236,7 +238,8 @@ lookupArgWithCard argCard name args = case argCard of
     ArgCardSome   -> lookupArgSome name args
 
 lookupArgSingle ::
-       Name
+       (XXArg ext (Value components) ~ Void)
+    => Name
     -> [Arg ext (Value components)]
     -> Either ArgumentError ((Value components), [Arg ext (Value components)])
 lookupArgSingle name args = do
@@ -246,7 +249,8 @@ lookupArgSingle name args = do
         Just v  -> return (v, args')
 
 lookupArgOpt ::
-       Name
+       (XXArg ext (Value components) ~ Void)
+    => Name
     -> [Arg ext (Value components)]
     -> (Maybe (Value components), [Arg ext (Value components)])
 lookupArgOpt name = \case
@@ -256,10 +260,11 @@ lookupArgOpt name = \case
         if name == name'
         then (Just a, args)
         else over _2 (arg:) $ lookupArgOpt name args
-    XArg _ : args -> lookupArgOpt name args
+    XArg xxArg : _ -> absurd xxArg
 
 lookupArgMany ::
-       Name
+       (XXArg ext (Value components) ~ Void)
+    => Name
     -> [Arg ext (Value components)]
     -> ([(Value components)], [Arg ext (Value components)])
 lookupArgMany name = \case
@@ -269,10 +274,11 @@ lookupArgMany name = \case
         if name == name'
         then over _1 (a:) $ lookupArgMany name args
         else over _2 (arg:) $ lookupArgMany name args
-    XArg _ : args -> lookupArgMany name args
+    XArg xxArg : _ -> absurd xxArg
 
 lookupArgSome ::
-       Name
+       (XXArg ext (Value components) ~ Void)
+    => Name
     -> [Arg ext (Value components)]
     -> Either ArgumentError (NonEmpty (Value components), [Arg ext (Value components)])
 lookupArgSome name args = do
@@ -280,7 +286,7 @@ lookupArgSome name args = do
     return $ over _1 (v :|) $ lookupArgMany name args'
 
 consumeArguments ::
-       Ord (Value components)
+       (Ord (Value components), XXArg ext (Value components) ~ Void)
     => ArgumentConsumer components a
     -> [Arg ext (Value components)]
     -> Either (ProcError components) a
@@ -303,12 +309,13 @@ isArgPos = \case
     _ -> False
 
 toIrrelevanceError
-  :: [Arg ext (Value components)]
+  :: (XXArg ext (Value components) ~ Void)
+  => [Arg ext (Value components)]
   -> ArgumentError
 toIrrelevanceError = foldMap $ \case
     ArgPos _ _ -> mempty { aeIrrelevantPos = 1 }
     ArgKw _ key _ -> mempty { aeIrrelevantKeys = Set.singleton key }
-    XArg _ -> mempty
+    XArg xxArg -> absurd xxArg
 
 getParameters
   :: ArgumentConsumer components a

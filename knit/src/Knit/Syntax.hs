@@ -31,8 +31,8 @@ module Knit.Syntax
        , fromLit
        ) where
 
+import Data.Kind (Constraint)
 import Data.String
-import GHC.Exts (Constraint)
 
 import Knit.Name
 import Knit.Prelude
