@@ -108,7 +108,7 @@ componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
     commandExec
       :: forall components'.
          AllConstrained (ComponentCommandExec m components) components'
-      => Union ((:~:) component) components'
+      => ElemEv component components'
       -> ComponentCommandRepr components component
       -> m (Value components)
     commandExec (Base v) = absurd v
