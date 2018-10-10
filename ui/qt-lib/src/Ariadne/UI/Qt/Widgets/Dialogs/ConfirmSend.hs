@@ -31,7 +31,6 @@ data ConfirmSend =
     , confirmButton :: QPushButton.QPushButton
     }
 
-
 data ConfirmationResult
   = ConfirmationAccepted
   | ConfirmationCanceled
@@ -51,7 +50,7 @@ initConfirmSend confirmInfo = do
   let infos = T.intercalate ", " $ map (\UiConfirmSendInfo{..} ->
         "<b>" <> csiAmount <> " " <> csiCoin <> "</b> to <b>" <> csiAddress <> "</b>") confirmInfo
 
-  infoLabel <- QLabel.newWithText ("You are sending " <> toString infos :: String)
+  infoLabel <- QLabel.newWithText ("You are sending " <> toString infos)
   QLabel.setWordWrap infoLabel True
   QBoxLayout.addWidget layout infoLabel
   addSeparator layout
