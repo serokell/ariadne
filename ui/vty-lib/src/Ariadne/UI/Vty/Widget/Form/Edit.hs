@@ -233,7 +233,7 @@ handleEditWidgetMouseDown (B.Location (col, row)) = do
 
 currentState :: EditWidgetState p -> Text -> Maybe (Int, Int) -> ([Text], (Int, Int))
 currentState EditWidgetState{..} text loc
-    | text == editWidgetText && loc == Just editWidgetLocation = (ls, editWidgetLocation)
+    | text == editWidgetText && maybe True (== editWidgetLocation) loc = (ls, editWidgetLocation)
     | otherwise = (ls, fromMaybe newLoc loc)
   where
     ls = T.splitOn "\n" text
