@@ -37,6 +37,7 @@ data AccountWidgetState =
 
     , accountName :: !Text
     , accountRenameResult :: !RenameResult
+    , accountRemoveResult :: !RemoveResult
     , accountBalance :: !BalanceResult
 
     , accountAddressResult :: !AddressResult
@@ -48,6 +49,12 @@ data RenameResult
   | RenameResultWaiting !UiCommandId
   | RenameResultError !Text
   | RenameResultSuccess
+
+data RemoveResult
+  = RemoveResultNone
+  | RemoveResultWaiting !UiCommandId
+  | RemoveResultError !Text
+  | RemoveResultSuccess
 
 data BalanceResult
   = BalanceResultNone
@@ -77,6 +84,7 @@ initAccountWidget langFace =
 
       , accountName = ""
       , accountRenameResult = RenameResultNone
+      , accountRemoveResult = RemoveResultNone
       , accountBalance = BalanceResultNone
 
       , accountAddressResult = AddressResultNone
@@ -89,6 +97,12 @@ initAccountWidget langFace =
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameAccountRenameButton $ \case
       WidgetEventButtonPressed -> performRename
+      _ -> pass
+
+    addWidgetChild WidgetNameAccountRemoveButton $
+      initButtonWidget "Remove"
+    addWidgetEventHandler WidgetNameAccountRemoveButton $ \case
+      WidgetEventButtonPressed -> performRemove
       _ -> pass
 
     addWidgetChild WidgetNameAccountSend $
@@ -176,11 +190,17 @@ drawAccountWidget focus AccountWidgetState{..} = do
       [ label "Account name:"
           B.<+> drawChild WidgetNameAccountName
           B.<+> padLeft (drawChild WidgetNameAccountRenameButton)
+          B.<+> padLeft (drawChild WidgetNameAccountRemoveButton)
       , case accountRenameResult of
           RenameResultNone -> B.emptyWidget
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename the account: " <> err
           RenameResultSuccess -> B.emptyWidget
+      , case accountRemoveResult of
+          RemoveResultNone -> B.emptyWidget
+          RemoveResultWaiting _ -> B.txt "Removing..."
+          RemoveResultError err -> B.txt $ "Couldn't remove the account: " <> err
+          RemoveResultSuccess -> B.emptyWidget
       , padBottom $ label "Balance:" B.<+> case accountBalance of
           BalanceResultNone -> B.emptyWidget
           BalanceResultWaiting _ -> B.txt "requesting..."
@@ -218,6 +238,7 @@ handleAccountWidgetEvent = \case
         curInfo <- use accountInfoL
         when (curInfo /= Just newInfo) $ do
           accountRenameResultL .= RenameResultNone
+          accountRemoveResultL .= RemoveResultNone
           accountAddressResultL .= AddressResultNone
         accountInfoL .= Just newInfo
 
@@ -241,6 +262,13 @@ handleAccountWidgetEvent = \case
         case result of
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
+      other -> other
+  UiCommandResult commandId (UiRemoveCommandResult result) -> do
+    accountRemoveResultL %= \case
+      RemoveResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiRemoveCommandSuccess -> RemoveResultSuccess
+          UiRemoveCommandFailure err -> RemoveResultError err
       other -> other
   UiCommandResult commandId (UiBalanceCommandResult result) -> do
     accountBalanceL %= \case
@@ -269,6 +297,7 @@ updateFocusList = do
   lift $ setWidgetFocusList $
     [ WidgetNameAccountName
     , WidgetNameAccountRenameButton
+    , WidgetNameAccountRemoveButton
     , WidgetNameAccountSend
     , WidgetNameAccountAddressGenerateButton
     ] ++
@@ -282,6 +311,14 @@ performRename = do
     RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
+
+performRemove :: WidgetEventM AccountWidgetState p ()
+performRemove = do
+  UiLangFace{..} <- use accountLangFaceL
+  use accountRemoveResultL >>= \case
+    RemoveResultWaiting _ -> pass
+    _ -> liftIO (langPutUiCommand UiRemove) >>=
+      assign accountRemoveResultL . either RemoveResultError RemoveResultWaiting
 
 performNewAddress :: WidgetEventM AccountWidgetState p ()
 performNewAddress = do

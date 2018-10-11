@@ -66,7 +66,6 @@ data RemoveResult
   | RemoveResultError !Text
   | RemoveResultSuccess
 
-
 data BalanceResult
   = BalanceResultNone
   | BalanceResultWaiting !UiCommandId
@@ -136,8 +135,6 @@ initWalletWidget langFace UiFeatures{..} =
     addWidgetEventHandler WidgetNameWalletRemoveButton $ \case
       WidgetEventButtonPressed -> performRemove
       _ -> pass
-
-
 
     addWidgetChild WidgetNameWalletExportButton $
       initButtonWidget "Export"
@@ -347,6 +344,14 @@ handleWalletWidgetEvent = \case
           UiRenameCommandSuccess -> RenameResultSuccess
           UiRenameCommandFailure err -> RenameResultError err
       other -> other
+  UiCommandResult commandId (UiRemoveCommandResult result) -> do
+    walletRemoveResultL %= \case
+      RemoveResultWaiting commandId' | commandId == commandId' ->
+        case result of
+          UiRemoveCommandSuccess -> RemoveResultSuccess
+          UiRemoveCommandFailure err -> RemoveResultError err
+      other -> other
+
   UiCommandResult commandId (UiBalanceCommandResult result) -> do
     walletBalanceL %= \case
       BalanceResultWaiting commandId' | commandId == commandId' ->
@@ -428,7 +433,6 @@ performRemove = do
     RemoveResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRemove) >>=
       assign walletRemoveResultL . either RemoveResultError RemoveResultWaiting
-
 
 performExport :: WidgetEventM WalletWidgetState p ()
 performExport = do

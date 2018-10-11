@@ -41,6 +41,7 @@ module Ariadne.UI.Vty.Face
        , UiNewAddressCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
+       , UiRemoveCommandResult (..)
        , UiExportCommandResult (..)
 
        , UiTreeItem (..)
@@ -280,6 +281,7 @@ data UiCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
+  | UiRemoveCommandResult UiRemoveCommandResult
   | UiExportCommandResult UiExportCommandResult
 
 data UiBalanceCommandResult
@@ -331,6 +333,10 @@ data UiRestoreWalletCommandResult
 data UiRenameCommandResult
   = UiRenameCommandSuccess
   | UiRenameCommandFailure Text
+
+data UiRemoveCommandResult
+  = UiRemoveCommandSuccess
+  | UiRemoveCommandFailure Text
 
 data UiExportCommandResult
   = UiExportCommandSuccess Text

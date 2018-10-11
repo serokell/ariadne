@@ -122,6 +122,7 @@ data WidgetNamePart
   | WidgetNameAccount
   | WidgetNameAccountName
   | WidgetNameAccountRenameButton
+  | WidgetNameAccountRemoveButton
   | WidgetNameAccountSend
   | WidgetNameAccountAddressGenerateButton
   | WidgetNameAccountAddressList

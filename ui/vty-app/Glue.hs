@@ -175,8 +175,8 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             optString "name" uraName
           )
       UiRemove -> do
-        Right $ Knit.ExprProcCall
-          (Knit.ProcCall Knit.removeCommandName [])
+        Right $ exprProcCall
+          (procCall Knit.removeCommandName [])
       _ -> Left "Not implemented"
 
     resultToUI result = \case
@@ -203,6 +203,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result
       UiRename{} ->
         Just . UiRenameCommandResult . either UiRenameCommandFailure (const UiRenameCommandSuccess) $
+          fromResult result
+      UiRemove{} ->
+        Just . UiRemoveCommandResult . either UiRemoveCommandFailure (const UiRemoveCommandSuccess) $
           fromResult result
       _ -> Nothing
 
