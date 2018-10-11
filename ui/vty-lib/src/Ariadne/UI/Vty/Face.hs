@@ -190,7 +190,7 @@ data UiConfirmationType
   | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
 
 data UiConfirmSendInfo =
-  UiConfirmSendInfo 
+  UiConfirmSendInfo
     { csiAddress :: Text
     , csiAmount  :: Text
     , csiCoin    :: Text
@@ -217,6 +217,7 @@ data UiCommand
   | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
+  | UiRemove
   | UiExport
   | UiKill Natural
 

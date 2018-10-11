@@ -39,6 +39,7 @@ data WalletWidgetState =
     , walletName :: !Text
     , walletId :: !Text
     , walletRenameResult :: !RenameResult
+    , walletRemoveResult :: !RemoveResult
     , walletBalance :: !BalanceResult
     , walletExportResult :: !ExportResult
 
@@ -58,6 +59,13 @@ data RenameResult
   | RenameResultWaiting !UiCommandId
   | RenameResultError !Text
   | RenameResultSuccess
+
+data RemoveResult
+  = RemoveResultNone
+  | RemoveResultWaiting !UiCommandId
+  | RemoveResultError !Text
+  | RemoveResultSuccess
+
 
 data BalanceResult
   = BalanceResultNone
@@ -100,6 +108,7 @@ initWalletWidget langFace UiFeatures{..} =
       , walletName = ""
       , walletId = ""
       , walletRenameResult = RenameResultNone
+      , walletRemoveResult = RemoveResultNone
       , walletBalance = BalanceResultNone
       , walletExportResult = ExportResultNone
 
@@ -121,6 +130,14 @@ initWalletWidget langFace UiFeatures{..} =
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
       WidgetEventButtonPressed -> performRename
       _ -> pass
+
+    addWidgetChild WidgetNameWalletRemoveButton $
+      initButtonWidget "Remove"
+    addWidgetEventHandler WidgetNameWalletRemoveButton $ \case
+      WidgetEventButtonPressed -> performRemove
+      _ -> pass
+
+
 
     addWidgetChild WidgetNameWalletExportButton $
       initButtonWidget "Export"
@@ -218,6 +235,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
       [ label "Wallet name:"
           B.<+> drawChild WidgetNameWalletName
           B.<+> padLeft (drawChild WidgetNameWalletRenameButton)
+          B.<+> padLeft (drawChild WidgetNameWalletRemoveButton)
       , label "Wallet id:"
           B.<+> B.txt walletId
       , case walletRenameResult of
@@ -225,6 +243,11 @@ drawWalletWidget focus WalletWidgetState{..} = do
           RenameResultWaiting _ -> B.txt "Renaming..."
           RenameResultError err -> B.txt $ "Couldn't rename a wallet: " <> err
           RenameResultSuccess -> B.emptyWidget
+      , case walletRemoveResult of
+          RemoveResultNone -> B.emptyWidget
+          RemoveResultWaiting _ -> B.txt "Deleting..."
+          RemoveResultError err -> B.txt $ "Couldn't delete a wallet: " <> err
+          RemoveResultSuccess -> B.emptyWidget
       , label "Balance:" B.<+> case walletBalance of
           BalanceResultNone -> B.emptyWidget
           BalanceResultWaiting _ -> B.txt "requesting..."
@@ -286,6 +309,7 @@ handleWalletWidgetEvent = \case
         curInfo <- use walletInfoL
         when (curInfo /= Just newInfo) $ do
           walletRenameResultL .= RenameResultNone
+          walletRemoveResultL .= RemoveResultNone
           walletExportResultL .= ExportResultNone
           walletNewAccountResultL .= NewAccountResultNone
         walletInfoL .= Just newInfo
@@ -376,6 +400,7 @@ updateFocusList = do
   lift $ setWidgetFocusList $
     [ WidgetNameWalletName
     , WidgetNameWalletRenameButton
+    , WidgetNameWalletRemoveButton
     ] ++
     (if not exportEnabled then [] else [WidgetNameWalletExportButton]) ++
     (if not accountsEnabled then [] else
@@ -395,6 +420,15 @@ performRename = do
     RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
+
+performRemove :: WidgetEventM WalletWidgetState p ()
+performRemove = do
+  UiLangFace{..} <- use walletLangFaceL
+  use walletRemoveResultL >>= \case
+    RemoveResultWaiting _ -> pass
+    _ -> liftIO (langPutUiCommand $ UiRemove) >>=
+      assign walletRemoveResultL . either RemoveResultError RemoveResultWaiting
+
 
 performExport :: WidgetEventM WalletWidgetState p ()
 performExport = do

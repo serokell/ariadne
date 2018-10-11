@@ -174,6 +174,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (procCall Knit.renameCommandName $
             optString "name" uraName
           )
+      UiRemove -> do
+        Right $ Knit.ExprProcCall
+          (Knit.ProcCall Knit.removeCommandName [])
       _ -> Left "Not implemented"
 
     resultToUI result = \case
