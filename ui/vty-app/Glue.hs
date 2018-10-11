@@ -108,104 +108,70 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       _ -> Nothing
     pushPassword (password, walletId) = putPass walletId password Nothing
 
-    optString key value
-      | null value = []
-      | otherwise =
-        [ Knit.ArgKw Knit.NoExt key
-        . Knit.ExprLit Knit.NoExt
-        . Knit.toLit
-        . Knit.LitString
-        $ value
-        ]
+    optString key value = if null value then [] else
+      [argKw key . exprLit . Knit.toLit . Knit.LitString $ value]
+
     justOptNumber key = maybe [] $ \value ->
-      [ Knit.ArgKw Knit.NoExt key
-      . Knit.ExprLit Knit.NoExt
-      . Knit.toLit
-      . Knit.LitNumber
-      $ fromIntegral value
-      ]
+      [argKw key . exprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value]
 
     opToExpr = \case
       UiSelect ws ->
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.selectCommandName
-            (map
-              ( Knit.ArgPos Knit.NoExt
-              . Knit.ExprLit Knit.NoExt
-              . Knit.toLit
-              . Knit.LitNumber
-              . fromIntegral
-              )
-              ws
-            )
+        Right $ exprProcCall
+          (procCall Knit.selectCommandName $
+            map (argPos . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws
           )
       UiSend UiSendArgs{..} -> do
         argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
           argAddress <- decodeTextAddress usoAddress
           argCoin <- readEither usoAmount
-          Right $ Knit.ArgKw Knit.NoExt "out" . Knit.ExprProcCall Knit.NoExt $
-            Knit.ProcCall Knit.NoExt Knit.txOutCommandName
-              [ Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitAddress $
-                argAddress
-              , Knit.ArgPos Knit.NoExt . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $
-                argCoin
-              ]
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.sendCommandName $
+          Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
+            [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            ]
+        Right $ exprProcCall
+          (procCall Knit.sendCommandName $
             justOptNumber "wallet" usaWalletIdx ++
             map
-              ( Knit.ArgKw Knit.NoExt "account"
-              . Knit.ExprLit Knit.NoExt
-              . Knit.toLit
-              . Knit.LitNumber
-              . fromIntegral
-              )
+              (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral)
               usaAccounts ++
             argOutputs
           )
       UiFee UiFeeArgs{..} -> do
         -- TODO: Proper fee requesting should be implemented as part of AD-397
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt (Knit.CommandIdOperator Knit.OpUnit) [])
+        Right $ exprProcCall $ procCall (Knit.CommandIdOperator Knit.OpUnit) []
       UiKill commandId ->
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.killCommandName
-            [ Knit.ArgPos Knit.NoExt
-            . Knit.ExprLit Knit.NoExt
-            . Knit.toLit
-            . Knit.LitTaskId
-            . TaskId
-            $ commandId
-            ]
+        Right $ exprProcCall
+          (procCall Knit.killCommandName
+            [argPos . exprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
       UiNewWallet UiNewWalletArgs{..} -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newWalletCommandName $
+        Right $ exprProcCall
+          (procCall Knit.newWalletCommandName $
             optString "name" unwaName
           )
       UiNewAccount UiNewAccountArgs{..} -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newAccountCommandName $
+        Right $ exprProcCall
+          (procCall Knit.newAccountCommandName $
             justOptNumber "wallet" unaaWalletIdx ++
             optString "name" unaaName
           )
       UiNewAddress UiNewAddressArgs{..} -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.newAddressCommandName $
+        Right $ exprProcCall
+          (procCall Knit.newAddressCommandName $
             justOptNumber "wallet" unadaWalletIdx ++
             justOptNumber "account" unadaAccountIdx
           )
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.restoreCommandName $
-            [ Knit.ArgKw Knit.NoExt "mnemonic" . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ urwaMnemonic
-            , Knit.ArgKw Knit.NoExt "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
+        Right $ exprProcCall
+          (procCall Knit.restoreCommandName $
+            [ argKw "mnemonic" . exprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
+            , argKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
             optString "name" urwaName
           )
       UiRename UiRenameArgs{..} -> do
-        Right $ Knit.ExprProcCall Knit.NoExt
-          (Knit.ProcCall Knit.NoExt Knit.renameCommandName $
+        Right $ exprProcCall
+          (procCall Knit.renameCommandName $
             optString "name" uraName
           )
       _ -> Left "Not implemented"
@@ -248,6 +214,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       => Knit.Value components
       -> Either Text (Knit.ComponentValue components component)
     fromValue = maybeToRight "Unrecognized return value" . Knit.fromValue
+
+    exprProcCall = Knit.ExprProcCall Knit.NoExt
+    exprLit = Knit.ExprLit Knit.NoExt
+    procCall = Knit.ProcCall Knit.NoExt
+    argPos = Knit.ArgPos Knit.NoExt
+    argKw = Knit.ArgKw Knit.NoExt
 
 commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =
