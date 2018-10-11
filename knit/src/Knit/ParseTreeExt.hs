@@ -1,4 +1,8 @@
-module Knit.ParseTreeExt where
+module Knit.ParseTreeExt
+       ( ParseTreeExt
+       , ExprInBrackets(..)
+       , dropParseTreeExt
+       ) where
 
 import Knit.Prelude
 import Knit.Syntax

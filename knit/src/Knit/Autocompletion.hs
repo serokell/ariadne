@@ -1,13 +1,17 @@
-module Knit.Autocompletion where
+module Knit.Autocompletion
+       ( suggestions
+       ) where
 
 import Control.Monad.Writer.Strict (runWriter)
 import Data.List (isPrefixOf)
+import Data.Loc (loc, spanFromTo)
 import Data.Maybe (mapMaybe)
 import Data.Semigroup ((<>))
-import Data.Text (Text, count, drop, dropEnd, pack, replicate)
+import qualified Data.Text as T
 import Data.Text.Buildable (build)
 import Data.Text.Lazy (unpack)
 import Data.Text.Lazy.Builder (toLazyText)
+import Text.Earley (fullParses)
 
 import Knit.Argument
 import Knit.FormattedExprExt
@@ -29,24 +33,38 @@ suggestions
      , AllConstrained ComponentPrinter components
      )
   => proxy components
-  -> Text
-  -> [Text]
+  -> T.Text
+  -> [T.Text]
 suggestions _ cmd =
   let
-    openingParens = count "(" cmd
-    closingParens = count ")" cmd
-    addedParens = openingParens - closingParens + 1
-    cmd' = "(" <> cmd <> Data.Text.replicate addedParens ")"
+    cmd' = "(" <> cmd
+    tokens = tokenize cmd'
+
+    tokenBalance = \case
+      TokenParenthesis bs -> withBracketSide 1 (-1) bs
+      _ -> 0
+    parensBalance = sum $ map (\(_, t) -> tokenBalance t) tokens
+    cmdLines = T.splitOn "\n" cmd'
+    endLoc = (length cmdLines, T.length (last cmdLines) + 1)
+
+    loc' a b = loc (fromIntegral a) (fromIntegral b)
+    closingBracketSpan i = SSpan $ spanFromTo
+      (loc' (fst endLoc) (snd endLoc + i))
+      (loc' (fst endLoc) (snd endLoc + i + 1))
+
+    tokens' = tokens ++ zip
+      (map closingBracketSpan [0..])
+      (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
-    case parseTree @components cmd' of
-      Left _ -> []
-      Right tree ->
-        map (Data.Text.drop 1
-          . dropEnd addedParens
-          . pack
+    case fullParses (pExpr @components) tokens' of
+      ([], _) -> []
+      (tree:_, _) ->
+        map (T.drop 1
+          . T.dropEnd parensBalance
+          . T.pack
           . show
           . ppFormattedExpr)
-        $ suggestionExprs commandProcs addedParens
+        $ suggestionExprs commandProcs parensBalance
         $ fst $ runWriter $ parseTreeToFormattedExpr tree
 
 -- | Returns completion suggestions assuming that the expression was completed

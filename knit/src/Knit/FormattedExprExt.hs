@@ -1,4 +1,14 @@
-module Knit.FormattedExprExt where
+module Knit.FormattedExprExt
+       ( FormattedExprExt
+       , Padding(..)
+       , ArgPosPadding(..)
+       , ArgKwPadding(..)
+
+       , exprInBrackets
+       , noPadding
+       , parseTreeToFormattedExpr
+       , ppFormattedExpr
+       ) where
 
 import Control.Monad.Writer.Strict hiding ((<>))
 import Data.Semigroup (Option(..), option, (<>))

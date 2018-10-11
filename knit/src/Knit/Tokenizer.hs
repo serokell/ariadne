@@ -27,6 +27,7 @@ module Knit.Tokenizer
        , tokenize'
        , longestMatch
        , pSomeAlphaNum
+       , withBracketSide
        ) where
 
 import Control.Applicative as A

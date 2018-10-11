@@ -2,7 +2,7 @@
 
 module Knit.Parser
        ( ComponentTokenToLit(..)
-       , ParseError (..)
+       , ParseError(..)
        , parseErrorSpans
        , gComponentsLit
        , gExpr
