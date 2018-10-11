@@ -125,7 +125,8 @@ suggestionExprs procs = skipParensExpr
             _ -> invalidOperatorApplication
         CommandIdName name ->
           case unsnoc args of
-            Nothing -> toProcCall <$> filter (isPrefixOf (nameStr name) . nameStr . fst) suggestableProcs
+            Nothing ->
+              toProcCall <$> filter (isPrefixOfNeq (nameStr name) . nameStr . fst) suggestableProcs
             Just (init', last') ->
               ProcCall NoExt cmd . snoc init' <$> autocompleteArg name last'
 
@@ -151,7 +152,7 @@ suggestionExprs procs = skipParensExpr
             . ExprProcCall NoExt
             . toProcCall
             <$> filter
-              (\(proc, params) -> null params && isPrefixOf (nameStr name) (nameStr proc))
+              (\(proc, params) -> null params && isPrefixOfNeq (nameStr name) (nameStr proc))
               suggestableProcs
         in
           kwargs ++ procCalls
@@ -228,3 +229,5 @@ suggestionExprs procs = skipParensExpr
     toProcCall = (\name -> ProcCall NoExt (CommandIdName name) []) . fst
 
     nameStr = unpack . toLazyText . build
+
+    isPrefixOfNeq a b = isPrefixOf a b && a /= b
