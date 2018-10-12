@@ -93,6 +93,9 @@ handleMainWindowEvent langFace putPass = \case
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletSendCommandResult commandId result
+    UiNewWalletCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletNewWalletCommandResult commandId result
     UiRestoreWalletCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletRestoreWalletCommandResult commandId result
@@ -108,6 +111,9 @@ handleMainWindowEvent langFace putPass = \case
   UiPasswordEvent (UiPasswordRequest walletRef cEvent) ->
     magnify walletL $ handleWalletEvent langFace putPass $
         WalletPasswordRequest walletRef cEvent
+  UiConfirmEvent (UiConfirmRequest resultVar confirmationType) -> do
+    magnify walletL $ handleWalletEvent langFace putPass $
+        WalletConfirmationRequest resultVar confirmationType
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do

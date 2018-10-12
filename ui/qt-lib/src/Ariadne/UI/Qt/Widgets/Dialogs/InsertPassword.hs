@@ -23,6 +23,7 @@ import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UIConfig
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.Util
@@ -45,19 +46,18 @@ initInsertPassword :: IO InsertPassword
 initInsertPassword = do
     insertPassword <- QDialog.new
     QObject.setObjectName insertPassword ("insertPasswordDialog" :: String)
-    let headerText = "Insert Password"
-    QWidget.setWindowTitle insertPassword $ toString headerText
+    QWidget.setWindowTitle insertPassword $ toString passwordHeaderMessage
     QWidget.adjustSize insertPassword
     layout <- createLayout insertPassword
 
-    header <- QLabel.newWithText . toString $ T.toUpper headerText
+    header <- QLabel.newWithText . toString $ T.toUpper passwordHeaderMessage
     addHeader layout header
 
-    hasPassword <- createCheckBox layout CheckboxOnRight passwordLabelText
+    hasPassword <- createCheckBox layout CheckboxOnRight passwordUseOneMessage
     QAbstractButton.setChecked hasPassword True
 
     (passwordWidget, passwordLayout) <- createSubWidget
-    passwordLabel <- QLabel.newWithText ("<b>PASSWORD</b>" :: String)
+    passwordLabel <- QLabel.newWithText $ toString $ "<b>" <> T.toUpper passwordLabelMessage <> "</b>"
     (passwordFieldLayout, password) <- createPasswordField "password"
 
     addRowLayout passwordLayout passwordLabel passwordFieldLayout
@@ -93,9 +93,6 @@ runInsertPassword = do
         QDialog.Accepted -> maybe InsertPasswordCanceled InsertPasswordAccepted <$> 
             fillPasswordParameter ip
         QDialog.Rejected -> return InsertPasswordCanceled
-
-passwordLabelText :: Text
-passwordLabelText = "Activate to use a password."
 
 hasPasswordToggled :: InsertPassword -> Bool -> IO ()
 hasPasswordToggled ip@InsertPassword{..} checked = do

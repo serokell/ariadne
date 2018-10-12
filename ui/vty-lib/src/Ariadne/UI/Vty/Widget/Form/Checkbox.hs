@@ -29,15 +29,17 @@ initCheckboxWidget title lens =
       , checkboxWidgetLens = Lens lens
       }
 
-drawCheckboxWidget :: Bool -> CheckboxWidgetState p -> WidgetDrawM (CheckboxWidgetState p) p (B.Widget WidgetName)
+drawCheckboxWidget :: Bool -> CheckboxWidgetState p -> WidgetDrawM (CheckboxWidgetState p) p WidgetDrawing
 drawCheckboxWidget focused CheckboxWidgetState{..} = do
   widgetName <- getWidgetName
   checked <- viewWidgetLens checkboxWidgetLens
-  return $
+  return . singleDrawing $
     B.clickable widgetName $
     (if focused then B.withAttr "selected" else id) $
-    B.txt $
-    (if checked then "[X] " else "[ ] ") <> checkboxWidgetTitle
+    B.hBox
+      [ B.txt (if checked then "[X] " else "[ ] ")
+      , B.txtWrap $ checkboxWidgetTitle
+      ]  
 
 handleCheckboxWidgetKey
   :: KeyboardEvent
@@ -58,5 +60,6 @@ handleCheckboxWidgetMouseDown _ = do
 
 toggle :: WidgetEventM (CheckboxWidgetState p) p ()
 toggle = do
+  widgetEvent WidgetEventCheckboxToggled
   CheckboxWidgetState{..} <- get
   useWidgetLens checkboxWidgetLens >>= assignWidgetLens checkboxWidgetLens . not

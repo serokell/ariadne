@@ -21,10 +21,13 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
+import Ariadne.UI.Vty.Widget.Dialog.Password
+import Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
+import Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
+import Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
-import Ariadne.UI.Vty.Widget.Password
 import Ariadne.UI.Vty.Widget.Repl
 import Ariadne.UI.Vty.Widget.Status
 import Ariadne.UI.Vty.Widget.Tree
@@ -47,7 +50,10 @@ data AppSelection
 
 data AppCompleted = AppCompleted | AppInProgress
 
-data AppModal = NoModal | PasswordMode
+data AppModal
+  = NoModal
+  | PasswordMode
+  | ConfirmationMode UiConfirmationType
 
 data AppWidgetState =
   AppWidgetState
@@ -101,6 +107,9 @@ initApp features putPass uiFace langFace historyFace =
       addWidgetChild WidgetNameAbout initAboutWidget
       addWidgetChild WidgetNameLogs initLogsWidget
       addWidgetChild WidgetNamePassword $ initPasswordWidget putPass uiFace
+      addWidgetChild WidgetNameConfirmMnemonic $ initConfirmMnemonicWidget uiFace
+      addWidgetChild WidgetNameConfirmRemove $ initConfirmRemoveWidget uiFace
+      addWidgetChild WidgetNameConfirmSend $ initConfirmSendWidget uiFace
 
       addWidgetEventHandler WidgetNameMenu $ \case
         WidgetEventMenuSelected -> do
@@ -145,6 +154,10 @@ resetAppFocus = do
   lift . setWidgetFocusList =<< case modal of
     NoModal -> appFocusList <$> get
     PasswordMode -> return [WidgetNamePassword]
+    ConfirmationMode confirmationType -> case confirmationType of
+      UiConfirmMnemonic _ -> return [WidgetNameConfirmMnemonic]
+      UiConfirmRemove _   -> return [WidgetNameConfirmRemove]
+      UiConfirmSend _     -> return [WidgetNameConfirmSend]
 
 setAppFocus :: Monad m => WidgetName -> StateT AppState m ()
 setAppFocus focus = do
@@ -192,17 +205,16 @@ app = B.App{..} where
 
 drawApp :: AppState -> [B.Widget WidgetName]
 drawApp appState@AppState{..} =
-    [ drawWidget (getAppFocus appState) appState appWidget
+    toList (drawWidget (getAppFocus appState) appState appWidget)
     -- Widgets don't always fill the screen, so we need a background widget
     -- in case default terminal background differs from our theme background
-    , B.withAttr "default" $ B.fill ' '
-    ]
+    ++ [ B.withAttr "default" $ B.fill ' ' ]
 
-drawAppWidget :: WidgetName -> AppWidgetState -> WidgetDrawM AppWidgetState p (B.Widget WidgetName)
+drawAppWidget :: WidgetName -> AppWidgetState -> WidgetDrawM AppWidgetState AppState WidgetDrawing
 drawAppWidget focus AppWidgetState{..} = do
   widget <- ask
   let
-    drawChild = drawWidgetChild focus widget
+    drawChild = last . drawWidgetChild focus widget
     drawChildWithFocus name char pad =
       withFocusIndicator focus [name] char pad $ drawChild name
     drawContentChild name char =
@@ -215,7 +227,6 @@ drawAppWidget focus AppWidgetState{..} = do
         widgets ++
         [ B.joinBorders B.hBorder
         , drawChild WidgetNameRepl
-        , drawChild WidgetNamePassword
         , drawChild WidgetNameStatus
         ]
     drawWalletScreen = drawScreen
@@ -235,11 +246,21 @@ drawAppWidget focus AppWidgetState{..} = do
     drawAboutScreen = drawScreen [drawContentChild WidgetNameAbout 'A']
     drawLogsScreen = drawScreen [drawContentChild WidgetNameLogs 'L']
 
-  return $ case appScreen of
-    AppScreenWallet -> drawWalletScreen
-    AppScreenHelp -> drawHelpScreen
-    AppScreenAbout -> drawAboutScreen
-    AppScreenLogs -> drawLogsScreen
+  let screenDraw = case appScreen of
+        AppScreenWallet -> drawWalletScreen
+        AppScreenHelp -> drawHelpScreen
+        AppScreenAbout -> drawAboutScreen
+        AppScreenLogs -> drawLogsScreen
+
+  modal <- viewWidgetLens (Lens appModalL)
+  return $ case modal of
+    NoModal -> singleDrawing screenDraw
+    PasswordMode -> layeredDrawing (drawChild WidgetNamePassword) [screenDraw]
+    ConfirmationMode confirmationType -> (`layeredDrawing` [screenDraw]) $
+      case confirmationType of
+        UiConfirmMnemonic _ -> (drawChild WidgetNameConfirmMnemonic)
+        UiConfirmRemove _   -> (drawChild WidgetNameConfirmRemove)
+        UiConfirmSend _     -> (drawChild WidgetNameConfirmSend)
 
 handleAppEvent
   :: B.BrickEvent WidgetName UiEvent
@@ -280,13 +301,17 @@ handleAppEvent brickEvent = do
         focus <- gets getAppFocus
         void $ runHandler $ handleWidgetPaste pasted focus
       return AppInProgress
-    B.MouseDown widgetName button [] coords -> do
+    B.MouseDown name button [] coords -> do
       modal <- use appModalL
       let modalName = case modal of
-            NoModal -> Just widgetName
-            PasswordMode -> Nothing
-
-      whenJust modalName $ \name -> case button of
+            NoModal -> []
+            PasswordMode -> [WidgetNamePassword]
+            ConfirmationMode confirmationType -> case confirmationType of
+              UiConfirmMnemonic _ -> [WidgetNameConfirmMnemonic]
+              UiConfirmRemove _   -> [WidgetNameConfirmRemove]
+              UiConfirmSend _     -> [WidgetNameConfirmSend]
+      
+      when (modalName `isPrefixOf` name) $ case button of
         V.BScrollUp -> void $ runHandler $ handleWidgetScroll ScrollingLineUp name
         V.BScrollDown -> void $ runHandler $ handleWidgetScroll ScrollingLineDown name
         _ -> do
@@ -368,6 +393,11 @@ handleAppWidgetEvent = \case
     assignWidgetLens (Lens appModalL) $ case passEvent of
       UiPasswordRequest _ _ -> PasswordMode
       UiPasswordSent ->  NoModal
+    resetAppFocus
+  UiConfirmEvent confirmEvent -> do
+    assignWidgetLens (Lens appModalL) $ case confirmEvent of
+      UiConfirmRequest _ confirmationType -> ConfirmationMode confirmationType
+      UiConfirmDone -> NoModal
     resetAppFocus
   _ ->
     pass

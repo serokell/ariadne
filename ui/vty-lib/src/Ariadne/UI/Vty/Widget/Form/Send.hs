@@ -100,7 +100,7 @@ initSendWidget langFace walletIdxGetter accountsGetter =
 drawSendWidget
   :: WidgetName
   -> SendWidgetState p
-  -> WidgetDrawM (SendWidgetState p) p (B.Widget WidgetName)
+  -> WidgetDrawM (SendWidgetState p) p WidgetDrawing
 drawSendWidget focus SendWidgetState{..} = do
   widget <- ask
 
@@ -113,7 +113,7 @@ drawSendWidget focus SendWidgetState{..} = do
     labelWidth = 16
     amountWidth = 15
 
-    drawChild = drawWidgetChild focus widget
+    drawChild = last . drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
     drawOutputsHeader = B.hBox
@@ -132,7 +132,7 @@ drawSendWidget focus SendWidgetState{..} = do
       [ B.padLeft B.Max $ drawChild WidgetNameSendAdd
       ]
 
-  return $
+  return . singleDrawing $
     B.vBox $
     padBottom <$>
       [ B.txt "Send transaction"

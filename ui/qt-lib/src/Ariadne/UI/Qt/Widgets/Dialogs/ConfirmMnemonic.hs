@@ -3,8 +3,7 @@ module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
        , runConfirmMnemonic
        ) where
 
-import Formatting
-
+import qualified Data.Text as T
 import Graphics.UI.Qtah.Signal (connect_)
 
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
@@ -17,6 +16,7 @@ import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UIConfig
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
@@ -52,7 +52,7 @@ initConfirmMnemonic mnemonic = do
   confirmMnemonic <- QDialog.new
   layout <- createLayout confirmMnemonic
 
-  let headerString :: String = "RECOVERY PHRASE"
+  let headerString = toString $ T.toUpper mnemonicHeaderMessage
 
   QWidget.setWindowTitle confirmMnemonic headerString
 
@@ -65,8 +65,7 @@ initConfirmMnemonic mnemonic = do
   QBoxLayout.addWidget layout instructionLabel
 
   (noOneLooksWidget, noOneLooksLayout) <- createSubWidget
-  noOneLooks <- createCheckBox noOneLooksLayout CheckboxOnLeft
-    "Make sure nobody looks into your screen unless you want them to have access to your funds."
+  noOneLooks <- createCheckBox noOneLooksLayout CheckboxOnLeft mnemonicNoLooksMessage
   QBoxLayout.addWidget layout noOneLooksWidget
 
   mnemonicWidget <- QLabel.new
@@ -77,7 +76,7 @@ initConfirmMnemonic mnemonic = do
   (retypeWidget, retypeLayout) <- createSubWidget
   addSeparator retypeLayout
 
-  retypeLabel <- QLabel.newWithText ("<b>RECOVERY PHRASE</b>" :: String)
+  retypeLabel <- QLabel.newWithText $ "<b>" <> headerString <> "</b>"
   retypeMnemonic <- QLineEdit.new
   addRow retypeLayout retypeLabel retypeMnemonic
 
@@ -87,11 +86,8 @@ initConfirmMnemonic mnemonic = do
   (checksWidget, checksLayout) <- createSubWidget
   addSeparator checksLayout
 
-  uMoneyOnDevice <- createCheckBox checksLayout CheckboxOnLeft
-    "I understand that my money are held securely on this device only, not on the company servers"
-  uMoved <- createCheckBox checksLayout CheckboxOnLeft
-    "I understand that if this application is moved to another device or deleted,\
-    \ my money can be only recovered with the backup phrase which was written down in a secure place"
+  uMoneyOnDevice <- createCheckBox checksLayout CheckboxOnLeft mnemonicOnDeviceMessage
+  uMoved <- createCheckBox checksLayout CheckboxOnLeft mnemonicAppMovedMessage
   QBoxLayout.addWidget layout checksWidget
 
   buttonsLayout <- QHBoxLayout.new
@@ -136,16 +132,10 @@ runConfirmMnemonic mnemonic = do
 
 stateToInstruction :: Int -> ConfirmationState -> Text
 stateToInstruction mnemonicLength = \case
-  Before -> sformat
-    ("On the following screen, you will see a set of " % int %
-     " random words. This is your wallet backup phrase. It can be entered in any version\
-     \ of Ariadne application in order to restore your wallet’s funds and private key.")
-    mnemonicLength
-  DisplayMnemonic ->
-    "Please make sure you have carefully writen down your recovery phrase somewhere safe.\
-    \ You will need this phrase later for next use and recover. Phrase is case sensitive."
-  RetypeMnemonic -> "Type each word in the correct order to verify your recovery phrase."
-  Done -> "You are done!" -- This will never actually be displayed
+  Before -> mnemonicBeforeMkMessage mnemonicLength
+  DisplayMnemonic -> mnemonicDisplayMessage
+  RetypeMnemonic -> mnemonicRetypeMessage
+  Done -> mnemonicDoneMessage -- This will never actually be displayed
 
 stateToActionName :: ConfirmationState -> Text
 stateToActionName = \case

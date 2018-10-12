@@ -4,6 +4,8 @@ module Ariadne.Wallet.Face
 
        , WalletFace(..)
        , WalletEvent(..)
+       , ConfirmationType(..)
+       , ConfirmSendInfo(..)
        , WalletReference(..)
        , AccountReference(..)
        , LocalAccountReference(..)
@@ -70,17 +72,17 @@ data WalletFace =
   WalletFace
     { walletNewAddress :: AccountReference -> HdAddressChain -> IO Address
     , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
-    , walletNewWallet :: Maybe WalletName -> Maybe Byte -> IO [Text]
+    , walletNewWallet :: Bool -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
         Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
     , walletRestoreFromFile ::
         Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
     , walletRename :: Text -> IO ()
-    , walletRemove :: IO ()
+    , walletRemove :: Bool -> IO ()
     , walletRefreshState :: IO ()
     , walletSelect :: Maybe WalletReference -> [Word] -> IO ()
     , walletSend ::
-        WalletReference -> [LocalAccountReference] ->
+        Bool -> WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
     , walletGetSelection :: IO (Maybe WalletSelection, DB)
     , walletBalance :: IO Coin
@@ -90,8 +92,21 @@ data WalletFace =
 -- UI-compatible events in the 'Glue' module. They must be independent from the
 -- UI and capture /what the backend can generate/, not what the frontend can
 -- handle.
-data WalletEvent =
-  WalletStateSetEvent DB (Maybe WalletSelection)
+data WalletEvent
+  = WalletStateSetEvent DB (Maybe WalletSelection)
+  | WalletRequireConfirm (MVar Bool) ConfirmationType
+
+data ConfirmationType
+  = ConfirmMnemonic [Text]           -- ^ mnemonic
+  | ConfirmRemove DB WalletSelection -- ^ walletDB, selection
+  | ConfirmSend [ConfirmSendInfo]    -- ^ lists of outputs' info
+
+data ConfirmSendInfo =
+  ConfirmSendInfo
+    { confirmSendAddress :: Text
+    , confirmSendAmount  :: Text
+    , confirmSendCoin    :: Text
+    }
 
 data WalletUIFace =
   WalletUIFace

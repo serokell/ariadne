@@ -14,6 +14,10 @@ module Ariadne.UI.Vty.Face
        , UiWalletEvent (..)
        , UiNewVersionEvent (..)
        , UiPasswordEvent (..)
+       , UiConfirmEvent (..)
+       , UiConfirmationType (..)
+       , UiConfirmSendInfo (..)
+       , UiDeletingItem (..)
 
        , UiCommand (..)
        , UiSendOutput (..)
@@ -115,6 +119,7 @@ data UiEvent
   | UiWalletEvent UiWalletEvent
   | UiNewVersionEvent UiNewVersionEvent
   | UiPasswordEvent UiPasswordEvent
+  | UiConfirmEvent UiConfirmEvent
 
 data UiCommandId = UiCommandId
   { -- This field is used to compare whether two command identifiers are equal.
@@ -173,6 +178,28 @@ data UiNewVersionEvent = UiNewVersion
 data UiPasswordEvent
   = UiPasswordRequest WalletId CE.Event
   | UiPasswordSent
+
+-- | Ui event to handle confirmations
+data UiConfirmEvent
+  = UiConfirmRequest (MVar Bool) UiConfirmationType
+  | UiConfirmDone
+
+data UiConfirmationType
+  = UiConfirmMnemonic [Text]          -- ^ mnemonic
+  | UiConfirmRemove UiDeletingItem    -- ^ selection
+  | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
+
+data UiConfirmSendInfo =
+  UiConfirmSendInfo 
+    { csiAddress :: Text
+    , csiAmount  :: Text
+    , csiCoin    :: Text
+    }
+
+data UiDeletingItem
+  = UiDelWallet (Maybe Text)
+  | UiDelAccount (Maybe Text)
+  deriving Eq
 
 ----------------------------------------------------------------------------
 -- UI commands

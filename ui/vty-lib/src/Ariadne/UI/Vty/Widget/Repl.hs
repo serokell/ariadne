@@ -4,8 +4,8 @@ module Ariadne.UI.Vty.Widget.Repl
 
 import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
 import Data.List ((!!))
-import Named
-import Universum.Unsafe (last)
+import Named ((:!), pattern Arg, (!))
+import qualified Universum.Unsafe (last)
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -27,7 +27,7 @@ import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
 type AdaptiveImage =
-  Named V.Attr "def_attr" -> Named Int "width" -> V.Image
+  "def_attr" :! V.Attr  -> "width" :! Int -> V.Image
 
 data OutputElement
   = OutputCommand UiCommandId AdaptiveImage [AdaptiveImage] (Maybe AdaptiveImage)
@@ -94,7 +94,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
 
     setWidgetFocusList [WidgetNameReplInput]
 
-drawReplWidget :: WidgetName -> ReplWidgetState p -> WidgetDrawM (ReplWidgetState p) p (B.Widget WidgetName)
+drawReplWidget :: WidgetName -> ReplWidgetState p -> WidgetDrawM (ReplWidgetState p) p WidgetDrawing
 drawReplWidget focus ReplWidgetState{..} = do
     widget <- ask
     widgetName <- getWidgetName
@@ -105,10 +105,11 @@ drawReplWidget focus ReplWidgetState{..} = do
         withFocusIndicator focus widgetName 'R' 0 $
         B.padLeftRight 1 $
         appendPrompt $
+        last $
         drawWidgetChild focus widget WidgetNameReplInput
 
     if fullsize
-      then return $ B.vBox
+      then return . singleDrawing $ B.vBox
         [ B.padLeft (B.Pad 1) $
           scrollingViewport widgetName B.Vertical $
           B.cached widgetName $
@@ -120,7 +121,7 @@ drawReplWidget focus ReplWidgetState{..} = do
         , B.hBorder
         , input
         ]
-      else return $ B.vBox $ case replWidgetOut of
+      else return . singleDrawing $ B.vBox $ case replWidgetOut of
         (x@OutputCommand{}):_ ->
           [ B.padLeftRight 1 $
             B.Widget
@@ -212,12 +213,12 @@ handleReplWidgetKey = \case
             liftIO $ historyAddCommand replWidgetHistoryFace replWidgetCommand
             case replWidgetParseResult of
               ReplParseFailure{..} -> do
-                let out = OutputInfo $ \(Named defAttr) (Named w) -> pprDoc defAttr w rpfParseErrDoc
+                let out = OutputInfo $ \(Arg defAttr) (Arg w) -> pprDoc defAttr w rpfParseErrDoc
                 zoom replWidgetOutL $ modify (out:)
               ReplParseSuccess{..} -> do
                 commandId <- liftIO rpfPutCommand
                 let
-                  commandSrc (Named defAttr) (Named w) = pprDoc defAttr w rpfExprDoc
+                  commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w rpfExprDoc
                   out = OutputCommand commandId commandSrc [] Nothing
                 zoom replWidgetOutL $ modify (out:)
                 clearCommand
@@ -286,7 +287,7 @@ handleReplWidgetEvent = \case
         UiCommandWidget doc -> do
             ReplWidgetState{..} <- get
             liftIO $ historyAddCommand replWidgetHistoryFace $ show doc
-            let commandSrc (Named defAttr) (Named w) = pprDoc defAttr w doc
+            let commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w doc
                 out = OutputCommand commandId commandSrc [] Nothing
             zoom replWidgetOutL $ modify (out:)
         _ -> do
@@ -344,9 +345,9 @@ updateCommandResult
     mCommandResultImage =
       case commandEvent of
         UiCommandSuccess doc ->
-          Just $ \(Named defAttr) (Named w) -> pprDoc defAttr w doc
+          Just $ \(Arg defAttr) (Arg w) -> pprDoc defAttr w doc
         UiCommandFailure doc ->
-          Just $ \(Named defAttr) (Named w) ->
+          Just $ \(Arg defAttr) (Arg w) ->
             V.vertJoin
               (V.text' (defAttr `V.withBackColor` V.red) "Error")
               (pprDoc defAttr w doc)
@@ -357,7 +358,7 @@ updateCommandResult
         UiCommandSuccess _ -> oldMessages
         UiCommandFailure _ -> oldMessages
         UiCommandOutput doc ->
-          let message (Named defAttr) (Named w) = pprDoc defAttr w doc
+          let message (Arg defAttr) (Arg w) = pprDoc defAttr w doc
           in message:oldMessages
         UiCommandWidget _ -> oldMessages
 updateCommandResult _ _ outCmd = outCmd
@@ -377,9 +378,9 @@ isQuitCommand t =
   T.strip t `elem` ["quit", "q", ":quit", ":q", "exit"]
 
 ariadneBanner :: AdaptiveImage
-ariadneBanner (Named defAttr) _ = V.vertCat $ map (V.text' defAttr)
+ariadneBanner (Arg defAttr) _ = V.vertCat $ map (V.text' defAttr)
   [ "             ___         _           __         "
-  , "            /   |  _____(_)___ _____/ /___  ___ "
+  , "            /   |  _____(_)___  ____/ /___  ___ "
   , "           / /| | / ___/ / __ `/ __  / __ \\/ _ \\"
   , "          / ___ |/ /  / / /_/ / /_/ / / / /  __/"
   , "         /_/  |_/_/  /_/\\__,_/\\__,_/_/ /_/\\___/ "

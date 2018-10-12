@@ -195,7 +195,7 @@ drawTxRow UiTxHistoryRow{..} = B.Widget
         B.emptyResult
           & B.imageL .~ img
 
-drawWalletWidget :: WidgetName -> WalletWidgetState -> WidgetDrawM WalletWidgetState p (B.Widget WidgetName)
+drawWalletWidget :: WidgetName -> WalletWidgetState -> WidgetDrawM WalletWidgetState p WidgetDrawing
 drawWalletWidget focus WalletWidgetState{..} = do
   widget <- ask
   widgetName <- getWidgetName
@@ -207,10 +207,10 @@ drawWalletWidget focus WalletWidgetState{..} = do
 
     labelWidth = 16
 
-    drawChild = drawWidgetChild focus widget
+    drawChild = last . drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
 
-  return $
+  return . singleDrawing $
     scrollingViewport widgetName B.Vertical $
     B.padAll 1 $
     B.vBox $

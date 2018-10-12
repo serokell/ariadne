@@ -16,10 +16,10 @@ initAboutWidget =
     setWidgetDraw drawAboutWidget
     setWidgetScrollable
 
-drawAboutWidget :: s -> WidgetDrawM s p (B.Widget WidgetName)
+drawAboutWidget :: s -> WidgetDrawM s p WidgetDrawing
 drawAboutWidget _ = do
   widgetName <- getWidgetName
-  return $
+  return . singleDrawing $
     scrollingViewport widgetName B.Vertical $
     B.hCenter $
     B.cached widgetName $

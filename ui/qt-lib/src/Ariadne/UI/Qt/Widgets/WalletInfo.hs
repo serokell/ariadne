@@ -33,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmSend
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
 import Ariadne.UI.Qt.Widgets.Dialogs.Request
 import Ariadne.UI.Qt.Widgets.Dialogs.Send
@@ -158,6 +159,8 @@ data WalletInfoEvent
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
+  | WalletInfoConfirmRemove (MVar Bool) UiDeletingItem
+  | WalletInfoConfirmSend (MVar Bool) [UiConfirmSendInfo]
 
 handleWalletInfoEvent
   :: UiLangFace
@@ -217,6 +220,16 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiNewAddressCommandFailure err ->
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
+    WalletInfoConfirmRemove resultVar delItemType ->
+      liftIO $ runDelete delItemType >>= \case
+        DoDelete -> putMVar resultVar True
+        Cancel -> putMVar resultVar False
+
+    WalletInfoConfirmSend resultVar sendInfo ->
+      liftIO $ runConfirmSend sendInfo >>= \case
+        ConfirmationAccepted -> putMVar resultVar True
+        ConfirmationCanceled -> putMVar resultVar False
+
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
@@ -224,17 +237,8 @@ addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
 
 deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
-  whenJustM (readIORef currentItem) $ \item -> do
-    let
-      delItemType = case item of
-        WIWallet {} -> DelWallet
-        WIAccount {} -> DelAccount
-
-    itemName <- readIORef currentItemName
-    result <- runDelete delItemType itemName
-
-    when (result == DoDelete) $ do
-      void $ langPutUiCommand UiRemoveCurrentItem
+  whenJustM (readIORef currentItem) $ \_ ->
+    void $ langPutUiCommand UiRemoveCurrentItem
 
 requestButtonClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 requestButtonClicked langFace WalletInfo{..} _checked = do

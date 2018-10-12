@@ -79,12 +79,14 @@ initPasswordWidget lens = initBaseEditWidget lens Nothing "edit" (Just $ const '
 initHiddenPasswordWidget :: Lens' p Text -> Widget p
 initHiddenPasswordWidget lens = initBaseEditWidget lens Nothing "edit" Nothing Nothing EnterIgnore
 
-drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p (B.Widget WidgetName)
+drawEditWidget :: Bool -> EditWidgetState p -> WidgetDrawM (EditWidgetState p) p WidgetDrawing
 drawEditWidget _focused widgetState@EditWidgetState{..} = do
   widgetName <- getWidgetName
   parentState <- lift ask
-  (ls, (row, col)) <- currentState widgetState <$> viewWidgetLens editWidgetTextLens <*> mapM viewWidgetLens editWidgetLocationLens
-  return $
+  (ls, (row, col)) <- currentState widgetState
+    <$> viewWidgetLens editWidgetTextLens
+    <*> mapM viewWidgetLens editWidgetLocationLens
+  return . singleDrawing $
     fixedViewport widgetName B.Horizontal $
     B.Widget B.Fixed B.Fixed $ do
       rdrCtx <- B.getContext
@@ -166,7 +168,9 @@ handleEditWidgetEditKey = \case
     return WidgetEventHandled
   KeyEditUp -> do
     widgetState@EditWidgetState{..} <- get
-    (_, (row, _)) <- currentState widgetState <$> useWidgetLens editWidgetTextLens <*> mapM useWidgetLens editWidgetLocationLens
+    (_, (row, _)) <- currentState widgetState
+      <$> useWidgetLens editWidgetTextLens
+      <*> mapM useWidgetLens editWidgetLocationLens
     if row == 0
       then return WidgetEventNotHandled
       else do
@@ -174,7 +178,9 @@ handleEditWidgetEditKey = \case
         return WidgetEventHandled
   KeyEditDown -> do
     widgetState@EditWidgetState{..} <- get
-    (ls, (row, _)) <- currentState widgetState <$> useWidgetLens editWidgetTextLens <*> mapM useWidgetLens editWidgetLocationLens
+    (ls, (row, _)) <- currentState widgetState
+      <$> useWidgetLens editWidgetTextLens
+      <*> mapM useWidgetLens editWidgetLocationLens
     if row == length ls - 1
       then return WidgetEventNotHandled
       else do
@@ -196,7 +202,9 @@ handleEditWidgetEditKey = \case
         modifyZipper $ smartBreakLine
         return WidgetEventHandled
       EnterWithBackslash -> do
-        zipper <- currentZipper widgetState <$> useWidgetLens editWidgetTextLens <*> mapM useWidgetLens editWidgetLocationLens
+        zipper <- currentZipper widgetState
+          <$> useWidgetLens editWidgetTextLens
+          <*> mapM useWidgetLens editWidgetLocationLens
         case TZ.previousChar zipper of
           Just '\\' -> do
             modifyZipper $ smartBreakLine . TZ.deletePrevChar

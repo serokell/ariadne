@@ -293,6 +293,21 @@ walletEventToUI = \case
         (uiWalletDatasToTree (toUiWalletDatas db))
         (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
         ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
+  WalletRequireConfirm resVar confirmationType ->
+    Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
+      ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
+      ConfirmRemove db sel     -> UiConfirmRemove $
+        case walletSelectionToInfo (toUiWalletDatas db) $ toUiWalletSelection db sel of
+          UiSelectionWallet UiWalletInfo {..} -> UiDelWallet uwiLabel
+          UiSelectionAccount UiAccountInfo {..} -> UiDelAccount uaciLabel
+      ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
+
+toUiConfirmSendInfo :: ConfirmSendInfo -> UiConfirmSendInfo
+toUiConfirmSendInfo ConfirmSendInfo{..} = UiConfirmSendInfo {..}
+  where
+    csiAddress = confirmSendAddress
+    csiAmount = confirmSendAmount
+    csiCoin = confirmSendCoin
 
 uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiTreeSelection
 uiWalletSelectionToTreeSelection UiWalletSelection{..} =
