@@ -113,7 +113,7 @@ extra-deps:
 ## We are using our fork because we added some stuff there
 - git: https://github.com/serokell/qtah
   # srk-september branch until merged upstream
-  commit: d6ce93a5bdde87fe4b70a1f0a1441954315017d8
+  commit: 4c682417290759b377623babdeca3b6259839c1e
   subdirs:
   - qtah-generator
   - qtah-cpp

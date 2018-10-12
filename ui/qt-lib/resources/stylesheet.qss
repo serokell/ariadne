@@ -274,6 +274,14 @@ QDialog QPushButton[dialogButtonRole="dialogAction"] {
     padding-right: 80px;
 }
 
+QDialog QPushButton[dialogButtonRole="gifButton"] {
+    font-weight: bold;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    padding-left: 102px;
+    padding-right: 102px;
+}
+
 QDialog QLineEdit, QDialog QLineEdit:focus {
     border-top: none;
     border-left: none;

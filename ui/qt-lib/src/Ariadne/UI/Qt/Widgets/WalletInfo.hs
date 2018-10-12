@@ -56,6 +56,7 @@ data WalletInfo =
     , sendButton :: QPushButton.QPushButton
     , requestButton :: QPushButton.QPushButton
     , requestDialog :: IORef (Maybe Request)
+    , sendConfirmDialog :: IORef (Maybe ConfirmSend)
     }
 
 makeLensesWith postfixLFields ''WalletInfo
@@ -141,6 +142,7 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   currentItem <- newIORef Nothing
   currentItemName <- newIORef ""
   requestDialog <- newIORef Nothing
+  sendConfirmDialog <- newIORef Nothing
 
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
@@ -204,8 +206,10 @@ handleWalletInfoEvent UiLangFace{..} ev = do
 
     WalletInfoSendCommandResult _commandId result -> case result of
       UiSendCommandSuccess hash -> do
+        whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
         void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
       UiSendCommandFailure err -> do
+        whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
     WalletInfoNewAccountCommandResult _commandId result -> case result of
@@ -225,10 +229,9 @@ handleWalletInfoEvent UiLangFace{..} ev = do
         DoDelete -> putMVar resultVar True
         Cancel -> putMVar resultVar False
 
-    WalletInfoConfirmSend resultVar sendInfo ->
-      liftIO $ runConfirmSend sendInfo >>= \case
-        ConfirmationAccepted -> putMVar resultVar True
-        ConfirmationCanceled -> putMVar resultVar False
+    WalletInfoConfirmSend resultVar sendInfo -> do
+      cs <- runConfirmSend sendInfo resultVar
+      writeIORef sendConfirmDialog $ Just cs
 
 addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
