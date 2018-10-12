@@ -87,7 +87,7 @@ is about 8 times smaller.
 
 All actions correspond to commands in the [Knit](knit/README.md)
 language and can be typed in a console. Advanced users can execute
-Knit commands instead of using UI.
+Knit commands instead of using UI. The console supports completion.
 
 ### Notifications about new software versions
 

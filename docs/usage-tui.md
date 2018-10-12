@@ -96,8 +96,8 @@ do using the widgets are mapped to `Knit` commands.
 `Knit` is a simple dynamically-typed command language created by Serokell. 
 It lets you control Ariadne by calling and composing functions. In the `Help`
 tab, you can see a complete list of all available functions, along with their 
-signatures and short descriptions. Let's explore `Knit` syntax and these 
-functions in more detail.
+signatures and short descriptions. You can also press Ctrl-Space to invoke code
+completion. Let's explore `Knit` syntax and these functions in more detail.
 
 ### General syntax
 
