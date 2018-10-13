@@ -5,7 +5,6 @@ module Ariadne.UI.Vty.Widget.Repl
 import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
 import Data.List ((!!))
 import Named ((:!), pattern Arg, (!))
-import qualified Universum.Unsafe (last)
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
@@ -86,7 +85,6 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
     addWidgetEventHandler WidgetNameReplInput $ \case
       WidgetEventEditChanged -> do
         reparse
-        replWidgetCurrentAutocompletionL .= Nothing
         historyUpdate
       WidgetEventEditLocationChanged -> do
         replWidgetCurrentAutocompletionL .= Nothing
@@ -182,7 +180,7 @@ drawReplWidget focus ReplWidgetState{..} = do
     inputPromptCont = "\n  ... "
     appendPrompt w = B.Widget (B.hSize w) (B.vSize w) $ do
       c <- B.getContext
-      result <- B.render $ B.hLimit (c ^. B.availWidthL - T.length inputPrompt) w
+      result <- B.render $ B.hLimit (c ^. B.availWidthL - length inputPrompt) w
       B.render $
         B.hBox
           [ B.txt $ inputPrompt <> T.replicate ((result ^. B.imageL & V.imageHeight) - 1) inputPromptCont
@@ -236,9 +234,7 @@ handleReplWidgetKey = \case
       ReplWidgetState{..} <- get
       cmd <- liftIO $ action replWidgetHistoryFace
       whenJust cmd $ \cmd' -> do
-        let
-          ls = T.splitOn "\n" cmd'
-          newLoc = (length ls - 1, T.length $ ls !! (length ls - 1))
+        let newLoc = defaultCommandLocation cmd'
         assign replWidgetCommandL cmd'
         assign replWidgetCommandLocationL newLoc
       reparse
@@ -260,8 +256,7 @@ handleAutocompleteKey move = do
           $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
         prefixSuggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
         suggestions = (`map` prefixSuggestions) $ \suggestion ->
-          let ls' = T.splitOn "\n" suggestion
-          in (suggestion <> cmdAfterLocation, (length ls' - 1, length $ Universum.Unsafe.last ls'))
+          (suggestion <> cmdAfterLocation, defaultCommandLocation suggestion)
         suggestionMap = M.fromList
           $ zip [0..]
           $ (replWidgetCommand, replWidgetCommandLocation) : suggestions
@@ -278,6 +273,14 @@ handleAutocompleteKey move = do
   reparse
   replWidgetCurrentAutocompletionL .= Just newOptions
   return WidgetEventHandled
+
+defaultCommandLocation :: Text -> (Int, Int)
+defaultCommandLocation cmd =
+  let
+    ls = T.splitOn "\n" cmd
+    row = length ls - 1
+  in
+    (row, length $ ls !! row)
 
 handleReplWidgetEvent
   :: UiEvent

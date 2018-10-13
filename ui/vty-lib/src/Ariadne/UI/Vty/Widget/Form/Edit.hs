@@ -245,7 +245,8 @@ currentState EditWidgetState{..} text loc
     | otherwise = (ls, fromMaybe newLoc loc)
   where
     ls = T.splitOn "\n" text
-    newLoc = (length ls - 1, T.length $ ls !! (length ls - 1))
+    row = length ls - 1
+    newLoc = (row, T.length $ ls !! row)
 
 currentZipper :: EditWidgetState p -> Text -> Maybe (Int, Int) -> TextZipper Text
 currentZipper widgetState@EditWidgetState{..} text loc

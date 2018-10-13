@@ -179,9 +179,9 @@ isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 instance Elem components Core => ComponentTokenToLit components Core where
   componentTokenToLit t =
     asum
-      [ (toLit . LitNumber) <$> preview (_Token . uprism . _TokenNumber) t
-      , (toLit . LitString . pack) <$> preview (_Token . uprism . _TokenString) t
-      , (toLit . LitFilePath) <$> preview (_Token . uprism . _TokenFilePath) t
+      [ toLit . LitNumber <$> preview (_Token . uprism . _TokenNumber) t
+      , toLit . LitString . pack <$> preview (_Token . uprism . _TokenString) t
+      , toLit . LitFilePath <$> preview (_Token . uprism . _TokenFilePath) t
       ]
 
 instance ComponentPrinter Core where
