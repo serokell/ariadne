@@ -2,7 +2,6 @@ module Knit.Autocompletion
        ( suggestions
        ) where
 
-import Control.Monad.Writer.Strict (runWriter)
 import Data.List (isPrefixOf)
 import Data.Loc (loc, spanFromTo)
 import Data.Maybe (mapMaybe)
@@ -38,22 +37,25 @@ suggestions
 suggestions _ cmd =
   let
     cmd' = "(" <> cmd
-    tokens = tokenize cmd'
+    tokens = snd $ tokenize cmd'
 
     tokenBalance = \case
       TokenParenthesis bs -> withBracketSide 1 (-1) bs
       _ -> 0
-    parensBalance = sum $ map (\(_, t) -> tokenBalance t) tokens
+    parensBalance = sum $ map (tokenBalance . _lItem) tokens
     cmdLines = T.splitOn "\n" cmd'
     endLoc = (length cmdLines, T.length (last cmdLines) + 1)
 
     loc' a b = loc (fromIntegral a) (fromIntegral b)
-    closingBracketSpan i = SSpan $ spanFromTo
-      (loc' (fst endLoc) (snd endLoc + i))
-      (loc' (fst endLoc) (snd endLoc + i + 1))
+    locatedClosingBracket i t = Located
+      { _lSpan = spanFromTo
+          (loc' (fst endLoc) (snd endLoc + i))
+          (loc' (fst endLoc) (snd endLoc + i + 1))
+      , _lSpaceAfter = mempty
+      , _lItem = t
+      }
 
-    tokens' = tokens ++ zip
-      (map closingBracketSpan [0..])
+    tokens' = tokens ++ zipWith locatedClosingBracket [0..]
       (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
     case fullParses (pExpr @components) tokens' of
@@ -65,7 +67,7 @@ suggestions _ cmd =
           . show
           . ppFormattedExpr)
         $ suggestionExprs commandProcs parensBalance
-        $ fst $ runWriter $ parseTreeToFormattedExpr tree
+        $ fst $ parseTreeToFormattedExpr tree
 
 -- | Returns completion suggestions assuming that the expression was completed
 -- with missing parentheses and wrapped into one extra pair of parentheses
@@ -82,7 +84,7 @@ suggestionExprs procs = skipParensExpr
     didn'tFindParen = error "Core invariant violated: not enough parentheses"
 
     paddedOpUnit :: a
-    paddedOpUnit = error "Core invariant violated: padding between OpUnit and closing paren"
+    paddedOpUnit = error "Core invariant violated: space between OpUnit and closing paren"
 
     skipParensExpr
       :: Int
@@ -94,8 +96,8 @@ suggestionExprs procs = skipParensExpr
       XExpr (ExprInBrackets l e r) ->
         if n > 1
           then XExpr . exprInBrackets l r <$> skipParensExpr (n - 1) e
-          else XExpr . exprInBrackets l noPadding <$>
-            if r == noPadding
+          else XExpr . exprInBrackets l mempty <$>
+            if r == mempty
               then autocompleteExpr e
               else suggestExpr r e
 
@@ -114,8 +116,8 @@ suggestionExprs procs = skipParensExpr
       -> Arg' FormattedExprExt CommandId components
       -> [Arg' FormattedExprExt CommandId components]
     skipParensArg n = \case
-      ArgPos padding e -> ArgPos padding <$> skipParensExpr n e
-      ArgKw padding name e -> ArgKw padding name <$> skipParensExpr n e
+      ArgPos skipped e -> ArgPos skipped <$> skipParensExpr n e
+      ArgKw skipped name e -> ArgKw skipped name <$> skipParensExpr n e
       XArg xxArg -> absurd xxArg
 
     -- | Completes some unfinished word.
@@ -135,10 +137,10 @@ suggestionExprs procs = skipParensExpr
         CommandIdOperator OpUnit -> toProcCall <$> suggestableProcs
         CommandIdOperator OpAndThen ->
           case args of
-            [lhs, ArgPos padding rhs] ->
+            [lhs, ArgPos skipped rhs] ->
               ProcCall NoExt cmd
               . snoc [lhs]
-              . ArgPos padding
+              . ArgPos skipped
               <$> autocompleteExpr rhs
             _ -> invalidOperatorApplication
         CommandIdName name ->
@@ -154,19 +156,19 @@ suggestionExprs procs = skipParensExpr
       -> [Arg' FormattedExprExt CommandId components]
     autocompleteArg cmdName = \case
       ArgPos
-          (ArgPosPadding padding)
+          (ArgPosSkipped skipped)
           (ExprProcCall NoExt (ProcCall NoExt (CommandIdName name) [])) ->
         let
           kwargs =
             (\param ->
               ArgKw
-                (ArgKwPadding padding noPadding)
+                (ArgKwSkipped skipped mempty)
                 param
                 (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
             )
             <$> filter (isPrefixOf (nameStr name) . nameStr) (procParams cmdName)
           procCalls =
-            ArgPos (ArgPosPadding padding)
+            ArgPos (ArgPosSkipped skipped)
             . ExprProcCall NoExt
             . toProcCall
             <$> filter
@@ -174,13 +176,13 @@ suggestionExprs procs = skipParensExpr
               suggestableProcs
         in
           kwargs ++ procCalls
-      ArgPos padding e -> ArgPos padding <$> autocompleteExpr e
-      ArgKw padding name e -> ArgKw padding name <$> autocompleteExpr e
+      ArgPos skipped e -> ArgPos skipped <$> autocompleteExpr e
+      ArgKw skipped name e -> ArgKw skipped name <$> autocompleteExpr e
       XArg xxArg -> absurd xxArg
 
     -- | Suggests possible keyword arguments and procedures.
     suggestExpr
-      :: Padding
+      :: Skipped
       -> Expr FormattedExprExt CommandId components
       -> [Expr FormattedExprExt CommandId components]
     suggestExpr padding = \case
@@ -189,7 +191,7 @@ suggestionExprs procs = skipParensExpr
       XExpr ExprInBrackets{} -> []
 
     suggestPc
-      :: Padding
+      :: Skipped
       -> ProcCall' FormattedExprExt CommandId components
       -> [ProcCall' FormattedExprExt CommandId components]
     suggestPc padding (ProcCall NoExt cmd args) =
@@ -198,11 +200,11 @@ suggestionExprs procs = skipParensExpr
         CommandIdOperator OpAndThen ->
           case args of
             [lhs, ArgPos
-                (ArgPosPadding (Padding 0 0))
+                (ArgPosSkipped (Skipped ""))
                 (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))] ->
               ProcCall NoExt cmd
                 . snoc [lhs]
-                . ArgPos (ArgPosPadding padding)
+                . ArgPos (ArgPosSkipped padding)
                 . ExprProcCall NoExt
                 . toProcCall
                 <$> suggestableProcs
@@ -219,7 +221,7 @@ suggestionExprs procs = skipParensExpr
               . snoc args
               . (\param ->
                   ArgKw
-                    (ArgKwPadding padding noPadding)
+                    (ArgKwSkipped padding mempty)
                     param
                     (ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpUnit) []))
                 )
@@ -227,7 +229,7 @@ suggestionExprs procs = skipParensExpr
             procCalls =
               ProcCall NoExt cmd
               . snoc args
-              . ArgPos (ArgPosPadding padding)
+              . ArgPos (ArgPosSkipped padding)
               . ExprProcCall NoExt
               . toProcCall
               <$> filter (null . snd) suggestableProcs
@@ -249,3 +251,5 @@ suggestionExprs procs = skipParensExpr
     nameStr = unpack . toLazyText . build
 
     isPrefixOfNeq a b = isPrefixOf a b && a /= b
+
+    exprInBrackets l r x = ExprInBrackets l x r

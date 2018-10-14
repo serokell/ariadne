@@ -12,15 +12,15 @@ import Knit.Tokenizer
 data ParseTreeExt
 
 type instance XExprProcCall ParseTreeExt _ _ = NoExt
-type instance XExprLit ParseTreeExt _ components = (SSpan, Token components)
+type instance XExprLit ParseTreeExt _ components = Located (Token components)
 type instance XXExpr ParseTreeExt cmd components =
-    ExprInBrackets (SSpan, Token components) (Expr ParseTreeExt cmd components)
+    ExprInBrackets (Located (Token components)) (Expr ParseTreeExt cmd components)
 
 type instance XProcCall ParseTreeExt _ (Expr ParseTreeExt _ components) =
-    Maybe (SSpan, Token components)
+    Maybe (Located (Token components))
 
 type instance XArgPos ParseTreeExt _ = NoExt
-type instance XArgKw ParseTreeExt (Expr ParseTreeExt _ components) = (SSpan, Token components)
+type instance XArgKw ParseTreeExt (Expr ParseTreeExt _ components) = Located (Token components)
 type instance XXArg ParseTreeExt _ = Void
 
 data ExprInBrackets br a = ExprInBrackets br a br

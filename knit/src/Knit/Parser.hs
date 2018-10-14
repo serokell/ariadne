@@ -29,8 +29,8 @@ import Knit.Tokenizer
 
 tok
   :: Getting (First a) (Token components) a
-  -> Prod r e (SSpan, Token components) ((SSpan, Token components), a)
-tok p = terminal (\x -> (x,) <$> preview (_2 . p) x)
+  -> Prod r e (Located (Token components)) (Located (Token components), a)
+tok p = terminal (\x -> (x,) <$> preview (lItem . p) x)
 
 class ComponentTokenToLit components component where
   componentTokenToLit :: Token components -> Maybe (Lit components)
@@ -39,8 +39,8 @@ gComponentsLit
   :: forall components r.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
   => Grammar r (Prod r Text
-        (SSpan, Token components)
-        ((SSpan, Token components), Lit components))
+        (Located (Token components))
+        (Located (Token components), Lit components))
 gComponentsLit = go (knownSpine @components)
   where
     go
@@ -48,20 +48,20 @@ gComponentsLit = go (knownSpine @components)
          (AllConstrained (ComponentTokenToLit components) components')
       => Spine components'
       -> Grammar r (Prod r Text
-            (SSpan, Token components)
-            ((SSpan, Token components), Lit components))
+            (Located (Token components))
+            (Located (Token components), Lit components))
     go (Base ()) = rule A.empty
     go (Step (Proxy :: Proxy component, xs)) = do
       nt1 <- go xs
       nt2 <- rule $ terminal $ \t -> do
-        lit <- componentTokenToLit @_ @component $ snd t
+        lit <- componentTokenToLit @_ @component $ _lItem t
         pure (t, lit)
       rule $ nt1 <|> nt2
 
 gExpr
   :: forall components r.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Grammar r (Prod r Text (SSpan, Token components) (Expr ParseTreeExt CommandId components))
+  => Grammar r (Prod r Text (Located (Token components)) (Expr ParseTreeExt CommandId components))
 gExpr = mdo
     ntName <- rule $ tok _TokenName
     ntKey <- rule $ tok _TokenKey
@@ -104,7 +104,7 @@ gExpr = mdo
 mkExprGroup
   :: Alternative f
   => f (Expr ParseTreeExt CommandId components)
-  -> f (SSpan, Token components)
+  -> f (Located (Token components))
   -> f (Expr ParseTreeExt CommandId components)
 mkExprGroup expr sep =
     (Knit.Prelude.foldl' opAndThen)
@@ -116,12 +116,12 @@ mkExprGroup expr sep =
 
 pExpr
   :: (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Parser Text [(SSpan, Token components)] (Expr ParseTreeExt CommandId components)
+  => Parser Text [Located (Token components)] (Expr ParseTreeExt CommandId components)
 pExpr = parser gExpr
 
 data ParseError components = ParseError
     { peSource :: Text
-    , peReport :: Report Text [(SSpan, Token components)]
+    , peReport :: Report Text [Located (Token components)]
     }
 
 parseTree
@@ -131,7 +131,7 @@ parseTree
      )
   => Text
   -> Either (ParseError components) (Expr ParseTreeExt CommandId components)
-parseTree str = over _Left (ParseError str) . toEither . fullParses pExpr . tokenize $ str
+parseTree str = over _Left (ParseError str) . toEither . fullParses pExpr . snd . tokenize $ str
   where
     toEither = \case
       ([] , r) -> Left r
@@ -147,4 +147,4 @@ parse
 parse = second dropParseTreeExt . parseTree
 
 parseErrorSpans :: ParseError components -> [Span]
-parseErrorSpans = List.map (getSSpan . fst) . unconsumed . peReport
+parseErrorSpans = List.map _lSpan . unconsumed . peReport
