@@ -1,0 +1,24 @@
+<<: !include "../hpack/module.yaml"
+
+name: acid-view
+
+library: 
+  <<: *lib-common 
+  dependencies:
+    - acid-state
+    - ariadne-cardano
+    - bytestring
+    - directory
+    - optparse-applicative
+    - text
+    - text-format
+
+executables:
+  acid-view :
+    <<: *exec-common
+    source-dirs: app
+    dependencies: 
+      - acid-view
+      - acid-state
+      - ariadne-cardano
+      - bytestring

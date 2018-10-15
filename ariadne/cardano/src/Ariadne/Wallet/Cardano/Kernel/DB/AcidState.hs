@@ -85,6 +85,18 @@ data DB = DB {
       _dbHdWallets :: HdWallets
     }
 
+instance Buildable DB where
+  build DB{..} =
+    bprint (
+      "DB { Wallets = "  % build %
+        ", Accounts = "  % build %
+        ", Addresses = "  % build %
+        " }"
+       )
+        (_dbHdWallets ^. hdWalletsRoots)
+        (_dbHdWallets ^. hdWalletsAccounts)
+        (_dbHdWallets ^. hdWalletsAddresses)
+
 makeLenses ''DB
 deriveSafeCopySimple 1 'base ''DB
 

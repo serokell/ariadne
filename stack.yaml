@@ -16,6 +16,7 @@ packages:
 - ./ui/vty-app
 - ./ui/vty-lib
 - ./knit
+- ./acid-view
 
 extra-deps:
 - git: https://github.com/serokell/cardano-sl
@@ -98,7 +99,7 @@ extra-deps:
 # Because it includes a bunch of safecopy instances that we currently rely upon.
 # Also the 'Serokell.AcidState.ExtendedState' thing.
 - git: https://github.com/serokell/acid-state
-  commit: 1049699df411c9584523ba7424cba1f3f82ac419
+  commit: 219c7217ef52318a74bfa2aa54006b2505112f83
 
 - git: https://github.com/input-output-hk/haskell-hedgehog
   commit: 2e741bb53afb085741807018948ae17d956c53af
