@@ -7,7 +7,7 @@ the same on Linux, Windows and macOS. This document will present you the most of
 
 When you launch `ariadne-qt` the main window appears.
 
-**TODO** screenshot
+![](../img/qt_main_screen.png)
 
 This window has several parts. On the top there is a bar with the logo and some buttons. Most
 important part of that bar is syncing indicator &mdash; it will show whether Ariadne is synced with
@@ -42,10 +42,8 @@ mnemonic matches, the wallet will be actually created. If, however, you fail to 
 mnemonic, you have to start the process from the beginning.
 
 Once the wallet is created you can select it in the wallet tree. On the right you will see its name
-and balance. Also there will appear a "Create account" button. To start actually using the wallet
-you need to create at least one account.
-
-**TODO** AD-296 Create an account and an address in new wallet/account automatically
+and balance. Also there will appear a "Create account" button. Evey new wallet will automatically have
+one account and one address in that account.
 
 When there are too many accounts in a wallet and you don't need to see all of them, you can fold it
 by clicking on the triangle left of the wallet's name.
@@ -80,7 +78,7 @@ will open, where you can enter the amount you want to send and receiver's addres
 accounts..." text right of "FROM" and a pop-up will appear, giving you the list of the current
 wallet's accounts along with their balances. Select desired accounts by clicking on their names and
 close the drop-down by clicking anywhere outside it. If you don't select any accounts, Cardano
-backend will select some based on default input selection strategy. **TODO** elaborate on this?
+backend will select some based on default input selection strategy.
 
 Remember that in Cardano you can not have a fraction of ADA less than 0.000001 (10⁻⁶).
 
@@ -106,7 +104,7 @@ specifically for this task. For more experienced users we offer a way to use thi
 To do so, click "`>_`" button in the top bar and Knit repl will appear on the bottom of the window.
 There you can enter commands and execute them by clicking `Enter`. Output of every command consists
 of two rows: first one starts with "`>`" and contains the command you entered. The second one has
-check mark, cross mark or hourglass signal with command underneath it. Check and cross mean command
+check mark, cross mark or hourglass signal with command id underneath it. Check and cross mean command
 success and failure respectively, with command output right of them. Hourglass symbol indicates that
 command is still executing. You can start several commands at the same time and they will be
 executed asynchronously. To stop some long-running command you can use `kill` command with command's
