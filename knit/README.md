@@ -164,7 +164,7 @@ a component work, in no particular order:
 * `ComponentToken` – type for tokens
 * `ComponentTokenizer` – methods for tokenization
 * `ComponentDetokenizer` – methods for the inverse of tokenization
-* `ComponentLitGrammar` – methods for mapping tokens to literals
+* `ComponentTokenToLit` – methods for mapping tokens to literals
 * `ComponentPrinter` – methods pretty-printing literals and token names
 * `ComponentCommandProcs` – a list of all commands added by the component
 * `ComponentCommandRepr` – type for representing the commands
@@ -396,8 +396,8 @@ for it so far, as custom tokens cover most of the needs. So for now, all we can
 do at the parsing step is to map our custom tokens into literals:
 
 ```
-instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
-  componentLitGrammar = rule $ 
+instance Elem components TaskManager => ComponentTokenToLit components TaskManager where
+  componentTokenToLit = rule $
     toLit . LitTaskId <$> tok (_Token . uprismElem . _TokenTaskId)
 ```
 

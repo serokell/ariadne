@@ -1,14 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Knit.Tokenizer
-       ( BracketSide(..)
+       ( SSpan(..)
+       , BracketSide(..)
        , Tokenizer
        , ComponentToken
        , ComponentTokenizer(..)
        , ComponentDetokenizer(..)
        , Token(..)
 
-       , _BracketSideOpening 
+       , _BracketSideOpening
        , _BracketSideClosing
        , _Token
        , _TokenSquareBracket
@@ -26,6 +27,7 @@ module Knit.Tokenizer
        , tokenize'
        , longestMatch
        , pSomeAlphaNum
+       , withBracketSide
        ) where
 
 import Control.Applicative as A
@@ -36,8 +38,10 @@ import Data.Functor
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
 import Data.Loc
+import Data.Loc.Span (join)
 import Data.Maybe
 import Data.Proxy
+import Data.Semigroup
 import Data.Text as T
 import Data.Void
 import Formatting (build, sformat, (%))
@@ -48,6 +52,13 @@ import Text.Megaparsec.Char
 
 import Knit.Name
 import Knit.Prelude
+
+-- | Span with a 'Semigroup' instance.
+newtype SSpan = SSpan { getSSpan :: Span }
+    deriving (Show, Eq, Ord)
+
+instance Semigroup SSpan where
+    a <> b = SSpan $ getSSpan a `Data.Loc.Span.join` getSSpan b
 
 -- | The side of a bracket.
 --
@@ -231,7 +242,7 @@ detokenize = T.unwords . List.map tokenRender
 tokenize
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> [(Span, Token components)]
+  -> [(SSpan, Token components)]
 tokenize = fromMaybe noTokenErr . tokenize'
   where
     noTokenErr =
@@ -249,7 +260,7 @@ tokenize = fromMaybe noTokenErr . tokenize'
 tokenize'
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> Maybe [(Span, Token components)]
+  -> Maybe [(SSpan, Token components)]
 tokenize' =
   -- 'parseMaybe' runs a parser, returning the result as 'Just' in case of
   -- success and as 'Nothing' in case of failure. It expects the parser to
@@ -262,12 +273,12 @@ tokenize' =
     pSkip *> many (withSpan pToken <* pSkip)
 
 -- | Add a source span to the result of tokenization.
-withSpan :: Tokenizer a -> Tokenizer (Span, a)
+withSpan :: Tokenizer a -> Tokenizer (SSpan, a)
 withSpan p = do
     position1 <- posToLoc <$> getPosition
     t <- p
     position2 <- posToLoc <$> getPosition
-    return (spanFromTo position1 position2, t)
+    return (SSpan $ spanFromTo position1 position2, t)
   where
     posToLoc :: SourcePos -> Loc
     posToLoc SourcePos{..} = uncurry loc

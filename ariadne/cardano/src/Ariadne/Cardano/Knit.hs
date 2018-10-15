@@ -8,7 +8,7 @@ module Ariadne.Cardano.Knit
        , ComponentToken(..)
        , ComponentTokenizer(..)
        , ComponentDetokenizer(..)
-       , ComponentLitGrammar(..)
+       , ComponentTokenToLit(..)
        , ComponentPrinter(..)
        , ComponentCommandRepr(..)
        , ComponentLitToValue(..)
@@ -31,7 +31,6 @@ import Pos.Core
 import Pos.Core.Txp (TxOut)
 import Pos.Crypto
 import Pos.Util.Util (toParsecError)
-import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -62,18 +61,18 @@ instance
     componentInflate =
       \case
         ValueAddress a ->
-          ExprLit $ toLit (LitAddress a)
+          ExprLit NoExt $ toLit (LitAddress a)
         ValuePublicKey pk ->
-          ExprLit $ toLit (LitPublicKey pk)
+          ExprLit NoExt $ toLit (LitPublicKey pk)
         ValueTxOut txOut ->
-          ExprProcCall $ ProcCall "tx-out" $ txOutToArgs txOut
+          ExprProcCall NoExt $ ProcCall NoExt "tx-out" $ txOutToArgs txOut
         ValueCoin coin ->
-          ExprLit $ toLit (LitCoin coin)
+          ExprLit NoExt $ toLit (LitCoin coin)
         ValueHash h ->
-          ExprLit $ toLit (LitHash h)
+          ExprLit NoExt $ toLit (LitHash h)
       where
-        txOutToArgs :: TxOut -> [Arg (Expr CommandId components)]
-        txOutToArgs TxOut {..} = List.map ArgPos $
+        txOutToArgs :: TxOut -> [Arg NoExt (Expr NoExt CommandId components)]
+        txOutToArgs TxOut {..} = List.map (ArgPos NoExt) $
           [ componentInflate $ ValueAddress txOutAddress
           , componentInflate $ ValueCoin txOutValue
           ]
@@ -132,13 +131,13 @@ instance ComponentDetokenizer Cardano where
     TokenHash h -> sformat ("#"%hashHexF) (getAHash h)
     TokenCoin c -> let (amount, unit) = showScientificCoin c in amount <> show unit
 
-instance Elem components Cardano => ComponentLitGrammar components Cardano where
-  componentLitGrammar =
-    rule $ asum
-      [ toLit . LitAddress <$> tok (_Token . uprism . _TokenAddress)
-      , toLit . LitPublicKey <$> tok (_Token . uprism . _TokenPublicKey)
-      , toLit . LitHash <$> tok (_Token . uprism . _TokenHash)
-      , toLit . LitCoin <$> tok (_Token . uprism . _TokenCoin . adaPrism)
+instance Elem components Cardano => ComponentTokenToLit components Cardano where
+  componentTokenToLit t =
+    asum
+      [ (toLit . LitAddress) <$> preview (_Token . uprism . _TokenAddress) t
+      , (toLit . LitPublicKey) <$> preview (_Token . uprism . _TokenPublicKey) t
+      , (toLit . LitHash) <$> preview (_Token . uprism . _TokenHash) t
+      , (toLit . LitCoin) <$> preview (_Token . uprism . _TokenCoin . adaPrism) t
       ]
 
     where

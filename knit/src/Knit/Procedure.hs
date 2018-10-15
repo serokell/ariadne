@@ -23,7 +23,7 @@ data family ComponentCommandRepr (components :: [*]) component
 
 data CommandProc components component = forall e. CommandProc
   { cpName :: CommandId
-  , cpArgumentPrepare :: [Arg (Value components)] -> [Arg (Value components)]
+  , cpArgumentPrepare :: [Arg NoExt (Value components)] -> [Arg NoExt (Value components)]
   , cpArgumentConsumer :: ArgumentConsumer components e
   , cpRepr :: e -> ComponentCommandRepr components component
   , cpHelp :: Text
@@ -56,17 +56,18 @@ resolveProcNames
   :: Eq name
   => (x -> name)
   -> [x]
-  -> Expr name components
-  -> Either (NonEmpty name) (Expr x components)
+  -> Expr NoExt name components
+  -> Either (NonEmpty name) (Expr NoExt x components)
 resolveProcNames nameOf xs =
     over _Left NonEmpty.nub . Validation.toEither . go
   where
     go = \case
-      ExprLit l -> pure (ExprLit l)
-      ExprProcCall procCall -> ExprProcCall <$> goProcCall procCall
+      ExprLit ext l -> pure (ExprLit ext l)
+      ExprProcCall ext procCall -> ExprProcCall ext <$> goProcCall procCall
+      XExpr xxExpr -> absurd xxExpr
 
-    goProcCall (ProcCall procName args) =
-      ProcCall
+    goProcCall (ProcCall ext procName args) =
+      ProcCall ext
         <$> lookupProcName procName
         <*> (traverse.traverse) go args
 

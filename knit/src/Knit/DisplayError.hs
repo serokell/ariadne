@@ -141,8 +141,8 @@ ppParseError (ParseError str (Report {..})) =
 
     isTokenUnknown = isRight . matching _TokenUnknown
     unknownSpans :: [Span]
-    unknownSpans = map fst . takeWhile (isTokenUnknown . snd) $ unconsumed
+    unknownSpans = map (getSSpan . fst) . takeWhile (isTokenUnknown . snd) $ unconsumed
     span = NE.head $
-        case nonEmpty (joinAsc unknownSpans) <|> nonEmpty (map fst unconsumed) of
+        case nonEmpty (joinAsc unknownSpans) <|> nonEmpty (map (getSSpan . fst) unconsumed) of
             Nothing -> spanFromTo strEndLoc (addColumn 1 strEndLoc) :|[]
             Just x  -> x

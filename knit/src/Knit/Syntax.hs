@@ -1,15 +1,37 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 module Knit.Syntax
        ( Operator(..)
        , CommandId(..)
+
+       , NoExt(..)
+
        , Expr(..)
+       , XExprProcCall
+       , XExprLit
+       , XXExpr
+       , ForallXExpr
+
        , ComponentLit
        , Lit(..)
+
        , ProcCall(..)
+       , ProcCall'
+       , XProcCall
+       , ForallXProcCall
+
        , Arg(..)
+       , Arg'
+       , XArgPos
+       , XArgKw
+       , XXArg
+       , ForallXArg
+
        , toLit
        , fromLit
        ) where
 
+import Data.Kind (Constraint)
 import Data.String
 
 import Knit.Name
@@ -34,13 +56,49 @@ data CommandId
 instance IsString CommandId where
   fromString = CommandIdName . fromString
 
-data Expr cmd components
-  = ExprProcCall (ProcCall cmd (Expr cmd components))
-  | ExprLit (Lit components)
+data NoExt = NoExt
+  deriving (Eq, Ord, Show)
 
-deriving instance (Eq (Lit components), Eq cmd) => Eq (Expr cmd components)
-deriving instance (Ord (Lit components), Ord cmd) => Ord (Expr cmd components)
-deriving instance (Show (Lit components), Show cmd) => Show (Expr cmd components)
+data Expr ext cmd components
+  = ExprProcCall (XExprProcCall ext cmd components) (ProcCall ext cmd (Expr ext cmd components))
+  | ExprLit (XExprLit ext cmd components) (Lit components)
+  | XExpr (XXExpr ext cmd components)
+
+type family XExprProcCall (ext :: *) (cmd :: *) (components :: [*])
+type family XExprLit (ext :: *) (cmd :: *) (components :: [*])
+type family XXExpr (ext :: *) (cmd :: *) (components :: [*])
+
+type ForallXExpr (constr :: * -> Constraint) (ext :: *) (cmd :: *) (components :: [*]) =
+    ( constr (XExprProcCall ext cmd components)
+    , constr (XExprLit ext cmd components)
+    , constr (XXExpr ext cmd components)
+    )
+
+type instance XExprProcCall NoExt _ _ = NoExt
+type instance XExprLit NoExt _ _ = NoExt
+type instance XXExpr NoExt _ _ = Void
+
+deriving instance
+    ( Eq (Lit components)
+    , Eq cmd
+    , ForallXExpr Eq ext cmd components
+    , ForallXProcCall Eq ext cmd (Expr ext cmd components)
+    , ForallXArg Eq ext (Expr ext cmd components)
+    ) => Eq (Expr ext cmd components)
+deriving instance
+    ( Ord (Lit components)
+    , Ord cmd
+    , ForallXExpr Ord ext cmd components
+    , ForallXProcCall Ord ext cmd (Expr ext cmd components)
+    , ForallXArg Ord ext (Expr ext cmd components)
+    ) => Ord (Expr ext cmd components)
+deriving instance
+    ( Show (Lit components)
+    , Show cmd
+    , ForallXExpr Show ext cmd components
+    , ForallXProcCall Show ext cmd (Expr ext cmd components)
+    , ForallXArg Show ext (Expr ext cmd components)
+    ) => Show (Expr ext cmd components)
 
 data family ComponentLit component
 
@@ -65,16 +123,82 @@ fromLit
   -> Maybe (ComponentLit component)
 fromLit = umatch . getLitUnion
 
-data ProcCall cmd a = ProcCall cmd [Arg a]
-  deriving (Functor, Foldable, Traversable)
+data ProcCall ext cmd a = ProcCall (XProcCall ext cmd a) cmd [Arg ext a]
 
-deriving instance (Eq cmd, Eq a) => Eq (ProcCall cmd a)
-deriving instance (Ord cmd, Ord a) => Ord (ProcCall cmd a)
-deriving instance (Show cmd, Show a) => Show (ProcCall cmd a)
+type ProcCall' ext cmd components = ProcCall ext cmd (Expr ext cmd components)
 
-data Arg a = ArgPos a | ArgKw Name a
-  deriving (Functor, Foldable, Traversable)
+type family XProcCall ext cmd a
 
-deriving instance Eq a => Eq (Arg a)
-deriving instance Ord a => Ord (Arg a)
-deriving instance Show a => Show (Arg a)
+type ForallXProcCall (constr :: * -> Constraint) (ext :: *) (cmd :: *) (a :: *) =
+    ( constr (XProcCall ext cmd a)
+    )
+
+type instance XProcCall NoExt _ _ = NoExt
+
+deriving instance
+    ( Eq cmd
+    , Eq a
+    , ForallXProcCall Eq ext cmd a
+    , ForallXArg Eq ext a
+    ) => Eq (ProcCall ext cmd a)
+deriving instance
+    ( Ord cmd
+    , Ord a
+    , ForallXProcCall Ord ext cmd a
+    , ForallXArg Ord ext a
+    ) => Ord (ProcCall ext cmd a)
+deriving instance
+    ( Show cmd
+    , Show a
+    , ForallXProcCall Show ext cmd a
+    , ForallXArg Show ext a
+    ) => Show (ProcCall ext cmd a)
+
+instance Functor (ProcCall NoExt cmd) where
+    fmap f (ProcCall NoExt cmd args) = ProcCall NoExt cmd $ map (fmap f) args
+
+instance Foldable (ProcCall NoExt cmd) where
+    foldMap f (ProcCall NoExt _ args) = foldMap (foldMap f) args
+
+instance Traversable (ProcCall NoExt cmd) where
+    sequenceA (ProcCall NoExt cmd args) = ProcCall NoExt cmd <$> traverse sequenceA args
+
+data Arg ext a
+    = ArgPos (XArgPos ext a) a
+    | ArgKw (XArgKw ext a) Name a
+    | XArg (XXArg ext a)
+
+type Arg' ext cmd components = Arg ext (Expr ext cmd components)
+
+type family XArgPos ext a
+type family XArgKw ext a
+type family XXArg ext a
+
+type ForallXArg (constr :: * -> Constraint) (ext :: *) (a :: *) =
+    ( constr (XArgPos ext a)
+    , constr (XArgKw ext a)
+    , constr (XXArg ext a)
+    )
+
+type instance XArgPos NoExt _ = NoExt
+type instance XArgKw NoExt _ = NoExt
+type instance XXArg NoExt _ = Void
+
+deriving instance (Eq a, ForallXArg Eq ext a) => Eq (Arg ext a)
+deriving instance (Ord a, ForallXArg Ord ext a) => Ord (Arg ext a)
+deriving instance (Show a, ForallXArg Show ext a) => Show (Arg ext a)
+
+instance Functor (Arg NoExt) where
+    fmap f (ArgPos NoExt a) = ArgPos NoExt (f a)
+    fmap f (ArgKw NoExt name a) = ArgKw NoExt name (f a)
+    fmap _ (XArg xxArg) = absurd xxArg
+
+instance Foldable (Arg NoExt) where
+    foldMap f (ArgPos NoExt a) = f a
+    foldMap f (ArgKw NoExt _ a) = f a
+    foldMap _ (XArg xxArg) = absurd xxArg
+
+instance Traversable (Arg NoExt) where
+    sequenceA (ArgPos NoExt a) = ArgPos NoExt <$> a
+    sequenceA (ArgKw NoExt name a) = ArgKw NoExt name <$> a
+    sequenceA (XArg xxArg) = absurd xxArg

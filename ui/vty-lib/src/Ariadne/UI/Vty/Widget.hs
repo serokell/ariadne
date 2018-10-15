@@ -164,6 +164,7 @@ data WidgetEvent
   = WidgetEventMenuSelected
   | WidgetEventButtonPressed
   | WidgetEventEditChanged
+  | WidgetEventEditLocationChanged
   | WidgetEventListSelected Int
   | WidgetEventCheckboxToggled
 

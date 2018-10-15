@@ -2,13 +2,16 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
+import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
+import Data.List ((!!))
 import Named ((:!), pattern Arg, (!))
 
 import qualified Brick as B
 import qualified Brick.Widgets.Border as B
+import qualified Data.IntMap.Strict as M
 import qualified Data.Loc as Loc
 import qualified Data.Loc.Span as Loc
+import qualified Data.Stream.Infinite.Functional.Zipper as Z
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -42,6 +45,8 @@ data ReplWidgetState p =
     , replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
+    , replWidgetCommandLocation :: !(Int, Int)
+    , replWidgetCurrentAutocompletion :: !(Maybe (Z.Zipper (Text, (Int, Int))))
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
     , replWidgetFullsizeGetter :: !(p -> Bool)
@@ -61,18 +66,28 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
       , replWidgetLangFace = langFace
       , replWidgetHistoryFace = historyFace
       , replWidgetCommand = ""
+      , replWidgetCommandLocation = (0, 0)
+      , replWidgetCurrentAutocompletion = Nothing
       , replWidgetParseResult = mkReplParseResult langFace ""
       , replWidgetOut = [OutputInfo ariadneBanner]
       , replWidgetFullsizeGetter = fullsizeGetter
       }
 
     addWidgetChild WidgetNameReplInput $
-      initBaseEditWidget (widgetParentLens replWidgetCommandL) "default" (Just id) (Just $ widgetParentGetter spanAttrs) EnterWithBackslash
+      initBaseEditWidget
+        (widgetParentLens replWidgetCommandL)
+        (Just $ Lens $ widgetParentLens replWidgetCommandLocationL)
+        "default"
+        (Just id)
+        (Just $ widgetParentGetter spanAttrs)
+        EnterWithBackslash
 
     addWidgetEventHandler WidgetNameReplInput $ \case
       WidgetEventEditChanged -> do
         reparse
         historyUpdate
+      WidgetEventEditLocationChanged -> do
+        replWidgetCurrentAutocompletionL .= Nothing
       _ -> pass
 
     setWidgetFocusList [WidgetNameReplInput]
@@ -165,7 +180,7 @@ drawReplWidget focus ReplWidgetState{..} = do
     inputPromptCont = "\n  ... "
     appendPrompt w = B.Widget (B.hSize w) (B.vSize w) $ do
       c <- B.getContext
-      result <- B.render $ B.hLimit (c ^. B.availWidthL - T.length inputPrompt) w
+      result <- B.render $ B.hLimit (c ^. B.availWidthL - length inputPrompt) w
       B.render $
         B.hBox
           [ B.txt $ inputPrompt <> T.replicate ((result ^. B.imageL & V.imageHeight) - 1) inputPromptCont
@@ -182,9 +197,9 @@ handleReplWidgetKey = \case
       if null replWidgetCommand
         then return WidgetEventNotHandled
         else do
-          replWidgetCommandL .= ""
-          reparse
+          clearCommand
           return WidgetEventHandled
+    KeyAutocomplete -> handleAutocompleteKey Z.tail
     KeyEnter -> do
       ReplWidgetState{..} <- get
       if
@@ -204,8 +219,7 @@ handleReplWidgetKey = \case
                   commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w rpfExprDoc
                   out = OutputCommand commandId commandSrc [] Nothing
                 zoom replWidgetOutL $ modify (out:)
-                replWidgetCommandL .= ""
-                reparse
+                clearCommand
             widgetName <- B.getName <$> lift get
             liftBrick $ do
               B.invalidateCacheEntry widgetName
@@ -219,9 +233,54 @@ handleReplWidgetKey = \case
     historyNavigate action = do
       ReplWidgetState{..} <- get
       cmd <- liftIO $ action replWidgetHistoryFace
-      whenJust cmd $ assign replWidgetCommandL
+      whenJust cmd $ \cmd' -> do
+        let newLoc = defaultCommandLocation cmd'
+        assign replWidgetCommandL cmd'
+        assign replWidgetCommandLocationL newLoc
       reparse
       return WidgetEventHandled
+
+handleAutocompleteKey
+  :: (forall a. (Z.Zipper a -> Z.Zipper a))
+  -> WidgetEventM (ReplWidgetState p) p WidgetEventResult
+handleAutocompleteKey move = do
+  ReplWidgetState{..} <- get
+  options <- case replWidgetCurrentAutocompletion of
+    Nothing -> do
+      let
+        ls = T.splitOn "\n" replWidgetCommand
+        (locRow, locColumn) = replWidgetCommandLocation
+        cmdBeforeLocation = T.intercalate "\n"
+          $ snoc (take locRow ls) (T.take locColumn (ls !! locRow))
+        cmdAfterLocation = T.intercalate "\n"
+          $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
+        prefixSuggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
+        suggestions = (`map` prefixSuggestions) $ \suggestion ->
+          (suggestion <> cmdAfterLocation, defaultCommandLocation suggestion)
+        suggestionMap = M.fromList
+          $ zip [0..]
+          $ (replWidgetCommand, replWidgetCommandLocation) : suggestions
+        mapSize = M.size suggestionMap
+        options = Z.toSequence $ \i ->
+            suggestionMap M.! (fromInteger (i `mod` fromIntegral mapSize))
+      zoom replWidgetCurrentAutocompletionL $ put $ Just options
+      pure options
+    Just options -> pure options
+  let newOptions = move options
+  let suggestedOption = Z.head newOptions
+  replWidgetCommandL .= fst suggestedOption
+  replWidgetCommandLocationL .= snd suggestedOption
+  reparse
+  replWidgetCurrentAutocompletionL .= Just newOptions
+  return WidgetEventHandled
+
+defaultCommandLocation :: Text -> (Int, Int)
+defaultCommandLocation cmd =
+  let
+    ls = T.splitOn "\n" cmd
+    row = length ls - 1
+  in
+    (row, length $ ls !! row)
 
 handleReplWidgetEvent
   :: UiEvent
@@ -243,8 +302,15 @@ handleReplWidgetEvent = \case
               scrollToEnd widgetName
     _ -> pass
 
+clearCommand :: WidgetEventM (ReplWidgetState p) p ()
+clearCommand = do
+  replWidgetCommandL .= ""
+  replWidgetCommandLocationL .= (0, 0)
+  reparse
+
 reparse :: WidgetEventM (ReplWidgetState p) p ()
 reparse = do
+  replWidgetCurrentAutocompletionL .= Nothing
   ReplWidgetState{..} <- get
   replWidgetParseResultL .= mkReplParseResult replWidgetLangFace replWidgetCommand
 

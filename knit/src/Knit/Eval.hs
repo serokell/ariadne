@@ -49,7 +49,7 @@ evaluate
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (SomeCommandProc components) components
+  -> Expr NoExt (SomeCommandProc components) components
   -> m (Either (EvalError components) (Value components))
 evaluate ctxs expr = runExceptT (eval ctxs expr)
 
@@ -60,12 +60,13 @@ eval
      , Ord (Value components)
      )
   => ExecContext m components
-  -> Expr (SomeCommandProc components) components
+  -> Expr NoExt (SomeCommandProc components) components
   -> EvalT components m (Value components)
 eval ctxs = \case
-  ExprLit l -> return (literalToValue l)
-  ExprProcCall procCall ->
+  ExprLit _ l -> return (literalToValue l)
+  ExprProcCall _ procCall ->
     evalProcCall ctxs =<< traverse (eval ctxs) procCall
+  XExpr xxExpr -> absurd xxExpr
 
 evalProcCall
   :: forall m components.
@@ -74,10 +75,10 @@ evalProcCall
      , Ord (Value components)
      )
   => ExecContext m components
-  -> ProcCall (SomeCommandProc components) (Value components)
+  -> ProcCall NoExt (SomeCommandProc components) (Value components)
   -> EvalT components m (Value components)
-evalProcCall ctxs (ProcCall (SomeCommandProc commandProc) args) =
-  componentEvalProcCall (rget ctxs) (ProcCall commandProc args)
+evalProcCall ctxs (ProcCall NoExt (SomeCommandProc commandProc) args) =
+  componentEvalProcCall (rget ctxs) (ProcCall NoExt commandProc args)
 
 literalToValue
   :: forall components.
@@ -97,9 +98,9 @@ componentEvalProcCall
      , Ord (Value components)
      )
   => ComponentExecContext m components component
-  -> ProcCall (CommandProc components component) (Value components)
+  -> ProcCall NoExt (CommandProc components component) (Value components)
   -> EvalT components m (Value components)
-componentEvalProcCall ctx (ProcCall CommandProc{..} args) = do
+componentEvalProcCall ctx (ProcCall _ CommandProc{..} args) = do
     e <- either (throwError . InvalidArguments cpName) return $
          consumeArguments cpArgumentConsumer $
          cpArgumentPrepare args

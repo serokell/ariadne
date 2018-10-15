@@ -1,6 +1,7 @@
 module Knit.Printer
        ( ComponentPrinter(..)
        , PrettyPrintValue
+       , invalidOperatorApplication
        , ppLit
        , ppToken
        , ppExpr
@@ -10,7 +11,7 @@ module Knit.Printer
        ) where
 
 import Data.List as List
-import Data.Monoid
+import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import Data.Text.Buildable (build)
 import qualified Data.Text.Lazy as TL
@@ -29,6 +30,9 @@ import Knit.Value
 class ComponentPrinter component where
   componentPpLit :: ComponentLit component -> Doc
   componentPpToken :: ComponentToken component -> Doc
+
+invalidOperatorApplication :: a
+invalidOperatorApplication = error "Core invariant violated: invalid operator application"
 
 ppLit
   :: forall components.
@@ -54,23 +58,23 @@ ppToken = \case
 
 ppExpr
   :: AllConstrained ComponentPrinter components
-  => Expr CommandId components
+  => Expr NoExt CommandId components
   -> Doc
 ppExpr =
   \case
-    ExprLit l -> ppLit l
-    ExprProcCall p -> ppProcCall p
+    ExprLit NoExt l -> ppLit l
+    ExprProcCall NoExt p -> ppProcCall p
+    XExpr xxExpr -> absurd xxExpr
   where
-    ppProcCall (ProcCall commandName args) =
+    ppProcCall (ProcCall NoExt commandName args) =
       case commandName of
         CommandIdName name -> ppProcedureCall name args
         CommandIdOperator op -> ppOperatorCall op args
 
-    ppOperatorCall OpUnit [] = text ""
-    ppOperatorCall OpAndThen [ArgPos a, ArgPos b] =
+    ppOperatorCall OpUnit [] = mempty
+    ppOperatorCall OpAndThen [ArgPos NoExt a, ArgPos NoExt b] =
       (parensIfSemicolon a (ppExpr a) <> PP.char ';') PP.<$> ppExpr b
-    ppOperatorCall _ _ =
-      error "Core invariant violated: invalid operator application"
+    ppOperatorCall _ _ = invalidOperatorApplication
 
     ppProcedureCall procName args =
       let
@@ -83,16 +87,17 @@ ppExpr =
         else nameDoc PP.<+> argsDoc
 
     ppArg = \case
-      ArgPos a -> parensIfProcCall a (ppExpr a)
-      ArgKw name a -> nameToDoc name PP.<> PP.colon PP.<+>
+      ArgPos NoExt a -> parensIfProcCall a (ppExpr a)
+      ArgKw NoExt name a -> nameToDoc name PP.<> PP.colon PP.<+>
         parensIfProcCall a (ppExpr a)
+      XArg xxArg -> absurd xxArg
 
     parensIfSemicolon = \case
-      ExprProcCall (ProcCall (CommandIdOperator OpAndThen) _) -> PP.parens
+      ExprProcCall NoExt (ProcCall NoExt (CommandIdOperator OpAndThen) _) -> PP.parens
       _ -> id
 
     parensIfProcCall = \case
-      ExprProcCall (ProcCall _ args) | not (List.null args) -> PP.parens
+      ExprProcCall NoExt (ProcCall NoExt _ args) | not (List.null args) -> PP.parens
       _ -> id
 
 ppValue :: PrettyPrintValue components => Value components -> Doc

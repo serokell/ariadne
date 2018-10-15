@@ -7,7 +7,7 @@ module Knit.Core
        , ComponentToken(..)
        , ComponentTokenizer(..)
        , ComponentDetokenizer(..)
-       , ComponentLitGrammar(..)
+       , ComponentTokenToLit(..)
        , ComponentPrinter(..)
        , ComponentCommandRepr(..)
        , ComponentLitToValue(..)
@@ -46,7 +46,6 @@ import Data.Scientific
 import Data.String
 import Data.Text
 import Data.Word
-import Text.Earley
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
@@ -85,19 +84,19 @@ instance
   where
     componentInflate = \case
       ValueUnit ->
-        ExprProcCall $ ProcCall (CommandIdOperator OpUnit) []
+        ExprProcCall NoExt $ ProcCall NoExt (CommandIdOperator OpUnit) []
       ValueBool b ->
         let commandName = bool "false" "true"   b
-        in ExprProcCall $ ProcCall commandName []
+        in ExprProcCall NoExt $ ProcCall NoExt commandName []
       ValueNumber n ->
-        ExprLit $ toLit (LitNumber n)
+        ExprLit NoExt $ toLit (LitNumber n)
       ValueString s ->
-        ExprLit $ toLit (LitString s)
+        ExprLit NoExt $ toLit (LitString s)
       ValueFilePath s ->
-        ExprLit $ toLit (LitFilePath s)
+        ExprLit NoExt $ toLit (LitFilePath s)
       ValueList vs ->
-        ExprProcCall $ ProcCall "L" $
-        List.map (ArgPos . inflate) vs
+        ExprProcCall NoExt $ ProcCall NoExt "L" $
+        List.map (ArgPos NoExt . inflate) vs
 
 data instance ComponentLit Core
   = LitNumber Scientific
@@ -177,12 +176,12 @@ instance ComponentDetokenizer Core where
 isFilePathChar :: Char -> Bool
 isFilePathChar c = isAlphaNum c || c `elem` ['.', '/', '-', '_']
 
-instance Elem components Core => ComponentLitGrammar components Core where
-  componentLitGrammar =
-    rule $ asum
-      [ toLit . LitNumber <$> tok (_Token . uprism . _TokenNumber)
-      , toLit . LitString . pack <$> tok (_Token . uprism . _TokenString)
-      , toLit . LitFilePath <$> tok (_Token . uprism . _TokenFilePath)
+instance Elem components Core => ComponentTokenToLit components Core where
+  componentTokenToLit t =
+    asum
+      [ toLit . LitNumber <$> preview (_Token . uprism . _TokenNumber) t
+      , toLit . LitString . pack <$> preview (_Token . uprism . _TokenString) t
+      , toLit . LitFilePath <$> preview (_Token . uprism . _TokenFilePath) t
       ]
 
 instance ComponentPrinter Core where

@@ -7,7 +7,7 @@ module Ariadne.Wallet.Knit
        , ComponentToken(..)
        , ComponentTokenizer(..)
        , ComponentDetokenizer(..)
-       , ComponentLitGrammar(..)
+       , ComponentTokenToLit(..)
        , ComponentPrinter(..)
        , ComponentCommandRepr(..)
        , ComponentLitToValue(..)
@@ -32,7 +32,6 @@ module Ariadne.Wallet.Knit
 
 import Control.Lens (makePrisms)
 import Serokell.Data.Memory.Units (fromBytes)
-import Text.Earley
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Pos.Client.Txp.Util (defaultInputSelectionPolicy)
@@ -75,10 +74,10 @@ instance
   ( Elem components Wallet
   ) => ComponentInflate components Wallet where
   componentInflate = \case
-    ValueAddressHash ah -> ExprLit $ toLit (LitAddressHash ah)
+    ValueAddressHash ah -> ExprLit NoExt $ toLit (LitAddressHash ah)
     ValueInputSelectionPolicy policy ->
       let commandName = inputSelectionPolicyName policy
-      in ExprProcCall $ ProcCall commandName []
+      in ExprProcCall NoExt $ ProcCall NoExt commandName []
 
 data instance ComponentLit Wallet =
   LitAddressHash PAddressHash deriving (Eq, Ord, Show)
@@ -102,9 +101,9 @@ instance ComponentDetokenizer Wallet where
   componentTokenRender = \case
     TokenAddressHash h -> formatAddressHash h
 
-instance Elem components Wallet => ComponentLitGrammar components Wallet where
-  componentLitGrammar = rule $ asum
-    [ toLit . LitAddressHash <$> tok (_Token . uprism . _TokenAddressHash) ]
+instance Elem components Wallet => ComponentTokenToLit components Wallet where
+  componentTokenToLit t = asum
+    [ (toLit . LitAddressHash) <$> preview (_Token . uprism . _TokenAddressHash) t ]
 
 instance ComponentPrinter Wallet where
   componentPpLit = \case

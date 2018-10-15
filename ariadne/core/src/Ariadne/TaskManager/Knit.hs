@@ -10,7 +10,7 @@ module Ariadne.TaskManager.Knit
        , ComponentLitToValue(..)
        , ComponentTokenizer(..)
        , ComponentDetokenizer(..)
-       , ComponentLitGrammar(..)
+       , ComponentTokenToLit(..)
        , ComponentPrinter(..)
        , ComponentCommandExec(..)
        , ComponentCommandProcs(..)
@@ -23,7 +23,6 @@ import Control.Concurrent.Async
 import Control.Exception
 import Control.Lens (makePrisms)
 import Formatting hiding (text)
-import Text.Earley
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as P
 
@@ -41,7 +40,7 @@ makePrisms 'ValueTaskId
 
 instance Elem components TaskManager => ComponentInflate components TaskManager where
   componentInflate (ValueTaskId cid) =
-    ExprLit $ toLit (LitTaskId cid)
+    ExprLit NoExt $ toLit (LitTaskId cid)
 
 data instance ComponentCommandRepr components TaskManager
   = CommandAction (TaskManagerFace (Value components) -> IO (Value components))
@@ -77,10 +76,10 @@ instance ComponentDetokenizer TaskManager where
   componentTokenRender = \case
     TokenTaskId (TaskId cid) -> sformat ("<"%build%">") (toInteger cid)
 
-instance Elem components TaskManager => ComponentLitGrammar components TaskManager where
-  componentLitGrammar =
-    rule $ asum
-      [ toLit . LitTaskId <$> tok (_Token . uprism . _TokenTaskId)
+instance Elem components TaskManager => ComponentTokenToLit components TaskManager where
+  componentTokenToLit t =
+    asum
+      [ (toLit . LitTaskId) <$> preview (_Token . uprism . _TokenTaskId) t
       ]
 
 instance ComponentPrinter TaskManager where
