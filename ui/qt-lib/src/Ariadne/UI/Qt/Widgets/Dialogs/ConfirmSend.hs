@@ -95,6 +95,7 @@ initConfirmSend confirmInfo resultVar = do
   connect_ isSure QAbstractButton.toggledSignal $ \_ -> isSureToggled cs
   connect_ confirmButtonGif QMovie.frameChangedSignal $ \_ ->
     QAbstractButton.setIcon gifButton =<< QIcon.newWithPixmap  =<< QMovie.currentPixmap confirmButtonGif
+
   return cs
 
 confirmButtonClicked :: ConfirmSend -> MVar Bool -> IO ()

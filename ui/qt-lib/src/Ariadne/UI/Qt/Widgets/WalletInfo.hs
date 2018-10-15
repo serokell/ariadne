@@ -204,13 +204,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       writeIORef currentItem Nothing
       writeIORef currentItemName ""
 
-    WalletInfoSendCommandResult _commandId result -> case result of
-      UiSendCommandSuccess hash -> do
-        whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
-        void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
-      UiSendCommandFailure err -> do
-        whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
-        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+    WalletInfoSendCommandResult _commandId result -> do
+      whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
+      void $ case result of
+        UiSendCommandSuccess hash -> do 
+          void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
+        UiSendCommandFailure err -> do
+          void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
     WalletInfoNewAccountCommandResult _commandId result -> case result of
       UiNewAccountCommandSuccess -> do
