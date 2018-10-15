@@ -201,7 +201,7 @@ Stack](#build-using-stack) to build Ariadne, type `stack exec --
 ariadne` to launch the executable. In order to use GUI launch
 `ariadne-qt`.
 
-For complete usage guide visit [TUI](docs/usage-tui.md) page.
+For complete usage guide visit [TUI](docs/usage-tui.md) or [GUI](docs/usage-gui.md) page.
 
 ## Issue tracker
 
