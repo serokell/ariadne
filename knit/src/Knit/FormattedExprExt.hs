@@ -1,21 +1,12 @@
 module Knit.FormattedExprExt
        ( FormattedExprExt
-       , Padding(..)
-       , ArgPosPadding(..)
-       , ArgKwPadding(..)
+       , ArgPosSkipped(..)
+       , ArgKwSkipped(..)
 
-       , exprInBrackets
-       , noPadding
        , parseTreeToFormattedExpr
        , ppFormattedExpr
        ) where
 
-import Control.Monad.Writer.Strict hiding ((<>))
-import Data.Semigroup (Option(..), option, (<>))
-import Numeric.Natural
-
-import qualified Data.Loc as L
-import qualified Data.Loc.Span as L
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
@@ -32,7 +23,7 @@ type instance XExprProcCall FormattedExprExt _ _ = NoExt
 type instance XExprLit FormattedExprExt _ _ = NoExt
 -- | Space between the brackets and nested expression.
 type instance XXExpr FormattedExprExt cmd components =
-    ExprInBrackets Padding (Expr FormattedExprExt cmd components)
+    ExprInBrackets Skipped (Expr FormattedExprExt cmd components)
 
 -- | Information about the space between procedure and its arguments and between
 -- the arguments is stored with the arguments. Their meaning depends on the
@@ -41,44 +32,20 @@ type instance XXExpr FormattedExprExt cmd components =
 -- before itself.
 type instance XProcCall FormattedExprExt _ _ = NoExt
 
-type instance XArgPos FormattedExprExt _ = ArgPosPadding
-type instance XArgKw FormattedExprExt _ = ArgKwPadding
+type instance XArgPos FormattedExprExt _ = ArgPosSkipped
+type instance XArgKw FormattedExprExt _ = ArgKwSkipped
 type instance XXArg FormattedExprExt _ = Void
 
-exprInBrackets :: br -> br -> a -> ExprInBrackets br a
-exprInBrackets l r x = ExprInBrackets l x r
-
--- | To print space between two entities, we first print some amount of newlines
--- and then print some amount of spaces.
-data Padding = Padding
-  { pLines :: Natural
-  , pColumns :: Natural
-  } deriving (Show, Eq, Ord)
-
-noPadding :: Padding
-noPadding = Padding 0 0
-
-newtype ArgPosPadding = ArgPosPadding Padding
+newtype ArgPosSkipped = ArgPosSkipped Skipped
   deriving (Show)
 
-data ArgKwPadding = ArgKwPadding
-  { akpPrefix :: Padding
-  , akpBetween :: Padding
+data ArgKwSkipped = ArgKwSkipped
+  { aksPrefix :: Skipped
+  , aksBetween :: Skipped
   } deriving (Show)
 
-ppPadding :: Padding -> Doc
-ppPadding Padding{..} =
-  PP.string
-    $ replicate (fromIntegral pLines) '\n'
-    ++ replicate (fromIntegral pColumns) ' '
-
-paddingBetween :: SSpan -> SSpan -> Padding
-paddingBetween (SSpan a) (SSpan b) =
-  if L.locLine (L.end a) == L.locLine (L.start b)
-    then Padding 0 $ L.toNat (L.locColumn (L.start b)) - L.toNat (L.locColumn (L.end a))
-    else Padding
-      (L.toNat (L.locLine (L.start b)) - L.toNat (L.locLine (L.end a)))
-      (L.toNat (L.locColumn (L.start b)) - 1)
+ppSkipped :: Skipped -> Doc
+ppSkipped (Skipped str) = PP.string str
 
 procedureWithNoName :: a
 procedureWithNoName = error "Core invariant violated: procedure with no name"
@@ -86,100 +53,71 @@ procedureWithNoName = error "Core invariant violated: procedure with no name"
 opUnitWithAName :: a
 opUnitWithAName = error "Core invariant violated: OpUnit with a name"
 
--- | Converts parse tree to formatted expression alongside with the span this
--- expression covers. 'OpUnit' inside brackets is placed right before the
--- closing bracket i.e. "(<space> OpUnit)" instead of "(OpUnit <space>)".
+-- | Converts parse tree to formatted expression alongside with space skipped
+-- after parsing provided tree. 'OpUnit' inside brackets is placed right before
+-- the closing bracket i.e. "(<space> OpUnit)" instead of "(OpUnit <space>)".
 parseTreeToFormattedExpr
   :: forall components.
      Expr ParseTreeExt CommandId components
-  -> Writer (Option SSpan) (Expr FormattedExprExt CommandId components)
+  -> (Expr FormattedExprExt CommandId components, Skipped)
 parseTreeToFormattedExpr =
   \case
     XExpr (ExprInBrackets l e r) ->
-      let
-        e' = parseTreeToFormattedExpr e
-        decorate =
-          XExpr .
-            case getOption $ execWriter e' of
-              Just sp -> exprInBrackets
-                (fst l `paddingBetween` sp)
-                (sp `paddingBetween` fst r)
-              Nothing -> exprInBrackets
-                (fst l `paddingBetween` fst r)
-                noPadding
-      in
-        wrapSpan l *> fmap decorate e' <* wrapSpan r
-    ExprProcCall NoExt pc -> ExprProcCall NoExt <$> pcToFormattedPc pc
-    ExprLit tok lit -> wrapSpan tok $> ExprLit NoExt lit
+      let (e', se) = parseTreeToFormattedExpr e
+      in (XExpr $ ExprInBrackets (l^.lSpaceAfter) e' se, r^.lSpaceAfter)
+    ExprProcCall NoExt pc -> first (ExprProcCall NoExt) (pcToFormattedPc pc)
+    ExprLit tok lit -> (ExprLit NoExt lit, tok^.lSpaceAfter)
   where
-    wrapSpan (a, b) = writer (b, Option $ Just a)
-
     pcToFormattedPc
       :: ProcCall' ParseTreeExt CommandId components
-      -> Writer (Option SSpan) (ProcCall' FormattedExprExt CommandId components)
+      -> (ProcCall' FormattedExprExt CommandId components, Skipped)
     pcToFormattedPc (ProcCall tok cmd args) =
       case cmd of
         CommandIdName _ ->
-          case fmap fst tok of
-            Just sp -> wrapSpan $ ProcCall NoExt cmd <$> argGo sp args
+          case tok of
+            Just tok' -> first (ProcCall NoExt cmd) (argGo (tok'^.lSpaceAfter) args)
             Nothing -> procedureWithNoName
         CommandIdOperator op ->
           case (op, tok, args) of
-            (OpAndThen, Just tokSp, [ArgPos NoExt lhs, ArgPos NoExt rhs]) ->
+            (OpAndThen, Just tok', [ArgPos NoExt lhs, ArgPos NoExt rhs]) ->
               let
-                lhs' = parseTreeToFormattedExpr lhs
-                lhs'' =
-                  ArgPos (ArgPosPadding $
-                    option noPadding (`paddingBetween` fst tokSp) $ execWriter lhs')
-                  <$> lhs'
-                rhs' = parseTreeToFormattedExpr rhs
-                rhs'' =
-                  ArgPos (ArgPosPadding $
-                    option noPadding (fst tokSp `paddingBetween`) $ execWriter rhs')
-                  <$> rhs'
+                (lhs', lSkipped) = parseTreeToFormattedExpr lhs
+                lhs'' = ArgPos (ArgPosSkipped lSkipped) lhs'
+                (rhs', rSkipped) = parseTreeToFormattedExpr rhs
+                rhs'' = ArgPos (ArgPosSkipped $ tok'^.lSpaceAfter) rhs'
               in
-                ProcCall NoExt cmd <$> liftA3 (\a _ b -> [a, b])
-                    lhs'' (wrapSpan tokSp) rhs''
+                (ProcCall NoExt cmd [lhs'', rhs''], rSkipped)
             (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
 
-            (OpUnit, Nothing, []) -> writer (ProcCall NoExt cmd [], Option Nothing)
+            (OpUnit, Nothing, []) -> (ProcCall NoExt cmd [], mempty)
             (OpUnit, Just _, []) -> opUnitWithAName
 
             _ -> invalidOperatorApplication
 
     argToFormattedArg
-      :: (SSpan -> Padding)
+      :: Skipped
       -> Arg' ParseTreeExt CommandId components
-      -> Writer (Option SSpan) (Arg' FormattedExprExt CommandId components)
-    argToFormattedArg mkPadding = \case
+      -> (Arg' FormattedExprExt CommandId components, Skipped)
+    argToFormattedArg skippedBefore = \case
       XArg xxArg -> absurd xxArg
-      ArgPos NoExt a ->
-        let
-          a' = parseTreeToFormattedExpr a
-          padding = ArgPosPadding $ option noPadding mkPadding $ execWriter a'
-        in
-          ArgPos padding <$> a'
+      ArgPos NoExt a -> first (ArgPos (ArgPosSkipped skippedBefore)) (parseTreeToFormattedExpr a)
       ArgKw nameTok name a ->
         let
-          a' = parseTreeToFormattedExpr a
-          padding = ArgKwPadding
-            { akpPrefix = mkPadding (fst nameTok)
-            , akpBetween = option noPadding (fst nameTok `paddingBetween`) $ execWriter a'
+          skipped = ArgKwSkipped
+            { aksPrefix = skippedBefore
+            , aksBetween = nameTok^.lSpaceAfter
             }
         in
-          wrapSpan nameTok $> ArgKw padding name <*> a'
+          first (ArgKw skipped name) (parseTreeToFormattedExpr a)
 
     argGo
-      :: SSpan
+      :: Skipped
       -> [Arg' ParseTreeExt CommandId components]
-      -> (SSpan, [Arg' FormattedExprExt CommandId components])
-    argGo prevSp [] = (prevSp, [])
-    argGo prevSp (arg : args) =
-      let
-        arg' = argToFormattedArg (prevSp `paddingBetween`) arg
-        newSp = option prevSp (prevSp <>) $ execWriter arg'
-      in
-        (fst (runWriter arg') :) <$> argGo newSp args
+      -> ([Arg' FormattedExprExt CommandId components], Skipped)
+    argGo skippedBefore [] = ([], skippedBefore)
+    argGo skippedBefore (arg : args) =
+      let (arg', skippedAfter) = argToFormattedArg skippedBefore arg
+      in first (arg' :) (argGo skippedAfter args)
 
 ppFormattedExpr
   :: forall components.
@@ -191,7 +129,7 @@ ppFormattedExpr =
     ExprLit NoExt l -> ppLit l
     ExprProcCall NoExt p -> ppProcCall p
     XExpr (ExprInBrackets l e r) ->
-      PP.parens $ ppPadding l <> ppFormattedExpr e <> ppPadding r
+      PP.parens $ ppSkipped l PP.<> ppFormattedExpr e PP.<> ppSkipped r
   where
     ppProcCall (ProcCall NoExt commandName args) =
       case commandName of
@@ -199,15 +137,16 @@ ppFormattedExpr =
         CommandIdOperator op -> ppOperatorCall op args
 
     ppOperatorCall OpUnit [] = mempty
-    ppOperatorCall OpAndThen [ArgPos (ArgPosPadding lp) l, ArgPos (ArgPosPadding rp) r] =
-      ppFormattedExpr l <> ppPadding lp <> PP.char ';' <>
-      ppPadding rp <> ppFormattedExpr r
+    ppOperatorCall OpAndThen [ArgPos (ArgPosSkipped lp) l, ArgPos (ArgPosSkipped rp) r] =
+      ppFormattedExpr l PP.<> ppSkipped lp PP.<> PP.char ';' PP.<>
+      ppSkipped rp PP.<> ppFormattedExpr r
     ppOperatorCall _ _ = invalidOperatorApplication
 
-    ppProcedureCall procName args = nameToDoc procName <> mconcat (map ppArg args)
+    ppProcedureCall procName args = nameToDoc procName PP.<> mconcat (map ppArg args)
 
     ppArg = \case
-      ArgPos (ArgPosPadding prefix) a -> ppPadding prefix <> ppFormattedExpr a
-      ArgKw (ArgKwPadding prefix between) name a ->
-        ppPadding prefix <> nameToDoc name <> PP.colon <> ppPadding between <> ppFormattedExpr a
+      ArgPos (ArgPosSkipped prefix) a -> ppSkipped prefix PP.<> ppFormattedExpr a
+      ArgKw ArgKwSkipped{..} name a ->
+        ppSkipped aksPrefix PP.<> nameToDoc name PP.<> PP.colon PP.<>
+        ppSkipped aksBetween PP.<> ppFormattedExpr a
       XArg xxArg -> absurd xxArg

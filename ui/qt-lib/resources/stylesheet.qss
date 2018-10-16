@@ -43,6 +43,7 @@ QPushButton[styleRole="secondaryButton"]:hover {
     background: rgba(52, 52, 62, 51);
 }
 QPushButton[styleRole="secondaryButton"]:disabled {
+    color : rgba(52, 52, 62, 127);
     background: rgba(52, 52, 62, 12);
 }
 
@@ -272,6 +273,14 @@ QDialog QPushButton[dialogButtonRole="dialogAction"] {
     padding-bottom: 14px;
     padding-left: 80px;
     padding-right: 80px;
+}
+
+QDialog QPushButton[dialogButtonRole="gifButton"] {
+    font-weight: bold;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    padding-left: 102px;
+    padding-right: 102px;
 }
 
 QDialog QLineEdit, QDialog QLineEdit:focus {
