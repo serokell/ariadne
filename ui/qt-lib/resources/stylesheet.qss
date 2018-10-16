@@ -43,6 +43,7 @@ QPushButton[styleRole="secondaryButton"]:hover {
     background: rgba(52, 52, 62, 51);
 }
 QPushButton[styleRole="secondaryButton"]:disabled {
+    color : rgba(52, 52, 62, 127);
     background: rgba(52, 52, 62, 12);
 }
 
