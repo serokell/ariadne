@@ -1,6 +1,8 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.ConfirmSend
   ( runConfirmSend
+  , closeConfirmSend
   , ConfirmationResult(..)
+  , ConfirmSend
   ) where
 
 import Control.Lens (makeLensesWith)
@@ -9,6 +11,8 @@ import qualified Data.Text as T
 
 import Graphics.UI.Qtah.Signal (connect_)
 
+import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
+import qualified Graphics.UI.Qtah.Gui.QMovie as QMovie
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
@@ -29,6 +33,9 @@ data ConfirmSend =
     { dialog :: QDialog.QDialog
     , isSure :: QCheckBox.QCheckBox
     , confirmButton :: QPushButton.QPushButton
+    , cancelButton :: QPushButton.QPushButton
+    , confirmButtonGif :: QMovie.QMovie
+    , gifButton :: QPushButton.QPushButton
     }
 
 data ConfirmationResult
@@ -37,8 +44,8 @@ data ConfirmationResult
 
 makeLensesWith postfixLFields ''ConfirmSend
 
-initConfirmSend :: [UiConfirmSendInfo] -> IO ConfirmSend
-initConfirmSend confirmInfo = do
+initConfirmSend :: [UiConfirmSendInfo] -> MVar Bool -> IO ConfirmSend
+initConfirmSend confirmInfo resultVar = do
   dialog <- QDialog.new
   QWidget.resizeRaw dialog 776 266
   QWidget.setWindowTitle dialog (toString sendHeaderMessage)
@@ -57,40 +64,65 @@ initConfirmSend confirmInfo = do
 
   isSure <- createCheckBox layout CheckboxOnLeft sendDefinitiveMessage
 
+  confirmButtonGif <- QMovie.newWithFile (":/images/confirm-ic.gif" :: String)
+
   buttonsLayout <- QHBoxLayout.new
   cancelButton <- QPushButton.newWithText ("CANCEL" :: String)
   confirmButton <- QPushButton.newWithText ("CONFIRM" :: String)
+  gifButton <- QPushButton.new
   QBoxLayout.setSpacing buttonsLayout 12
   QBoxLayout.addStretch buttonsLayout
   QBoxLayout.addWidget buttonsLayout cancelButton
   QBoxLayout.addWidget buttonsLayout confirmButton
+  QBoxLayout.addWidget buttonsLayout gifButton
   QBoxLayout.addLayout layout buttonsLayout
   QBoxLayout.addStretch buttonsLayout
 
   setProperty cancelButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
   setProperty confirmButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
+  setProperty gifButton ("dialogButtonRole" :: Text) ("gifButton" :: Text)
   setProperty cancelButton ("styleRole" :: Text) ("secondaryButton" :: Text)
 
   let cs = ConfirmSend{..}
 
   QWidget.setEnabled confirmButton False
+  QWidget.setVisible gifButton False
   QBoxLayout.addStretch layout
   QWidget.adjustSize dialog
 
-  connect_ confirmButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept dialog
-  connect_ cancelButton QAbstractButton.clickedSignal $ \_ -> QDialog.reject dialog
+  connect_ confirmButton QAbstractButton.clickedSignal $ \_ -> confirmButtonClicked cs resultVar
+  connect_ cancelButton QAbstractButton.clickedSignal $ \_ -> cancelButtonClicked cs resultVar
   connect_ isSure QAbstractButton.toggledSignal $ \_ -> isSureToggled cs
+  connect_ confirmButtonGif QMovie.frameChangedSignal $ \_ ->
+    QAbstractButton.setIcon gifButton =<< QIcon.newWithPixmap  =<< QMovie.currentPixmap confirmButtonGif
 
   return cs
+
+confirmButtonClicked :: ConfirmSend -> MVar Bool -> IO ()
+confirmButtonClicked ConfirmSend{..} resultVar = do
+  QWidget.setEnabled cancelButton False
+  QWidget.setEnabled isSure False
+  QWidget.setVisible confirmButton False
+  QWidget.setVisible gifButton True
+
+  putMVar resultVar True
+  QMovie.start confirmButtonGif
+
+cancelButtonClicked :: ConfirmSend -> MVar Bool -> IO ()
+cancelButtonClicked ConfirmSend{..} resultVar = do
+  void $ QWidget.close dialog
+  putMVar resultVar False
 
 isSureToggled :: ConfirmSend -> IO ()
 isSureToggled ConfirmSend{..} =
   QAbstractButton.isChecked isSure >>= QWidget.setEnabled confirmButton
 
-runConfirmSend :: [UiConfirmSendInfo] -> IO ConfirmationResult
-runConfirmSend confirmInfo = do
-  ConfirmSend{..} <- initConfirmSend confirmInfo
-  result <- toEnum <$> QDialog.exec dialog
-  return $ case result of
-    QDialog.Accepted -> ConfirmationAccepted
-    QDialog.Rejected -> ConfirmationCanceled
+runConfirmSend :: [UiConfirmSendInfo] -> MVar Bool -> IO ConfirmSend
+runConfirmSend confirmInfo resultVar = do
+  cs@ConfirmSend{..} <- initConfirmSend confirmInfo resultVar
+  QWidget.show dialog
+  return cs
+
+closeConfirmSend :: ConfirmSend -> IO ()
+closeConfirmSend ConfirmSend{..} =
+  void $ QWidget.close dialog
