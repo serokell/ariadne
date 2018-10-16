@@ -7,6 +7,7 @@
 - [ ] Updated docs if necessary
   - [ ] [README](README.md)
   - [ ] [TUI usage guide](docs/usage-tui.md)
+  - [ ] [GUI usage guide](docs/usage-gui.md)
   - [ ] [Configuration documentation](docs/configuration.md)
   - [ ] [GUI architecture documentation](docs/gui-architecture.md)
 - [ ] My code complies with the [style guide](docs/code-style.md)
