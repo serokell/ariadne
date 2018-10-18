@@ -112,6 +112,7 @@ data WidgetNamePart
   | WidgetNameWallet
   | WidgetNameWalletName
   | WidgetNameWalletRenameButton
+  | WidgetNameWalletRemoveButton
   | WidgetNameWalletExportButton
   | WidgetNameWalletAccountList
   | WidgetNameWalletNewAccountName
@@ -121,6 +122,7 @@ data WidgetNamePart
   | WidgetNameAccount
   | WidgetNameAccountName
   | WidgetNameAccountRenameButton
+  | WidgetNameAccountRemoveButton
   | WidgetNameAccountSend
   | WidgetNameAccountAddressGenerateButton
   | WidgetNameAccountAddressList

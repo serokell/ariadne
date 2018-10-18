@@ -41,6 +41,7 @@ module Ariadne.UI.Vty.Face
        , UiNewAddressCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
+       , UiRemoveCommandResult (..)
        , UiExportCommandResult (..)
 
        , UiTreeItem (..)
@@ -190,7 +191,7 @@ data UiConfirmationType
   | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
 
 data UiConfirmSendInfo =
-  UiConfirmSendInfo 
+  UiConfirmSendInfo
     { csiAddress :: Text
     , csiAmount  :: Text
     , csiCoin    :: Text
@@ -217,6 +218,7 @@ data UiCommand
   | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
+  | UiRemove
   | UiExport
   | UiKill Natural
 
@@ -279,6 +281,7 @@ data UiCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiRenameCommandResult UiRenameCommandResult
+  | UiRemoveCommandResult UiRemoveCommandResult
   | UiExportCommandResult UiExportCommandResult
 
 data UiBalanceCommandResult
@@ -330,6 +333,10 @@ data UiRestoreWalletCommandResult
 data UiRenameCommandResult
   = UiRenameCommandSuccess
   | UiRenameCommandFailure Text
+
+data UiRemoveCommandResult
+  = UiRemoveCommandSuccess
+  | UiRemoveCommandFailure Text
 
 data UiExportCommandResult
   = UiExportCommandSuccess Text
