@@ -182,7 +182,7 @@ linkQT thread finalizer = do
     r <- waitCatch thread
     case r of
       Left e -> finalizer e
-      _ -> return ()
+      _ -> pass
   where
     -- Actually forkRepeat from Control.Concurrent.Async required for linkQT
     forkRepeat :: IO a -> IO ThreadId
@@ -191,7 +191,7 @@ linkQT thread finalizer = do
         let go = do r <- tryIO (restore action)
                     case r of
                       Left _ -> go
-                      _ -> return ()
+                      _ -> pass
         in forkIO go
     -- Try with specified type
     tryIO :: IO a -> IO (Either SomeException a)
