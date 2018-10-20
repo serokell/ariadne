@@ -67,7 +67,7 @@ suggestions _ cursor cmd =
       (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
     case fullParses (pExpr @components) tokens' of
-      ([], _) -> []
+      ([], _) -> [(cursor, cmd)]
       (tree:_, _) ->
         let
           (formattedExpr, spaceAfter) = parseTreeToFormattedExpr (Selection $ Just cursor) tree
@@ -75,6 +75,10 @@ suggestions _ cursor cmd =
             SpaceWithSelection
               (Space $ NonEmpty.toList $ getSkipped $ _lItem space)
               (selectionInSpan (getCursor cursor) (_lSpan space))
+          makeRightSws x =
+            if cmd == ""
+              then SpaceWithSelection def (Selection $ Just def)
+              else makeSws x
           processSuggestion ((suggestion, LeftSpace swsBefore), RightSpace swsAfter) =
             let
               (suggestionStr, selection) = ppFormattedExpr swsBefore suggestion swsAfter
@@ -91,7 +95,7 @@ suggestions _ cursor cmd =
               (runStateT
                 (suggestionExprs commandProcs formattedExpr)
                 (LeftSpace $ makeSws spaceBefore))
-              (RightSpace $ makeSws spaceAfter)
+              (RightSpace $ makeRightSws spaceAfter)
 
 newtype LeftSpace = LeftSpace { getLeftSpace :: SpaceWithSelection }
   deriving (Default)
