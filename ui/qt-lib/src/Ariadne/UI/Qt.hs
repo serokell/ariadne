@@ -1,6 +1,7 @@
 module Ariadne.UI.Qt
        ( UiFace(..)
        , createAriadneUI
+       , killQtUI
        ) where
 
 import Control.Concurrent
@@ -75,6 +76,9 @@ runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langF
         handleAppEvent langFace putPass eventIORef mainWindow >> return True
 
     QCoreApplication.exec
+
+killQtUI :: SomeException -> IO ()
+killQtUI _ = QCoreApplication.exit 1
 
 mkEventBQueue :: IO (UiEventBQueue)
 mkEventBQueue = newTBQueueIO 100

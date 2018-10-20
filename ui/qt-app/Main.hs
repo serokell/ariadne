@@ -30,6 +30,7 @@ main = defaultMain mainSettings
         , msPutPasswordEventToUI = putPasswordEventToUI
         , msKnitFaceToUI = knitFaceToUI
         , msUiExecContext = const $ Base ()
+        , msKillUI = killQtUI
         }
 
     createUI
