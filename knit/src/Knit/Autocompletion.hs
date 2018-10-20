@@ -40,7 +40,7 @@ suggestions
   => proxy components
   -> Cursor
   -> T.Text
-  -> [(T.Text, Cursor)]
+  -> [(Cursor, T.Text)]
 suggestions _ cursor cmd =
   let
     (spaceBefore, tokens) = tokenize cmd
@@ -79,11 +79,11 @@ suggestions _ cursor cmd =
             let
               (suggestionStr, selection) = ppFormattedExpr swsBefore suggestion swsAfter
             in
-              ( T.dropEnd parensBalance suggestionStr
-              , maybe
+              ( maybe
                   (error "Core invariant violated: no cursor after autocompletion")
                   id
                 $ getSelection selection
+              , T.dropEnd parensBalance suggestionStr
               )
         in
           map processSuggestion $
