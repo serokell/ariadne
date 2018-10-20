@@ -182,15 +182,17 @@ suggestionExprs procs = goExpr
         CommandIdName name -> do
           ProcCall pcSelection' cmd' args' <-
             goPcName
+              True
               (ProcCall pcSelection name args)
               (ProcCall pcSelection name $ reverse args)
           pure $ ProcCall pcSelection' cmd' $ reverse args'
 
     goPcName
-      :: ProcCall FormattedExprExt Name (Expr FormattedExprExt CommandId components)
+      :: Bool
+      -> ProcCall FormattedExprExt Name (Expr FormattedExprExt CommandId components)
       -> ProcCall FormattedExprExt Name (Expr FormattedExprExt CommandId components)
       -> SuggestionMonad (ProcCall' FormattedExprExt CommandId components)
-    goPcName pc = (>>= goPcRightSpace pc) . \case
+    goPcName firstCall pc = (>>= goPcRightSpace firstCall pc) . \case
 
       ProcCall _ _ (XArg xxArg : _) -> absurd xxArg
 
@@ -199,7 +201,7 @@ suggestionExprs procs = goExpr
         oldRight <- liftRight get
         liftRight $ put $ RightSpace $ getArgPosSpace space
         (ProcCall pcSelection' pcName' argsRest') <-
-          goPcName pc (ProcCall pcSelection pcName argsRest)
+          goPcName False pc (ProcCall pcSelection pcName argsRest)
         space' <- liftRight $ gets getRightSpace
 
         let
@@ -232,7 +234,7 @@ suggestionExprs procs = goExpr
         oldRight <- liftRight get
         liftRight $ put $ RightSpace $ aksPrefix space
         (ProcCall pcSelection' pcName' argsRest') <-
-          goPcName pc (ProcCall pcSelection pcName argsRest)
+          goPcName False pc (ProcCall pcSelection pcName argsRest)
         space' <- liftRight $ gets getRightSpace
 
         oldLeft <- liftLeft get
@@ -262,15 +264,16 @@ suggestionExprs procs = goExpr
                 pure $ toProcCall pcName'
 
     goPcRightSpace
-      :: ProcCall FormattedExprExt Name (Expr FormattedExprExt CommandId components)
+      :: Bool
+      -> ProcCall FormattedExprExt Name (Expr FormattedExprExt CommandId components)
       -> ProcCall' FormattedExprExt CommandId components
       -> SuggestionMonad (ProcCall' FormattedExprExt CommandId components)
-    goPcRightSpace (ProcCall _ pcName _) pc@(ProcCall pcSelection pcCmd pcArgs) = do
+    goPcRightSpace firstCall (ProcCall _ pcName _) pc@(ProcCall pcSelection pcCmd pcArgs) = do
       RightSpace right <- liftRight get
       case getSelection $ swsSelection right of
         Nothing -> pure pc
         Just c ->
-          if c == def || c == cursorAfterSpace (swsSpace right)
+          if c == def || not firstCall && c == cursorAfterSpace (swsSpace right)
             then pure pc
             else pure pc <|> do
               let (leftSpace', rightSpace') = splitAtCursor c $ getSpace $ swsSpace right
