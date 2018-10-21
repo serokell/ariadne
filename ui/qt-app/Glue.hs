@@ -95,8 +95,8 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       }
 
     extractPass = \case
-      UiNewWallet _ maybePass -> maybePass
-      UiRestoreWallet _ maybePass _ _ -> maybePass
+      UiNewWallet _ maybePass -> Just $ fromMaybe "" maybePass
+      UiRestoreWallet _ maybePass _ _ -> Just $ fromMaybe "" maybePass
       _ -> Nothing
     pushPassword password = putPass WalletIdTemporary password Nothing
 
