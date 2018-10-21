@@ -31,6 +31,7 @@ data WalletId
     | WalletIdByUiIndex !Word
     -- ^ id based on the Ui index
     -- TODO: [AD-294] Remove knowledge of UI indices from Wallet backend
+    | WalletIdByBackend !Text
     deriving (Eq, Ord)
 
 data PasswordManager = PasswordManager
