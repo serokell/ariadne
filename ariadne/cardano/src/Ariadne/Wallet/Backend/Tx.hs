@@ -117,7 +117,7 @@ sendTx
     unless noConfirm $
         unlessM (waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs) $
             throwM SendTxNotConfirmed
-    pp <- getPassPhrase walletRef
+    pp <- getPassPhrase $ WalletRefByHdRootId walletRootId
     voidWrongPass walletRef . runCardanoMode $
         sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
   where

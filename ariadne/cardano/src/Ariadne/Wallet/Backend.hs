@@ -125,7 +125,7 @@ fromWalletRef :: WalletReference -> WalletId
 fromWalletRef = \case
     WalletRefByUIindex wrd -> WalletIdByUiIndex wrd
     WalletRefSelection     -> WalletIdSelected
-    _ -> WalletIdTemporary
+    WalletRefByHdRootId hid -> WalletIdByBackend $ show hid
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be
