@@ -6,7 +6,7 @@ module Ariadne.MainTemplate
        ) where
 
 import Control.Concurrent
-import Control.Concurrent.Async (Async(..), link, race_, waitCatch, withAsync)
+import Control.Concurrent.Async
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))
 import Data.Version (Version)
@@ -70,7 +70,7 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
         Rec (Knit.ComponentExecContext IO (AllComponents uiComponents)) uiComponents)
     , msKillUI :: !(SomeException -> IO ())
     -- ^ Kill UI, should probably show some information about exception before killing
-    -- not necessary for VTY application
+    -- not necessary for VTY application for now
     }
 
 -- | Default implementation of the 'main' function.
@@ -156,8 +156,9 @@ initializeEverything MainSettings {..}
     initAction = walletInitAction
 
     serviceAction :: IO ()
-    serviceAction = do
-      raceWithUpdateCheckAction $ cardanoAction
+    serviceAction =
+      raceWithUpdateCheckAction $
+      cardanoAction
 
     mainAction :: IO ()
     mainAction = do
@@ -166,33 +167,24 @@ initializeEverything MainSettings {..}
       -- Spawn backend actions in async thread, then run ui action in the main thread
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
       withAsync serviceAction $ \serviceThread -> do
-        -- Make backend rethrow all exceptions in main thread if something goes wrong
-        -- Unfortunately, it doesn't rethrow exceptions into FFI calls in QT app
-        link serviceThread
-        -- Make custom link to service thread for QT app, which is going to call msKillUI, if somethings goes wrong
-        linkQT serviceThread msKillUI
+        -- Make custom link to service thread for UI apps.
+        -- It is going to call msKillUI and rethrow exception, if somethings goes wrong
+        linkUI serviceThread msKillUI
         uiAction
 
   return mainAction
 
 -- Similar to link from Control.Concurrent.Async, but calls finalizer on exception
-linkQT :: Async a -> (SomeException -> IO ()) -> IO ()
-linkQT thread finalizer = do
-  void $ forkRepeat $ do
+linkUI :: Async a -> (SomeException -> IO ()) -> IO ()
+linkUI thread finalizer = do
+  me <- myThreadId
+  void $ forkIO $ do
     r <- waitCatch thread
     case r of
-      Left e -> finalizer e
+      Left e | (not . isCancel) e -> finalizer e >> throwTo me (ExceptionInLinkedThread thread e)
       _ -> pass
   where
-    -- Actually forkRepeat from Control.Concurrent.Async required for linkQT
-    forkRepeat :: IO a -> IO ThreadId
-    forkRepeat action =
-      mask $ \restore ->
-        let go = do r <- tryIO (restore action)
-                    case r of
-                      Left _ -> go
-                      _ -> pass
-        in forkIO go
-    -- Try with specified type
-    tryIO :: IO a -> IO (Either SomeException a)
-    tryIO = try
+    isCancel :: SomeException -> Bool
+    isCancel e
+      | Just AsyncCancelled <- fromException e = True
+      | otherwise = False
