@@ -8,7 +8,6 @@ import Control.Monad.Trans
 import Control.Monad.Trans.State.Strict
 import Data.Default
 import Data.List (isPrefixOf)
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Loc (loc, spanFromTo)
 import Data.Maybe (mapMaybe)
 import Data.Semigroup ((<>))
@@ -73,7 +72,7 @@ suggestions _ cursor cmd =
           (formattedExpr, spaceAfter) = parseTreeToFormattedExpr (Selection $ Just cursor) tree
           makeSws = maybe def $ \space ->
             SpaceWithSelection
-              (Space $ NonEmpty.toList $ getSkipped $ _lItem space)
+              (Space $ toList $ getSkipped $ _lItem space)
               (selectionInSpan (getCursor cursor) (_lSpan space))
           makeRightSws x =
             if cmd == ""
@@ -114,6 +113,7 @@ liftRight = lift
 liftList :: [a] -> SuggestionMonad a
 liftList = lift . lift
 
+{-# ANN module ("HLint: ignore Reduce duplication" :: T.Text) #-}
 -- | Returns completion suggestions assuming that the expression was completed
 -- with missing parentheses before parsing.
 suggestionExprs
