@@ -390,7 +390,7 @@ ariadneBanner (Arg defAttr) _ = V.vertCat $ map (V.text' defAttr)
   , ""
   , "              Press <Enter> to send a command,"
   , "        <Backslash> <Enter> to insert a line break,"
-  , "      <Ctrl+P>/<Ctrl+N> to go to previous/next command,"
+  , "    <Up Arrow>/<Down Arrow> to go to previous/next command,"
   , "       <Tab> to switch between widgets, <Esc> for menu"
   , "     Hint: you can select text with mouse by holding Shift"
   ]
