@@ -50,7 +50,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
 import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
-import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..), getPwlDBSnapshot)
 import Ariadne.Wallet.Face
 
 data NoWalletSelection = NoWalletSelection
@@ -227,7 +227,7 @@ refreshState
   -> IO ()
 refreshState pwl walletSelRef sendWalletEvent = do
   walletSel <- readIORef walletSelRef
-  walletDb <- pwlGetDBSnapshot pwl
+  walletDb <- getPwlDBSnapshot pwl
   sendWalletEvent (WalletStateSetEvent walletDb walletSel)
 
 newAddress ::
@@ -245,7 +245,7 @@ newAddress pwl WalletFace {..} walletSelRef getPassPhrase voidWrongPass accRef h
           AccountRefByHdAccountId (HdAccountId hdRtId _) -> WalletRefByHdRootId hdRtId
           AccountRefByUIindex _ wRef -> wRef
   pp <- getPassPhrase walletRef
-  walletDb <- pwlGetDBSnapshot pwl
+  walletDb <- getPwlDBSnapshot pwl
   hdAccId <- resolveAccountRef walletSelRef accRef walletDb
 
   hdAddr <- voidWrongPass walletRef . throwLeftIO $
@@ -261,7 +261,7 @@ newAccount
   -> Maybe AccountName
   -> IO ()
 newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
-  walletDb <- pwlGetDBSnapshot pwl
+  walletDb <- getPwlDBSnapshot pwl
   (hdrId, accList) <- second toList <$>
       resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
 
@@ -336,7 +336,7 @@ addWallet ::
 addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP createWithA assurance = do
   walletName <-
       fromMaybe
-      (genWalletName <$> pwlGetDBSnapshot pwl)
+      (genWalletName <$> getPwlDBSnapshot pwl)
       (pure <$> mbWalletName)
 
   throwLeftIO $ void <$>
@@ -361,7 +361,7 @@ select
   -> [Word]
   -> IO ()
 select pwl WalletFace{..} walletSelRef voidSelectionPass mWalletRef uiPath = do
-  walletDb <- pwlGetDBSnapshot pwl
+  walletDb <- getPwlDBSnapshot pwl
   mbSelection <- case mWalletRef of
     Nothing -> return Nothing
     Just walletRef -> do
@@ -394,14 +394,14 @@ getBalance pwl walletSelRef = do
     Just selection ->
       case selection of
         WSRoot rootId -> do
-          walletDb <- pwlGetDBSnapshot pwl
+          walletDb <- getPwlDBSnapshot pwl
           -- Using the unsafe function is OK here, since the case where
           -- the invariant that the balance exceeds @maxCoin@ is broken
           -- is clearly a programmer mistake.
           pure $ unsafeIntegerToCoin $
             hdRootBalance rootId (walletDb ^. dbHdWallets)
         WSAccount accountId -> do
-          walletDb <- pwlGetDBSnapshot pwl
+          walletDb <- getPwlDBSnapshot pwl
           account <- either throwM pure $
             readHdAccount accountId (walletDb ^. dbHdWallets)
           pure $ hdAccountBalance account
@@ -419,7 +419,7 @@ removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
     Nothing -> pure Nothing
     -- Throw "Nothing selected" here?
     Just selection -> do
-      walletDb <- pwlGetDBSnapshot pwl
+      walletDb <- getPwlDBSnapshot pwl
       unless noConfirm $
         unlessM (waitUiConfirm $ ConfirmRemove walletDb selection) $
           throwM RemoveFailedUnconfirmed

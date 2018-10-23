@@ -34,8 +34,10 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
+import Ariadne.Wallet.Cardano.WalletLayer (getPwlDBSnapshot)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
+
 
 data SendTxException
     = SendTxNoAddresses !HdRootId
@@ -103,7 +105,7 @@ sendTx
   = do
     -- TODO: call newPending here
     let NT runCardanoMode = cardanoRunCardanoMode
-    walletDb <- pwlGetDBSnapshot pwl
+    walletDb <- getPwlDBSnapshot  pwl
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-
         resolveWalletRefThenRead walletSelRef walletRef

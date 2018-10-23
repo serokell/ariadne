@@ -20,7 +20,7 @@ import Ariadne.Wallet.Backend.Restore
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
-import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
+import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..), getPwlDBSnapshot)
 import Ariadne.Wallet.Cardano.WalletLayer.Kernel (passiveWalletLayerComponent)
 import Ariadne.Wallet.Face
 
@@ -109,7 +109,7 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                 , walletSend =
                     sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
                 , walletGetSelection =
-                    (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
+                    (,) <$> readIORef walletSelRef <*> getPwlDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =

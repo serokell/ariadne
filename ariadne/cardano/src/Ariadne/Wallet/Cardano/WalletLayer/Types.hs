@@ -2,9 +2,9 @@ module Ariadne.Wallet.Cardano.WalletLayer.Types
        ( PassiveWalletLayer (..)
        ) where
 
+import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
@@ -83,10 +83,8 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlRollbackBlocks
           :: NewestFirst NE Blund
           -> m ()
-
-    -- | internal, hopefully these will go in the future
-    , pwlGetDBSnapshot
-          :: m Kernel.DB
+    , pwlGetPassiveWallet
+          :: Kernel.PassiveWallet
     , pwlLookupKeystore
           :: Kernel.HdRootId
           -> m (Maybe EncryptedSecretKey)

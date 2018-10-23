@@ -1,6 +1,7 @@
 module Ariadne.Wallet.Cardano.WalletLayer.Kernel
        ( passiveWalletLayerComponent
        , passiveWalletLayerCustomDBComponent
+       , getPwlDBSnapshot
        ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
@@ -110,8 +111,7 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
 
             , pwlApplyBlocks           = liftIO . invoke . Actions.ApplyBlocks
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
-
-            , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
+            , pwlGetPassiveWallet      = wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $
                 Keystore.lookup (WalletIdHdSeq hdrId) (wallet ^. Kernel.walletKeystore)
             }
@@ -125,3 +125,6 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
             $ UnsafeRawResolvedBlock mainBlock spentOutputs'
         where
             spentOutputs' = map (map Unsafe.fromJust) $ undoTx u
+
+getPwlDBSnapshot :: MonadIO m => PassiveWalletLayer m -> m Kernel.DB
+getPwlDBSnapshot pwl = liftIO $ Kernel.getWalletSnapshot (pwlGetPassiveWallet pwl)
