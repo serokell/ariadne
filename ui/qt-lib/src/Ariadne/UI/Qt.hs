@@ -22,7 +22,6 @@ import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
-import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Control.Concurrent.STM.TBQueue
 
@@ -87,10 +86,10 @@ killQtUI e = do
   QMessageBox.setWindowTitle msg ("Error" :: String)
   QMessageBox.setIcon msg QMessageBox.Critical
   QMessageBox.setText msg ("Got exception from backend: " <> show e :: String)
-  connect_ msg QMessageBox.buttonClickedSignal $ \_ -> QCoreApplication.exit 1
+  connect_ msg QMessageBox.buttonClickedSignal $ \_ -> QDialog.accept msg
   connect_ msg QDialog.acceptedSignal $ QCoreApplication.exit 1
   connect_ msg QDialog.rejectedSignal $ QCoreApplication.exit 1
-  QWidget.show msg
+  void $ QDialog.exec msg
 
 mkEventBQueue :: IO (UiEventBQueue)
 mkEventBQueue = newTBQueueIO 100
