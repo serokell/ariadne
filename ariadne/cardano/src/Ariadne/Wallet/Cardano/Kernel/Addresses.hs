@@ -10,14 +10,14 @@ import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
 import qualified Text.Show
 
-import Data.Acid (AcidState, query, update)
+import Data.Acid (AcidState, query)
 
 import Pos.Core (IsBootstrapEraAddr(..), mkCoin)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (CreateHdAddress(..), DB, Snapshot(..), dbHdWallets)
+  (createHdAddress', DB, Snapshot(..), dbHdWallets)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAccountId, HdAddress, HdAddressChain, HdAddressId(..), hdAccountIdIx,
   hdAccountIdParent)
@@ -165,7 +165,7 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
             mbAddr
 
         let hdAddress = initHdAddress hdAddressId (InDb newAddress) firstCheckpoint
-        res <- liftIO $ update db (CreateHdAddress hdAddress)
+        res <- createHdAddress' db hdAddress
 
         case res of
             (Left (CreateHdAddressExists _)) ->

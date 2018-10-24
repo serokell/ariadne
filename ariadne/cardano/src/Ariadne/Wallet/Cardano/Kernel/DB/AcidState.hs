@@ -19,8 +19,6 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState
          -- *** CREATE
        , CreateHdWallet(..)
        , CreateHdAccount(..)
-       , CreateHdAddress(..)
-         -- *** UPDATE
        , UpdateHdWalletName(..)
        , UpdateHdWalletAssurance(..)
        , UpdateHdAccountName(..)
@@ -31,6 +29,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.AcidState
        , NewPendingError
          -- * Testing
        , ObservableRollbackUseInTestsOnly(..)
+         -- *** CREATE HDAddress Helper
+       , createHdAddress'
        ) where
 
 import Control.Lens (at, non, to)
@@ -39,7 +39,7 @@ import Control.Monad.Except (MonadError, catchError, runExcept)
 
 import Test.QuickCheck (Arbitrary(..), oneof)
 
-import Data.Acid (Query, Update, makeAcidic)
+import Data.Acid (AcidState, Query, Update, makeAcidic, update)
 import qualified Data.Map.Merge.Strict as Map.Merge
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
@@ -502,3 +502,13 @@ makeAcidic ''DB [
       -- Testing
     , 'observableRollbackUseInTestsOnly
     ]
+
+{-------------------------------------------------------------------------------
+  HD C(R)UD operations helpers
+-------------------------------------------------------------------------------}
+
+createHdAddress' :: (MonadIO m)
+                 => AcidState DB
+                 -> HdAddress
+                 -> m (Either HD.CreateHdAddressError ())
+createHdAddress' db hdAddress = liftIO $ update db (CreateHdAddress hdAddress)
