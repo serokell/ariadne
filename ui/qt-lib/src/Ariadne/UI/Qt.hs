@@ -10,7 +10,6 @@ import Control.Monad.Extra (loopM)
 
 import Ariadne.UI.Qt.Face
   (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
-import Graphics.UI.Qtah.Signal (connect_)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -20,8 +19,8 @@ import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QFontDatabase as QFontDatabase
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
-import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
+import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Control.Concurrent.STM.TBQueue
 
@@ -82,12 +81,8 @@ runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langF
 
 killQtUI :: SomeException -> IO ()
 killQtUI e = do
-  msg <- QMessageBox.new
-  QMessageBox.setWindowTitle msg ("Error" :: String)
-  QMessageBox.setIcon msg QMessageBox.Critical
-  QMessageBox.setText msg ("Got exception from backend: " <> show e :: String)
-  connect_ msg QMessageBox.buttonClickedSignal $ \_ -> QDialog.accept msg
-  void $ QDialog.exec msg
+  msg <- QWidget.new
+  void $ QMessageBox.critical msg ("Error" :: String) ("Got exception from backend: " <> show e :: String)
   QCoreApplication.exit 1
 
 mkEventBQueue :: IO (UiEventBQueue)
