@@ -87,9 +87,8 @@ killQtUI e = do
   QMessageBox.setIcon msg QMessageBox.Critical
   QMessageBox.setText msg ("Got exception from backend: " <> show e :: String)
   connect_ msg QMessageBox.buttonClickedSignal $ \_ -> QDialog.accept msg
-  connect_ msg QDialog.acceptedSignal $ QCoreApplication.exit 1
-  connect_ msg QDialog.rejectedSignal $ QCoreApplication.exit 1
   void $ QDialog.exec msg
+  QCoreApplication.exit 1
 
 mkEventBQueue :: IO (UiEventBQueue)
 mkEventBQueue = newTBQueueIO 100

@@ -5,8 +5,10 @@ module Ariadne.MainTemplate
        , defaultMain
        ) where
 
-import Control.Concurrent
+import Control.Concurrent (forkIO, myThreadId, throwTo)
 import Control.Concurrent.Async
+  (Async(..), AsyncCancelled(..), ExceptionInLinkedThread(..), race_,
+  waitCatch, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))
 import Data.Version (Version)
@@ -181,7 +183,7 @@ linkUI thread finalizer = do
   void $ forkIO $ do
     r <- waitCatch thread
     case r of
-      Left e | (not . isCancel) e -> finalizer e >> throwTo me (ExceptionInLinkedThread thread e)
+      Left e | not $ isCancel e -> finalizer e >> throwTo me (ExceptionInLinkedThread thread e)
       _ -> pass
   where
     isCancel :: SomeException -> Bool
