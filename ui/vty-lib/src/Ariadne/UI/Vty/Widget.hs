@@ -38,6 +38,7 @@ module Ariadne.UI.Vty.Widget
        , assignWidgetLens
        , widgetEvent
        , withWidgetState
+       , updateEditable
 
        , drawWidget
        , drawWidgetChild
@@ -420,6 +421,13 @@ withWidgetState action = do
   (res, st) <- runStateT action =<< use widgetStateL
   widgetStateL .= st
   return res
+
+updateEditable :: (MonadState s m, Eq a) => Lens' s a -> Lens' s a -> a -> m ()
+updateEditable origL editL newValue = do
+  current <- use origL
+  when (current /= newValue) $ do
+    origL .= newValue
+    editL .= newValue
 
 ----------------------------------------------------------------------------
 -- Widget rendering

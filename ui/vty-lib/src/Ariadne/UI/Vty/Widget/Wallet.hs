@@ -31,12 +31,16 @@ data WalletAccount =
     , walletAccountSelected :: Bool
     }
 
+instance Eq WalletAccount where
+  WalletAccount a1 b1 c1 _ == WalletAccount a2 b2 c2 _ = a1 == a2 && b1 == b2 && c1 == c2
+
 data WalletWidgetState =
   WalletWidgetState
     { walletLangFace :: !UiLangFace
     , walletInfo :: !(Maybe UiWalletInfo)
 
     , walletName :: !Text
+    , walletNameEdit :: !Text
     , walletId :: !Text
     , walletRenameResult :: !RenameResult
     , walletRemoveResult :: !RemoveResult
@@ -44,6 +48,7 @@ data WalletWidgetState =
     , walletExportResult :: !ExportResult
 
     , walletAccounts :: ![WalletAccount]
+    , walletAccountsEdit :: ![WalletAccount]
     , walletNewAccountName :: !Text
     , walletNewAccountResult :: !NewAccountResult
 
@@ -105,6 +110,7 @@ initWalletWidget langFace UiFeatures{..} =
       , walletInfo = Nothing
 
       , walletName = ""
+      , walletNameEdit = ""
       , walletId = ""
       , walletRenameResult = RenameResultNone
       , walletRemoveResult = RemoveResultNone
@@ -112,6 +118,7 @@ initWalletWidget langFace UiFeatures{..} =
       , walletExportResult = ExportResultNone
 
       , walletAccounts = []
+      , walletAccountsEdit = []
       , walletNewAccountName = ""
       , walletNewAccountResult = NewAccountResultNone
 
@@ -123,7 +130,7 @@ initWalletWidget langFace UiFeatures{..} =
       }
 
     addWidgetChild WidgetNameWalletName $
-      initEditWidget $ widgetParentLens walletNameL
+      initEditWidget $ widgetParentLens walletNameEditL
     addWidgetChild WidgetNameWalletRenameButton $
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
@@ -143,7 +150,7 @@ initWalletWidget langFace UiFeatures{..} =
       _ -> pass
 
     addWidgetChild WidgetNameWalletAccountList $
-      initListWidget (widgetParentGetter walletAccounts) drawAccountRow
+      initListWidget (widgetParentGetter walletAccountsEdit) drawAccountRow
     addWidgetEventHandler WidgetNameWalletAccountList $ \case
       WidgetEventListSelected idx -> toggleAccount idx
       _ -> pass
@@ -160,7 +167,7 @@ initWalletWidget langFace UiFeatures{..} =
       initSendWidget langFace
         (Just $ widgetParentGetter $ map uwiWalletIdx . walletInfo)
         (Just $ widgetParentGetter $
-          map walletAccountIdx . filter walletAccountSelected . walletAccounts)
+          map walletAccountIdx . filter walletAccountSelected . walletAccountsEdit)
 
     withWidgetState updateFocusList
 
@@ -264,7 +271,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
         ]
       ) ++
       (if not walletAccountsEnabled then [] else
-        (if null walletAccounts then [] else
+        (if null walletAccountsEdit then [] else
           [ label "Accounts:" B.<+> drawChild WidgetNameWalletAccountList
           ]
         ) ++
@@ -311,11 +318,13 @@ handleWalletWidgetEvent = \case
           walletNewAccountResultL .= NewAccountResultNone
         walletInfoL .= Just newInfo
 
-        walletNameL .= fromMaybe "" uwiLabel
         walletIdL .= uwiId
-        walletAccountsL .= map
-          (\(idx, UiAccountInfo{..}) -> WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
-          (zip [0..] uwiAccounts)
+        whenJust uwiLabel $ updateEditable walletNameL walletNameEditL
+        let converted =
+              map (\(idx, UiAccountInfo{..}) ->
+                  WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
+              (zip [0..] uwiAccounts)
+        updateEditable walletAccountsL walletAccountsEditL converted
         case uwiBalance of
           Just balance -> walletBalanceL .= BalanceResultSuccess balance
           Nothing -> do
@@ -399,7 +408,7 @@ handleWalletWidgetEvent = \case
 
 updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
 updateFocusList = do
-  accounts <- use walletAccountsL
+  accounts <- use walletAccountsEditL
   accountsEnabled <- use walletAccountsEnabledL
   exportEnabled <- use walletExportEnabledL
   lift $ setWidgetFocusList $
@@ -420,7 +429,7 @@ updateFocusList = do
 performRename :: WidgetEventM WalletWidgetState p ()
 performRename = do
   UiLangFace{..} <- use walletLangFaceL
-  name <- use walletNameL
+  name <- use walletNameEditL
   use walletRenameResultL >>= \case
     RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
@@ -444,7 +453,7 @@ performExport = do
 
 toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
 toggleAccount idx = do
-  walletAccountsL . ix idx . walletAccountSelectedL %= not
+  walletAccountsEditL . ix idx . walletAccountSelectedL %= not
 
 performNewAccount :: WidgetEventM WalletWidgetState p ()
 performNewAccount = do

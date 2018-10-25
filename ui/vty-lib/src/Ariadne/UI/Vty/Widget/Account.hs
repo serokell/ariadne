@@ -244,11 +244,7 @@ handleAccountWidgetEvent = \case
           accountAddressResultL .= AddressResultNone
         accountInfoL .= Just newInfo
 
-        whenJust uaciLabel $ \label -> do
-          currentName <- use accountNameL
-          when (currentName /= label) $ do
-            accountNameL .= label
-            accountNameEditL .= label
+        whenJust uaciLabel $ updateEditable accountNameL accountNameEditL
         accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
         case uaciBalance of
           Just balance -> accountBalanceL .= BalanceResultSuccess balance
