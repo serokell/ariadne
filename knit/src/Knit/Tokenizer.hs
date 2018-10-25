@@ -9,6 +9,7 @@ module Knit.Tokenizer
        , Token(..)
        , Skipped(..)
        , Located(..)
+       , TokenWithSpace(..)
 
        , _BracketSideOpening
        , _BracketSideClosing
@@ -20,9 +21,10 @@ module Knit.Tokenizer
        , _TokenName
        , _TokenKey
        , _TokenUnknown
-       , lSpan
-       , lSpaceAfter
        , lItem
+       , lSpan
+       , twsToken
+       , twsSpaceAfter
 
        , toToken
        , fromToken
@@ -177,16 +179,24 @@ deriving instance Show (Union ComponentToken components) => Show (Token componen
 
 makePrisms ''Token
 
-newtype Skipped = Skipped String
-  deriving (Show, Semigroup, Monoid, Eq, Ord)
+newtype Skipped = Skipped { getSkipped :: NonEmpty Char }
+  deriving (Show, Eq, Ord, Semigroup)
 
 data Located a = Located
-  { _lSpan :: Span
-  , _lSpaceAfter :: Skipped
-  , _lItem :: a
+  { _lItem :: a
+  , _lSpan :: Span
   } deriving Show
 
 makeLenses ''Located
+
+data TokenWithSpace components = TokenWithSpace
+  { _twsToken :: Located (Token components)
+  , _twsSpaceAfter :: Maybe (Located Skipped)
+  }
+
+deriving instance Show (Token components) => Show (TokenWithSpace components)
+
+makeLenses ''TokenWithSpace
 
 -- | Convert a token of some particular component to a 'Token'.
 --
@@ -249,7 +259,7 @@ detokenize = T.unwords . List.map tokenRender
 tokenize
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> (Skipped, [Located (Token components)])
+  -> (Maybe (Located Skipped), [TokenWithSpace components])
 tokenize = fromMaybe noTokenErr . tokenize'
   where
     noTokenErr =
@@ -267,7 +277,7 @@ tokenize = fromMaybe noTokenErr . tokenize'
 tokenize'
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Text
-  -> Maybe (Skipped, [Located (Token components)])
+  -> Maybe (Maybe (Located Skipped), [TokenWithSpace components])
 tokenize' =
   -- 'parseMaybe' runs a parser, returning the result as 'Just' in case of
   -- success and as 'Nothing' in case of failure. It expects the parser to
@@ -275,16 +285,15 @@ tokenize' =
   parseMaybe $
     -- We skip unimportant characters in the beginning of the inupt string
     -- and after each token, covering all space around tokens.
-    let located (span', t) skipped = Located span' skipped t
-    in (,) <$> pSkip <*> many (located <$> withSpan pToken <*> pSkip)
+    (,) <$> pSkip <*> many (TokenWithSpace <$> withSpan pToken <*> pSkip)
 
 -- | Add a source span to the result of tokenization.
-withSpan :: Tokenizer a -> Tokenizer (Span, a)
+withSpan :: Tokenizer a -> Tokenizer (Located a)
 withSpan p = do
     position1 <- posToLoc <$> getPosition
     t <- p
     position2 <- posToLoc <$> getPosition
-    return (spanFromTo position1 position2, t)
+    return $ Located t (spanFromTo position1 position2)
   where
     posToLoc :: SourcePos -> Loc
     posToLoc SourcePos{..} = uncurry loc
@@ -293,8 +302,8 @@ withSpan p = do
 
 -- | Skip a (possibly empty) sequence of unimportant characters. For now, this
 -- only includes whitespace, but could be potentially extended to comments.
-pSkip :: Tokenizer Skipped
-pSkip = Skipped <$> many spaceChar
+pSkip :: Tokenizer (Maybe (Located Skipped))
+pSkip = Just <$> withSpan (Skipped <$> NonEmpty.some spaceChar) <|> pure Nothing
 
 -- | Parser for a token, including punctuation, component tokens, identifiers,
 -- and the possibility of unrecognized characters.

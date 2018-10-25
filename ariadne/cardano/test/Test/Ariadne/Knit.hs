@@ -41,7 +41,7 @@ propAcceptsAnyInput = property $ isJust . (tokenize' @Components) . fromString
 
 propHandlesValidInput :: Property
 propHandlesValidInput =
-    property $ \x -> (map _lItem $ snd $ tokenize $ detokenize @Components x) === x
+    property $ \x -> (map (^.twsToken.lItem) $ snd $ tokenize $ detokenize @Components x) === x
 
 instance Arbitrary (Token Components) where
   arbitrary = genTokenComponents @Components
@@ -94,8 +94,8 @@ alphasList = ['A'..'Z'] <> ['a'..'z']
 tokenUnknownList :: forall components.
   (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => [Knit.Token components]
-tokenUnknownList = filter unknown $ map _lItem $ snd $
-  foldMap ((tokenize @components) . T.singleton) ([minBound..maxBound] :: [Char])
+tokenUnknownList = filter unknown $ map (^.twsToken.lItem) $
+    foldMap (snd . tokenize @components . T.singleton) ([minBound..maxBound] :: [Char])
   where
     unknown :: Token components -> Bool
     unknown (TokenUnknown _) = True

@@ -55,7 +55,7 @@ module Ariadne.UI.Vty.Face
        ) where
 
 import qualified Control.Concurrent.Event as CE
-import Data.Loc.Span (Span)
+import Data.Loc (Loc, Span)
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
@@ -90,7 +90,7 @@ data UiLangFace = forall err expr. UiLangFace
   , langPutUiCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langPutUISilentCommand :: UiCommand -> IO (Either Text UiCommandId)
   , langParse :: Text -> Either err expr
-  , langAutocomplete :: Text -> [Text]
+  , langAutocomplete :: Loc -> Text -> [(Loc, Text)]
   , langPpExpr :: expr -> Doc
   , langPpParseError :: err -> Doc
   , langParseErrSpans :: err -> [Span]
