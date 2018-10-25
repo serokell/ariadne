@@ -36,6 +36,7 @@ data AccountWidgetState =
     , accountInfo :: !(Maybe UiAccountInfo)
 
     , accountName :: !Text
+    , accountNameEdit :: !Text
     , accountRenameResult :: !RenameResult
     , accountRemoveResult :: !RemoveResult
     , accountBalance :: !BalanceResult
@@ -83,6 +84,7 @@ initAccountWidget langFace =
       , accountInfo = Nothing
 
       , accountName = ""
+      , accountNameEdit = ""
       , accountRenameResult = RenameResultNone
       , accountRemoveResult = RemoveResultNone
       , accountBalance = BalanceResultNone
@@ -92,7 +94,7 @@ initAccountWidget langFace =
       }
 
     addWidgetChild WidgetNameAccountName $
-      initEditWidget $ widgetParentLens accountNameL
+      initEditWidget $ widgetParentLens accountNameEditL
     addWidgetChild WidgetNameAccountRenameButton $
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameAccountRenameButton $ \case
@@ -242,7 +244,11 @@ handleAccountWidgetEvent = \case
           accountAddressResultL .= AddressResultNone
         accountInfoL .= Just newInfo
 
-        accountNameL .= fromMaybe "" uaciLabel
+        whenJust uaciLabel $ \label -> do
+          currentName <- use accountNameL
+          when (currentName /= label) $ do
+            accountNameL .= label
+            accountNameEditL .= label
         accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
         case uaciBalance of
           Just balance -> accountBalanceL .= BalanceResultSuccess balance
@@ -306,7 +312,7 @@ updateFocusList = do
 performRename :: WidgetEventM AccountWidgetState p ()
 performRename = do
   UiLangFace{..} <- use accountLangFaceL
-  name <- use accountNameL
+  name <- use accountNameEditL
   use accountRenameResultL >>= \case
     RenameResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
