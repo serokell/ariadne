@@ -10,6 +10,7 @@ import Named ((:!), pattern Arg)
 
 import Cardano.Crypto.Wallet.Types (DerivationIndex)
 import Pos.Core.Common (Address, IsBootstrapEraAddr(..), makePubKeyHdwAddress)
+import Pos.Core.NetworkMagic (NetworkMagic)
 import Pos.Crypto.HD
   (ShouldCheckPassphrase(..), deriveHDPassphrase, deriveHDSecretKey,
   packHDAddressAttr)
@@ -36,11 +37,13 @@ deriveHDSecretKeyByPath shouldCheck pp sk (DerivationPath derPath) =
 -- | Like 'makePubKeyHdwAddress', but also creates HDPassphrase
 -- internally using derivation path and root public key.
 makePubKeyHdwAddressUsingPath ::
-       IsBootstrapEraAddr
+       NetworkMagic
+    -> IsBootstrapEraAddr
     -> DerivationPath
-    -> "root" :! PublicKey  -> "address" :! PublicKey  -> Address
-makePubKeyHdwAddressUsingPath era (DerivationPath derPath) (Arg rootPK) (Arg addrPK) =
-    makePubKeyHdwAddress era hdPayload addrPK
+    -> "root" :! PublicKey -> "address" :! PublicKey -> Address
+makePubKeyHdwAddressUsingPath nm era (DerivationPath derPath)
+  (Arg rootPK) (Arg addrPK) =
+    makePubKeyHdwAddress nm era hdPayload addrPK
   where
     hdPP = deriveHDPassphrase rootPK
     hdPayload = packHDAddressAttr hdPP derPath

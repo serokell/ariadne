@@ -13,6 +13,7 @@ import qualified Text.Show
 import Data.Acid (AcidState, query, update)
 
 import Pos.Core (IsBootstrapEraAddr(..), mkCoin)
+import Pos.Core.NetworkMagic (makeNetworkMagic)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
@@ -29,7 +30,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (readAddressesByAccountId)
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec (AddrCheckpoint(..))
 import Ariadne.Wallet.Cardano.Kernel.Internal
-  (PassiveWallet, walletKeystore, wallets)
+  (PassiveWallet, walletKeystore, walletProtocolMagic, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Ariadne.Wallet.Cardano.Kernel.Types (AccountId(..), WalletId(..))
 import Ariadne.Wallet.Face
@@ -155,10 +156,13 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
                 , bip44AddressChain = chain
                 , bip44AddressIndex = newIndex
                 }
-            mbAddr = deriveBip44KeyPair (IsBootstrapEraAddr True)
-                                        passphrase
-                                        esk
-                                        bip44derPath
+            nm = makeNetworkMagic $ pw ^. walletProtocolMagic
+            mbAddr = deriveBip44KeyPair
+                nm
+                (IsBootstrapEraAddr True)
+                passphrase
+                esk
+                bip44derPath
         (newAddress, _) <- liftEither $
             maybeToRight
             (CreateAddressHdSeqGenerationFailed accId)

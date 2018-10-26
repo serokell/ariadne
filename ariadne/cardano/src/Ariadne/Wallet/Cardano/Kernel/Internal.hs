@@ -12,13 +12,14 @@ module Ariadne.Wallet.Cardano.Kernel.Internal
        , walletKeystore
        , wallets
        , walletLogMessage
+       , walletProtocolMagic
        ) where
 
-import Control.Lens.TH
-
+import Control.Lens.TH (makeLenses)
+import Data.Acid (AcidState)
 import System.Wlog (Severity(..))
 
-import Data.Acid (AcidState)
+import Pos.Crypto (ProtocolMagic)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
@@ -35,10 +36,13 @@ import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 data PassiveWallet = PassiveWallet {
       -- | Send log message
       _walletLogMessage :: Severity -> Text -> IO ()
-      -- ^ Logger
-    , _walletKeystore   :: Keystore
-      -- ^ An opaque handle to a place where we store the 'EncryptedSecretKey'.
-    , _wallets          :: AcidState DB
+      -- | An opaque handle to a place where we store the 'EncryptedSecretKey'.
+    , _walletKeystore :: Keystore
+      -- | Database handle
+    , _wallets :: AcidState DB
+      -- | The protocol magic used by an `ActiveWallet` to make transactions.
+    , _walletProtocolMagic :: ProtocolMagic
+
     }
 
 makeLenses ''PassiveWallet

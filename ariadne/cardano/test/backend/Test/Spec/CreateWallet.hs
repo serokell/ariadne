@@ -76,7 +76,8 @@ spec = describe "CreateWallet" $ do
         prop "works as expected in the happy path scenario" $ withMaxSuccess 50 $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     liftIO $ do
                         res <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` request
                         (bimap STB STB res) `shouldSatisfy` isRight
@@ -84,7 +85,8 @@ spec = describe "CreateWallet" $ do
         prop "fails if the wallet already exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     liftIO $ do
                         -- The first time it must succeed.
                         res1 <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` request
@@ -101,7 +103,8 @@ spec = describe "CreateWallet" $ do
         prop "supports Unicode characters" $ withMaxSuccess 1 $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     let w' = request { newwalName = "İıÀļƒȑĕďŏŨƞįťŢęșťıİ 日本" }
                     liftIO $ do
                         res <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` w'
@@ -113,7 +116,8 @@ spec = describe "CreateWallet" $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
 
-                withLayer @IO $ \_ wallet -> do
+                pm <- pick arbitrary
+                withLayer @IO pm $ \_ wallet -> do
                     liftIO $ do
                         res <- (Kernel.createHdWallet wallet) `applyNewWallet` request
                         case res of

@@ -19,7 +19,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Memory (openMemoryState)
 import System.Wlog (Severity)
 
-import Pos.Crypto (PassPhrase, emptyPassphrase)
+import Pos.Crypto (PassPhrase, ProtocolMagic, emptyPassphrase)
 
 import Test.QuickCheck (arbitrary, frequency)
 import Test.QuickCheck.Monadic (PropertyM, pick)
@@ -40,23 +40,25 @@ genSpendingPassword =
     pick (frequency [(20, pure emptyPassphrase), (80, arbitrary)])
 
 withLayer :: MonadIO m
-          => (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
+          => ProtocolMagic
+          -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
           -> PropertyM IO a
-withLayer cc = do
+withLayer pm cc = do
     liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
-        bracketKernelPassiveWallet devNull keystore $ \layer wallet -> do
+        bracketKernelPassiveWallet pm devNull keystore $ \layer wallet -> do
             cc layer wallet
 
 type GenPassiveWalletFixture x = PropertyM IO (Kernel.PassiveWallet -> IO x)
 
 withPassiveWalletFixture :: MonadIO m
-                         => GenPassiveWalletFixture x
+                         => ProtocolMagic
+                         -> GenPassiveWalletFixture x
                          -> (Keystore -> PassiveWalletLayer m -> Kernel.PassiveWallet -> x -> IO a)
                          -> PropertyM IO a
-withPassiveWalletFixture prepareFixtures cc = do
+withPassiveWalletFixture pm prepareFixtures cc = do
     generateFixtures <- prepareFixtures
     liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
-        bracketKernelPassiveWallet devNull keystore $ \layer wallet -> do
+        bracketKernelPassiveWallet pm devNull keystore $ \layer wallet -> do
             fixtures <- generateFixtures wallet
             cc keystore layer wallet fixtures
 
@@ -66,24 +68,26 @@ inMemoryDBComponent = buildComponent_ "In-memory DB" (openMemoryState defDB)
 
 bracketPassiveWallet
     :: forall a.
-       (Severity -> Text -> IO ())
+       ProtocolMagic
+    -> (Severity -> Text -> IO ())
     -> Keystore
     -> (Kernel.PassiveWallet -> IO a)
     -> IO a
-bracketPassiveWallet logFunction keystore f =
+bracketPassiveWallet pm logFunction keystore f =
     runComponentM "Passive wallet (in-memory DB)" pwComponent f
   where
     pwComponent :: ComponentM Kernel.PassiveWallet
     pwComponent = do
         acidDB <- inMemoryDBComponent
-        Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB
+        Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB pm
 
 bracketKernelPassiveWallet
     :: forall m n a. (MonadIO m, MonadUnliftIO n)
-    => (Severity -> Text -> IO ())
+    => ProtocolMagic
+    -> (Severity -> Text -> IO ())
     -> Keystore
     -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> n a) -> n a
-bracketKernelPassiveWallet logFunction keystore f =
+bracketKernelPassiveWallet pm logFunction keystore f =
     withRunInIO $ \runInIO ->
         runComponentM "Passive wallet layer (in-memory DB)"
             pwlComponent
@@ -92,4 +96,4 @@ bracketKernelPassiveWallet logFunction keystore f =
     pwlComponent :: ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
     pwlComponent = do
         acidDB <- inMemoryDBComponent
-        WalletLayer.passiveWalletLayerCustomDBComponent logFunction keystore acidDB
+        WalletLayer.passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm

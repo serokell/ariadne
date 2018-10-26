@@ -13,7 +13,8 @@ import qualified Data.Map.Strict as M
 import Data.Acid (update)
 
 import Pos.Crypto
-  (EncryptedSecretKey, PassPhrase, emptyPassphrase, safeDeterministicKeyGen)
+  (EncryptedSecretKey, PassPhrase, ProtocolMagic, emptyPassphrase,
+  safeDeterministicKeyGen)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
@@ -72,15 +73,11 @@ prepareFixtures = do
                          , fixturePw  = pw
                          }
 
-withFixture :: MonadIO m
-            => (  Keystore.Keystore
-               -> PassiveWalletLayer m
-               -> PassiveWallet
-               -> Fixture
-               -> IO a
-               )
-            -> PropertyM IO a
-withFixture = Fixture.withPassiveWalletFixture prepareFixtures
+withFixture ::
+       ProtocolMagic
+    -> (Keystore.Keystore -> PassiveWalletLayer IO -> PassiveWallet -> Fixture -> IO a)
+    -> PropertyM IO a
+withFixture pm = Fixture.withPassiveWalletFixture pm prepareFixtures
 
 spec :: Spec
 spec = describe "CreateAddress" $ do
@@ -88,7 +85,8 @@ spec = describe "CreateAddress" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 200 $
             monadicIO $ do
-                withFixture $ \keystore layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \keystore layer _ Fixture{..} -> do
                     liftIO $ Keystore.insert (WalletIdHdSeq fixtureHdRootId) fixtureESK keystore
                     let AccountIdHdSeq myAccountId = fixtureAccountId
                     res <- liftIO $ WalletLayer.pwlCreateAddress layer emptyPassphrase myAccountId fixtureAddressChain
@@ -97,14 +95,16 @@ spec = describe "CreateAddress" $ do
     describe "Address creation (kernel)" $ do
         prop "works as expected in the happy path scenario" $ withMaxSuccess 200 $
             monadicIO $ do
-                withFixture @IO $ \keystore _ _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \keystore _ _ Fixture{..} -> do
                     liftIO $ Keystore.insert (WalletIdHdSeq fixtureHdRootId) fixtureESK keystore
                     res <- liftIO $ Kernel.createAddress fixturePassphrase fixtureAccountId fixtureAddressChain fixturePw
                     liftIO ((bimap STB STB res) `shouldSatisfy` isRight)
 
         prop "fails if the account has no associated key in the keystore" $ do
             monadicIO $ do
-                withFixture @IO $ \_ _ _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ _ _ Fixture{..} -> do
                     res <- liftIO $ Kernel.createAddress fixturePassphrase fixtureAccountId fixtureAddressChain fixturePw
                     case res of
                         (Left (Kernel.CreateAddressKeystoreNotFound acc)) | acc == fixtureAccountId -> pass
@@ -112,7 +112,8 @@ spec = describe "CreateAddress" $ do
 
         prop "fails if the parent account doesn't exist" $ do
             monadicIO $ do
-                withFixture @IO $ \keystore _ _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \keystore _ _ Fixture{..} -> do
                     liftIO $ Keystore.insert (WalletIdHdSeq fixtureHdRootId) fixtureESK keystore
                     let (AccountIdHdSeq hdAccountId) = fixtureAccountId
                     void $ liftIO $ update (fixturePw ^. wallets) (DeleteHdAccount hdAccountId)
@@ -124,10 +125,11 @@ spec = describe "CreateAddress" $ do
     describe "Address creation (wallet layer & kernel consistency)" $ do
         prop "layer & kernel agrees on the result" $ do
             monadicIO $ do
-                res1 <- withFixture @IO $ \keystore _ _ Fixture{..} -> do
+                pm <- pick arbitrary
+                res1 <- withFixture pm $ \keystore _ _ Fixture{..} -> do
                     liftIO $ Keystore.insert (WalletIdHdSeq fixtureHdRootId) fixtureESK keystore
                     liftIO (Kernel.createAddress fixturePassphrase fixtureAccountId fixtureAddressChain fixturePw)
-                res2 <- withFixture @IO $ \keystore layer _ Fixture{..} -> do
+                res2 <- withFixture pm $ \keystore layer _ Fixture{..} -> do
                     liftIO $ Keystore.insert (WalletIdHdSeq fixtureHdRootId) fixtureESK keystore
                     let AccountIdHdSeq myAccountId = fixtureAccountId
                     liftIO $ WalletLayer.pwlCreateAddress layer fixturePassphrase myAccountId fixtureAddressChain

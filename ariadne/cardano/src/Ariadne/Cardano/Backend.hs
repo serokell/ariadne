@@ -1,5 +1,6 @@
 module Ariadne.Cardano.Backend
-       ( createCardanoBackend
+       ( CardanoBackend (..)
+       , createCardanoBackend
        ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
@@ -41,25 +42,30 @@ import Ariadne.Config.Cardano
   (CardanoConfig(..), defaultConfigurationYaml, defaultGenesisJson,
   defaultLoggerConfig, getNodeParams, gtSscParams, mkLoggingParams)
 
-createCardanoBackend ::
-       CardanoConfig
-    -> BListenerHandle
-    -> ComponentM (CardanoFace, (CardanoEvent -> IO ()) -> IO ())
-createCardanoBackend cardanoConfig bHandle = buildComponent_ "Cardano" $ do
+-- | Everything Cardano-related that we create initially.
+data CardanoBackend = CardanoBackend
+    { cbFace :: !CardanoFace
+    , cbMkAction :: !(BListenerHandle -> (CardanoEvent -> IO ()) -> IO ())
+    }
+
+createCardanoBackend :: CardanoConfig -> ComponentM CardanoBackend
+createCardanoBackend cardanoConfig = buildComponent_ "Cardano" $ do
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
   let confOpts = ccConfigurationOptions cardanoConfig
   runProduction $
       withCompileInfo $(retrieveCompileTimeInfo) $
       withConfigurations confOpts $ \protocolMagic ->
-      return (CardanoFace
-          { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
-          , cardanoConfigurations = Dict
-          , cardanoCompileInfo = Dict
-          , cardanoGetDiffusion = getDiffusion diffusionVar
-          , cardanoProtocolMagic = protocolMagic
-          }
-          , runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar cardanoConfig)
+      let face = CardanoFace
+              { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
+              , cardanoConfigurations = Dict
+              , cardanoCompileInfo = Dict
+              , cardanoGetDiffusion = getDiffusion diffusionVar
+              , cardanoProtocolMagic = protocolMagic
+              }
+          mkAction bHandle = runCardanoNode protocolMagic bHandle cardanoContextVar
+              diffusionVar cardanoConfig
+      in return $ CardanoBackend face mkAction
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do

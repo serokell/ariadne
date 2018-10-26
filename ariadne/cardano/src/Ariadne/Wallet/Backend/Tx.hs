@@ -188,7 +188,7 @@ sendTx
                 isp
                 ourAddresses
                 (map TxOutAux outs)
-                newChangeAddress
+                (const newChangeAddress)
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
