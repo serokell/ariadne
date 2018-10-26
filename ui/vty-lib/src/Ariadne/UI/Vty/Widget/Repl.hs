@@ -2,7 +2,7 @@ module Ariadne.UI.Vty.Widget.Repl
        ( initReplWidget
        ) where
 
-import Control.Lens (assign, makeLensesWith, snoc, traversed, zoom, (.=))
+import Control.Lens (assign, makeLensesWith, traversed, zoom, (.=))
 import Data.List ((!!))
 import Named ((:!), pattern Arg, (!))
 
@@ -46,7 +46,7 @@ data ReplWidgetState p =
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
     , replWidgetCommandLocation :: !(Int, Int)
-    , replWidgetCurrentAutocompletion :: !(Maybe (Z.Zipper (Text, (Int, Int))))
+    , replWidgetCurrentAutocompletion :: !(Maybe (Z.Zipper ((Int, Int), Text)))
     , replWidgetParseResult :: ReplParseResult
     , replWidgetOut :: ![OutputElement]
     , replWidgetFullsizeGetter :: !(p -> Bool)
@@ -248,18 +248,15 @@ handleAutocompleteKey move = do
   options <- case replWidgetCurrentAutocompletion of
     Nothing -> do
       let
-        ls = T.splitOn "\n" replWidgetCommand
         (locRow, locColumn) = replWidgetCommandLocation
-        cmdBeforeLocation = T.intercalate "\n"
-          $ snoc (take locRow ls) (T.take locColumn (ls !! locRow))
-        cmdAfterLocation = T.intercalate "\n"
-          $ T.drop locColumn (ls !! locRow) : drop (locRow + 1) ls
-        prefixSuggestions = langAutocomplete replWidgetLangFace cmdBeforeLocation
-        suggestions = (`map` prefixSuggestions) $ \suggestion ->
-          (suggestion <> cmdAfterLocation, defaultCommandLocation suggestion)
-        suggestionMap = M.fromList
-          $ zip [0..]
-          $ (replWidgetCommand, replWidgetCommandLocation) : suggestions
+        convert :: Loc.ToNat a => a -> Int
+        convert = pred . fromIntegral . Loc.toNat
+        suggestions =
+          map (first $ convert . Loc.locLine &&& convert . Loc.locColumn) $
+          langAutocomplete replWidgetLangFace
+            (Loc.loc (fromIntegral $ locRow + 1) (fromIntegral $ locColumn + 1))
+            replWidgetCommand
+        suggestionMap = M.fromList $ zip [0..] suggestions
         mapSize = M.size suggestionMap
         options = Z.toSequence $ \i ->
             suggestionMap M.! (fromInteger (i `mod` fromIntegral mapSize))
@@ -268,8 +265,8 @@ handleAutocompleteKey move = do
     Just options -> pure options
   let newOptions = move options
   let suggestedOption = Z.head newOptions
-  replWidgetCommandL .= fst suggestedOption
-  replWidgetCommandLocationL .= snd suggestedOption
+  replWidgetCommandL .= snd suggestedOption
+  replWidgetCommandLocationL .= fst suggestedOption
   reparse
   replWidgetCurrentAutocompletionL .= Just newOptions
   return WidgetEventHandled

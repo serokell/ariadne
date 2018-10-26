@@ -41,6 +41,7 @@ language_extensions:
   - NoImplicitPrelude
   - OverloadedLabels
   - OverloadedStrings
+  - PatternSynonyms
   - RecordWildCards
   - RecursiveDo
   - ScopedTypeVariables

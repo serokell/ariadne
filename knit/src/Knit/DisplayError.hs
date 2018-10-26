@@ -115,7 +115,9 @@ ppParseError (ParseError str (Report {..})) =
   <+> hcat (punctuate (text ", or ") $ map text expected)
   <$> renderLines
   where
-    unconsumedDesc = maybe "end of input" ppToken . listToMaybe . fmap _lItem $ unconsumed
+    unconsumedDesc =
+      maybe "end of input" ppToken . listToMaybe . fmap (^.twsToken.lItem)
+      $ unconsumed
     strLines = nonEmpty $ take spanLines . drop (spanLineStart - 1) $ T.lines str
     renderLines = case strLines of
         Nothing ->
@@ -141,8 +143,10 @@ ppParseError (ParseError str (Report {..})) =
 
     isTokenUnknown = isRight . matching _TokenUnknown
     unknownSpans :: [Span]
-    unknownSpans = map _lSpan . takeWhile (isTokenUnknown . _lItem) $ unconsumed
+    unknownSpans =
+      map _lSpan . takeWhile (isTokenUnknown . _lItem) . map _twsToken
+      $ unconsumed
     span = NE.head $
-        case nonEmpty (joinAsc unknownSpans) <|> nonEmpty (map _lSpan unconsumed) of
+        case nonEmpty (joinAsc unknownSpans) <|> nonEmpty (map (_lSpan . _twsToken) unconsumed) of
             Nothing -> spanFromTo strEndLoc (addColumn 1 strEndLoc) :|[]
             Just x  -> x

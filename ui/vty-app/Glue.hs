@@ -24,6 +24,7 @@ module Glue
 import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
 import Control.Lens (ix)
+import Data.Coerce
 import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
@@ -72,7 +73,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
     , langPutUiCommand = putUiCommand False
     , langPutUISilentCommand = putUiCommand True
     , langParse = Knit.parse
-    , langAutocomplete = Knit.suggestions (Proxy @components)
+    , langAutocomplete = coerce $ Knit.suggestions (Proxy @components)
     , langPpExpr = Knit.ppExpr
     , langPpParseError = Knit.ppParseError
     , langParseErrSpans = Knit.parseErrorSpans

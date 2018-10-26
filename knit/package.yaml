@@ -17,6 +17,7 @@ library:
     - QuickCheck
     - ansi-wl-pprint
     - containers
+    - data-default
     - formatting
     - generic-arbitrary
     - lens
@@ -30,6 +31,7 @@ library:
     - split
     - text
     - text-format
+    - transformers
     - validation
 
 tests:
