@@ -21,7 +21,7 @@ module Ariadne.Wallet.Face
        ) where
 
 import Data.Typeable (cast)
-import qualified GHC.Show as Show (Show (show))
+import qualified GHC.Show as Show (Show(show))
 
 import Serokell.Data.Memory.Units (Byte)
 
@@ -84,7 +84,6 @@ data WalletFace =
     , walletSend ::
         Bool -> WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
-    , walletGetSelection :: IO (Maybe WalletSelection, DB)
     , walletBalance :: IO Coin
     }
 

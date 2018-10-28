@@ -108,8 +108,6 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                 , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
                     sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
-                , walletGetSelection =
-                    (,) <$> readIORef walletSelRef <*> pwlGetDBSnapshot pwl
                 , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =
