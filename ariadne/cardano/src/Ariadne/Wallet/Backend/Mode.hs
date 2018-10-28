@@ -23,7 +23,7 @@ import Pos.Launcher.Configuration (HasConfigurations)
 import Pos.Txp.DB.Utxo (getFilteredUtxo)
 
 import Ariadne.Cardano.Face (CardanoMode)
-import Ariadne.Wallet.Cardano.Kernel.Bip32 (makePubKeyHdwAddressUsingPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath(..), makePubKeyHdwAddressUsingPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -50,7 +50,7 @@ largestHDAddressBoot :: Address
 largestHDAddressBoot =
     -- We cheat here a little bit using the same PublicKey for root
     -- key and address key.
-    makePubKeyHdwAddressUsingPath (IsBootstrapEraAddr True) derPath
+    makePubKeyHdwAddressUsingPath (IsBootstrapEraAddr True) (DerivationPath derPath)
         ! #root goodPk
         ! #address goodPk
   where

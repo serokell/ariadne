@@ -27,7 +27,7 @@ import Ariadne.Cardano.Face
 import Ariadne.Cardano.Knit (showCoin)
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
-import Ariadne.Wallet.Cardano.Kernel.Bip32
+import Ariadne.Wallet.Cardano.Kernel.Bip32(DerivationPath(..), deriveHDSecretKeyByPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -227,14 +227,14 @@ walletSigners rootSK wallets pp = foldMap accountSigners
 
     deriveAccountKey :: HdAccountIx -> EncryptedSecretKey
     deriveAccountKey accIdx =
-        let derPath = encodeBip44DerivationPathToAccount accIdx
+        let derPath = DerivationPath $ encodeBip44DerivationPathToAccount accIdx
         in case deriveHDSecretKeyByPath shouldNotCheck pp rootSK derPath of
             Nothing -> invalidPassphrase
             Just key -> key
 
     deriveAddressKey :: EncryptedSecretKey -> HdAddressChain -> HdAddressIx -> EncryptedSecretKey
     deriveAddressKey accKey addrChain addrIx =
-        let derPath = encodeBip44DerivationPathFromAccount addrChain addrIx
+        let derPath = DerivationPath $ encodeBip44DerivationPathFromAccount addrChain addrIx
         in case deriveHDSecretKeyByPath shouldNotCheck pp accKey derPath of
             Nothing -> invalidPassphrase
             Just key -> key

@@ -18,7 +18,7 @@ import Pos.DB.Class (MonadDBRead)
 import Pos.Txp.DB (utxoSource)
 import Pos.Txp.Toil.Types (Utxo)
 
-import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath(..))
 
 type AddressWithPathToUtxoMap = Map (DerivationPath, Address) Utxo
 
@@ -66,6 +66,6 @@ discoverHDAddressesWithUtxo walletPassphrases =
         case hdPayload (outAddr utxoItem) of
             Just payload -> do
                 let unpackResults :: NonEmpty (Maybe DerivationPath)
-                    unpackResults = map (flip unpackHDAddressAttr payload) walletPassphrases
+                    unpackResults = map (fmap DerivationPath . flip unpackHDAddressAttr payload) walletPassphrases
                 map (insertMaybe utxoItem) $ NE.zip unpackResults res
             _ -> res
