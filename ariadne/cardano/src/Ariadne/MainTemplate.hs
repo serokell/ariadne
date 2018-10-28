@@ -18,6 +18,7 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Backend (CardanoBackend(..), createCardanoBackend)
 import Ariadne.Cardano.Face (CardanoEvent, CardanoFace(..), decodeTextAddress)
+import Ariadne.Cardano.Knit (adaToCoin)
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.History (HistoryConfig(..))
@@ -100,7 +101,8 @@ initializeEverything MainSettings {..}
     walletUIFace = WalletUIFace
       { walletGenerateMnemonic = generateMnemonic
       , walletDefaultEntropySize = wcEntropySize walletConfig
-      , walletValidateAddress = isRight . decodeTextAddress
+      , walletValidateAddress = leftToMaybe . decodeTextAddress
+      , walletValidateCoin = isJust . adaToCoin
       , walletCoinPrecision = 6
       }
   PasswordManager {..} <- createPasswordManager

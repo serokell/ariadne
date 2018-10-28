@@ -35,6 +35,7 @@ library:
     - stm
     - text
     - open-browser
+    - validation
 
 custom-setup:
   dependencies:

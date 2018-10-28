@@ -182,7 +182,8 @@ data UiWalletFace =
   UiWalletFace
     { uiGenerateMnemonic :: Byte -> IO [Text]
     , uiDefaultEntropySize :: Byte
-    , uiValidateAddress :: Text -> Bool
+    , uiValidateAddress :: Text -> Maybe Text
+    , uiValidateCoin :: Scientific -> Bool
     , uiCoinPrecision :: Int
     }
 

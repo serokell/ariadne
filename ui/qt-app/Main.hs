@@ -45,6 +45,7 @@ main = defaultMain mainSettings
             { uiGenerateMnemonic = walletGenerateMnemonic
             , uiDefaultEntropySize = walletDefaultEntropySize
             , uiValidateAddress = walletValidateAddress
+            , uiValidateCoin = walletValidateCoin
             , uiCoinPrecision = walletCoinPrecision
             }
         in createAriadneUI uiWalletFace historyFace putPass

@@ -17,6 +17,7 @@ module Ariadne.Cardano.Knit
        , ComponentCommandProcs(..)
 
        , showCoin
+       , adaToCoin
        , txOutCommandName
        , tyPublicKey
        , tyTxOut

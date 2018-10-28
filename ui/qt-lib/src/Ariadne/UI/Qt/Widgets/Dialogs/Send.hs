@@ -5,21 +5,23 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Send
   , runSend
   ) where
 
-import Data.Scientific (Scientific, normalize, isInteger)
+import Control.Lens (has)
+import Data.Scientific (Scientific, normalize)
 import qualified Data.Text as T
+import Data.Validation (Validation(..), ensure, validate, _Success, bindValidation)
 
 import Graphics.UI.Qtah.Signal (connect_)
 
 import Graphics.UI.Qtah.Core.HPoint (HPoint(..))
 import Graphics.UI.Qtah.Core.HSize (HSize(..))
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
-import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Core.QLocale as QLocale
+import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import Graphics.UI.Qtah.Core.Types (QtWindowType(Popup))
 import qualified Graphics.UI.Qtah.Event as Event
-import qualified Graphics.UI.Qtah.Gui.QValidator as QValidator
 import qualified Graphics.UI.Qtah.Gui.QDoubleValidator as QDoubleValidator
 import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
+import qualified Graphics.UI.Qtah.Gui.QValidator as QValidator
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
@@ -35,8 +37,18 @@ import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.Validation
 
 data SendInputs = SendInputsSingle Word | SendInputsMulti [UiAccountInfo]
+
+data Error
+  = Amount
+  | AmountEmpty
+  | Address Text
+  | AddressEmpty
+  deriving (Eq, Show)
+
+type Errors = [Error]
 
 data SendOptions =
   SendOptions
@@ -69,6 +81,7 @@ data Send =
     , fromDisplay :: QLabel.QLabel
     , accountSelector :: Either Word AccountSelector
     , uiWalletFace :: UiWalletFace
+    , validations :: Validations
     }
 
 initSend :: UiWalletFace -> SendInputs -> IO Send
@@ -135,6 +148,11 @@ initSend uiWalletFace@UiWalletFace{..} sendInputs = do
 
       return $ Right selector
 
+  validations <- createValidations send $
+    [ ("Wrong address", QWidget.cast addressEdit)
+    , ("Wrong amount", QWidget.cast amountEdit)
+    ]
+
   let s = Send{..}
 
   connect_ sendButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept send
@@ -173,11 +191,11 @@ runSend uiWalletFace sendInputs = do
 
   return $ case result of
     QDialog.Accepted -> case options of
-      Just so -> SendSuccess so
-      Nothing -> SendCancel
+      Success so -> SendSuccess so
+      Failure _ -> SendCancel
     QDialog.Rejected -> SendCancel
 
-fillSendOptions :: Send -> IO (Maybe SendOptions)
+fillSendOptions :: Send -> IO (Validation Errors SendOptions)
 fillSendOptions Send{..} = do
   amount <- fromString <$> QLineEdit.text amountEdit
   address <- fromString <$> QLineEdit.text addressEdit
@@ -188,22 +206,39 @@ fillSendOptions Send{..} = do
 
   let UiWalletFace{..} = uiWalletFace
 
-  return $ do
-    guard $ not (null address) && uiValidateAddress address
-    amount' :: Scientific <- normalize <$> readMaybe amount
-    -- Check that amount' has no more than uiCoinPrecision decimal digits
-    -- This is checked by QDoubleValidator, but just do be sure check again
-    guard $ amount' > 0 && isInteger (amount' * 10 ^^ uiCoinPrecision)
+  let
+    vAddress = validate [AddressEmpty] (not . null) address `bindValidation` \a ->
+      case uiValidateAddress a of
+        Just reason -> Failure [Address reason]
+        Nothing -> Success address
+    vAmount =
+      validate [AmountEmpty] (not . null) amount `bindValidation` \a ->
+      maybe (Failure [Amount]) (Success . normalize) (readMaybe a) &
+      ensure [Amount] uiValidateCoin
+    vOptions = SendOptions <$> vAddress <*> vAmount <*> pure accounts
 
-    return $ SendOptions{soAmount = amount', soAddress = address, soAccounts = accounts}
+  return vOptions
+
+isSuccess :: Validation e b -> Bool
+isSuccess = has _Success
 
 isValid :: Send -> IO Bool
-isValid = fmap isJust . fillSendOptions
+isValid = fmap isSuccess . fillSendOptions
 
 revalidate :: Send -> IO ()
 revalidate s@Send{..} = do
-  valid <- isValid s
+  validation <- fillSendOptions s
+  let valid = isSuccess validation
+
+  showErrorsV validations validation (errorToWidget s)
+
   QWidget.setEnabled sendButton valid
+
+errorToWidget :: Send -> Error -> Maybe (Maybe Text, QWidget.QWidget)
+errorToWidget Send{..} = \case
+  Amount -> Just (Nothing, QWidget.cast amountEdit)
+  Address reason -> Just (Just reason, QWidget.cast addressEdit)
+  _ -> Nothing
 
 createAccountSelector :: [UiAccountInfo] -> IO AccountSelector
 createAccountSelector uacis = do

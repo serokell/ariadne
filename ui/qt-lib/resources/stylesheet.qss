@@ -481,5 +481,13 @@ QDialog QLineEdit#sendAmountEdit, QDialog QLineEdit#sendAmountEdit:focus {
     qproperty-alignment: AlignRight;
 }
 
+QWidget[styleRole="validationErrorDisplay"] {
+    font-size: 14px;
+    background: #ca5000;
+}
+QWidget[styleRole="validationErrorDisplay"] QLabel {
+    color: #fafafa;
+}
+
 /* vim: ft=css
 */

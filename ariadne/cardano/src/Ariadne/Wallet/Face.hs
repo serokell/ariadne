@@ -21,6 +21,7 @@ module Ariadne.Wallet.Face
        , walletPassExceptionFromException
        ) where
 
+import Data.Scientific (Scientific)
 import Data.Typeable (cast)
 import qualified GHC.Show as Show (Show(show))
 
@@ -113,7 +114,8 @@ data WalletUIFace =
   WalletUIFace
     { walletGenerateMnemonic :: Byte -> IO [Text]
     , walletDefaultEntropySize :: Byte
-    , walletValidateAddress :: Text -> Bool
+    , walletValidateAddress :: Text -> Maybe Text
+    , walletValidateCoin :: Scientific -> Bool
     , walletCoinPrecision :: Int
     }
 
