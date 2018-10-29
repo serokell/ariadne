@@ -15,6 +15,9 @@ module Glue
 
          -- * Password Manager ↔ Vty
        , putPasswordEventToUI
+
+         -- * Cardano ↔ Qt
+       , putBackendErrorToUI
        ) where
 
 import qualified Control.Concurrent.Event as CE
@@ -254,6 +257,11 @@ cardanoEventToUI = \case
 putCardanoEventToUI :: UiFace -> CardanoEvent -> IO ()
 putCardanoEventToUI UiFace{..} ev =
   whenJust (cardanoEventToUI ev) putUiEvent
+
+-- Called when an exception in backend thread occurs
+putBackendErrorToUI :: UiFace -> SomeException -> IO ()
+putBackendErrorToUI UiFace{..} e = putUiEvent . UiBackendExceptionEvent $
+    UiBackendException e
 
 ----------------------------------------------------------------------------
 -- Glue between the Wallet backend and Qt frontend

@@ -8,9 +8,11 @@ import Control.Lens (magnify, makeLensesWith)
 
 import Graphics.UI.Qtah.Core.Types (QtWindowType(Dialog))
 
+import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QMainWindow as QMainWindow
+import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
@@ -114,6 +116,10 @@ handleMainWindowEvent langFace putPass = \case
   UiConfirmEvent (UiConfirmRequest resultVar confirmationType) -> do
     magnify walletL $ handleWalletEvent langFace putPass $
         WalletConfirmationRequest resultVar confirmationType
+  UiBackendExceptionEvent (UiBackendException e) -> liftIO $ do
+    msg <- QWidget.new
+    void $ QMessageBox.critical msg ("Error" :: String) ("Got exception from backend: " <> show e :: String)
+    QCoreApplication.exit 1
 
 connectGlobalSignals :: UI MainWindow ()
 connectGlobalSignals = do

@@ -1,7 +1,6 @@
 module Ariadne.UI.Qt
        ( UiFace(..)
        , createAriadneUI
-       , killQtUI
        ) where
 
 import Control.Concurrent
@@ -19,8 +18,6 @@ import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QFontDatabase as QFontDatabase
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
-import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
-import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Control.Concurrent.STM.TBQueue
 
@@ -78,12 +75,6 @@ runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langF
         handleAppEvent langFace putPass eventIORef mainWindow >> return True
 
     QCoreApplication.exec
-
-killQtUI :: SomeException -> IO ()
-killQtUI e = do
-  msg <- QWidget.new
-  void $ QMessageBox.critical msg ("Error" :: String) ("Got exception from backend: " <> show e :: String)
-  QCoreApplication.exit 1
 
 mkEventBQueue :: IO (UiEventBQueue)
 mkEventBQueue = newTBQueueIO 100

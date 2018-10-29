@@ -70,9 +70,9 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
     , msUiExecContext ::
         !(uiFace ->
         Rec (Knit.ComponentExecContext IO (AllComponents uiComponents)) uiComponents)
-    , msKillUI :: !(SomeException -> IO ())
-    -- ^ Kill UI, should probably show some information about exception before killing
-    -- not necessary for VTY application for now
+    , msPutBackendErrorToUI :: !(uiFace -> SomeException -> IO ())
+    -- ^ Notify UI about exception, that occurs in backend.
+    -- Not necessary for VTY application for now
     }
 
 -- | Default implementation of the 'main' function.
@@ -170,8 +170,8 @@ initializeEverything MainSettings {..}
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
       withAsync serviceAction $ \serviceThread -> do
         -- Make custom link to service thread for UI apps.
-        -- It is going to call msKillUI and rethrow exception, if somethings goes wrong
-        linkUI serviceThread msKillUI
+        -- It is going to call msPutBackendErrorToUI and rethrow exception, if somethings goes wrong
+        linkUI serviceThread $ msPutBackendErrorToUI uiFace
         uiAction
 
   return mainAction
