@@ -25,6 +25,7 @@ import Ariadne.Cardano.Face
 import Ariadne.Wallet.Backend.AddressDiscovery
   (AddressWithPathToUtxoMap, discoverHDAddressWithUtxo)
 import Ariadne.Wallet.Backend.KeyStorage (addWallet)
+import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath(..))
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), bip44PathToAddressId, decodeBip44DerivationPath)
@@ -151,7 +152,7 @@ collectUtxo esk = do
     filterAddresses :: AddressWithPathToUtxoMap -> PrefilteredUtxo
     filterAddresses = Map.fromList . mapMaybe f . toPairs
       where
-        f ((derPath, addr), utxo) =
+        f ((DerivationPath derPath, addr), utxo) =
             case decodeBip44DerivationPath derPath of
                 Nothing           -> Nothing
                 Just bip44DerPath -> Just ((toHdAddressId bip44DerPath, addr), utxo)
