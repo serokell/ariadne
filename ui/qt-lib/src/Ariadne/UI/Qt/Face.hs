@@ -161,7 +161,7 @@ data UiDeletingItem
   | UiDelAccount (Maybe Text)
   deriving Eq
 
--- | Ui event to handle backed exceptions
+-- | Ui event to handle backend exceptions
 data UiBackendExceptionEvent = UiBackendException SomeException
 
 -- The backend language (Knit by default) interface as perceived by the UI.
