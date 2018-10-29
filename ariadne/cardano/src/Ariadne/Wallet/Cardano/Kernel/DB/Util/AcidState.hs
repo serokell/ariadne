@@ -14,10 +14,17 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
        , zoomAll
          -- ** Convenience re-exports
        , throwError
+       , cleanupAcidState
+       , runPeriodically
        ) where
 
-import Control.Monad.Except
-import Data.Acid (Update)
+import Data.Acid (AcidState(..), Update)
+import Control.Monad.Except (Except, runExcept,throwError , withExcept)
+import Formatting (sformat, shown, (%))
+import System.Wlog (Severity(..))
+import System.Directory (getModificationTime, listDirectory, removeFile)
+import System.FilePath ((</>))
+import Time(Time(..), KnownDivRat, Rat, Second, threadDelay)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (Indexable, IxSet)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
@@ -101,3 +108,69 @@ zoomAll l upd = StateT $ \large -> do
 mustBeRight :: Either Void b -> b
 mustBeRight (Left  a) = absurd a
 mustBeRight (Right b) = b
+
+type MonadAcidCleanup m =
+    ( MonadIO m
+    , MonadMask m
+    )
+
+
+-- | Helper function to run action periodically.
+runPeriodically :: forall (unit :: Rat) m a. (KnownDivRat unit Second, MonadIO m)
+  => Time unit -- ^ time between performing action
+  -> m a       -- ^ action
+  -> m ()
+runPeriodically delay action = forever $ do
+  _ <- action
+  threadDelay delay
+
+
+-- | Creates checkpoint of the current state of Acid DB,
+-- archive previous checkpoints and remove too old archives.
+-- This is needed to avoid storing all logs permanently.
+cleanupAcidState ::
+       forall m st. (MonadAcidCleanup m)
+    => AcidState st
+    -> FilePath
+    -> Int
+    -> (Severity -> Text -> m ())
+    -> m ()
+cleanupAcidState db path numberOfStoredArchives writeLog = perform
+  where
+    perform = cleanupAction `catchAny` handler
+
+    cleanupAction = do
+        writeLog Debug "Starting cleanup"
+        -- checkpoint/archive
+        liftIO $ createCheckpoint db >> createArchive db
+        writeLog Debug "Created checkpoint/archived"
+        -- cleanup old archive data
+        void $ flip catchAny (\e -> putStrLn @Text $ "Got error while cleaning up archive: " <> show e) $ do
+            removed <- liftIO $ cleanupOldAcidArchives path numberOfStoredArchives
+            writeLog Debug $ "Removed " <> pretty removed <> " old archive files"
+        pass
+
+    handler :: SomeException -> m ()
+    handler e = do
+        let report = do
+                writeLog Error $ sformat ("acidCleanupWorker failed with error: "%shown%
+                                           " restarting in 1m") e
+                threadDelay @Second 60
+        report `finally` perform
+
+-- Returns how many files were deleted
+cleanupOldAcidArchives ::
+  FilePath  -- ^ path with stored files
+  -> Int    -- how many files should be stored
+  -> IO Int -- how many files have been deleted
+cleanupOldAcidArchives dbPath numOfSaved = do
+  let archiveDir = dbPath </> "Archive"
+  archiveCheckpoints <- map (archiveDir </>) <$> listDirectory archiveDir
+      -- same files, but newest first
+  newestFirst <-
+    map fst . reverse . sortWith snd <$>
+      mapM (\f -> (f,) <$> liftIO (getModificationTime f)) archiveCheckpoints
+  let oldFiles = drop numOfSaved newestFirst
+  forM_ oldFiles removeFile
+  print $ length oldFiles
+  pure $ length oldFiles

@@ -20,6 +20,8 @@ module Ariadne.Wallet.Cardano.Kernel
        , switchToFork
          -- *** Testing
        , observableRollbackUseInTestsOnly
+
+       , getWalletDB
          -- ** The only effectful getter you will ever need
        , getWalletSnapshot
          -- * Active wallet
@@ -187,3 +189,6 @@ newPending aw accountId tx =
 -- | The only effectful query on this 'PassiveWallet'.
 getWalletSnapshot :: PassiveWallet -> IO DB
 getWalletSnapshot pw = query' (pw ^. wallets) Snapshot
+
+getWalletDB :: PassiveWallet -> AcidState DB
+getWalletDB pw = pw ^. wallets

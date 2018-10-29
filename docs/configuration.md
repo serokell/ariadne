@@ -53,8 +53,6 @@ beginning.
 
 `ekg-params` can be set to enable EKG monitoring (see the `ekg` library).
 
-`keyfile` is the path to the file with secret keys.
-
 `default-port` is the default port to bind to.
 
 `node-id` is the identifier of the node in the network.
@@ -65,10 +63,27 @@ nodes.
 
 ## Wallet configuration
 
-Wallet configuration has only one value with the key
-`entropy-size`. It specifies default number of bytes in entropy used to
+Wallet configuration has few values. All of them can be overwritten by
+command line arguments.  
+
+`entropy-size`  It specifies default number of bytes in entropy used to
 generate wallets. This value can be overridden by an argument of the
 `new-wallet` command.
+
+`keyfile` is the path to the file with secret keys.
+
+`wallet-db-path` is the path to the wallet's database
+
+`stored-db-archives` is the number of stored archives of wallet database. 
+This database contains log with all changes of wallet configuration 
+like creation or deletion of wallets/account etc. To prevent permanent 
+storing of this information, ariadne periodically creates checkpoint
+and moves previous logs and checkpoint files to the archive path
+and also deletes old archives. This number specifies how many archive files 
+should be stored. By default it is 10 files. 
+
+`db-cleanup-period` is the period of archiving previous db's checkpoints in seconds. 
+by default it is 600 seconds. 
 
 ## Update configuration
 

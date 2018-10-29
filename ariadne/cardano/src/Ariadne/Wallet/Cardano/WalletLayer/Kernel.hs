@@ -10,6 +10,7 @@ import qualified Universum.Unsafe as Unsafe (fromJust)
 import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import System.Wlog (Severity(Debug))
+import Time (sec)
 
 import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (unsafeIntegerToCoin)
@@ -29,7 +30,8 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Consistency
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+  (DB, cleanupAcidState, dbHdWallets, defDB, runPeriodically)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
@@ -164,6 +166,7 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
 
             , pwlApplyBlocks           = liftIO . invoke . Actions.ApplyBlocks
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
+            , pwlGetPassiveWallet      = wallet
 
             , pwlCreateEncryptedKey = \pp mnemonic ->
                 let seed     = mnemonicToSeedNoPassword $ unwords mnemonic
@@ -187,6 +190,7 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
             , pwlGetWalletsWithoutSecretKeys =  getUnknownWallets wallet keystore
 
             }
+
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified
     -- by the invariants established in the 'Blund'.
@@ -218,4 +222,3 @@ activeWalletLayerComponent pwl pw = do
         , awlNewPending      = \hdAccId tx ->
             liftIO $ Kernel.newPending aw hdAccId tx
         }
-

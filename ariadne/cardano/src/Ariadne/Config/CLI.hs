@@ -73,9 +73,11 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     } deriving (Eq, Show, Generic)
 
 data CLI_WalletConfig = CLI_WalletConfig
-    { cli_wcEntropySize :: !(Maybe Byte)
-    , cli_wcKeyfilePath :: !(Maybe FilePath)
-    , cli_wcAcidDBPath  :: !(Maybe FilePath)
+    { cli_wcEntropySize       :: !(Maybe Byte)
+    , cli_wcKeyfilePath       :: !(Maybe FilePath)
+    , cli_wcAcidDBPath        :: !(Maybe FilePath)
+    , cli_wcNumStoredArchives :: !(Maybe Int)
+    , cli_wcDBCleanupPerion   :: !(Maybe Int)
     } deriving (Eq, Show)
 
 data CLI_UpdateConfig = CLI_UpdateConfig
@@ -124,6 +126,10 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
             cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
         , wcAcidDBPath =
             cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
+        , wcNumStoredArchives =
+            cli_wcNumStoredArchives overrideWc `merge` wcNumStoredArchives defaultWc
+        , wcDBCleanupPerion =
+            cli_wcDBCleanupPerion overrideWc `merge` wcDBCleanupPerion defaultWc
         }
 
     -- Merge Cardano config
@@ -304,8 +310,18 @@ cliWalletParser = do
     ]
   cli_wcAcidDBPath <- optional $ strOption $ mconcat
      [ long $ toOptionNameWallet "wcAcidDBPath"
-     , metavar "FilePath"
+     , metavar "FILEPATH"
      , help "Wallets database path"
+     ]
+  cli_wcNumStoredArchives <- optional $ option auto $ mconcat
+     [ long $ toOptionNameWallet "wcNumStoredArchives"
+     , metavar "INT"
+     , help "Number of stored archives with old states of wallet database"
+     ]
+  cli_wcDBCleanupPerion <- optional $ option auto $ mconcat
+     [ long $ toOptionNameWallet "wcDBCleanupPerion"
+     , metavar "INT"
+     , help "Period of archiving database's state and deletinig old archives"
      ]
   pure CLI_WalletConfig {..}
   where

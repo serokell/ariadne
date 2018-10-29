@@ -66,6 +66,7 @@ library:
     - named
     - natural-transformation
     - ntype
+    - o-clock
     - optparse-applicative
     - process
     - resourcet
