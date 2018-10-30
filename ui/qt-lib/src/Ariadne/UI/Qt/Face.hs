@@ -3,6 +3,7 @@ module Ariadne.UI.Qt.Face
        , UiCommandEvent (..)
        , UiWalletEvent (..)
        , UiBackendStatusUpdate (..)
+       , UiBackendExceptionEvent (..)
        , UiBackendEvent (..)
        , UiEvent (..)
        , UiCommand (..)
@@ -94,6 +95,7 @@ data UiEvent
   | UiWalletEvent UiWalletEvent
   | UiPasswordEvent UiPasswordEvent
   | UiConfirmEvent UiConfirmEvent
+  | UiBackendExceptionEvent UiBackendExceptionEvent
 
 -- | Commands issued by the UI widgets
 data UiCommand
@@ -148,7 +150,7 @@ data UiConfirmationType
   | UiConfirmSend [UiConfirmSendInfo] -- ^ lists of outputs
 
 data UiConfirmSendInfo =
-  UiConfirmSendInfo 
+  UiConfirmSendInfo
     { csiAddress :: Text
     , csiAmount  :: Text
     , csiCoin    :: Text
@@ -158,6 +160,9 @@ data UiDeletingItem
   = UiDelWallet (Maybe Text)
   | UiDelAccount (Maybe Text)
   deriving Eq
+
+-- | Ui event to handle backend exceptions
+data UiBackendExceptionEvent = UiBackendException SomeException
 
 -- The backend language (Knit by default) interface as perceived by the UI.
 data UiLangFace =

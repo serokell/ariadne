@@ -5,7 +5,10 @@ module Ariadne.MainTemplate
        , defaultMain
        ) where
 
-import Control.Concurrent.Async (link, race_, withAsync)
+import Control.Concurrent (forkIO, myThreadId, throwTo)
+import Control.Concurrent.Async
+  (Async(..), AsyncCancelled(..), ExceptionInLinkedThread(..), race_,
+  waitCatch, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))
 import Data.Version (Version)
@@ -67,6 +70,9 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
     , msUiExecContext ::
         !(uiFace ->
         Rec (Knit.ComponentExecContext IO (AllComponents uiComponents)) uiComponents)
+    , msPutBackendErrorToUI :: !(uiFace -> SomeException -> IO ())
+    -- ^ Notify UI about exception, that occurs in backend.
+    -- Not necessary for VTY application for now
     }
 
 -- | Default implementation of the 'main' function.
@@ -163,10 +169,24 @@ initializeEverything MainSettings {..}
       -- Spawn backend actions in async thread, then run ui action in the main thread
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
       withAsync serviceAction $ \serviceThread -> do
-        -- Make backend rethrow all exceptions in main thread if something goes wrong
-        link serviceThread
-        -- TODO (AD-432) if uiAction blocks exceptions, for example by entering FFI call and not
-        -- returning from it, exceptions from the linked thread won't be rethrown correctly.
+        -- Make custom link to service thread for UI apps.
+        -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
+        linkUI serviceThread $ msPutBackendErrorToUI uiFace
         uiAction
 
   return mainAction
+
+-- Similar to link from Control.Concurrent.Async, but calls finalizer on exception
+linkUI :: Async a -> (SomeException -> IO ()) -> IO ()
+linkUI thread finalizer = do
+  me <- myThreadId
+  void $ forkIO $ do
+    r <- waitCatch thread
+    case r of
+      Left e | not $ isCancel e -> finalizer e >> throwTo me (ExceptionInLinkedThread thread e)
+      _ -> pass
+  where
+    isCancel :: SomeException -> Bool
+    isCancel e
+      | Just AsyncCancelled <- fromException e = True
+      | otherwise = False

@@ -31,6 +31,7 @@ main = defaultMain mainSettings
         , msPutPasswordEventToUI = putPasswordEventToUI
         , msKnitFaceToUI = knitFaceToUI
         , msUiExecContext = \uiFace -> Step (Knit.UiExecCtx uiFace, Base ())
+        , msPutBackendErrorToUI = \_ _ -> pass
         }
 
     createUI
