@@ -34,7 +34,7 @@ import Formatting (bprint, int, (%))
 import Numeric.Natural (Natural)
 import Serokell.Data.Memory.Units (Byte)
 
-import Pos.Core (mkCoin, unsafeIntegerToCoin)
+import Pos.Core (mkCoin)
 import Pos.Crypto
 import Pos.Crypto.Random (secureRandomBS)
 import Pos.Util (eitherToThrow, maybeThrow)
@@ -393,18 +393,8 @@ getBalance pwl walletSelRef = do
     Nothing -> return $ mkCoin 0
     Just selection ->
       case selection of
-        WSRoot rootId -> do
-          walletDb <- pwlGetDBSnapshot pwl
-          -- Using the unsafe function is OK here, since the case where
-          -- the invariant that the balance exceeds @maxCoin@ is broken
-          -- is clearly a programmer mistake.
-          pure $ unsafeIntegerToCoin $
-            hdRootBalance rootId (walletDb ^. dbHdWallets)
-        WSAccount accountId -> do
-          walletDb <- pwlGetDBSnapshot pwl
-          account <- either throwM pure $
-            readHdAccount accountId (walletDb ^. dbHdWallets)
-          pure $ hdAccountBalance account
+        WSRoot rootId -> pwlGetRootBalance pwl rootId
+        WSAccount accountId -> pwlGetAccountBalance pwl accountId
 
 removeSelection
   :: PassiveWalletLayer IO
