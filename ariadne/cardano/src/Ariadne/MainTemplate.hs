@@ -170,7 +170,7 @@ initializeEverything MainSettings {..}
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
       withAsync serviceAction $ \serviceThread -> do
         -- Make custom link to service thread for UI apps.
-        -- It is going to call msPutBackendErrorToUI and rethrow exception, if somethings goes wrong
+        -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
         linkUI serviceThread $ msPutBackendErrorToUI uiFace
         uiAction
 
