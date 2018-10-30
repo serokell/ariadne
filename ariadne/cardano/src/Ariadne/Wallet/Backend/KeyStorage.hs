@@ -336,19 +336,13 @@ addWallet ::
 addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP createWithA assurance = do
   walletName <-
       fromMaybe
-      (genWalletName <$> pwlGetDBSnapshot pwl)
+      (pure $ WalletName "Untitled wallet")
       (pure <$> mbWalletName)
 
   throwLeftIO $ void <$>
     pwlCreateWallet pwl esk hasPP createWithA assurance walletName utxoByAccount
 
   walletRefreshState
-  where
-    genWalletName :: DB -> WalletName
-    genWalletName walletDb = do -- no monad
-      let hdRoots = toList (walletDb ^. dbHdWallets . hdWalletsRoots)
-          namesVec = V.fromList $ map (unWalletName . view hdRootName) hdRoots
-      WalletName $ mkUntitled "Untitled wallet " namesVec
 
 -- | Convert path in index representation and write it to
 -- 'IORef WalletSelection'.
