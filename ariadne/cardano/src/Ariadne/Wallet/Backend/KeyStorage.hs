@@ -334,10 +334,7 @@ addWallet ::
     -> AssuranceLevel
     -> IO ()
 addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP createWithA assurance = do
-  walletName <-
-      fromMaybe
-      (pure $ WalletName "Untitled wallet")
-      (pure <$> mbWalletName)
+  let walletName = fromMaybe (WalletName "Untitled wallet") mbWalletName
 
   throwLeftIO $ void <$>
     pwlCreateWallet pwl esk hasPP createWithA assurance walletName utxoByAccount
