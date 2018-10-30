@@ -25,6 +25,7 @@ import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 
+import Pos.Core (unsafeIntegerToCoin)
 import Pos.Core.Chrono (OldestFirst(..))
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
@@ -84,6 +85,21 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
                 Kernel.updateHdWalletName wallet hdrId walletName
             , pwlUpdateWalletAssurance = \hdrId assurance -> liftIO $
                 Kernel.updateHdWalletAssurance wallet hdrId assurance
+
+            , pwlGetAccountBalance = \accountId -> liftIO $ do
+                snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
+                account <- either throwM pure $
+                    HDRead.readHdAccount accountId (snapshot ^. dbHdWallets)
+                pure $ HDRead.hdAccountBalance account
+
+            , pwlGetRootBalance = \rootId -> liftIO $ do
+                snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
+                -- Using the unsafe function is OK here, since the case where
+                -- the invariant that the balance exceeds @maxCoin@ is broken
+                -- is clearly a programmer mistake.
+                pure $ unsafeIntegerToCoin $
+                    HDRead.hdRootBalance rootId (snapshot ^. dbHdWallets)
+
             , pwlDeleteWallet          = \hdrId -> liftIO $
                 Kernel.deleteHdWallet wallet hdrId
 
