@@ -1,6 +1,6 @@
-module Cardano.Wallet.Kernel.CoinSelection (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection (
     module Exports
     ) where
 
-import           Cardano.Wallet.Kernel.CoinSelection.FromGeneric as Exports
-import           Cardano.Wallet.Kernel.CoinSelection.Generic as Exports
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.FromGeneric as Exports
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic as Exports

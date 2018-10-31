@@ -1,18 +1,18 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.Generic.Fees (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Fees (
     ExpenseRegulation(..)
   , FeeOptions(..)
   , adjustForFees
   ) where
 
-import           Universum
+import Universum
 
-import           Control.Monad.Trans.Except (Except)
-import           Formatting (bprint)
-import           Formatting.Buildable (Buildable (..))
+import Control.Monad.Trans.Except (Except)
+import Data.Text.Buildable (Buildable(..))
+import Formatting (bprint)
 
-import           Cardano.Wallet.Kernel.CoinSelection.Generic
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
 
 {-------------------------------------------------------------------------------
   Top-level API

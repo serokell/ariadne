@@ -1,15 +1,15 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.Generic.Random (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Random (
     PrivacyMode(..)
   , random
   , findRandomOutput
   ) where
 
-import           Universum
+import Universum
 
-import           Cardano.Wallet.Kernel.CoinSelection.Generic
-import qualified Cardano.Wallet.Kernel.CoinSelection.Generic.LargestFirst as LargestFirst
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
+import qualified Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.LargestFirst as LargestFirst
 
 {-------------------------------------------------------------------------------
   Random input selection algorithm

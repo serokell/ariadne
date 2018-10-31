@@ -1,8 +1,7 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs               #-}
-{-# LANGUAGE TypeFamilyDependencies     #-}
+{-# LANGUAGE DefaultSignatures, GeneralizedNewtypeDeriving, InstanceSigs,
+             NoImplicitPrelude, TypeFamilyDependencies #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.Generic.Grouped (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Grouped (
     -- * Domain
     Grouped(..)
   , Sum(..)
@@ -15,16 +14,17 @@ module Cardano.Wallet.Kernel.CoinSelection.Generic.Grouped (
   , groupUtxo
   ) where
 
-import           Universum hiding (Sum (..), group)
+import Universum hiding (Sum(..), group)
 
-import           Data.Coerce (coerce)
+import Data.Coerce (coerce)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import           Formatting (bprint, build, sformat, (%))
-import qualified Formatting.Buildable
-import           Serokell.Util (listJson)
+import Data.Text.Buildable (build)
+import Formatting (bprint, sformat, (%))
+import qualified Formatting as F
+import Serokell.Util (listJson)
 
-import           Cardano.Wallet.Kernel.CoinSelection.Generic
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
 
 {-------------------------------------------------------------------------------
   Domain
@@ -104,7 +104,7 @@ unsafeUtxoLookup :: CanGroup utxo
 unsafeUtxoLookup inp utxo =
     fromMaybe (error err) $ utxoLookup inp utxo
   where
-    err = sformat ("unsafeUtxoLookup: unknown input " % build) inp
+    err = sformat ("unsafeUtxoLookup: unknown input " % F.build) inp
 
 {-------------------------------------------------------------------------------
   Grouped UTxO

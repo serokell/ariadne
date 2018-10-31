@@ -1,13 +1,13 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.Generic.LargestFirst (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.LargestFirst (
     largestFirst
   , atLeast
   ) where
 
-import           Universum
+import Universum
 
-import           Cardano.Wallet.Kernel.CoinSelection.Generic
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
 
 {-------------------------------------------------------------------------------
   Largest-first input selection algorithm

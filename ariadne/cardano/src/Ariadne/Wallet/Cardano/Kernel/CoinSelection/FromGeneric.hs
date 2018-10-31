@@ -1,7 +1,7 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NoImplicitPrelude, RankNTypes #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.FromGeneric (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.FromGeneric (
     -- * Instantiation of the generic framework
     Cardano
   , Size(..)
@@ -27,31 +27,31 @@ module Cardano.Wallet.Kernel.CoinSelection.FromGeneric (
   , estimateSize
   ) where
 
-import           Universum hiding (Sum (..))
+import Universum hiding (Sum(..))
 
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import           Data.Typeable (TypeRep, typeRep)
+import Data.Typeable (TypeRep, typeRep)
 
-import           Pos.Binary.Class (LengthOf, Range (..), SizeOverride (..),
-                     encode, szSimplify, szWithCtx, toLazyByteString)
+import Pos.Binary.Class
+  (LengthOf, Range(..), SizeOverride(..), encode, szSimplify, szWithCtx,
+  toLazyByteString)
 import qualified Pos.Chain.Txp as Core
 import qualified Pos.Client.Txp.Util as Core
-import           Pos.Core (AddrAttributes, Coin (..), TxSizeLinear,
-                     calculateTxSizeLinear)
+import Pos.Core (AddrAttributes, Coin(..), TxSizeLinear, calculateTxSizeLinear)
 import qualified Pos.Core as Core
-import           Pos.Core.Attributes (Attributes)
-import           Pos.Core.Txp (TxAux, TxIn, TxInWitness, TxOut, TxSigData)
-import           Pos.Crypto (Signature)
+import Pos.Core.Attributes (Attributes)
+import Pos.Core.Txp (TxAux, TxIn, TxInWitness, TxOut, TxSigData)
+import Pos.Crypto (Signature)
 import qualified Pos.Crypto as Core
-import           Serokell.Data.Memory.Units (Byte, toBytes)
+import Serokell.Data.Memory.Units (Byte, toBytes)
 
-import           Cardano.Wallet.Kernel.CoinSelection.Generic
-import           Cardano.Wallet.Kernel.CoinSelection.Generic.Fees
-import           Cardano.Wallet.Kernel.CoinSelection.Generic.Grouped
-import qualified Cardano.Wallet.Kernel.CoinSelection.Generic.LargestFirst as LargestFirst
-import qualified Cardano.Wallet.Kernel.CoinSelection.Generic.Random as Random
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Fees
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Grouped
+import qualified Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.LargestFirst as LargestFirst
+import qualified Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Random as Random
 
 {-------------------------------------------------------------------------------
   Type class instances

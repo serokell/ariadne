@@ -19,7 +19,7 @@ packages:
 
 extra-deps:
 - git: https://github.com/serokell/cardano-sl
-  commit: 5705ea928eb673ed24e854e397103dd541851d4f # ariadne branch
+  commit: be3db35780d16f2b1655092e9644618d9169cacd # binary-update branch
   subdirs:
   - binary
   - binary/test

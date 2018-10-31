@@ -1,10 +1,8 @@
-{-# LANGUAGE AllowAmbiguousTypes        #-}
-{-# LANGUAGE ExistentialQuantification  #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE TypeFamilyDependencies     #-}
+{-# LANGUAGE AllowAmbiguousTypes, DefaultSignatures, ExistentialQuantification,
+             GeneralizedNewtypeDeriving, LambdaCase, NoImplicitPrelude,
+             TypeFamilyDependencies #-}
 
-module Cardano.Wallet.Kernel.CoinSelection.Generic (
+module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic (
     -- * Domain
     IsValue(..)
   , CoinSelDom(..)
@@ -63,20 +61,21 @@ module Cardano.Wallet.Kernel.CoinSelection.Generic (
   , withoutKeys
   ) where
 
-import           Universum
+import Universum
 
-import           Control.Monad.Except (Except, MonadError (..))
-import           Crypto.Number.Generate (generateBetween)
-import           Crypto.Random (MonadRandom (..))
-import           Data.Coerce (coerce)
+import Control.Monad.Except (Except, MonadError(..))
+import Crypto.Number.Generate (generateBetween)
+import Crypto.Random (MonadRandom(..))
+import Data.Coerce (coerce)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import           Formatting (bprint, build, (%))
-import qualified Formatting.Buildable
-import           Test.QuickCheck (Arbitrary (..))
+import Data.Text.Buildable (build)
+import Formatting (bprint, (%))
+import qualified Formatting as F
+import Test.QuickCheck (Arbitrary(..))
 
-import           Cardano.Wallet.Kernel.Util (withoutKeys)
-import           Cardano.Wallet.Kernel.Util.StrictStateT
+import Ariadne.Wallet.Cardano.Kernel.Util (withoutKeys)
+import Ariadne.Wallet.Cardano.Kernel.Util.StrictStateT
 
 {-------------------------------------------------------------------------------
   Abstract domain
@@ -620,21 +619,21 @@ divvyFee f fee as = map (\a -> (feeForOut a, a)) as
 instance Buildable CoinSelHardErr where
   build (CoinSelHardErrOutputCannotCoverFee out val) = bprint
     ( "CoinSelHardErrOutputCannotCoverFee"
-    % "{ output: " % build
-    % ", value:  " % build
+    % "{ output: " % F.build
+    % ", value:  " % F.build
     % "}"
     )
     out
     val
   build (CoinSelHardErrOutputIsRedeemAddress out) = bprint
     ( "CoinSelHardErrOutputIsRedeemAddress"
-    % "{ output: " % build
+    % "{ output: " % F.build
     % "}"
     )
     out
   build (CoinSelHardErrMaxInputsReached inputs) = bprint
     ( "CoinSelHardErrMaxInputsReached"
-    % "{ inputs: " % build
+    % "{ inputs: " % F.build
     % "}"
     )
     inputs
@@ -642,8 +641,8 @@ instance Buildable CoinSelHardErr where
     ( "CoinSelHardErrCannotCoverFee" )
   build (CoinSelHardErrUtxoExhausted bal val) = bprint
     ( "CoinSelHardErrUtxoExhausted"
-    % "{ balance: " % build
-    % ", value:   " % build
+    % "{ balance: " % F.build
+    % ", value:   " % F.build
     % "}"
     )
     bal
@@ -651,7 +650,7 @@ instance Buildable CoinSelHardErr where
   build (CoinSelHardErrUtxoDepleted) = bprint
     ( "CoinSelHardErrUtxoDepleted" )
   build (CoinSelHardErrAddressNotOwned _ addr) = bprint
-    ( "CoinSelHardErrAddressNotOwned { address: " % build % " } ") addr
+    ( "CoinSelHardErrAddressNotOwned { address: " % F.build % " } ") addr
 
 instance CoinSelDom dom => Buildable (Fee dom) where
-  build = bprint build . getFee
+  build = bprint F.build . getFee
