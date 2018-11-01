@@ -27,11 +27,8 @@ import qualified Universum.Unsafe as Unsafe
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
-import qualified Data.Text as T
 import qualified Data.Text.Buildable
-import qualified Data.Vector as V (fromList, mapMaybe)
 import Formatting (bprint, int, (%))
-import Numeric.Natural (Natural)
 import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Core (mkCoin)
@@ -262,20 +259,16 @@ newAccount
   -> IO ()
 newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
   walletDb <- pwlGetDBSnapshot pwl
-  (hdrId, accList) <- second toList <$>
+  (hdrId, _) <- second toList <$>
       resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
 
-  let accountName = fromMaybe (genAccountName accList) mbAccountName
+  let accountName = fromMaybe (AccountName "Untitled account ") mbAccountName
 
   throwLeftIO $ void <$>
     pwlCreateAccount pwl hdrId accountName
 
   walletRefreshState
-  where
-    genAccountName :: [HdAccount] -> AccountName
-    genAccountName accList =
-      let namesVec = V.fromList $ map (unAccountName . view hdAccountName) accList
-      in AccountName $ mkUntitled "Untitled account " namesVec
+
 
 data InvalidEntropySize =
     InvalidEntropySize !Byte
@@ -437,11 +430,3 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
 
 throwLeftIO :: (Exception e) => IO (Either e a) -> IO a
 throwLeftIO ioEith = ioEith >>= eitherToThrow
-
-mkUntitled :: Text -> Vector Text -> Text
-mkUntitled untitled namesVec = do -- no monad
-  let untitledSuffixes = V.mapMaybe (T.stripPrefix $ untitled) namesVec
-      numbers = V.mapMaybe ((readMaybe @Natural) . toString) untitledSuffixes
-  if null untitledSuffixes || null numbers
-      then untitled <> "0"
-      else untitled <> (show $ (maximum numbers) + 1)
