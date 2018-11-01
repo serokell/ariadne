@@ -259,10 +259,9 @@ newAccount
   -> IO ()
 newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
   walletDb <- pwlGetDBSnapshot pwl
-  (hdrId, _) <- second toList <$>
-      resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
+  hdrId <- resolveWalletRef walletSelRef walletRef walletDb
 
-  let accountName = fromMaybe (AccountName "Untitled account ") mbAccountName
+  let accountName = fromMaybe (AccountName "Untitled account") mbAccountName
 
   throwLeftIO $ void <$>
     pwlCreateAccount pwl hdrId accountName
