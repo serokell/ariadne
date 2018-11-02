@@ -280,10 +280,10 @@ walletEventToUI = \case
   WalletRequireConfirm resVar confirmationType ->
     Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
       ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
-      ConfirmRemove db sel     -> UiConfirmRemove $
-        case walletSelectionToInfo (toUiWalletDatas db) $ toUiWalletSelection db sel of
-          UiSelectionWallet UiWalletInfo {..} -> UiDelWallet uwiLabel
-          UiSelectionAccount UiAccountInfo {..} -> UiDelAccount uaciLabel
+      ConfrimRemoveWallet walletName ->
+          UiConfirmRemove $ UiDelWallet $ Just $ unWalletName walletName
+      ConfirmRemoveAccount accountName ->
+          UiConfirmRemove $ UiDelAccount $ Just $ unAccountName accountName
       ConfirmSend confsendInfo -> UiConfirmSend $ map toUiConfirmSendInfo confsendInfo
 
 toUiConfirmSendInfo :: ConfirmSendInfo -> UiConfirmSendInfo

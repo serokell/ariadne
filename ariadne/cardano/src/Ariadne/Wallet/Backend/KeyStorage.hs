@@ -392,9 +392,9 @@ removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
     Nothing -> pure Nothing
     -- Throw "Nothing selected" here?
     Just selection -> do
-      walletDb <- pwlGetDBSnapshot pwl
+      confirmationType <- getConfirmationRemoveType pwl selection
       unless noConfirm $
-        unlessM (waitUiConfirm $ ConfirmRemove walletDb selection) $
+        unlessM (waitUiConfirm confirmationType) $
           throwM RemoveFailedUnconfirmed
       case selection of
         WSRoot hdrId -> do
@@ -425,7 +425,22 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
 
   walletRefreshState
 
--- Helpers
+{-------------------------------------------------------------------------------
+  Utilities
+-------------------------------------------------------------------------------}
+
+getConfirmationRemoveType
+  :: PassiveWalletLayer IO
+  -> WalletSelection
+  -> IO ConfirmationType
+getConfirmationRemoveType pwl = \case
+    WSRoot hdrId ->
+          throwLeftIO (pwlGetWallet pwl hdrId)
+      <&> ConfrimRemoveWallet . view hdRootName
+
+    WSAccount hdAccId ->
+          throwLeftIO (pwlGetAccount pwl hdAccId)
+      <&> ConfirmRemoveAccount . view hdAccountName
 
 throwLeftIO :: (Exception e) => IO (Either e a) -> IO a
 throwLeftIO ioEith = ioEith >>= eitherToThrow
