@@ -3,10 +3,11 @@
 module Knit.Parser
        ( ComponentTokenToLit(..)
        , ParseError(..)
+       , CmdParam(..)
        , parseErrorSpans
        , gComponentsLit
+       , commandIdCmdParam
        , gExpr
-       , mkExprGroup
        , pExpr
        , parse
        , parseTree
@@ -58,12 +59,24 @@ gComponentsLit = go (knownSpine @components)
         pure (t, lit)
       rule $ nt1 <|> nt2
 
+data CmdParam components cmd = CmdParam
+  { cpProd :: forall r. Prod r Text (TokenWithSpace components) (TokenWithSpace components, cmd)
+  , cpOp :: Operator -> cmd
+  }
+
+commandIdCmdParam :: CmdParam components CommandId
+commandIdCmdParam = CmdParam
+  { cpProd = second CommandIdName <$> tok _TokenName
+  , cpOp = CommandIdOperator
+  }
+
 gExpr
-  :: forall components r.
+  :: forall components cmd.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Grammar r (Prod r Text (TokenWithSpace components) (Expr ParseTreeExt CommandId components))
-gExpr = mdo
-    ntName <- rule $ tok _TokenName
+  => CmdParam components cmd
+  -> forall r. Grammar r (Prod r Text (TokenWithSpace components) (Expr ParseTreeExt cmd components))
+gExpr CmdParam{..} = mdo
+    ntName <- rule $ first Just <$> cpProd
     ntKey <- rule $ tok _TokenKey
     ntComponentsLit <- gComponentsLit @components
     ntExprLit <- rule $ uncurry ExprLit <$> ntComponentsLit <?> "literal"
@@ -74,16 +87,16 @@ gExpr = mdo
     ntExpr1 <- rule $ asum
         [ ExprProcCall NoExt <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall NoExt $ ProcCall Nothing (CommandIdOperator OpUnit) [])
+        , pure (ExprProcCall NoExt $ ProcCall Nothing (cpOp OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup ntExpr1 (fst <$> tok _TokenSemicolon)
     ntProcCall <- rule $
       uncurry ProcCall
-        <$> (bimap Just CommandIdName <$> ntName)
+        <$> ntName
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-      (\(s, name) -> ExprProcCall NoExt $ ProcCall (Just s) (CommandIdName name) [])
+      (\(s, name) -> ExprProcCall NoExt $ ProcCall s name [])
         <$> ntName
         <?> "procedure call w/o arguments"
     ntInBrackets <- rule $ fmap XExpr $
@@ -101,23 +114,25 @@ gExpr = mdo
   where
     bracketSpan side = fst <$> tok (_TokenParenthesis . side)
 
-mkExprGroup
-  :: Alternative f
-  => f (Expr ParseTreeExt CommandId components)
-  -> f (TokenWithSpace components)
-  -> f (Expr ParseTreeExt CommandId components)
-mkExprGroup expr sep =
-    (Knit.Prelude.foldl' opAndThen)
-    <$> expr
-    <*> many ((,) <$> sep <*> expr)
-  where
-    opAndThen e1 (sep', e2) = ExprProcCall NoExt $
-      ProcCall (Just sep') (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
+    mkExprGroup
+      :: forall f. Alternative f
+      => f (Expr ParseTreeExt cmd components)
+      -> f (TokenWithSpace components)
+      -> f (Expr ParseTreeExt cmd components)
+    mkExprGroup expr sep =
+        (Knit.Prelude.foldl' opAndThen)
+        <$> expr
+        <*> many ((,) <$> sep <*> expr)
+      where
+        opAndThen e1 (sep', e2) = ExprProcCall NoExt $
+          ProcCall (Just sep') (cpOp OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
-  :: (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Parser Text [TokenWithSpace components] (Expr ParseTreeExt CommandId components)
-pExpr = parser gExpr
+  :: forall components cmd.
+     (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
+  => CmdParam components cmd
+  -> Parser Text [TokenWithSpace components] (Expr ParseTreeExt cmd components)
+pExpr cp = parser (gExpr cp)
 
 data ParseError components = ParseError
     { peSource :: Text
@@ -131,7 +146,13 @@ parseTree
      )
   => Text
   -> Either (ParseError components) (Expr ParseTreeExt CommandId components)
-parseTree str = over _Left (ParseError str) . toEither . fullParses pExpr . snd . tokenize $ str
+parseTree str =
+    over _Left (ParseError str)
+  . toEither
+  . fullParses (pExpr commandIdCmdParam)
+  . snd
+  . tokenize
+  $ str
   where
     toEither = \case
       ([] , r) -> Left r

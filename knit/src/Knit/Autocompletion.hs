@@ -278,7 +278,7 @@ suggestions _ cursor cmd =
     tokens' = tokens ++ zipWith closingBracket [0..]
       (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
-    case fullParses (pExpr @components) tokens' of
+    case fullParses (pExpr @components commandIdCmdParam) tokens' of
       ([], _) -> [(cursor, cmd)]
       (tree:_, _) ->
         let

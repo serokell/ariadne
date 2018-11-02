@@ -11,6 +11,11 @@ module Knit.Tokenizer
        , Located(..)
        , TokenWithSpace(..)
 
+       , pIdentifier
+       , pToken
+       , pNameSection
+       , pLetter
+
        , _BracketSideOpening
        , _BracketSideClosing
        , _Token
