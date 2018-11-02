@@ -10,6 +10,7 @@ module Ariadne.Wallet.Face
        , AccountReference(..)
        , LocalAccountReference(..)
        , WalletSelection(..)
+       , AccountName(..)
        , WalletName(..)
        , Mnemonic(..)
        , WalletRestoreType (..)
@@ -97,7 +98,8 @@ data WalletEvent
 
 data ConfirmationType
   = ConfirmMnemonic [Text]           -- ^ mnemonic
-  | ConfirmRemove DB WalletSelection -- ^ walletDB, selection
+  | ConfrimRemoveWallet WalletName
+  | ConfirmRemoveAccount AccountName
   | ConfirmSend [ConfirmSendInfo]    -- ^ lists of outputs' info
 
 data ConfirmSendInfo =
