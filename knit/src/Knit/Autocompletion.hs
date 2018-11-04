@@ -8,14 +8,16 @@ import Control.Monad.Trans
 import Control.Monad.Trans.State.Strict
 import Data.Default
 import Data.List (isPrefixOf)
+import Data.List.NonEmpty (some1)
 import Data.Loc (loc, spanFromTo)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (isJust, mapMaybe)
 import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import Data.Text.Buildable (build)
 import Data.Text.Lazy (unpack)
 import Data.Text.Lazy.Builder (toLazyText)
 import Text.Earley (fullParses)
+import Text.Megaparsec.Char (char)
 
 import Knit.Argument
 import Knit.FormattedExprExt
@@ -27,6 +29,39 @@ import Knit.Printer
 import Knit.Procedure
 import Knit.Syntax
 import Knit.Tokenizer
+
+data Autocompletion
+
+data instance ComponentToken Autocompletion
+  = TokenPartialName Name
+  | TokenPartialKey Name
+
+instance Elem components Autocompletion => ComponentTokenizer components Autocompletion where
+  componentTokenizer = [ toToken <$> pPartialName ]
+    where
+      pPartialName :: Tokenizer (ComponentToken Autocompletion)
+      pPartialName = do
+        name <- some1 (pNameSection <* (char '-'))
+        isKey <- isJust <$> optional (char ':')
+        return $ (if isKey then TokenPartialKey else TokenPartialName) (Name name)
+
+instance ComponentTokenToLit components Autocompletion where
+  componentTokenToLit _ = asum []
+
+instance Elem components Autocompletion => ComponentCommandProcs components Autocompletion where
+  componentCommandProcs = []
+
+instance ComponentPrinter Autocompletion where
+  componentPpLit = undefined
+  componentPpToken = undefined
+
+autocompletionCmdParam :: CmdParam components CommandId
+autocompletionCmdParam = CmdParam
+  { cpProd =
+        second CommandIdName <$> tok _TokenName
+    <|> undefined --[ toLit . LitNumber <$> preview (_Token . uprism . _TokenNumber) t
+  , cpOp = CommandIdOperator
+  }
 
 data SuggestionCtx = SuggestionCtx
   { _leftSpace :: SpaceWithSelection
@@ -243,10 +278,10 @@ suggestionExprs procs = goExpr
 
 suggestions
   :: forall components proxy.
-     ( KnownSpine components
-     , AllConstrained (ComponentTokenizer components) components
-     , AllConstrained (ComponentTokenToLit components) components
-     , AllConstrained (ComponentCommandProcs components) components
+     ( KnownSpine (Autocompletion ': components)
+     , AllConstrained (ComponentTokenizer (Autocompletion ': components)) (Autocompletion ': components)
+     , AllConstrained (ComponentTokenToLit (Autocompletion ': components)) (Autocompletion ': components)
+     , AllConstrained (ComponentCommandProcs (Autocompletion ': components)) (Autocompletion ': components)
      , AllConstrained ComponentPrinter components
      )
   => proxy components
@@ -278,7 +313,7 @@ suggestions _ cursor cmd =
     tokens' = tokens ++ zipWith closingBracket [0..]
       (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
-    case fullParses (pExpr @components commandIdCmdParam) tokens' of
+    case fullParses (pExpr @(Autocompletion ': components) commandIdCmdParam) tokens' of
       ([], _) -> [(cursor, cmd)]
       (tree:_, _) ->
         let

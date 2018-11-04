@@ -3,7 +3,7 @@
 module Knit.Parser
        ( ComponentTokenToLit(..)
        , ParseError(..)
-       , CmdParam(..)
+       , NameParam(..)
        , parseErrorSpans
        , gComponentsLit
        , commandIdCmdParam
@@ -59,25 +59,29 @@ gComponentsLit = go (knownSpine @components)
         pure (t, lit)
       rule $ nt1 <|> nt2
 
-data CmdParam components cmd = CmdParam
-  { cpProd :: forall r. Prod r Text (TokenWithSpace components) (TokenWithSpace components, cmd)
-  , cpOp :: Operator -> cmd
+data NameParam ext cmd components = NameParam
+  { npPcProd :: forall r. Prod r Text (TokenWithSpace components) (TokenWithSpace components, cmd)
+  , npArgKwProd :: forall r. Prod r Text
+      (TokenWithSpace components)
+      (TokenWithSpace components, Expr ext cmd components -> Arg' ext cmd components)
+  , npOp :: Operator -> cmd
   }
 
-commandIdCmdParam :: CmdParam components CommandId
-commandIdCmdParam = CmdParam
-  { cpProd = second CommandIdName <$> tok _TokenName
-  , cpOp = CommandIdOperator
+commandIdCmdParam :: NameParam ext CommandId components
+commandIdCmdParam = NameParam
+  { npPcProd = second CommandIdName <$> tok _TokenName
+  , npArgKwProd = second (uncurry ArgKw) <$> tok _TokenKey
+  , npOp = CommandIdOperator
   }
 
 gExpr
   :: forall components cmd.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => CmdParam components cmd
+  => NameParam components cmd
   -> forall r. Grammar r (Prod r Text (TokenWithSpace components) (Expr ParseTreeExt cmd components))
-gExpr CmdParam{..} = mdo
-    ntName <- rule $ first Just <$> cpProd
-    ntKey <- rule $ tok _TokenKey
+gExpr NameParam{..} = mdo
+    ntPc <- rule $ first Just <$> npPcProd
+    ntArgKw <- rule $ first Just <$> npArgKwProd
     ntComponentsLit <- gComponentsLit @components
     ntExprLit <- rule $ uncurry ExprLit <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
@@ -87,17 +91,17 @@ gExpr CmdParam{..} = mdo
     ntExpr1 <- rule $ asum
         [ ExprProcCall NoExt <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall NoExt $ ProcCall Nothing (cpOp OpUnit) [])
+        , pure (ExprProcCall NoExt $ ProcCall Nothing (npOp OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup ntExpr1 (fst <$> tok _TokenSemicolon)
     ntProcCall <- rule $
       uncurry ProcCall
-        <$> ntName
+        <$> ntPc
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
       (\(s, name) -> ExprProcCall NoExt $ ProcCall s name [])
-        <$> ntName
+        <$> ntPc
         <?> "procedure call w/o arguments"
     ntInBrackets <- rule $ fmap XExpr $
       ExprInBrackets
@@ -125,14 +129,14 @@ gExpr CmdParam{..} = mdo
         <*> many ((,) <$> sep <*> expr)
       where
         opAndThen e1 (sep', e2) = ExprProcCall NoExt $
-          ProcCall (Just sep') (cpOp OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
+          ProcCall (Just sep') (npOp OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
   :: forall components cmd.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => CmdParam components cmd
+  => NameParam components cmd
   -> Parser Text [TokenWithSpace components] (Expr ParseTreeExt cmd components)
-pExpr cp = parser (gExpr cp)
+pExpr np = parser (gExpr np)
 
 data ParseError components = ParseError
     { peSource :: Text

@@ -21,7 +21,7 @@ type instance XProcCall ParseTreeExt _ (Expr ParseTreeExt _ components) =
 
 type instance XArgPos ParseTreeExt _ = NoExt
 type instance XArgKw ParseTreeExt (Expr ParseTreeExt _ components) = TokenWithSpace components
-type instance XXArg ParseTreeExt _ = Void
+type instance XXArg ParseTreeExt (Expr ParseTreeExt cmd components) = Void
 
 data ExprInBrackets br a = ExprInBrackets br a br
     deriving (Show, Eq, Ord)
