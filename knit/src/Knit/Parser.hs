@@ -19,7 +19,7 @@ import Data.List as List
 import Data.Loc
 import Data.Monoid (First)
 import Data.Proxy
-import Data.Text
+import Data.Text (Text)
 import Text.Earley
 
 import Knit.ParseTreeExt
@@ -61,10 +61,15 @@ gComponentsLit = go (knownSpine @components)
 gExpr
   :: forall components r.
      (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Grammar r (Prod r Text (TokenWithSpace components) (Expr ParseTreeExt CommandId components))
-gExpr = mdo
-    ntName <- rule $ tok _TokenName
-    ntKey <- rule $ tok _TokenKey
+  => Bool
+  -> Grammar r (Prod r Text (TokenWithSpace components) (Expr ParseTreeExt CommandId components))
+gExpr canBeIncomplete = mdo
+    ntName <- rule $ terminal $ \x -> case x^.twsToken.lItem of
+      TokenName (comp, name) | comp == Complete || canBeIncomplete -> Just ((x, comp), name)
+      _ -> Nothing
+    ntKey <- rule $ terminal $ \x -> case x^.twsToken.lItem of
+      TokenKey (comp, name) | comp == Complete || canBeIncomplete -> Just ((x, comp), name)
+      _ -> Nothing
     ntComponentsLit <- gComponentsLit @components
     ntExprLit <- rule $ uncurry ExprLit <$> ntComponentsLit <?> "literal"
     ntArg <- rule $ asum
@@ -74,16 +79,16 @@ gExpr = mdo
     ntExpr1 <- rule $ asum
         [ ExprProcCall NoExt <$> ntProcCall
         , ntExprAtom
-        , pure (ExprProcCall NoExt $ ProcCall Nothing (CommandIdOperator OpUnit) [])
+        , pure (ExprProcCall NoExt $ ProcCall (Nothing, Complete) (CommandIdOperator OpUnit) [])
         ] <?> "expression"
     ntExpr <- rule $ mkExprGroup ntExpr1 (fst <$> tok _TokenSemicolon)
     ntProcCall <- rule $
       uncurry ProcCall
-        <$> (bimap Just CommandIdName <$> ntName)
+        <$> (bimap (first Just) CommandIdName <$> ntName)
         <*> some ntArg
         <?> "procedure call"
     ntProcCall0 <- rule $
-      (\(s, name) -> ExprProcCall NoExt $ ProcCall (Just s) (CommandIdName name) [])
+      (\(s, name) -> ExprProcCall NoExt $ ProcCall (first Just s) (CommandIdName name) [])
         <$> ntName
         <?> "procedure call w/o arguments"
     ntInBrackets <- rule $ fmap XExpr $
@@ -111,13 +116,16 @@ mkExprGroup expr sep =
     <$> expr
     <*> many ((,) <$> sep <*> expr)
   where
-    opAndThen e1 (sep', e2) = ExprProcCall NoExt $
-      ProcCall (Just sep') (CommandIdOperator OpAndThen) [ArgPos NoExt e1, ArgPos NoExt e2]
+    opAndThen e1 (sep', e2) = ExprProcCall NoExt $ ProcCall
+      (Just sep', Complete)
+      (CommandIdOperator OpAndThen)
+      [ArgPos NoExt e1, ArgPos NoExt e2]
 
 pExpr
   :: (AllConstrained (ComponentTokenToLit components) components, KnownSpine components)
-  => Parser Text [TokenWithSpace components] (Expr ParseTreeExt CommandId components)
-pExpr = parser gExpr
+  => Bool
+  -> Parser Text [TokenWithSpace components] (Expr ParseTreeExt CommandId components)
+pExpr canBeIncomplete = parser $ gExpr canBeIncomplete
 
 data ParseError components = ParseError
     { peSource :: Text
@@ -129,9 +137,11 @@ parseTree
      , AllConstrained (ComponentTokenizer components) components
      , AllConstrained (ComponentTokenToLit components) components
      )
-  => Text
+  => Bool
+  -> Text
   -> Either (ParseError components) (Expr ParseTreeExt CommandId components)
-parseTree str = over _Left (ParseError str) . toEither . fullParses pExpr . snd . tokenize $ str
+parseTree canBeIncomplete str =
+    over _Left (ParseError str) $ toEither $ fullParses (pExpr canBeIncomplete) $ snd $ tokenize str
   where
     toEither = \case
       ([] , r) -> Left r
@@ -144,7 +154,7 @@ parse
      )
   => Text
   -> Either (ParseError components) (Expr NoExt CommandId components)
-parse = second dropParseTreeExt . parseTree
+parse = second dropParseTreeExt . parseTree False
 
 parseErrorSpans :: ParseError components -> [Span]
 parseErrorSpans = List.map (^.twsToken.lSpan) . unconsumed . peReport
