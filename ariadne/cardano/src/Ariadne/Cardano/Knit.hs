@@ -19,6 +19,7 @@ module Ariadne.Cardano.Knit
        , showCoin
        , adaToCoin
        , txOutCommandName
+       , tyCoin
        , tyPublicKey
        , tyTxOut
        ) where
@@ -255,8 +256,9 @@ showScientificCoin c =
   case floatingOrInteger ada of
     Left (_ :: Double) ->
       if ada >= 1
-         then (show ada, ADA)
-         else (componentTokenRender $ TokenNumber c, Lovelace)
+        -- Use formatScientific Fixed to not show exponential notation
+        then (fromString $ formatScientific Fixed Nothing ada, ADA)
+        else (componentTokenRender $ TokenNumber c, Lovelace)
     Right (n :: Integer) -> (show n, ADA)
   where
     ada :: Scientific

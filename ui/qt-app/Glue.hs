@@ -129,6 +129,10 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
               (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
             argOutputs
           )
+      UiCalcTotal amounts -> do
+        argAmounts <- forM amounts $ Right . (argKw "amount") . exprLit . Knit.toLit . Knit.LitNumber
+        Right $ exprProcCall
+          (procCall Knit.sumCoinsCommamdName argAmounts)
       UiNewWallet name _ -> do
         Right $ exprProcCall
           (procCall Knit.newWalletCommandName $
@@ -169,6 +173,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiCalcTotal {} ->
+        Just . UiCalcTotalCommandResult . either UiCalcTotalCommandFailure UiCalcTotalCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueCoin c ->
+              let (amount, unit) = Knit.showCoin c in Right (amount, show unit)
+            e -> Left $ "Unrecognized return value: " <> show e
       UiNewWallet {} ->
         Just . UiNewWalletCommandResult .
           either UiNewWalletCommandFailure (const UiNewWalletCommandSuccess) $

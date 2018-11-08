@@ -557,8 +557,13 @@ QWidget[styleRole="validationErrorDisplay"] {
     font-size: 14px;
     background: #ca5000;
 }
+
 QWidget[styleRole="validationErrorDisplay"] QLabel {
     color: #fafafa;
+}
+
+QDialog QLabel#amountLabel {
+    font-size: 20px;
 }
 
 /* vim: ft=css

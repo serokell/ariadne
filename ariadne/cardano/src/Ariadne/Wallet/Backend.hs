@@ -8,6 +8,7 @@ import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))
 import qualified Data.ByteArray as ByteArray
 import Data.Constraint (withDict)
+import Pos.Core (sumCoins, unsafeIntegerToCoin)
 import Pos.Crypto.Hashing (hashRaw)
 import System.Wlog (logMessage, usingLoggerName)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
@@ -114,6 +115,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = 
                     sendTx awl this cardanoFace walletSelRef putCommandOutput
                         getPassPhrase voidWrongPass waitUiConfirm
                 , walletBalance = getBalance pwl walletSelRef
+                , walletSumCoins = \amounts -> return $ unsafeIntegerToCoin $ sumCoins amounts
                 }
             initWalletAction =
                 refreshState pwl walletSelRef sendWalletEvent

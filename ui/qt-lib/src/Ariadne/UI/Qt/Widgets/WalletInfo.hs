@@ -59,6 +59,7 @@ data WalletInfo =
     , requestButton :: QPushButton.QPushButton
     , requestDialog :: IORef (Maybe Request)
     , sendConfirmDialog :: IORef (Maybe ConfirmSend)
+    , send :: IORef (Maybe Send)
     }
 
 makeLensesWith postfixLFields ''WalletInfo
@@ -152,6 +153,7 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   currentItemName <- newIORef ""
   requestDialog <- newIORef Nothing
   sendConfirmDialog <- newIORef Nothing
+  send <- newIORef Nothing
 
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
@@ -170,6 +172,7 @@ data WalletInfoEvent
   = WalletInfoSelectionChange UiSelectionInfo
   | WalletInfoDeselect
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
+  | WalletInfoCalcTotalCommandResult UiCalcTotalCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
   | WalletInfoConfirmRemove (MVar Bool) UiDeletingItem
@@ -224,7 +227,11 @@ handleWalletInfoEvent UiLangFace{..} ev = do
           void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
         UiSendCommandFailure err -> do
           void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
-
+    WalletInfoCalcTotalCommandResult result -> case result of
+        UiCalcTotalCommandSuccess (amount, unit) -> do
+          whenJustM (readIORef send) $ \dialog -> changeTotalAmount dialog amount unit
+        UiCalcTotalCommandFailure err -> do
+          whenJustM (readIORef send) $ \dialog -> showInvalidArgumentsError dialog err
     WalletInfoNewAccountCommandResult _commandId result -> case result of
       UiNewAccountCommandSuccess -> do
         void $ QMessageBox.information walletInfo ("Success" :: String) ("Account created" :: String)
@@ -284,12 +291,14 @@ requestButtonClicked langFace WalletInfo{..} _checked = do
   where onClosed = writeIORef requestDialog Nothing
 
 sendButtonClicked :: UiLangFace -> UiWalletFace -> WalletInfo -> Bool -> IO ()
-sendButtonClicked UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJustM (readIORef currentItem) $ \item -> do
+sendButtonClicked uiLangFace@UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJustM (readIORef currentItem) $ \item -> do
   let
     (wIdx, inputs) = case item of
       WIWallet wIdx' uacis -> (wIdx', SendInputsMulti uacis)
       WIAccount wIdx' UiAccountInfo{..} -> (wIdx', SendInputsSingle $ head uaciPath)
-  result <- runSend uiWalletFace inputs
+  sendDialog <- initSend uiLangFace uiWalletFace inputs
+  writeIORef send $ Just sendDialog
+  result <- runSend sendDialog
   case result of
     SendCancel -> pass
     SendSuccess SendOptions{..} -> do

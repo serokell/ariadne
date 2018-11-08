@@ -84,6 +84,7 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
 data WalletEvent
   = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
   | WalletSendCommandResult UiCommandId UiSendCommandResult
+  | WalletCalcTotalCommandResult UiCalcTotalCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
@@ -107,6 +108,9 @@ handleWalletEvent langFace putPass ev = do
     WalletSendCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoSendCommandResult commandId result
+    WalletCalcTotalCommandResult result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoCalcTotalCommandResult result
     WalletNewWalletCommandResult commandId result ->
       magnify walletTreeL $ handleWalletTreeEvent langFace $
         WalletTreeNewWalletCommandResult commandId result

@@ -1,12 +1,16 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Send
-  ( SendInputs(..)
+  ( Send(..)
+  , SendInputs(..)
   , SendOptions(..)
   , SendResult(..)
+  , initSend
   , runSend
+  , changeTotalAmount
   ) where
 
 import Control.Lens (has)
 import Data.Scientific (Scientific, normalize)
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Data.Traversable (for)
 import Data.Validation
@@ -29,12 +33,12 @@ import qualified Graphics.UI.Qtah.Gui.QValidator as QValidator
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
-import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
+import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -87,7 +91,7 @@ data Send =
     , sendButton :: QPushButton.QPushButton
     , addRecieverButton :: QPushButton.QPushButton
     , fromDisplay :: QLabel.QLabel
-    , feesTypeSelector :: QComboBox.QComboBox
+    , totalAmount :: QLabel.QLabel
     , accountSelector :: Either Word AccountSelector
     , uiWalletFace :: UiWalletFace
     }
@@ -101,8 +105,8 @@ data Reciever =
     , validations :: Validations
     }
 
-initSend :: UiWalletFace -> SendInputs -> IO Send
-initSend uiWalletFace@UiWalletFace{..} sendInputs = do
+initSend :: UiLangFace -> UiWalletFace -> SendInputs -> IO Send
+initSend uiLangFace uiWalletFace@UiWalletFace{..} sendInputs = do
   send <- QDialog.new
   QObject.setObjectName send ("settingsDialog" :: String)
   layout <- createLayout send
@@ -133,12 +137,11 @@ initSend uiWalletFace@UiWalletFace{..} sendInputs = do
       addRow layout fromAccountsLabel fromDisplay
       addSeparator layout
 
-  feesTypeLabel <- QLabel.newWithText ("<b>FEES TYPE</b>" :: String)
-  feesTypeSelector <- QComboBox.new
-  QWidget.setSizePolicyRaw feesTypeSelector Maximum Fixed
-  QComboBox.addItem feesTypeSelector ("Excluded from amount" :: String)
-  addRow layout feesTypeLabel feesTypeSelector
-  QWidget.setEnabled feesTypeSelector False
+  totalLabel <- QLabel.newWithText ("<b>TOTAL</b>" :: String)
+  totalAmount <- QLabel.new
+  QObject.setObjectName totalAmount ("amountLabel" :: String)
+  QWidget.setSizePolicyRaw totalAmount Maximum Fixed
+  addRow layout totalLabel totalAmount
 
   addRecieverButton <- QPushButton.new
   QWidget.resizeRaw addRecieverButton 36 36
@@ -175,11 +178,12 @@ initSend uiWalletFace@UiWalletFace{..} sendInputs = do
 
   let s = Send{..}
 
-  createNewReciever uiWalletFace s
+  createNewReciever uiLangFace uiWalletFace s
+  changeTotalAmount s "0"
 
   connect_ sendButton QAbstractButton.clickedSignal $ \_ -> QDialog.accept send
   connect_ addRecieverButton QAbstractButton.clickedSignal $ \_ -> do
-    createNewReciever uiWalletFace s
+    createNewReciever uiLangFace uiWalletFace s
 
   whenRight accountSelector $ \as@AccountSelector{..} -> do 
     void $ Event.onEvent fromDisplay $
@@ -206,9 +210,8 @@ initSend uiWalletFace@UiWalletFace{..} sendInputs = do
 
   return s
 
-runSend :: UiWalletFace -> SendInputs -> IO SendResult
-runSend uiWalletFace sendInputs = do
-  s@Send{send = send} <- initSend uiWalletFace sendInputs
+runSend :: Send -> IO SendResult
+runSend s@Send{..} = do
   result <- toEnum <$> QDialog.exec send
 
   options <- fillSendOptions s
@@ -290,13 +293,14 @@ createAccountSelector uacis = do
 
   return AccountSelector{..}
 
-createNewReciever :: UiWalletFace -> Send -> IO ()
-createNewReciever UiWalletFace{..} s@Send{..} = do
+createNewReciever :: UiLangFace -> UiWalletFace -> Send -> IO ()
+createNewReciever uiLangFace UiWalletFace{..} s@Send{..} = do
   widget <- QWidget.new
   layout <- createLayout widget
 
   amountEdit <- QLineEdit.new
-  unitLabel <- QLabel.newWithText $ toString $ unitToHtml ADA
+  unitLabel <- QLabel.newWithText ("ADA" :: String)
+  QObject.setObjectName unitLabel ("amountLabel" :: String)
   QObject.setObjectName amountEdit ("sendAmountEdit" :: String)
   QLineEdit.setPlaceholderText amountEdit ("0" :: String)
 
@@ -330,33 +334,43 @@ createNewReciever UiWalletFace{..} s@Send{..} = do
 
   connect_ amountEdit QLineEdit.textChangedSignal $ \_ -> do
     revalidate s
-    -- recalcTotal ss
+    recalcTotal uiLangFace s
   connect_ addressEdit QLineEdit.textChangedSignal $ \_ -> revalidate s
   connect_ removeButton QAbstractButton.clickedSignal $ \_ -> do
     QWidget.setEnabled widget False
     QWidget.setVisible widget False
-    moveAddRecieverButton s
+    -- moveAddRecieverButton s
+    QWidget.adjustSize recieversWidget
+    QWidget.adjustSize send
     revalidate s
 
   let r = Reciever{..}
 
   modifyIORef' recievers (r :)
 
-  moveAddRecieverButton s
+  -- moveAddRecieverButton s
+  QWidget.adjustSize recieversWidget
+  QWidget.adjustSize send
   revalidate s
 
-{-recalcTotal :: Send -> IO ()
-recalcTotal Send{..} = do
+recalcTotal :: UiLangFace -> Send -> IO ()
+recalcTotal UiLangFace{..}Send{..} = do
   r <- readIORef recievers
   enabledRecievers <- filterM (\Reciever{..} -> QWidget.isEnabled widget) r
-  amounts <- mapM (\Reciever{..} -> fromString <$> QLineEdit.text amountEdit) enabledRecievers
-  _ <- liftIO $ map (readMaybe :: String -> Maybe Scientific) amounts
-  pass-}
+  textAmounts <- mapM (\Reciever{..} -> fromString <$> QLineEdit.text amountEdit) enabledRecievers
+  let amounts = map fromJust (filter isJust (map (\a -> normalize <$> readMaybe a) textAmounts))
+  langPutUiCommand (UiCalcTotal amounts) >>= \case 
+    Left err -> void $ QMessageBox.critical send ("Error" :: String) $ toString err
+    Right _ -> pass
+
+changeTotalAmount :: Send -> Text -> IO ()
+changeTotalAmount Send{..} amount = do
+  QLabel.setText totalAmount $ toString amount
 
 moveAddRecieverButton :: Send -> IO ()
 moveAddRecieverButton Send{..} = do
   QWidget.adjustSize recieversWidget
-  QWidget.adjustSize sendButton
+  QWidget.adjustSize send
   QWidget.raise addRecieverButton
   HPoint{x = widgetX, y = widgetY} <- QWidget.pos recieversWidget
   HSize{width = widgetWidth, height = widgetHeight} <- QWidget.size recieversWidget
@@ -400,11 +414,11 @@ moveDropDown dropdownWidget Send{..} = do
   QWidget.adjustSize dropdownWidget
 
   HSize{width = widgetWidth, height = widgetHeight} <- QWidget.size dropdownWidget
-  print (widgetWidth, widgetHeight)
+  -- print (widgetWidth, widgetHeight)
   -- Make account widget occupy as much space as is available
   when (widgetWidth < labelWidth) $ QWidget.resizeRaw dropdownWidget labelWidth widgetHeight
-  print (labelWidth, widgetHeight)
-  QWidget.update dropdownWidget
+  -- print (labelWidth, widgetHeight)
+  QWidget.updateGeometry dropdownWidget
 
 selectAccountText :: Text
 selectAccountText = "select accounts..."

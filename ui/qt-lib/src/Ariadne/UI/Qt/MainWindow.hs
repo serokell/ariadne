@@ -95,6 +95,9 @@ handleMainWindowEvent langFace putPass = \case
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletSendCommandResult commandId result
+    UiCalcTotalCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletCalcTotalCommandResult result
     UiNewWalletCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletNewWalletCommandResult commandId result
