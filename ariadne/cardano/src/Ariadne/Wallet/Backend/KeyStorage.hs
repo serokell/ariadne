@@ -23,8 +23,6 @@ module Ariadne.Wallet.Backend.KeyStorage
        , generateMnemonic
        ) where
 
-import qualified Universum.Unsafe as Unsafe
-
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
 import qualified Data.Text.Buildable
@@ -38,8 +36,7 @@ import Pos.Util (eitherToThrow, maybeThrow)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
-import Ariadne.Wallet.Cardano.Kernel.Bip39
-  (entropyToMnemonic, mnemonicToSeedNoPassword)
+import Ariadne.Wallet.Cardano.Kernel.Bip39 (entropyToMnemonic)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (deriveBip44KeyPair)
@@ -306,8 +303,7 @@ newWallet pwl walletConfig face getPassTemp waitUiConfirm noConfirm mbWalletName
   unless noConfirm $
     unlessM (waitUiConfirm $ ConfirmMnemonic mnemonic) $
       throwM WGFailedUnconfirmedMnemonic
-  let seed = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
-      (_, esk) = safeDeterministicKeyGen seed pp
+  esk <- pwlCreateEncryptedKey pwl pp mnemonic
   mnemonic <$
     addWallet pwl face esk mbWalletName mempty (mkHasPP pp) (WithAddress pp) assurance
   where

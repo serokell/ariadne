@@ -3,7 +3,7 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
        , passiveWalletLayerCustomDBComponent
        ) where
 
-import qualified Universum.Unsafe as Unsafe (fromJust)
+import qualified Universum.Unsafe as Unsafe (fromJust, init)
 
 import Control.Monad.Component (ComponentM, buildComponent)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
@@ -16,6 +16,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
+import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
@@ -27,6 +28,7 @@ import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 
 import Pos.Core (unsafeIntegerToCoin)
 import Pos.Core.Chrono (OldestFirst(..))
+import Pos.Crypto (safeDeterministicKeyGen)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 
@@ -126,6 +128,11 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
 
             , pwlApplyBlocks           = liftIO . invoke . Actions.ApplyBlocks
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
+
+            , pwlCreateEncryptedKey = \pp mnemonic ->
+                let seed     = mnemonicToSeedNoPassword $ unwords $ Unsafe.init mnemonic
+                    (_, esk) = safeDeterministicKeyGen seed pp
+                in pure esk
 
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $

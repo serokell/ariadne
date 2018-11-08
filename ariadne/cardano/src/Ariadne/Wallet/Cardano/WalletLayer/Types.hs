@@ -16,6 +16,8 @@ import Pos.Core (Coin)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
+type Mnemonic = [Text]
+
 ------------------------------------------------------------
 -- Passive wallet layer
 ------------------------------------------------------------
@@ -90,6 +92,12 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlRollbackBlocks
           :: NewestFirst NE Blund
           -> m ()
+
+    -- | generate EncryptedSecretKey
+    , pwlCreateEncryptedKey
+        :: PassPhrase
+        -> Mnemonic
+        -> m EncryptedSecretKey
 
     -- | internal, hopefully these will go in the future
     , pwlGetDBSnapshot
