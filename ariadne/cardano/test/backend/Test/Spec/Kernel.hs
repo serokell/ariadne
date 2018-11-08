@@ -14,7 +14,8 @@ import Pos.Crypto (ProtocolMagic)
 
 import Test.Infrastructure.Generator
 import Test.Infrastructure.Genesis
-import qualified Test.Spec.Fixture as Fixture (bracketPassiveWallet)
+import qualified Test.Spec.Fixture as Fixture
+  (bracketActiveWallet, bracketPassiveWallet)
 import Util.Buildable.Hspec
 import Util.Buildable.QuickCheck
 import UTxO.Bootstrap
@@ -153,5 +154,5 @@ bracketPassiveWallet pm postHook = do
 bracketActiveWallet :: (Kernel.ActiveWallet -> IO a) -> IO a
 bracketActiveWallet test =
     bracketPassiveWallet $ \passive ->
-        Kernel.bracketActiveWallet passive $ \active ->
+        Fixture.bracketActiveWallet passive $ \active ->
             test active

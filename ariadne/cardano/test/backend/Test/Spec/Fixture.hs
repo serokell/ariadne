@@ -13,6 +13,7 @@ module Test.Spec.Fixture (
     , inMemoryDBComponent
     , bracketPassiveWallet
     , bracketKernelPassiveWallet
+    , bracketActiveWallet
     ) where
 
 import Control.Monad.Component (ComponentM, buildComponent_, runComponentM)
@@ -117,6 +118,14 @@ bracketKernelPassiveWallet pm logFunction keystore f =
     pwlComponent = do
         acidDB <- inMemoryDBComponent
         WalletLayer.passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
+
+bracketActiveWallet
+    :: Kernel.PassiveWallet
+    -> (Kernel.ActiveWallet -> IO a) -> IO a
+bracketActiveWallet walletPassive runActiveWallet = do
+    runComponentM "Active wallet"
+        (Kernel.activeWalletComponent walletPassive)
+        runActiveWallet
 
 bracketKernelActiveWallet
     :: forall m n a. (MonadIO m, MonadUnliftIO n)

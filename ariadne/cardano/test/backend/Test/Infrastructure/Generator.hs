@@ -74,7 +74,7 @@ genInductiveUsingModel GeneratorModel{..} = do
       }
   where
     potentialOurs = filter gmPotentialOurs gmAllAddresses
-    params ours   = (defEventsParams gmEstimateFee gmAllAddresses ours initUtxo)
+    params ours   = defEventsParams gmEstimateFee gmAllAddresses ours initUtxo
     initUtxo      = utxoRestrictToAddr (`elem` gmAllAddresses) $ trUtxo gmBoot
     initState     = initEventsGlobalState 1
 

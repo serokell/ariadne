@@ -45,7 +45,6 @@ import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, sformat, (%))
-import qualified GHC.Show (Show(show))
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
@@ -116,6 +115,7 @@ data NewPendingError =
 
     -- | Some inputs are not in the wallet utxo
   | NewPendingFailed Spec.NewPendingFailed
+  deriving Show
 
 deriveSafeCopySimple 1 'base ''NewPendingError
 
@@ -130,10 +130,8 @@ instance Buildable NewPendingError where
     build (NewPendingFailed npf) =
         bprint ("NewPendingFailed " % build) npf
 
-instance Show NewPendingError where
-    show = formatToString build
-
-instance Exception NewPendingError
+instance Exception NewPendingError where
+    displayException = formatToString build
 
 newPending :: HdAccountId
            -> InDb Txp.TxAux

@@ -193,9 +193,7 @@ sendTx
                 ourAddresses
                 (map TxOutAux outs)
                 (const newChangeAddress)
-        liftIO $ awlNewPending awl ourAccountId txAux >>= \case
-            Left e -> throwM e
-            Right () -> pass
+        liftIO $ whenLeftM (awlNewPending awl ourAccountId txAux) throwM
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx

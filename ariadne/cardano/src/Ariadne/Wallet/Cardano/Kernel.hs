@@ -25,7 +25,6 @@ module Ariadne.Wallet.Cardano.Kernel
          -- * Active wallet
        , ActiveWallet -- opaque
        , activeWalletComponent
-       , bracketActiveWallet
        , newPending
        , NewPendingError
        ) where
@@ -173,14 +172,6 @@ activeWalletComponent walletPassive = do
         (\_ -> liftIO $ do
             logMsg Error "stopping the wallet submission layer..."
         )
-
-bracketActiveWallet
-    :: PassiveWallet
-    -> (ActiveWallet -> IO a) -> IO a
-bracketActiveWallet walletPassive runActiveWallet = do
-    runComponentM "Active wallet"
-        (activeWalletComponent walletPassive)
-        runActiveWallet
 
 -- | Submit a new pending transaction
 --
