@@ -52,6 +52,9 @@ If you want to delete an account or a wallet, just click "Delete" button in the 
 deleting a wallet is a rather dangerous operation, you will be asked to enter its name to confirm
 you understand what you are doing.
 
+When an account is selected you can open its settings by clicking the "Account settings" button in
+the wallet pane. A dialog will open where you can change your account's name or delete it.
+
 ## Blockchain operations
 
 Wallet pane has two buttons for working with the blockchain &mdash; "SEND" and "REQUEST". Both will

@@ -275,6 +275,14 @@ QDialog QPushButton[dialogButtonRole="dialogAction"] {
     padding-right: 80px;
 }
 
+QDialog QPushButton[dialogButtonRole="textDangerButton"] {
+    font-size: 14px;
+    font-weight: bold;
+    background: transparent;
+    color: #ca5000;
+    border: none;
+}
+
 QDialog QPushButton[dialogButtonRole="gifButton"] {
     font-weight: bold;
     padding-top: 18px;

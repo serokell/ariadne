@@ -153,6 +153,11 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             ]
           )
 
+      UiRename newName -> do
+        Right $ exprProcCall
+          (procCall Knit.renameCommandName $
+            [argKw "name" . exprLit . Knit.toLit . Knit.LitString $ newName]
+          )
       UiRemoveCurrentItem -> do
         Right $ exprProcCall $ procCall Knit.removeCommandName []
 
