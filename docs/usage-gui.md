@@ -74,16 +74,19 @@ password if it's password protected. After generation new address will be append
 ### Sending transactions
 
 As with requesting, you can click "SEND" when either wallet or account is selected. A send dialog
-will open, where you can enter the amount you want to send and receiver's address. If you click
-"SEND" on a wallet, you will have to choose accounts to use as inputs as well. Click on "select
-accounts..." text right of "FROM" and a pop-up will appear, giving you the list of the current
-wallet's accounts along with their balances. Select desired accounts by clicking on their names and
+will open, where you can choose basic or advanced version. Basic version provides single input fields
+for receiver address and send amount. Advanced version provides multiple amounts and receiver's addresses
+you want to send to. You can add new receiver only after filling addresses and amounts for current receivers.
+If you click "SEND" on a wallet, you will have to choose accounts to use as inputs as well.
+Click on "select accounts..." text right of "FROM" and a pop-up will appear, giving you the list of the
+current wallet's accounts along with their balances. Select desired accounts by clicking on their names and
 close the drop-down by clicking anywhere outside it. If you don't select any accounts, Cardano
 backend will select some based on default input selection strategy.
 
 Remember that in Cardano you can not have a fraction of ADA less than 0.000001 (10⁻⁶).
 
-If the amount and receiver's address are correct, "SEND" button will activate. If your wallet is
+If all of the amounts and receiver's addresses are correct, "NEXT" button will activate.
+After that, you will be asked to confirm your send transaction. If your wallet is
 password-protected, you will be asked to enter your password. After that the wallet will try to
 send your transaction and will display its hash in a message box if everything goes OK. If, however,
 some error arises, it will be displayed.
