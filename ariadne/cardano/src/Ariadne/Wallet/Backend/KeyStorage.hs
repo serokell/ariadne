@@ -22,6 +22,7 @@ module Ariadne.Wallet.Backend.KeyStorage
          -- * Util
        , generateMnemonic
        ) where
+import qualified Universum.Unsafe as Unsafe (init)
 
 import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
@@ -303,7 +304,7 @@ newWallet pwl walletConfig face getPassTemp waitUiConfirm noConfirm mbWalletName
   unless noConfirm $
     unlessM (waitUiConfirm $ ConfirmMnemonic mnemonic) $
       throwM WGFailedUnconfirmedMnemonic
-  esk <- pwlCreateEncryptedKey pwl pp mnemonic
+  esk <- pwlCreateEncryptedKey pwl pp $ Unsafe.init mnemonic
   mnemonic <$
     addWallet pwl face esk mbWalletName mempty (mkHasPP pp) (WithAddress pp) assurance
   where
