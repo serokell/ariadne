@@ -346,7 +346,6 @@ uiWalletDatasToTree = map toTree
                 , subForest = []
                 }
 
--- TODO: change to use chain type level
 walletSelectionToInfo :: [UiWalletData] -> UiWalletSelection -> UiSelectionInfo
 walletSelectionToInfo uiwd UiWalletSelection{..} =
   case uiwd ^? ix (fromIntegral uwsWalletIdx) of
