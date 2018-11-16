@@ -16,7 +16,7 @@ import Data.Vinyl.TypeLevel (type (++))
 import NType (N(..), Rec)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-import Ariadne.Cardano.Backend (createCardanoBackend)
+import Ariadne.Cardano.Backend (CardanoBackend(..), createCardanoBackend)
 import Ariadne.Cardano.Face (CardanoEvent, CardanoFace(..), decodeTextAddress)
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
@@ -106,15 +106,19 @@ initializeEverything MainSettings {..}
   PasswordManager {..} <- createPasswordManager
 
   (uiFace, mkUiAction) <- msCreateUI walletUIFace history putPassword
+  CardanoBackend
+    { cbFace = cardanoFace
+    , cbMkAction = mkCardanoAction
+    } <- createCardanoBackend cardanoConfig
   WalletPreface
     { wpBListener = bHandle
     , wpMakeWallet = mkWallet
     } <- createWalletBackend
         walletConfig
+        cardanoFace
         (msPutWalletEventToUI uiFace)
         (getPasswordWithUI (msPutPasswordEventToUI uiFace))
         voidPassword
-  (cardanoFace, mkCardanoAction) <- createCardanoBackend cardanoConfig bHandle
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
@@ -122,8 +126,7 @@ initializeEverything MainSettings {..}
   let
     mkWalletFace :: (Doc -> IO ()) -> WalletFace
     walletInitAction :: IO ()
-    (mkWalletFace, walletInitAction) =
-      mkWallet cardanoFace
+    (mkWalletFace, walletInitAction) = mkWallet
 
     knitExecContext ::
         (Doc -> IO ()) -> Knit.ExecContext IO (AllComponents uiComponents)
@@ -143,7 +146,7 @@ initializeEverything MainSettings {..}
 
     uiAction, cardanoAction :: IO ()
     uiAction = mkUiAction $ msKnitFaceToUI uiFace knitFace putPassword
-    cardanoAction = mkCardanoAction (msPutCardanoEventToUI uiFace)
+    cardanoAction = mkCardanoAction bHandle (msPutCardanoEventToUI uiFace)
 
     raceWithUpdateCheckAction :: IO () -> IO ()
     raceWithUpdateCheckAction action =

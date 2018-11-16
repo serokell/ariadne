@@ -128,6 +128,9 @@ cardanoModel linearFeePolicy boot = GeneratorModel {
     , gmMaxNumOurs    = 5
     }
 
+-- [AD-500]
+-- @gromak: FIXME: this function is somewhat broken: it doesn't account
+-- for witnesses and tests pass only by accident.
 {-| Estimate the size of a transaction, in bytes.
 
      The magic numbers appearing in the formula have the following origins:
@@ -177,7 +180,7 @@ estimateSize saa sta ins outs
 --         here with some (hopefully) realistic values.
 estimateCardanoFee :: TxSizeLinear -> Int -> [Value] -> Value
 estimateCardanoFee linearFeePolicy ins outs
-    = round (calculateTxSizeLinear linearFeePolicy (estimateSize 128 16 ins outs))
+    = round (calculateTxSizeLinear linearFeePolicy (estimateSize 132 16 ins outs))
 
 {-------------------------------------------------------------------------------
   Auxiliary

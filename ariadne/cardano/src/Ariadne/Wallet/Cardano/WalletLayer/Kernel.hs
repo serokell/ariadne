@@ -10,27 +10,25 @@ import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import System.Wlog (Severity(Debug))
 
 import Pos.Block.Types (Blund, Undo(..))
+import Pos.Core (unsafeIntegerToCoin)
+import Pos.Core.Chrono (OldestFirst(..))
+import Pos.Crypto (ProtocolMagic, safeDeterministicKeyGen)
 
 import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
+import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
+import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
-import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
 import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
-
-import Pos.Core (unsafeIntegerToCoin)
-import Pos.Core.Chrono (OldestFirst(..))
-import Pos.Crypto (safeDeterministicKeyGen)
-
-import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
@@ -39,12 +37,13 @@ passiveWalletLayerComponent
     => (Severity -> Text -> IO ())
     -> Keystore
     -> FilePath
+    -> ProtocolMagic
     -> ComponentM (PassiveWalletLayer n)
-passiveWalletLayerComponent logFunction keystore dbPath = do
+passiveWalletLayerComponent logFunction keystore dbPath pm = do
     acidDB <- buildComponent "Wallet DB"
         (openLocalStateFrom dbPath defDB)
         closeAcidState
-    (pwl, _pw) <- passiveWalletLayerCustomDBComponent logFunction keystore acidDB
+    (pwl, _pw) <- passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
     pure pwl
 
 passiveWalletLayerCustomDBComponent
@@ -52,9 +51,10 @@ passiveWalletLayerCustomDBComponent
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
+    -> ProtocolMagic
     -> ComponentM (PassiveWalletLayer n, Kernel.PassiveWallet)
-passiveWalletLayerCustomDBComponent logFunction keystore acidDB = do
-    w <- Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB
+passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
+    w <- Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB pm
 
     -- Create the wallet worker and its communication endpoint `invoke`.
     invoke <-

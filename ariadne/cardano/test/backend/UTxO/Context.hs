@@ -52,6 +52,7 @@ import Pos.Core.Delegation (ProxySKHeavy)
 import Pos.Core.Genesis
   (GeneratedSecrets(..), GenesisData(..), GenesisDelegation(..),
   PoorSecret(..), RichSecrets(..))
+import Pos.Core.NetworkMagic (NetworkMagic, makeNetworkMagic)
 import Pos.Crypto
 import Pos.Lrc.Genesis
 import Pos.Txp
@@ -126,6 +127,8 @@ initCardanoContext ccMagic = CardanoContext{..}
                 (\secret -> (createAddressPoor False secret, createAddressPoor True secret))
                 $ gsPoorSecrets ccSecrets
 
+    nm = makeNetworkMagic ccMagic
+
     createAddressPoor :: Bool -> PoorSecret -> Address
     createAddressPoor isBip44 = \case
         PoorEncryptedSecret hdwSk ->
@@ -133,15 +136,15 @@ initCardanoContext ccMagic = CardanoContext{..}
                 (IsBootstrapEraAddr True)
                 emptyPassphrase
                 hdwSk
-        PoorSecret secret -> makePubKeyAddressBoot (toPublic secret)
+        PoorSecret secret -> makePubKeyAddressBoot nm (toPublic secret)
       where
         deriveFirstAddress :: IsBootstrapEraAddr -> PassPhrase -> EncryptedSecretKey -> Address
         deriveFirstAddress era pp rootSK =
             fst $ fromMaybe (error "createAddressPoor: pass mismatch") $
                 if isBip44 then
-                    deriveFirstBip44KeyPair era pp rootSK
+                    deriveFirstBip44KeyPair nm era pp rootSK
                 else
-                    deriveFirstHDAddress era pp rootSK
+                    deriveFirstHDAddress nm era pp rootSK
 
 {-------------------------------------------------------------------------------
   More explicit representation of the various actors in the genesis block
@@ -341,6 +344,9 @@ initActors CardanoContext{..} = Actors{..}
     actorsStake = Map.fromList $ map mkStake $ gsDlgIssuersSecrets ccSecrets
     actorsAvvm  = Map.fromList $ map mkAvvm  $ gsFakeAvvmSeeds     ccSecrets
 
+    nm :: NetworkMagic
+    nm = makeNetworkMagic ccMagic
+
     -- Intentially not using record wildcards here so that we fail to compile
     -- when the structure of the record changes.
 
@@ -352,7 +358,7 @@ initActors CardanoContext{..} = Actors{..}
         richKey = regularKeyPair richSec
 
         richAddr :: Address
-        richAddr = makePubKeyAddressBoot (toPublic richSec)
+        richAddr = makePubKeyAddressBoot nm (toPublic richSec)
 
     mkPoor :: PoorSecret -> (PublicKey, Poor)
     mkPoor (PoorSecret _) = error err
@@ -369,6 +375,7 @@ initActors CardanoContext{..} = Actors{..}
 
         poorAddrs :: [(EncKeyPair, Address)]
         poorAddrs = [ case deriveFirstBip44KeyPair
+                             nm
                              (IsBootstrapEraAddr True)
                              emptyPassphrase
                              poorSec of
@@ -404,7 +411,7 @@ initActors CardanoContext{..} = Actors{..}
         avvmKey = RedeemKeyPair{..}
 
         avvmAddr :: Address
-        avvmAddr = makeRedeemAddress redKpPub
+        avvmAddr = makeRedeemAddress nm redKpPub
 
         Just (redKpPub, redKpSec) = redeemDeterministicKeyGen avvmSeed
 

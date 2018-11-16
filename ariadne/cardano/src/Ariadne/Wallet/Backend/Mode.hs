@@ -18,12 +18,14 @@ import Pos.Client.Txp.History
   saveTxDefault)
 import Pos.Core (Address, IsBootstrapEraAddr(..))
 import Pos.Core.Configuration (HasConfiguration)
+import Pos.Core.NetworkMagic (NetworkMagic)
 import Pos.Crypto (PublicKey, deterministicKeyGen)
 import Pos.Launcher.Configuration (HasConfigurations)
 import Pos.Txp.DB.Utxo (getFilteredUtxo)
 
 import Ariadne.Cardano.Face (CardanoMode)
-import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath(..), makePubKeyHdwAddressUsingPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+  (DerivationPath(..), makePubKeyHdwAddressUsingPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
   (Bip44DerivationPath(..), encodeBip44DerivationPath)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -39,18 +41,19 @@ instance HasConfigurations => MonadTxHistory CardanoMode where
     saveTx = saveTxDefault
 
 instance MonadAddresses CardanoMode where
-    type AddrData CardanoMode = IO Address
-    getNewAddress = liftIO
-    -- FIXME: do not assume bootstrap era.
-    getFakeChangeAddress = pure largestHDAddressBoot
+    type AddrData CardanoMode = NetworkMagic -> IO Address
+    getNewAddress nm f = liftIO (f nm)
+    -- [AD-236] Do not assume bootstrap era.
+    getFakeChangeAddress = pure . largestHDAddressBoot
 
 -- | Like 'largestHDAddressBoot' from 'cardano-sl', but uses different
 -- derivation scheme (BIP-44).
-largestHDAddressBoot :: Address
-largestHDAddressBoot =
+largestHDAddressBoot :: NetworkMagic -> Address
+largestHDAddressBoot nm =
     -- We cheat here a little bit using the same PublicKey for root
     -- key and address key.
-    makePubKeyHdwAddressUsingPath (IsBootstrapEraAddr True) (DerivationPath derPath)
+    makePubKeyHdwAddressUsingPath nm (IsBootstrapEraAddr True)
+        (DerivationPath derPath)
         ! #root goodPk
         ! #address goodPk
   where

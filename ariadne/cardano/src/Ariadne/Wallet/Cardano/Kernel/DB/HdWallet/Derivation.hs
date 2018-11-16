@@ -10,6 +10,7 @@ import qualified Data.Vector as V
 import Named ((!))
 
 import Pos.Core (Address, IsBootstrapEraAddr(..))
+import Pos.Core.NetworkMagic (NetworkMagic)
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, ShouldCheckPassphrase(..), encToPublic)
 
@@ -52,12 +53,13 @@ mkHdAddressIx addrList = HD.HdAddressIx <$>
 --   and address index. The input key should be the master key (not the key
 --   that was derived from purpose and coin type)
 deriveBip44KeyPair
-    :: IsBootstrapEraAddr
+    :: NetworkMagic
+    -> IsBootstrapEraAddr
     -> PassPhrase
     -> EncryptedSecretKey
     -> Bip44DerivationPath
     -> Maybe (Address, EncryptedSecretKey)
-deriveBip44KeyPair era pp rootSK bip44DerPath =
+deriveBip44KeyPair nm era pp rootSK bip44DerPath =
     toPair <$>
     Bip32.deriveHDSecretKeyByPath (ShouldCheckPassphrase True) pp rootSK derPath
   where
@@ -66,6 +68,7 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
     toPair :: EncryptedSecretKey -> (Address, EncryptedSecretKey)
     toPair addrSK =
         ( Bip32.makePubKeyHdwAddressUsingPath
+              nm
               era
               derPath
               ! #root (encToPublic rootSK)
@@ -73,12 +76,13 @@ deriveBip44KeyPair era pp rootSK bip44DerPath =
         , addrSK)
 
 deriveFirstBip44KeyPair
-    :: IsBootstrapEraAddr
+    :: NetworkMagic
+    -> IsBootstrapEraAddr
     -> PassPhrase
     -> EncryptedSecretKey
     -> Maybe (Address, EncryptedSecretKey)
-deriveFirstBip44KeyPair era pp rootSK =
-    deriveBip44KeyPair era pp rootSK bip44DerPath
+deriveFirstBip44KeyPair nm era pp rootSK =
+    deriveBip44KeyPair nm era pp rootSK bip44DerPath
   where
     bip44DerPath = Bip44DerivationPath
         { bip44AccountIndex = HD.HdAccountIx (unsafeMkWord31 0)

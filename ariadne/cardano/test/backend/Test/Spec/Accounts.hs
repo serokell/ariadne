@@ -10,6 +10,8 @@ import qualified Test.Spec.CreateWallet as Wallets
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 
+import Pos.Crypto (ProtocolMagic)
+
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as Kernel
@@ -80,16 +82,11 @@ prepareFixtures = do
                     fail "Incorrect HdRootId generated while preparing fixtures"
                 return (Fixture newAccountRq)
 
-withFixture :: MonadIO m
-            => (  Keystore.Keystore
-               -> PassiveWalletLayer m
-               -> Internal.PassiveWallet
-               -> Fixture
-               -> IO a
-               )
-            -> PropertyM IO a
-withFixture cc = withPassiveWalletFixture prepareFixtures cc
-
+withFixture ::
+       ProtocolMagic
+    -> (Keystore.Keystore -> PassiveWalletLayer IO -> Internal.PassiveWallet -> Fixture -> IO a)
+    -> PropertyM IO a
+withFixture pm cc = withPassiveWalletFixture pm prepareFixtures cc
 
 spec :: Spec
 spec = describe "Accounts" $ do
@@ -97,7 +94,8 @@ spec = describe "Accounts" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     res <- (WalletLayer.pwlCreateAccount layer)
                            `applyNewAccount`
                            fixtureNewAccountRq
@@ -107,7 +105,8 @@ spec = describe "Accounts" $ do
             monadicIO $ do
                 hdrId <- pick arbitrary
                 request <- genNewAccountRq hdrId
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     res <- (WalletLayer.pwlCreateAccount layer) `applyNewAccount` request
                     case res of
                          Left (Kernel.CreateAccountKeystoreNotFound _) ->
@@ -125,7 +124,8 @@ spec = describe "Accounts" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     (Right Kernel.HdAccount{..}) <-
                         (WalletLayer.pwlCreateAccount layer)
                             `applyNewAccount` fixtureNewAccountRq
@@ -135,7 +135,8 @@ spec = describe "Accounts" $ do
         prop "fails if the parent wallet doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     res <- (WalletLayer.pwlDeleteAccount layer) hdAccId
                     case res of
                          Left (Kernel.DeleteUnknownHdAccount (Kernel.UnknownHdAccountRoot _)) ->
@@ -149,7 +150,8 @@ spec = describe "Accounts" $ do
 
         prop "fails if the account doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     let hdAccId = mkHdAccId fixtureNewAccountRq 100
                     res <- (WalletLayer.pwlDeleteAccount layer) hdAccId
                     case res of
@@ -166,7 +168,8 @@ spec = describe "Accounts" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     (Right Kernel.HdAccount{..}) <-
                         (WalletLayer.pwlCreateAccount layer)
                             `applyNewAccount` fixtureNewAccountRq
@@ -179,7 +182,8 @@ spec = describe "Accounts" $ do
         prop "fails if the parent wallet doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     res <- (WalletLayer.pwlUpdateAccountName layer) hdAccId "new account"
                     case res of
                          Left (Kernel.UnknownHdAccountRoot _) ->
@@ -193,7 +197,8 @@ spec = describe "Accounts" $ do
 
         prop "fails if the account doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     let hdAccId = mkHdAccId fixtureNewAccountRq 100
                     res <- (WalletLayer.pwlUpdateAccountName layer) hdAccId "new account"
                     case res of
@@ -210,7 +215,8 @@ spec = describe "Accounts" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     (Right Kernel.HdAccount{..}) <-
                         (WalletLayer.pwlCreateAccount layer) `applyNewAccount`
                                                               fixtureNewAccountRq
@@ -222,7 +228,8 @@ spec = describe "Accounts" $ do
         prop "fails if the parent wallet doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     res <- (WalletLayer.pwlGetAccount layer) hdAccId
                     case res of
                          Left (Kernel.UnknownHdAccountRoot _) ->
@@ -236,7 +243,8 @@ spec = describe "Accounts" $ do
 
         prop "fails if the account doesn't exists" $ withMaxSuccess 50 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     let hdAccId = mkHdAccId fixtureNewAccountRq 100
                     res <- (WalletLayer.pwlGetAccount layer) hdAccId
                     case res of
@@ -253,7 +261,8 @@ spec = describe "Accounts" $ do
 
         prop "works as expected in the happy path scenario" $ withMaxSuccess 25 $ do
             monadicIO $ do
-                withFixture $ \_ layer _ Fixture{..} -> do
+                pm <- pick arbitrary
+                withFixture pm $ \_ layer _ Fixture{..} -> do
                     forM_ [1..5] $ \(_i :: Int) ->
                         (WalletLayer.pwlCreateAccount layer) `applyNewAccount`
                                                               fixtureNewAccountRq
@@ -265,7 +274,8 @@ spec = describe "Accounts" $ do
         prop "fails if the parent wallet doesn't exists" $ withMaxSuccess 25 $ do
             monadicIO $ do
                 hdrId <- pick arbitrary
-                withLayer $ \layer _ -> do
+                pm <- pick arbitrary
+                withLayer pm $ \layer _ -> do
                     res <- (WalletLayer.pwlGetAccounts layer) hdrId
                     case res of
                          Left (Kernel.UnknownHdRoot _) ->

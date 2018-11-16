@@ -27,16 +27,17 @@ import Ariadne.Wallet.Face
 -- | This is what we create initially, before actually creating 'WalletFace'.
 data WalletPreface = WalletPreface
     { wpBListener :: !BListenerHandle
-    , wpMakeWallet :: !(CardanoFace -> ((Doc -> IO ()) -> WalletFace, IO ()))
+    , wpMakeWallet :: !((Doc -> IO ()) -> WalletFace, IO ())
     }
 
 createWalletBackend
     :: WalletConfig
+    -> CardanoFace
     -> (WalletEvent -> IO ())
     -> GetPassword
     -> VoidPassword
     -> ComponentM WalletPreface
-createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
+createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = do
     walletSelRef <- newIORef Nothing
 
     keystore <- keystoreComponent
@@ -46,6 +47,7 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore
         (wcAcidDBPath walletConfig)
+        (cardanoProtocolMagic cardanoFace)
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
         applyHook = const refresh <=< pwlApplyBlocks pwl
@@ -85,13 +87,13 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
             sendWalletEvent $ WalletRequireConfirm mVar confirmType
             takeMVar mVar
 
-        mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction)
+        mkWallet = (mkWalletFace, initWalletAction)
           where
-            NT runCardanoMode = cardanoRunCardanoMode
+            NT runCardanoMode = cardanoRunCardanoMode cardanoFace
             withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
             withDicts r =
-                withDict cardanoConfigurations $
-                withDict cardanoCompileInfo $
+                withDict (cardanoConfigurations cardanoFace) $
+                withDict (cardanoCompileInfo cardanoFace) $
                 r
             mkWalletFace putCommandOutput =
                 withDicts $ fix $ \this -> WalletFace
@@ -107,7 +109,8 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                     refreshState pwl walletSelRef sendWalletEvent
                 , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
-                    sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
+                    sendTx pwl this cardanoFace walletSelRef putCommandOutput
+                    getPassPhrase voidWrongPass waitUiConfirm
                 , walletBalance = getBalance pwl walletSelRef
                 }
             initWalletAction =

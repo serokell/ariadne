@@ -20,7 +20,7 @@ packages:
 
 extra-deps:
 - git: https://github.com/serokell/cardano-sl
-  commit: 5705ea928eb673ed24e854e397103dd541851d4f # ariadne branch
+  commit: 2986b304d8b89a14f1fd9be031f626d1c8a45088 # ariadne branch
   subdirs:
   - binary
   - binary/test
@@ -63,7 +63,7 @@ extra-deps:
   # We're waiting on next release
   commit: da4247b5b3420120e20451e6a252e2a2ca15b43c
 - git: https://github.com/input-output-hk/cardano-report-server
-  commit: 81eea7361a75923f9402fcb7840fb36722dbf88e # master 0.4.10
+  commit: 9b96874d0f234554a5779d98762cc0a6773a532a
 
 # These three are needed for cardano-sl-networking
 - git: https://github.com/serokell/network-transport-tcp
@@ -74,6 +74,9 @@ extra-deps:
   commit: 5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 33c7ecc6e4bd71c3ea0195e9d796eeace7be22cf
+  # to be removed when haskell-ip is in the current stackage version
+- git: https://github.com/andrewthad/haskell-ip
+  commit: 9bb453139aa82cc973125091800422a523e1eb8f
 
 # Required for explorer.
 # We forked it because it has some unacceptable version bounds. We didn't

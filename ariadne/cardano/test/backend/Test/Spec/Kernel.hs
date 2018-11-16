@@ -3,11 +3,14 @@ module Test.Spec.Kernel (
   ) where
 
 import qualified Data.Set as Set
+import Test.Hspec (runIO)
+import Test.QuickCheck (arbitrary, generate)
 
 import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
 import Pos.Core (Coeff(..), TxSizeLinear(..))
 import Pos.Core.Chrono
+import Pos.Crypto (ProtocolMagic)
 
 import Test.Infrastructure.Generator
 import Test.Infrastructure.Genesis
@@ -31,17 +34,22 @@ import qualified Wallet.Rollback.Full as Full
 -------------------------------------------------------------------------------}
 
 spec :: Spec
-spec =
+spec = do
+    pm <- runIO (generate arbitrary)
+    specBody pm
+
+specBody :: ProtocolMagic -> Spec
+specBody pm = do
     describe "Compare wallet kernel to pure model" $ do
       describe "Using hand-written inductive wallets" $ do
         xit "computes identical results in presence of dependent pending transactions" $
-          bracketPassiveWallet $ \passiveWallet -> do
+          bracketPassiveWallet pm $ \passiveWallet -> do
             checkEquivalent passiveWallet (dependentPending genesis)
       xit "computes identical results using generated inductive wallets" $
         forAll (genInductiveUsingModel model) $ \ind -> do
           conjoin [
               shouldBeValidated $ void (inductiveIsValid ind)
-            , bracketPassiveWallet $ \passiveWallet -> do
+            , bracketPassiveWallet pm $ \passiveWallet -> do
                 checkEquivalent passiveWallet ind
             ]
   where
@@ -130,10 +138,10 @@ dependentPending GenesisValues{..} = Inductive {
 -------------------------------------------------------------------------------}
 
 -- | Initialize passive wallet in a manner suitable for the unit tests
-bracketPassiveWallet :: (Kernel.PassiveWallet -> IO a) -> IO a
-bracketPassiveWallet postHook = do
+bracketPassiveWallet :: ProtocolMagic -> (Kernel.PassiveWallet -> IO a) -> IO a
+bracketPassiveWallet pm postHook = do
       Keystore.bracketTestKeystore $ \keystore ->
-          Fixture.bracketPassiveWallet logMessage keystore postHook
+          Fixture.bracketPassiveWallet pm logMessage keystore postHook
   where
    -- TODO: Decide what to do with logging.
    -- For now we are not logging them to stdout to not alter the output of

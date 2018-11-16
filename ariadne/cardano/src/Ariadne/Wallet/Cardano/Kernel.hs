@@ -26,12 +26,13 @@ module Ariadne.Wallet.Cardano.Kernel
 import Prelude hiding (init)
 
 import Control.Monad.Component (ComponentM, buildComponent_)
-import qualified Data.Map.Strict as Map
-
-import System.Wlog (Severity(..))
-
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
+import qualified Data.Map.Strict as Map
+import System.Wlog (Severity(..))
+
+import Pos.Core.Chrono (OldestFirst)
+import Pos.Crypto (ProtocolMagic)
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
 
@@ -47,8 +48,6 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 
-import Pos.Core.Chrono (OldestFirst)
-
 {-------------------------------------------------------------------------------
   Passive Wallet Resource Management
 -------------------------------------------------------------------------------}
@@ -62,9 +61,11 @@ passiveWalletCustomDBComponent
     :: (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
+    -> ProtocolMagic
     -> ComponentM PassiveWallet
-passiveWalletCustomDBComponent logMsg keystore acidDB =
-    buildComponent_ "Passive wallet" $ initPassiveWallet logMsg keystore acidDB
+passiveWalletCustomDBComponent logMsg keystore acidDB pm =
+    buildComponent_ "Passive wallet" $
+    initPassiveWallet logMsg keystore acidDB pm
 
 {-------------------------------------------------------------------------------
   Manage the Wallet's ESKs
@@ -81,9 +82,10 @@ withKeystore pw action = action (pw ^. walletKeystore)
 initPassiveWallet :: (Severity -> Text -> IO ())
                   -> Keystore
                   -> AcidState DB
+                  -> ProtocolMagic
                   -> IO PassiveWallet
-initPassiveWallet logMessage keystore db = do
-    return $ PassiveWallet logMessage keystore db
+initPassiveWallet logMessage keystore db pm = do
+    return $ PassiveWallet logMessage keystore db pm
 
 -- | Initialize the Passive wallet (specified by the ESK) with the given Utxo
 --

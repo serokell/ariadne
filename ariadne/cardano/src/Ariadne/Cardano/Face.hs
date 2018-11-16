@@ -131,11 +131,11 @@ type instance Distribution CardanoMode = Distribution CardanoModeMonad
 type instance MempoolExt CardanoMode = EmptyMempoolExt
 
 instance MonadBListener CardanoMode where
-  onApplyBlocks b = do
+  onApplyBlocks _ b = do
     CardanoContext{..} <- ask
     liftIO $ bhOnApply ccBListenerHandle $ b
     pure mempty
-  onRollbackBlocks b = do
+  onRollbackBlocks _ b = do
     CardanoContext{..} <- ask
     liftIO $ bhOnRollback ccBListenerHandle $ b
     pure mempty
