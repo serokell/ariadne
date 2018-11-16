@@ -305,7 +305,7 @@ handleWalletWidgetEvent
   :: UiEvent
   -> WidgetEventM WalletWidgetState p ()
 handleWalletWidgetEvent = \case
-  UiWalletEvent UiWalletUpdate{..} -> do
+  {-UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
       UiSelectionWallet newInfo@UiWalletInfo{..} -> do
         UiLangFace{..} <- use walletLangFaceL
@@ -346,6 +346,7 @@ handleWalletWidgetEvent = \case
 
         updateFocusList
       _ -> pass
+  -}
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     walletRenameResultL %= \case
       RenameResultWaiting commandId' | commandId == commandId' ->

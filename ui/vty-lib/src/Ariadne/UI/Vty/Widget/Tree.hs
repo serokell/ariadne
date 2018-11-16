@@ -205,7 +205,7 @@ handleTreeWidgetEvent
   -> WidgetEventM TreeWidgetState p ()
 handleTreeWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    items <- uses treeInitializedL $ walletsToItems wuTrees wuSelection
+    items <- uses treeInitializedL $ walletsToItems wuTrees (error "not implemented")
     unlessM (use treeInitializedL) $ do
       treeInitializedL .= True
       whenJust (items ^? ix 0 >>= treeItemPath) performSelect

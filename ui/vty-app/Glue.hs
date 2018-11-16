@@ -23,12 +23,12 @@ module Glue
 
 import qualified Control.Concurrent.Event as CE
 import Control.Exception (displayException)
-import Control.Lens (ix)
+--import Control.Lens (ix)
 import Data.Coerce
 import Data.Double.Conversion.Text (toFixed)
 import Data.Tree (Tree(..))
 import Data.Unique
-import qualified Data.Vector as V
+--import qualified Data.Vector as V
 import Data.Version (Version)
 import NType (AllConstrained, Elem, KnownSpine)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -116,11 +116,11 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       [argKw key . exprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value]
 
     opToExpr = \case
-      UiSelect ws ->
+      {-UiSelect ws ->
         Right $ exprProcCall
           (procCall Knit.selectCommandName $
             map (argPos . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ws
-          )
+          )-}
       UiSend UiSendArgs{..} -> do
         argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
           argAddress <- decodeTextAddress usoAddress
@@ -170,14 +170,14 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             ] ++
             optString "name" urwaName
           )
-      UiRename UiRenameArgs{..} -> do
+      {-UiRename UiRenameArgs{..} -> do
         Right $ exprProcCall
           (procCall Knit.renameCommandName $
             optString "name" uraName
           )
       UiRemove -> do
         Right $ exprProcCall
-          (procCall Knit.removeCommandName [])
+          (procCall Knit.removeCommandName [])-}
       _ -> Left "Not implemented"
 
     resultToUI result = \case
@@ -294,12 +294,8 @@ putCardanoEventToUI UiFace{..} ev =
 -- event couldn't be mapped to a UI event.
 walletEventToUI :: WalletEvent -> Maybe UiEvent
 walletEventToUI = \case
-  WalletStateSetEvent db sel ->
-    Just $ UiWalletEvent $
-      UiWalletUpdate
-        (uiWalletDatasToTree (toUiWalletDatas db))
-        (uiWalletSelectionToTreeSelection . (toUiWalletSelection db) <$> sel)
-        ((walletSelectionToInfo (toUiWalletDatas db)) . (toUiWalletSelection db) <$> sel)
+  WalletStateSetEvent db ->
+    Just $ UiWalletEvent $ UiWalletUpdate (uiWalletDatasToTree (toUiWalletDatas db))
   WalletRequireConfirm resVar confirmationType ->
     Just . UiConfirmEvent . UiConfirmRequest resVar $ case confirmationType of
       ConfirmMnemonic mnemonic -> UiConfirmMnemonic mnemonic
@@ -315,10 +311,6 @@ toUiConfirmSendInfo ConfirmSendInfo{..} = UiConfirmSendInfo {..}
     csiAddress = confirmSendAddress
     csiAmount = confirmSendAmount
     csiCoin = confirmSendCoin
-
-uiWalletSelectionToTreeSelection :: UiWalletSelection -> UiTreeSelection
-uiWalletSelectionToTreeSelection UiWalletSelection{..} =
-  UiTreeSelection { wtsWalletIdx = uwsWalletIdx, wtsPath = uwsPath }
 
 putWalletEventToUI :: UiFace -> WalletEvent -> IO ()
 putWalletEventToUI UiFace{..} ev =
@@ -346,6 +338,7 @@ uiWalletDatasToTree = map toTree
                 , subForest = []
                 }
 
+{-
 -- TODO: change to use chain type level
 walletSelectionToInfo :: [UiWalletData] -> UiWalletSelection -> UiSelectionInfo
 walletSelectionToInfo uiwd UiWalletSelection{..} =
@@ -381,6 +374,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
         , uadiBalance = balance _uiadBalance
         }
     balance n = let (amount, unit) = Knit.showCoin n in Just $ amount <> " " <> show unit
+    -}
 
 ----------------------------------------------------------------------------
 -- Glue between the Update backend and Vty frontend

@@ -21,11 +21,13 @@ module Ariadne.Wallet.Knit
        , newWalletCommandName
        , restoreCommandName
        , restoreFromFileCommandName
-       , selectCommandName
        , sendCommandName
-       , balanceCommandName
-       , renameCommandName
-       , removeCommandName
+       , accountBalanceCommandName
+       , walletBalanceCommandName
+       , renameAccountCommandName
+       , renameWalletCommandName
+       , removeAccountCommandName
+       , removeWalletCommandName
 
        , getWalletRefArg
        ) where
@@ -142,7 +144,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = newAddressCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            accountRef <- getAccountRefArgOpt
+            accountRef <- getAccountRefArg
             chain <- getArgOpt tyBool "external" <&>
               \case Nothing -> HdChainExternal
                     Just True -> HdChainExternal
@@ -158,7 +160,7 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         { cpName = newAccountCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <- getWalletRefArgOpt
+            walletRef <- getWalletRefArg
             name <- getArgOpt tyString "name"
             pure (walletRef, name)
         , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
@@ -217,22 +219,10 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Restore a wallet from Daedalus secrets file"
         }
     , CommandProc
-        { cpName = selectCommandName
-        , cpArgumentPrepare = identity
-        , cpArgumentConsumer = do
-            walletRef <- getArgOpt tyWalletRef "wallet"
-            path <- getArgMany tyWord "a" -- account or address
-            return (walletRef, path)
-        , cpRepr = \(walletRef, path) -> CommandAction $ \WalletFace{..} -> do
-            walletSelect walletRef path
-            return $ toValue ValueUnit
-        , cpHelp = "Select a wallet, account, or address."
-        }
-    , CommandProc
         { cpName = sendCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = do
-            walletRef <- getWalletRefArgOpt
+            walletRef <- getWalletRefArg
             accRefs <- getArgMany tyLocalAccountRef "account"
             outs <- getArgSome tyTxOut "out"
             isp <- fromMaybe defaultInputSelectionPolicy <$>
@@ -257,30 +247,56 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             "\" policy will be used."
         }
     , CommandProc
-        { cpName = balanceCommandName
+        { cpName = accountBalanceCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = pass
-        , cpRepr = \() -> CommandAction $ \WalletFace{..} ->
-            toValue . ValueCoin <$> walletBalance
+        , cpArgumentConsumer = getAccountRefArg
+        , cpRepr = \(accountRef) -> CommandAction $ \WalletFace{..} ->
+            toValue . ValueCoin <$> walletAccountBalance accountRef
         , cpHelp = "Get balance of the currently selected item"
         }
     , CommandProc
-        { cpName = renameCommandName
+        { cpName = walletBalanceCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = getArg tyString "name"
-        , cpRepr = \name -> CommandAction $ \WalletFace{..} -> do
-            walletRename name
-            return $ toValue ValueUnit
-        , cpHelp = "Rename currently selected wallet or account"
+        , cpArgumentConsumer = getWalletRefArg
+        , cpRepr = \(walletRef) -> CommandAction $ \WalletFace{..} ->
+            toValue . ValueCoin <$> walletWalletBalance walletRef
+        , cpHelp = "Get balance of the currently selected item"
         }
     , CommandProc
-        { cpName = removeCommandName
+        { cpName = renameAccountCommandName
         , cpArgumentPrepare = identity
-        , cpArgumentConsumer = getNoConfirmArgOpt
-        , cpRepr = \(noConfirm) -> CommandAction $ \WalletFace{..} -> do
-            walletRemove noConfirm
+        , cpArgumentConsumer = (,) <$> getAccountRefArg <*> getArg tyString "name"
+        , cpRepr = \(accountRef, name) -> CommandAction $ \WalletFace{..} -> do
+            walletRenameAccount accountRef name
             return $ toValue ValueUnit
-        , cpHelp = "Remove currently selected item"
+        , cpHelp = "Rename account"
+        }
+    , CommandProc
+        { cpName = renameWalletCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = (,) <$> getWalletRefArg <*> getArg tyString "name"
+        , cpRepr = \(walletRef, name) -> CommandAction $ \WalletFace{..} -> do
+            walletRenameWallet walletRef name
+            return $ toValue ValueUnit
+        , cpHelp = "Rename wallet"
+        }
+    , CommandProc
+        { cpName = removeAccountCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = (,) <$> getAccountRefArg <*> getNoConfirmArgOpt
+        , cpRepr = \(accountRef, noConfirm) -> CommandAction $ \WalletFace{..} -> do
+            walletRemoveAccount accountRef noConfirm
+            return $ toValue ValueUnit
+        , cpHelp = "Remove account"
+        }
+    , CommandProc
+        { cpName = removeWalletCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = (,) <$> getWalletRefArg <*> getNoConfirmArgOpt
+        , cpRepr = \(walletRef, noConfirm) -> CommandAction $ \WalletFace{..} -> do
+            walletRemoveWallet walletRef noConfirm
+            return $ toValue ValueUnit
+        , cpHelp = "Remove wallet"
         }
     ] ++ map mkInputSelectionPolicyProc [minBound .. maxBound]
     where
@@ -321,20 +337,26 @@ restoreCommandName = "restore"
 restoreFromFileCommandName :: CommandId
 restoreFromFileCommandName = "restore-from-daedalus-file"
 
-selectCommandName :: CommandId
-selectCommandName = "select"
-
 sendCommandName :: CommandId
 sendCommandName = "send"
 
-balanceCommandName :: CommandId
-balanceCommandName = "balance"
+accountBalanceCommandName :: CommandId
+accountBalanceCommandName = "account-balance"
 
-renameCommandName :: CommandId
-renameCommandName = "rename"
+walletBalanceCommandName :: CommandId
+walletBalanceCommandName = "wallet-balance"
 
-removeCommandName :: CommandId
-removeCommandName = "remove"
+renameAccountCommandName :: CommandId
+renameAccountCommandName = "rename-account"
+
+renameWalletCommandName :: CommandId
+renameWalletCommandName = "rename-wallet"
+
+removeAccountCommandName :: CommandId
+removeAccountCommandName = "remove-account"
+
+removeWalletCommandName :: CommandId
+removeWalletCommandName = "remove-wallet"
 
 ----------------------------------------------------------------------------
 -- Type projections
@@ -368,12 +390,6 @@ tyInputSelectionPolicy =
 -- Maybe "wallet" shouldn't be hardcoded here, but currently it's
 -- always "wallet", we can move it outside if it appears to be
 -- necessary.
-getWalletRefArgOpt
-    :: (Elem components Core, Elem components Wallet)
-    => ArgumentConsumer components WalletReference
-getWalletRefArgOpt =
-    fromMaybe WalletRefSelection <$> getArgOpt tyWalletRef "wallet"
-
 getWalletRefArg
     :: (Elem components Core, Elem components Wallet)
     => ArgumentConsumer components WalletReference
@@ -382,16 +398,9 @@ getWalletRefArg = getArg tyWalletRef "wallet"
 -- Maybe "account" shouldn't be hardcoded here, but currently it's
 -- always "account", we can move it outside if it appears to be
 -- necessary.
-getAccountRefArgOpt ::
-       (Elem components Core, Elem components Wallet) => ArgumentConsumer components AccountReference
-getAccountRefArgOpt =
-    convert <$> getWalletRefArgOpt <*>
-    getArgOpt tyWord "account"
-  where
-    convert :: WalletReference -> Maybe Word -> AccountReference
-    convert walletRef = \case
-        Nothing -> AccountRefSelection
-        Just e -> AccountRefByUIindex e walletRef
+getAccountRefArg ::
+    (Elem components Core, Elem components Wallet) => ArgumentConsumer components AccountReference
+getAccountRefArg = flip AccountRefByUIindex <$> getWalletRefArg <*> getArg tyWord "account"
 
 getNoConfirmArgOpt
     :: (Elem components Core)

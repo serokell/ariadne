@@ -232,7 +232,7 @@ handleAccountWidgetEvent
   :: UiEvent
   -> WidgetEventM AccountWidgetState p ()
 handleAccountWidgetEvent = \case
-  UiWalletEvent UiWalletUpdate{..} -> do
+  {-UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
       UiSelectionAccount newInfo@UiAccountInfo{..} -> do
         UiLangFace{..} <- use accountLangFaceL
@@ -257,7 +257,7 @@ handleAccountWidgetEvent = \case
             liftIO (langPutUISilentCommand UiBalance) >>=
               assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
-      _ -> pass
+      _ -> pass-}
   UiCommandResult commandId (UiRenameCommandResult result) -> do
     accountRenameResultL %= \case
       RenameResultWaiting commandId' | commandId == commandId' ->

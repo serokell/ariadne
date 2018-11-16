@@ -27,7 +27,8 @@ import Ariadne.Cardano.Face
 import Ariadne.Cardano.Knit (showCoin)
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
-import Ariadne.Wallet.Cardano.Kernel.Bip32(DerivationPath(..), deriveHDSecretKeyByPath)
+import Ariadne.Wallet.Cardano.Kernel.Bip32
+  (DerivationPath(..), deriveHDSecretKeyByPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -75,7 +76,6 @@ sendTx ::
     => PassiveWalletLayer IO
     -> WalletFace
     -> CardanoFace
-    -> IORef (Maybe WalletSelection)
     -> (Doc -> IO ())
     -> (WalletReference -> IO PassPhrase)
     -> (WalletReference -> IO TxId -> IO TxId)
@@ -90,7 +90,6 @@ sendTx
     pwl
     WalletFace {..}
     CardanoFace {..}
-    walletSelRef
     printAction
     getPassPhrase
     voidWrongPass
@@ -106,7 +105,7 @@ sendTx
     walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
     (walletRootId, walletAccounts) <-
-        resolveWalletRefThenRead walletSelRef walletRef
+        resolveWalletRefThenRead walletRef
         walletDb readAccountsByRootId
     accountIds <- getSuitableAccounts walletRootId walletAccounts
     let filteredAccounts :: IxSet HdAccount
@@ -129,12 +128,7 @@ sendTx
         -> IO (Maybe (NonEmpty HdAccountId))
     getSuitableAccounts rootId accountsSet =
         case nonEmpty accRefs of
-            Nothing -> do
-                readIORef walletSelRef >>= \case
-                    Just (WSAccount selectedAccId)
-                        | selectedAccId ^. hdAccountIdParent == rootId ->
-                            return (Just $ one selectedAccId)
-                    _ -> return Nothing
+            Nothing -> return Nothing
             Just accRefsNE -> Just <$> mapM refToId accRefsNE
       where
         -- Here we use knowledge of the order in UI, which is not very good.

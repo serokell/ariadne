@@ -163,10 +163,10 @@ handleAddWalletWidgetEvent
   :: UiEvent
   -> WidgetEventM AddWalletWidgetState p ()
 handleAddWalletWidgetEvent = \case
-  UiWalletEvent UiWalletUpdate{..}
+  {-UiWalletEvent UiWalletUpdate{..}
     | isJust wuSelectionInfo -> do
         addWalletNewResultL .= NewResultNone
-        addWalletRestoreResultL .= RestoreResultNone
+        addWalletRestoreResultL .= RestoreResultNone-}
   UiCommandResult commandId (UiNewWalletCommandResult result) -> do
     use addWalletNewResultL >>= \case
       NewResultWaiting commandId' | commandId == commandId' ->

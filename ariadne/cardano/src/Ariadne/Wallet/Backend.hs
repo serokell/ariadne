@@ -37,8 +37,6 @@ createWalletBackend
     -> VoidPassword
     -> ComponentM WalletPreface
 createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
-    walletSelRef <- newIORef Nothing
-
     keystore <- keystoreComponent
         RemoveKeystoreIfEmpty
         (wcKeyfilePath walletConfig)
@@ -47,7 +45,7 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
         keystore
         (wcAcidDBPath walletConfig)
 
-    let refresh = refreshState pwl walletSelRef sendWalletEvent
+    let refresh = refreshState pwl sendWalletEvent
         applyHook = const refresh <=< pwlApplyBlocks pwl
         rollbackHook = const refresh <=< pwlRollbackBlocks pwl
 
@@ -75,9 +73,6 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
                 voidPass $ fromWalletRef walletRef
                 throwM e
 
-        voidSelectionPass :: IO ()
-        voidSelectionPass = voidPass WalletIdSelected
-
         -- | Ask Ui for a confirmation and wait for a result
         waitUiConfirm :: ConfirmationType -> IO Bool
         waitUiConfirm confirmType = do
@@ -96,22 +91,23 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
             mkWalletFace putCommandOutput =
                 withDicts $ fix $ \this -> WalletFace
                 { walletNewAddress =
-                    newAddress pwl this walletSelRef getPassPhrase voidWrongPass
-                , walletNewAccount = newAccount pwl this walletSelRef
+                    newAddress pwl this getPassPhrase voidWrongPass
+                , walletNewAccount = newAccount pwl this
                 , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm
                 , walletRestore = restoreWallet pwl this runCardanoMode getPassTemp
                 , walletRestoreFromFile = restoreFromKeyFile pwl this runCardanoMode
-                , walletRename = renameSelection pwl this walletSelRef
-                , walletRemove = removeSelection pwl this walletSelRef waitUiConfirm
-                , walletRefreshState =
-                    refreshState pwl walletSelRef sendWalletEvent
-                , walletSelect = select pwl this walletSelRef voidSelectionPass
+                , walletRenameAccount = renameAccount pwl this
+                , walletRenameWallet = renameWallet pwl this
+                , walletRemoveAccount = removeAccount pwl this waitUiConfirm
+                , walletRemoveWallet = removeWallet pwl this waitUiConfirm
+                , walletRefreshState = refreshState pwl sendWalletEvent
                 , walletSend =
-                    sendTx pwl this cf walletSelRef putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
-                , walletBalance = getBalance pwl walletSelRef
+                    sendTx pwl this cf putCommandOutput getPassPhrase voidWrongPass waitUiConfirm
+                , walletAccountBalance = getAccountBalance pwl
+                , walletWalletBalance = getWalletBalance pwl
                 }
             initWalletAction =
-                refreshState pwl walletSelRef sendWalletEvent
+                refreshState pwl sendWalletEvent
 
         walletPreface = WalletPreface
             { wpBListener = bListenerHandle
@@ -122,7 +118,6 @@ createWalletBackend walletConfig sendWalletEvent getPass voidPass = do
 fromWalletRef :: WalletReference -> WalletId
 fromWalletRef = \case
     WalletRefByUIindex wrd -> WalletIdByUiIndex wrd
-    WalletRefSelection     -> WalletIdSelected
     WalletRefByHdRootId hid -> WalletIdByBackend $ show hid
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.

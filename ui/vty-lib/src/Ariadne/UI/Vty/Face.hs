@@ -164,11 +164,7 @@ data UiBackendStatusUpdate = UiBackendStatusUpdate
   }
 
 -- Full Wallet update
-data UiWalletEvent = UiWalletUpdate
-  { wuTrees :: [UiTree]
-  , wuSelection :: Maybe UiTreeSelection
-  , wuSelectionInfo :: Maybe UiSelectionInfo
-  }
+data UiWalletEvent = UiWalletUpdate { wuTrees :: [UiTree] }
 
 data UiNewVersionEvent = UiNewVersion
   { nvVersion :: Version

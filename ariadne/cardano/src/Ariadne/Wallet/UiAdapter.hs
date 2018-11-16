@@ -1,7 +1,7 @@
 module Ariadne.Wallet.UiAdapter
        ( UiWalletData(..)
        , UiAccountData(..)
-       , UiWalletSelection(..)
+       -- , UiWalletSelection(..)
        , UiAddressData(..)
          -- * Lens
        , uwdName
@@ -19,7 +19,7 @@ module Ariadne.Wallet.UiAdapter
        , uiadBalance
          --
        , toUiWalletDatas
-       , toUiWalletSelection
+       -- , toUiWalletSelection
        , formatAddressHash
        , formatHdRootId
        ) where
@@ -125,6 +125,8 @@ toUiWalletDatas db = toUiWalletData <$> walletList
           , _uiadAddressIdx = addrIx
           , _uiadBalance = hdAddressBalance addr}
 
+{-
+
 data UiWalletSelection = UiWalletSelection
   { uwsWalletIdx :: Word
   , uwsPath :: [Word]
@@ -158,6 +160,8 @@ toUiWalletSelection db selection = case selection of
     getAccountIdx accountId parentRootId = fst $ fromMaybe
       (error "Bug: selected Account does not exist.")
       (find (\(_, acc) -> acc ^. hdAccountId == accountId) (getAccountList parentRootId))
+
+-}
 
 formatAddressHash :: AddressHash a -> Text
 formatAddressHash = sformat ("#" % hashHexF)

@@ -21,10 +21,10 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
-import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
+import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -310,7 +310,7 @@ handleAppEvent brickEvent = do
               UiConfirmMnemonic _ -> [WidgetNameConfirmMnemonic]
               UiConfirmRemove _   -> [WidgetNameConfirmRemove]
               UiConfirmSend _     -> [WidgetNameConfirmSend]
-      
+
       when (modalName `isPrefixOf` name) $ case button of
         V.BScrollUp -> void $ runHandler $ handleWidgetScroll ScrollingLineUp name
         V.BScrollDown -> void $ runHandler $ handleWidgetScroll ScrollingLineDown name
@@ -377,12 +377,12 @@ handleAppWidgetEvent
   :: UiEvent
   -> WidgetEventM AppWidgetState AppState ()
 handleAppWidgetEvent = \case
-  UiWalletEvent UiWalletUpdate{..} -> do
+  {-UiWalletEvent UiWalletUpdate{..} -> do
     appSelectionL .= AppSelectionAddWallet
     whenJust wuSelectionInfo $ \case
       UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
       UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
-    resetAppFocus
+    resetAppFocus-}
   UiCommandAction UiCommandHelp -> do
     appScreenL .= AppScreenHelp
     resetAppFocus

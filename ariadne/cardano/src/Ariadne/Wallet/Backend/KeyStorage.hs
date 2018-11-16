@@ -9,10 +9,12 @@ module Ariadne.Wallet.Backend.KeyStorage
        , newAccount
        , newWallet
        , addWallet
-       , select
-       , getBalance
-       , renameSelection
-       , removeSelection
+       , getAccountBalance
+       , getWalletBalance
+       , renameAccount
+       , renameWallet
+       , removeAccount
+       , removeWallet
        , deriveBip44KeyPair
 
          -- * Exceptions
@@ -31,7 +33,7 @@ import qualified Data.Text.Buildable
 import Formatting (bprint, int, (%))
 import Serokell.Data.Memory.Units (Byte)
 
-import Pos.Core (mkCoin)
+-- import Pos.Core (mkCoin)
 import Pos.Crypto
 import Pos.Crypto.Random (secureRandomBS)
 import Pos.Util (eitherToThrow, maybeThrow)
@@ -46,7 +48,8 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation (deriveBip44KeyPair)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (UtxoByAccount)
-import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
+import Ariadne.Wallet.Cardano.Kernel.Wallets
+  (CreateWithAddress(..), HasNonemptyPassphrase, mkHasPP)
 import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
 
@@ -133,16 +136,10 @@ instance Exception RemoveFailed where
 
 -- | Get the wallet HdRootId by ID, UI index or using current selection.
 resolveWalletRef
-  :: IORef (Maybe WalletSelection)
-  -> WalletReference
+  :: WalletReference
   -> DB
   -> IO HdRootId
-resolveWalletRef walletSelRef walRef db = case walRef of
-  WalletRefSelection -> do
-    mWalletSelection <- readIORef walletSelRef
-    case mWalletSelection of
-      Nothing -> throwM NoWalletSelection
-      Just selection -> return $ getHdRootId selection
+resolveWalletRef walRef db = case walRef of
   WalletRefByUIindex i -> do
     -- Note: Add/remove wallets cause changes in indexation
     case walletList ^? ix (fromIntegral i) of
@@ -156,10 +153,6 @@ resolveWalletRef walletSelRef walRef db = case walRef of
     hdWallets :: HdWallets
     hdWallets = db ^. dbHdWallets
 
-    getHdRootId :: WalletSelection -> HdRootId
-    getHdRootId (WSRoot rId) = rId
-    getHdRootId (WSAccount acId) = acId ^. hdAccountIdParent
-
     walletList :: [HdRoot]
     walletList = toList (readAllHdRoots hdWallets)
 
@@ -167,39 +160,29 @@ resolveWalletRef walletSelRef walRef db = case walRef of
 -- corresponding to the resolved root ID, assuming that the wallet
 -- with this ID definitely exists.
 resolveWalletRefThenRead
-  :: IORef (Maybe WalletSelection)
-  -> WalletReference
+  :: WalletReference
   -> DB
   -> (HdRootId -> HdQueryErr UnknownHdRoot a)
   -> IO (HdRootId, a)
-resolveWalletRefThenRead walletSelRef walRef db q = do
-    rootId <- resolveWalletRef walletSelRef walRef db
+resolveWalletRefThenRead walRef db q = do
+    rootId <- resolveWalletRef walRef db
     (rootId,) <$> case q rootId (db ^. dbHdWallets) of
         -- This function's assumption is that it must not happen.
         Left err -> error $ "resolveWalletRefThenRead: " <> pretty err
         Right res -> return res
 
 resolveAccountRef
-  :: IORef (Maybe WalletSelection)
-  -> AccountReference
+  :: AccountReference
   -> DB
   -> IO HdAccountId
-resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
-    AccountRefSelection -> do
-      mWalletSelection <- readIORef walletSelRef
-      case mWalletSelection of
-        Nothing -> throwM NoWalletSelection
-        Just (WSRoot _) -> throwM NoAccountSelection
-        Just (WSAccount accId) -> do
-            checkParentRoot accId
-            return accId
+resolveAccountRef accountRef walletDb = case accountRef of
     AccountRefByHdAccountId accId -> do
       checkAccId accId
       checkParentRoot accId
       return accId
     AccountRefByUIindex accIdx walRef -> do
       accounts <- toList . snd <$>
-        resolveWalletRefThenRead walletSelRef walRef walletDb readAccountsByRootId
+        resolveWalletRefThenRead walRef walletDb readAccountsByRootId
       acc <- maybeThrow
         (AccountIndexOutOfRange accIdx)
         (accounts ^? ix (fromIntegral accIdx))
@@ -219,31 +202,27 @@ resolveAccountRef walletSelRef accountRef walletDb = case accountRef of
 
 refreshState
   :: PassiveWalletLayer IO
-  -> IORef (Maybe WalletSelection)
   -> (WalletEvent -> IO ())
   -> IO ()
-refreshState pwl walletSelRef sendWalletEvent = do
-  walletSel <- readIORef walletSelRef
+refreshState pwl sendWalletEvent = do
   walletDb <- pwlGetDBSnapshot pwl
-  sendWalletEvent (WalletStateSetEvent walletDb walletSel)
+  sendWalletEvent (WalletStateSetEvent walletDb)
 
 newAddress ::
        PassiveWalletLayer IO
     -> WalletFace
-    -> IORef (Maybe WalletSelection)
     -> (WalletReference -> IO PassPhrase)
     -> (WalletReference -> IO HdAddress -> IO HdAddress)
     -> AccountReference
     -> HdAddressChain
     -> IO Address
-newAddress pwl WalletFace {..} walletSelRef getPassPhrase voidWrongPass accRef hdAddrChain = do
+newAddress pwl WalletFace {..} getPassPhrase voidWrongPass accRef hdAddrChain = do
   let walletRef = case accRef of
-          AccountRefSelection -> WalletRefSelection
           AccountRefByHdAccountId (HdAccountId hdRtId _) -> WalletRefByHdRootId hdRtId
           AccountRefByUIindex _ wRef -> wRef
   pp <- getPassPhrase walletRef
   walletDb <- pwlGetDBSnapshot pwl
-  hdAccId <- resolveAccountRef walletSelRef accRef walletDb
+  hdAccId <- resolveAccountRef accRef walletDb
 
   hdAddr <- voidWrongPass walletRef . throwLeftIO $
     pwlCreateAddress pwl pp hdAccId hdAddrChain
@@ -253,13 +232,12 @@ newAddress pwl WalletFace {..} walletSelRef getPassPhrase voidWrongPass accRef h
 newAccount
   :: PassiveWalletLayer IO
   -> WalletFace
-  -> IORef (Maybe WalletSelection)
   -> WalletReference
   -> Maybe AccountName
   -> IO ()
-newAccount pwl WalletFace{..} walletSelRef walletRef mbAccountName = do
+newAccount pwl WalletFace{..} walletRef mbAccountName = do
   walletDb <- pwlGetDBSnapshot pwl
-  hdrId <- resolveWalletRef walletSelRef walletRef walletDb
+  hdrId <- resolveWalletRef walletRef walletDb
 
   let accountName = fromMaybe (AccountName "Untitled account") mbAccountName
 
@@ -333,60 +311,40 @@ addWallet pwl WalletFace {..} esk mbWalletName utxoByAccount hasPP createWithA a
 
   walletRefreshState
 
--- | Convert path in index representation and write it to
--- 'IORef WalletSelection'.
-select
+getAccountBalance
   :: PassiveWalletLayer IO
-  -> WalletFace
-  -> IORef (Maybe WalletSelection)
-  -> IO ()
-  -> Maybe WalletReference
-  -> [Word]
-  -> IO ()
-select pwl WalletFace{..} walletSelRef voidSelectionPass mWalletRef uiPath = do
-  walletDb <- pwlGetDBSnapshot pwl
-  mbSelection <- case mWalletRef of
-    Nothing -> return Nothing
-    Just walletRef -> do
-      -- Throw an exception if walletRef is invalid
-      (rootId,accList) <- second toList <$>
-        resolveWalletRefThenRead walletSelRef walletRef walletDb readAccountsByRootId
-      case nonEmpty uiPath of
-        Nothing -> return $ Just $ WSRoot rootId
-        Just (accIdx :| acPath) -> do
-          -- validate account
-          hdAccount <- maybeThrow
-            (AccountIndexOutOfRange accIdx)
-            (accList ^? ix (fromIntegral accIdx))
-
-          unless (null acPath) $ throwM SelectIsTooDeep
-          return $ Just $ WSAccount $ hdAccount ^. hdAccountId
-
-  voidSelectionPass
-  atomicWriteIORef walletSelRef mbSelection
-  walletRefreshState
-
-getBalance
-  :: PassiveWalletLayer IO
-  -> IORef (Maybe WalletSelection)
+  -> AccountReference
   -> IO Coin
-getBalance pwl walletSelRef = do
+getAccountBalance = error "not implemented" {- do
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
     Nothing -> return $ mkCoin 0
     Just selection ->
       case selection of
         WSRoot rootId -> pwlGetRootBalance pwl rootId
-        WSAccount accountId -> pwlGetAccountBalance pwl accountId
+        WSAccount accountId -> pwlGetAccountBalance pwl accountId -}
 
-removeSelection
+getWalletBalance
+  :: PassiveWalletLayer IO
+  -> WalletReference
+  -> IO Coin
+getWalletBalance = error "not implemented" {- do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> return $ mkCoin 0
+    Just selection ->
+      case selection of
+        WSRoot rootId -> pwlGetRootBalance pwl rootId
+        WSAccount accountId -> pwlGetAccountBalance pwl accountId -}
+
+removeAccount
   :: PassiveWalletLayer IO
   -> WalletFace
-  -> IORef (Maybe WalletSelection)
   -> (ConfirmationType -> IO Bool)
+  -> AccountReference
   -> Bool
   -> IO ()
-removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
+removeAccount = error "not implemented" {- pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
   mWalletSel <- readIORef walletSelRef
   newSelection <- case mWalletSel of
     Nothing -> pure Nothing
@@ -404,15 +362,42 @@ removeSelection pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
           throwLeftIO $ void <$> pwlDeleteAccount pwl hdAccId
           return $ Just $ WSRoot (hdAccId ^. hdAccountIdParent)
   atomicWriteIORef walletSelRef newSelection
-  walletRefreshState
+  walletRefreshState-}
 
-renameSelection
+removeWallet
   :: PassiveWalletLayer IO
   -> WalletFace
-  -> IORef (Maybe WalletSelection)
+  -> (ConfirmationType -> IO Bool)
+  -> WalletReference
+  -> Bool
+  -> IO ()
+removeWallet = error "not implemented" {- pwl WalletFace{..} walletSelRef waitUiConfirm noConfirm = do
+  mWalletSel <- readIORef walletSelRef
+  newSelection <- case mWalletSel of
+    Nothing -> pure Nothing
+    -- Throw "Nothing selected" here?
+    Just selection -> do
+      confirmationType <- getConfirmationRemoveType pwl selection
+      unless noConfirm $
+        unlessM (waitUiConfirm confirmationType) $
+          throwM RemoveFailedUnconfirmed
+      case selection of
+        WSRoot hdrId -> do
+          throwLeftIO $ void <$> pwlDeleteWallet pwl hdrId
+          return Nothing
+        WSAccount hdAccId -> do
+          throwLeftIO $ void <$> pwlDeleteAccount pwl hdAccId
+          return $ Just $ WSRoot (hdAccId ^. hdAccountIdParent)
+  atomicWriteIORef walletSelRef newSelection
+  walletRefreshState -}
+
+renameAccount
+  :: PassiveWalletLayer IO
+  -> WalletFace
+  -> AccountReference
   -> Text
   -> IO ()
-renameSelection pwl WalletFace{..} walletSelRef name = do
+renameAccount = error "not implemented" {- pwl WalletFace{..} walletSelRef name = do
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
     Nothing -> pass
@@ -423,12 +408,32 @@ renameSelection pwl WalletFace{..} walletSelRef name = do
       WSAccount hdAccId ->
         throwLeftIO $ void <$> pwlUpdateAccountName pwl hdAccId (AccountName name)
 
-  walletRefreshState
+  walletRefreshState -}
+
+renameWallet
+  :: PassiveWalletLayer IO
+  -> WalletFace
+  -> WalletReference
+  -> Text
+  -> IO ()
+renameWallet = error "not implemented" {- pwl WalletFace{..} walletSelRef name = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> pass
+    Just selection -> case selection of
+      WSRoot hdrId ->
+        throwLeftIO $ void <$> pwlUpdateWalletName pwl hdrId (WalletName name)
+
+      WSAccount hdAccId ->
+        throwLeftIO $ void <$> pwlUpdateAccountName pwl hdAccId (AccountName name)
+
+  walletRefreshState -}
 
 {-------------------------------------------------------------------------------
   Utilities
 -------------------------------------------------------------------------------}
 
+{-
 getConfirmationRemoveType
   :: PassiveWalletLayer IO
   -> WalletSelection
@@ -441,6 +446,7 @@ getConfirmationRemoveType pwl = \case
     WSAccount hdAccId ->
           throwLeftIO (pwlGetAccount pwl hdAccId)
       <&> ConfirmRemoveAccount . view hdAccountName
+-}
 
 throwLeftIO :: (Exception e) => IO (Either e a) -> IO a
 throwLeftIO ioEith = ioEith >>= eitherToThrow
