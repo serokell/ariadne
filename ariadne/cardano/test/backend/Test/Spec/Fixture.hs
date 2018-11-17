@@ -68,13 +68,14 @@ withPassiveWalletFixture pm prepareFixtures cc = do
             cc keystore layer wallet fixtures
 
 withActiveWalletFixture :: MonadIO m
-                        => GenActiveWalletFixture x
+                        => ProtocolMagic
+                        -> GenActiveWalletFixture x
                         -> (Keystore.Keystore -> ActiveWalletLayer m -> Kernel.ActiveWallet -> x -> IO a)
                         -> PropertyM IO a
-withActiveWalletFixture prepareFixtures cc = do
+withActiveWalletFixture pm prepareFixtures cc = do
     generateFixtures <- prepareFixtures
     liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
-        bracketKernelPassiveWallet devNull keystore $ \passiveLayer passiveWallet -> do
+        bracketKernelPassiveWallet pm devNull keystore $ \passiveLayer passiveWallet -> do
             bracketKernelActiveWallet passiveLayer passiveWallet $ \activeLayer activeWallet -> do
                 fixtures <- generateFixtures keystore activeWallet
                 cc keystore activeLayer activeWallet fixtures

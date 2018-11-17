@@ -31,14 +31,14 @@ module Ariadne.Wallet.Cardano.Kernel
 
 import Prelude hiding (init)
 
-import Control.Monad.Component
-  (ComponentM, buildComponent, buildComponent_, runComponentM)
+import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import qualified Data.Map.Strict as Map
 import System.Wlog (Severity(..))
 
 import Pos.Core.Chrono (OldestFirst)
+import Pos.Core.Txp (TxAux)
 import Pos.Crypto (ProtocolMagic)
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
@@ -180,7 +180,7 @@ activeWalletComponent walletPassive = do
 --
 -- If the pending transaction is successfully added to the wallet state, the
 -- submission layer is notified accordingly.
-newPending :: ActiveWallet -> HdAccountId -> Txp.TxAux -> IO (Either NewPendingError ())
+newPending :: ActiveWallet -> HdAccountId -> TxAux -> IO (Either NewPendingError ())
 newPending aw accountId tx =
     update' (walletPassive aw ^. wallets) $ NewPending accountId (InDb tx)
 

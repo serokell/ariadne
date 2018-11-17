@@ -151,8 +151,8 @@ bracketPassiveWallet pm postHook = do
     logMessage _ _  = pass
 
 -- | Initialize active wallet in a manner suitable for generator-based testing
-bracketActiveWallet :: (Kernel.ActiveWallet -> IO a) -> IO a
-bracketActiveWallet test =
-    bracketPassiveWallet $ \passive ->
+bracketActiveWallet :: ProtocolMagic -> (Kernel.ActiveWallet -> IO a) -> IO a
+bracketActiveWallet pm test =
+    bracketPassiveWallet pm $ \passive ->
         Fixture.bracketActiveWallet passive $ \active ->
             test active
