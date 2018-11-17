@@ -193,7 +193,9 @@ sendTx
                 ourAddresses
                 (map TxOutAux outs)
                 (const newChangeAddress)
-        liftIO $ whenLeftM (awlNewPending awl ourAccountId txAux) throwM
+        -- TODO: call newPending even when inputs are selected from multiple accounts.
+        when (length accountsToUse == 1) $
+            liftIO $ whenLeftM (awlNewPending awl ourAccountId txAux) throwM
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
