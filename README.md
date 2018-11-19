@@ -113,20 +113,23 @@ specified and implemented in the core protocol.
 
 ### Supported platforms
 
-Ariadne TUI can be built and works on Linux and macOS.
+Both GUI and TUI versions work on Linux on MacOS. Windows will be
+supported soon (only GUI version).
 
-Qt GUI only works on Linux. Windows and macOS will be supported soon.
+It's recommended to build Ariadne using
+[Nix](https://nixos.org/nix/). It's also possible to do it using just
+Stack, but this way works only on Linux.
 
 ### Build using Nix
 
-Set up Serokell binary cache so that you don't have to build dependencies:
+Set up Serokell binary cache so that you don't have to build
+dependencies.
+If you are on a single-user Nix install (`nix-shell -p nix-info --run nix-info`
+should say `multi-user?: no`), omit `sudo` in the command below.
 
 ```sh
 sudo $(nix-build pkgs.nix -A cachix --no-out-link)/bin/cachix use serokell
 ```
-
-If you are on a single-user Nix install (`nix-shell -p nix-info --run nix-info`
-should say `multi-user?: no`), omit `sudo` in the command above.
 
 If you are on NixOS, make sure to add `https://cache.nixos.org` to `nix.binaryCaches`,
 otherwise main Nix binary cache stops working. See [cachix/cachix#128][].
@@ -141,7 +144,9 @@ nix-env -f pkgs.nix -iA nix
 
 [NixOS/nix#2409]: https://github.com/NixOS/nix/pull/2409
 
-For production builds, run `nix-build`.
+For production builds, run `nix-build -A ariadne-vty-app` or
+`nix-build -A ariadne-qt-app` to build TUI or GUI applcation
+respectively.
 
 For incremental builds, run `nix-shell`. Then, use either `stack build` or
 `cabal new-build all` as you normally would. This will only build local packages,
@@ -150,41 +155,14 @@ all dependencies are managed by Nix.
 ### Build using Stack
 
 1. Install [Stack](https://docs.haskellstack.org/en/stable/README/).
-2. Make sure you have the following system libraries installed:
+2. Make sure you have the libraries listed below installed. This list
+   might be incomplete.
   - RocksDB
   - OpenSSL
   - Qt 5 (if you want to build GUI)
   - ICU
 3. Run `stack build ariadne-vty-app` to build terminal text-based interface
 and `stack build ariadne-qt-app` for Qt-based GUI. Or just `stack build` for both.
-
-#### macOS
-
-
-If you have Homebrew, run:
-
-```sh
-brew install bash coreutils icu4c rocksdb openssl qt xz
-```
-
-If you haven't had `bash` previously installed, close terminal session
-and then open a new one. You will also need to add icu and OpenSSL to
-`~/.stack/config.yaml`:
-
-```yaml
-extra-include-dirs:
-- /usr/local/opt/openssl/include
-- /usr/local/opt/icu4c/include
-extra-lib-dirs:
-- /usr/local/opt/openssl/lib
-- /usr/local/opt/icu4c/lib
-```
-
-Now, to build, run:
-
-```sh
-QTAH_QMAKE=/usr/local/opt/qt/bin/qmake stack build ariadne
-```
 
 ## Configuration [↑](#-ariadne)
 
@@ -196,10 +174,16 @@ cases. Detailed description of Ariadne configuration can be found in
 
 ## Usage [↑](#-ariadne)
 
-Launch `ariadne` executable to use TUI. If you [used
-Stack](#build-using-stack) to build Ariadne, type `stack exec --
-ariadne` to launch the executable. In order to use GUI launch
+Launch `ariadne` executable to use TUI. In order to use GUI launch
 `ariadne-qt`.
+
+If you used `nix-build` to build Ariadne you should have `ariadne` or
+`ariadne-qt` executable in `result/bin` folder. You can run
+`result/bin/ariadne` executable directly. In order to use GUI version
+do `nix-shell shell-native.nix --run result/bin/ariadne-qt`.
+
+If you used Stack to build Ariadne (be it with Nix or not), type `stack
+exec -- <executable_name>` to launch the corresponding executable.
 
 For complete usage guide visit [TUI](docs/usage-tui.md) or [GUI](docs/usage-gui.md) page.
 
