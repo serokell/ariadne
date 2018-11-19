@@ -105,6 +105,7 @@ data UiCommand
   | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress Word Word -- ^ Wallet index, account index
+  | UiRename Text -- ^ New name
   | UiKill Natural
   | UiRemoveCurrentItem
 

@@ -33,6 +33,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.AccountSettings
 import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmSend
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
 import Ariadne.UI.Qt.Widgets.Dialogs.Request
@@ -50,6 +51,7 @@ data WalletInfo =
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
     , createAccountButton :: QPushButton.QPushButton
+    , accountSettingsButton :: QPushButton.QPushButton
     , currentItem :: IORef (Maybe CurrentItem)
     , currentItemName :: IORef Text
     , deleteItemButton :: QPushButton.QPushButton
@@ -91,6 +93,13 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   QWidget.setCursor createAccountButton pointingCursor
   QWidget.hide createAccountButton -- will be shown only if applicable
   QLayout.addWidget headerLayout createAccountButton
+
+  accountSettingsButton <- QPushButton.newWithText ("Account settings" :: String)
+  settingsIcon <- QIcon.newWithFile (":/images/settings-ic.png" :: String)
+  QAbstractButton.setIcon accountSettingsButton settingsIcon
+  QLayout.addWidget headerLayout accountSettingsButton
+  QWidget.setCursor accountSettingsButton pointingCursor
+  QWidget.hide accountSettingsButton -- will be shown only if applicable
 
   deleteItemButton <- QPushButton.newWithText ("Delete" :: String)
   QLayout.addWidget headerLayout deleteItemButton
@@ -146,6 +155,8 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
 
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
+  connect_ accountSettingsButton QAbstractButton.clickedSignal $
+    accountSettingsClicked langFace WalletInfo{..}
   connect_ deleteItemButton QAbstractButton.clickedSignal $
     deleteItemClicked langFace WalletInfo{..}
   connect_ requestButton QAbstractButton.clickedSignal $
@@ -182,10 +193,12 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       case item of
         WIWallet _ accounts -> do
           QWidget.setVisible createAccountButton True
+          QWidget.setVisible accountSettingsButton False
           QWidget.setVisible requestButton $ not $ null accounts
           QWidget.setVisible sendButton $ not $ null accounts
         WIAccount {} -> do
           QWidget.setVisible createAccountButton False
+          QWidget.setVisible accountSettingsButton True
           QWidget.setVisible requestButton True
           QWidget.setVisible sendButton True
       QWidget.setVisible deleteItemButton True
@@ -207,7 +220,7 @@ handleWalletInfoEvent UiLangFace{..} ev = do
     WalletInfoSendCommandResult _commandId result -> do
       whenJustM (readIORef sendConfirmDialog) $ \dialog -> closeConfirmSend dialog
       void $ case result of
-        UiSendCommandSuccess hash -> do 
+        UiSendCommandSuccess hash -> do
           void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
         UiSendCommandFailure err -> do
           void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
@@ -237,6 +250,20 @@ addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
   unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
+
+accountSettingsClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+accountSettingsClicked langFace@UiLangFace{..} wi@WalletInfo{..} _checked =
+  whenJustM (readIORef currentItem) $ \_ -> do
+    currentName <- readIORef currentItemName
+
+    let
+      renameHandler :: RenameHandler
+      renameHandler newName = void $ langPutUiCommand $ UiRename newName
+
+      deleteHandler :: DeleteHandler
+      deleteHandler = deleteItemClicked langFace wi False
+
+    runAccountSettings currentName renameHandler deleteHandler
 
 deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
 deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
