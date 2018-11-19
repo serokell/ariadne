@@ -4,12 +4,14 @@
 
 module Test.Spec.Fixture (
       withLayer
+    , withLayerLocalStorage
     , withPassiveWalletFixture
     , withActiveWalletFixture
     , GenActiveWalletFixture
     , GenPassiveWalletFixture
     -- * Useful generators
     , genSpendingPassword
+    , genSpendingPasswords
     , inMemoryDBComponent
     , bracketPassiveWallet
     , bracketKernelPassiveWallet
@@ -18,13 +20,13 @@ module Test.Spec.Fixture (
 
 import Control.Monad.Component (ComponentM, buildComponent_, runComponentM)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
-import Data.Acid (AcidState)
+import Data.Acid (AcidState, openLocalStateFrom)
 import Data.Acid.Memory (openMemoryState)
 import System.Wlog (Severity)
 
 import Pos.Crypto (PassPhrase, ProtocolMagic, emptyPassphrase)
 
-import Test.QuickCheck (arbitrary, frequency)
+import Test.QuickCheck (arbitrary, frequency, vector)
 import Test.QuickCheck.Monadic (PropertyM, pick)
 
 import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
@@ -35,6 +37,8 @@ import Ariadne.Wallet.Cardano.WalletLayer
   (ActiveWalletLayer, PassiveWalletLayer)
 import qualified Ariadne.Wallet.Cardano.WalletLayer as WalletLayer
 
+data FileOrMemoryDB = Filesystem FilePath | Memory
+
 -- | Do not pollute the test runner output with logs.
 devNull :: Severity -> Text -> IO ()
 devNull _ _ = pass
@@ -43,13 +47,27 @@ genSpendingPassword :: PropertyM IO PassPhrase
 genSpendingPassword =
     pick (frequency [(20, pure emptyPassphrase), (80, arbitrary)])
 
+genSpendingPasswords :: Int -> PropertyM IO [PassPhrase]
+genSpendingPasswords n = pick $ vector n
+
 withLayer :: MonadIO m
           => ProtocolMagic
           -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
           -> PropertyM IO a
-withLayer pm cc = do
+withLayer pm cc =
     liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
-        bracketKernelPassiveWallet pm devNull keystore $ \layer wallet -> do
+        bracketKernelPassiveWallet pm devNull keystore Memory $ \layer wallet -> do
+            cc layer wallet
+
+withLayerLocalStorage
+  :: MonadIO m
+  => ProtocolMagic
+  -> FilePath
+  -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
+  -> m a
+withLayerLocalStorage pm pathToDB cc =
+    liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
+        bracketKernelPassiveWallet pm devNull keystore (Filesystem pathToDB) $ \layer wallet -> do
             cc layer wallet
 
 type GenPassiveWalletFixture x = PropertyM IO (Kernel.PassiveWallet -> IO x)
@@ -63,7 +81,7 @@ withPassiveWalletFixture :: MonadIO m
 withPassiveWalletFixture pm prepareFixtures cc = do
     generateFixtures <- prepareFixtures
     liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
-        bracketKernelPassiveWallet pm devNull keystore $ \layer wallet -> do
+        bracketKernelPassiveWallet pm devNull keystore Memory $ \layer wallet -> do
             fixtures <- generateFixtures wallet
             cc keystore layer wallet fixtures
 
@@ -88,6 +106,10 @@ inMemoryDBComponent
     :: ComponentM (AcidState Kernel.DB)
 inMemoryDBComponent = buildComponent_ "In-memory DB" (openMemoryState defDB)
 
+tempDBComponent
+    :: FilePath -> ComponentM (AcidState Kernel.DB)
+tempDBComponent path = buildComponent_ "Temp Storage DB" (openLocalStateFrom path defDB)
+
 bracketPassiveWallet
     :: forall a.
        ProtocolMagic
@@ -108,16 +130,19 @@ bracketKernelPassiveWallet
     => ProtocolMagic
     -> (Severity -> Text -> IO ())
     -> Keystore
+    -> FileOrMemoryDB
     -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> n a) -> n a
-bracketKernelPassiveWallet pm logFunction keystore f =
+bracketKernelPassiveWallet pm logFunction keystore tempDBType f =
     withRunInIO $ \runInIO ->
-        runComponentM "Passive wallet layer (in-memory DB)"
+        runComponentM "Passive wallet layer"
             pwlComponent
             (\(pwl, pw) -> runInIO $ f pwl pw)
   where
     pwlComponent :: ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
     pwlComponent = do
-        acidDB <- inMemoryDBComponent
+        acidDB <- case tempDBType of
+          Memory -> inMemoryDBComponent
+          Filesystem tmpPath -> tempDBComponent tmpPath
         WalletLayer.passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 bracketActiveWallet

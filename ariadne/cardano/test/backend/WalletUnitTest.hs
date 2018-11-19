@@ -10,6 +10,7 @@ import UTxO.DSL (GivenHash, Transaction)
 import UTxO.Translate (runTranslateNoErrors, withConfig)
 
 import qualified Test.Spec.Accounts
+import qualified Test.Spec.AcidState
 import qualified Test.Spec.CreateAddress
 import qualified Test.Spec.CreateWallet
 import qualified Test.Spec.Kernel
@@ -51,3 +52,4 @@ tests = describe "Wallet unit tests" $ do
     Test.Spec.CreateAddress.spec
     Test.Spec.CreateWallet.spec
     Test.Spec.Accounts.spec
+    Test.Spec.AcidState.spec

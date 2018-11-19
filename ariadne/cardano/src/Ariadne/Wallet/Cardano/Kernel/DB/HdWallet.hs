@@ -70,7 +70,7 @@ import qualified Data.ByteString as BS
 import qualified Data.IxSet.Typed as IxSet
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
-import Test.QuickCheck (Arbitrary(..), elements, oneof, vectorOf)
+import Test.QuickCheck (Arbitrary(..), Gen, elements, oneof, vectorOf)
 
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
@@ -95,7 +95,7 @@ newtype WalletName = WalletName
       deriving newtype (Buildable)
 
 instance Arbitrary WalletName where
-    arbitrary = pure "New wallet"
+    arbitrary = WalletName . toText <$> (arbitrary :: Gen String)
 
 -- | Account name
 newtype AccountName = AccountName
@@ -154,6 +154,7 @@ data HasSpendingPassword =
 
     -- | If there is a spending password, we record when it was last updated.
   | HasSpendingPassword (InDb Core.Timestamp)
+  deriving Eq
 
 instance Buildable HasSpendingPassword where
     build NoSpendingPassword = "no"
@@ -230,6 +231,7 @@ data HdRoot = HdRoot {
       -- | When was this wallet created?
     , _hdRootCreatedAt   :: InDb Core.Timestamp
     }
+    deriving Eq
 
 instance Buildable HdRoot where
     build HdRoot{..} =
@@ -259,6 +261,9 @@ data HdAccount = HdAccount {
       -- as stipulated by the wallet specification
     , _hdAccountCheckpoints :: NonEmpty AccCheckpoint
     }
+instance Eq HdAccount where
+  acc1 == acc2 =
+    _hdAccountId acc1 == _hdAccountId acc2 && _hdAccountName acc1 == _hdAccountName acc2
 
 instance Buildable HdAccount where
     build HdAccount{..} =
