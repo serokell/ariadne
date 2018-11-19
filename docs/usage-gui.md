@@ -29,8 +29,6 @@ button and a dialog will open. You can choose to create a completely new wallet 
 mnemonic by clicking on the dialog header and choosing the appropriate option.
 
 In any case you will need to enter a name for the new wallet and choose a password, if you want to.
-When restoring wallet you can also choose whether to perform full restore &mdash; i.e. whether to
-search the blockchain for all used accounts of that wallet.
 
 When everything is filled right, click the "CREATE" button.
 

@@ -99,7 +99,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
 
     extractPass = \case
       UiNewWallet _ maybePass -> Just $ fromMaybe "" maybePass
-      UiRestoreWallet _ maybePass _ _ -> Just $ fromMaybe "" maybePass
+      UiRestoreWallet _ maybePass _ -> Just $ fromMaybe "" maybePass
       _ -> Nothing
     pushPassword password = putPass WalletIdTemporary password Nothing
 
@@ -132,12 +132,11 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             [ argKw "name" . exprLit . Knit.toLit . Knit.LitString $ name
             ]
           )
-      UiRestoreWallet name _ mnemonic full -> do
+      UiRestoreWallet name _ mnemonic -> do
         Right $ exprProcCall
           (procCall Knit.restoreCommandName $
             [ argKw "name" . exprLit . Knit.toLit . Knit.LitString $ name
             , argKw "mnemonic" . exprLit . Knit.toLit . Knit.LitString $ mnemonic
-            , argKw "full" . Knit.componentInflate . Knit.ValueBool $ full
             ]
           )
       UiNewAccount name -> do

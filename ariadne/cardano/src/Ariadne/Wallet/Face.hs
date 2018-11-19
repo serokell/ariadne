@@ -13,7 +13,6 @@ module Ariadne.Wallet.Face
        , AccountName(..)
        , WalletName(..)
        , Mnemonic(..)
-       , WalletRestoreType (..)
        , WalletUIFace(..)
 
        , SomeWalletPassException(..)
@@ -63,22 +62,15 @@ newtype Mnemonic = Mnemonic
     { unMnemonic :: Text
     }
 
--- | We support various types of wallet restoration.
-data WalletRestoreType
-    = WalletRestoreQuick
-    -- ^ Quickly restore a wallet without restoring its accounts and addresses.
-    | WalletRestoreFull
-    -- ^ Restore a wallet fully, find our accounts and addresses.
-
 data WalletFace =
   WalletFace
     { walletNewAddress :: AccountReference -> HdAddressChain -> IO Address
     , walletNewAccount :: WalletReference -> Maybe AccountName -> IO ()
     , walletNewWallet :: Bool -> Maybe WalletName -> Maybe Byte -> IO [Text]
     , walletRestore ::
-        Maybe WalletName -> Mnemonic -> WalletRestoreType -> IO ()
+        Maybe WalletName -> Mnemonic -> IO ()
     , walletRestoreFromFile ::
-        Maybe WalletName -> FilePath -> WalletRestoreType -> IO ()
+        Maybe WalletName -> FilePath -> IO ()
     , walletRename :: Text -> IO ()
     , walletRemove :: Bool -> IO ()
     , walletRefreshState :: IO ()

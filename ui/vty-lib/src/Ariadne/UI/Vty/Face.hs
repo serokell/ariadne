@@ -69,7 +69,6 @@ data UiFeatures = UiFeatures
   , featureExport :: !Bool
   , featureAccounts :: !Bool
   , featureTxHistory :: !Bool
-  , featureFullRestore :: !Bool
   , featureSecretKeyName :: !Text  -- ^ "Secret key"/"Mnemonic"/etc
   }
 
@@ -259,7 +258,6 @@ data UiRestoreWalletArgs = UiRestoreWalletArgs
   { urwaName :: !Text
   , urwaMnemonic :: !Text
   , urwaPassphrase :: !Text
-  , urwaFull :: !Bool
   }
 
 data UiRenameArgs = UiRenameArgs

@@ -48,12 +48,11 @@ data NewWallet =
     , modeSelector :: QComboBox.QComboBox
     , walletMnemonicWidget :: QWidget.QWidget
     , walletMnemonic :: QLineEdit.QLineEdit
-    , fullRestore :: QCheckBox.QCheckBox
     }
 
 data NewWalletSpecifier
   = NewWalletName
-  | NewWalletMnemonic !Text !Bool
+  | NewWalletMnemonic !Text
 
 data NewWalletParameters =
   NewWalletParameters
@@ -102,9 +101,6 @@ initNewWallet = do
 
   (walletMnemonicWidget, walletMnemonicLayout) <- createSubWidget
   addRow walletMnemonicLayout walletMnemonicLabel walletMnemonic
-
-  fullRestore <- createCheckBox walletMnemonicLayout CheckboxOnRight "Perform full restore"
-  QAbstractButton.setChecked fullRestore True
 
   QBoxLayout.addWidget layout walletMnemonicWidget
   QWidget.hide walletMnemonicWidget
@@ -177,7 +173,6 @@ fillWaletParameters :: NewWallet -> IO (Maybe NewWalletParameters)
 fillWaletParameters NewWallet{..} = do
   nwName <- T.strip . fromString <$> QLineEdit.text walletName
   nwMnemonic <- T.strip . fromString <$> QLineEdit.text walletMnemonic
-  nwFullRestore <- QAbstractButton.isChecked fullRestore
 
   nwHasPassword <- QAbstractButton.isChecked hasPassword
   nwPasswordCandidate <- T.strip . fromString <$> QLineEdit.text password
@@ -204,7 +199,7 @@ fillWaletParameters NewWallet{..} = do
         guard $ not $ null nwMnemonic
         guard $ length (words nwMnemonic) >= 12
 
-        return $ NewWalletMnemonic nwMnemonic nwFullRestore
+        return $ NewWalletMnemonic nwMnemonic
 
     return NewWalletParameters{..}
 

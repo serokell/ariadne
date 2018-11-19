@@ -59,9 +59,8 @@ restoreWallet ::
     -> IO PassPhrase
     -> Maybe WalletName
     -> Mnemonic
-    -> WalletRestoreType
     -> IO ()
-restoreWallet pwl face runCardanoMode getPassTemp mbWalletName (Mnemonic mnemonic) rType = do
+restoreWallet pwl face runCardanoMode getPassTemp mbWalletName (Mnemonic mnemonic) = do
     pp <- getPassTemp
     let mnemonicWords = words mnemonic
         isAriadneMnemonic = fromMaybe False $ do
@@ -77,7 +76,7 @@ restoreWallet pwl face runCardanoMode getPassTemp mbWalletName (Mnemonic mnemoni
               Right (sk, _) -> pure sk
       | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
     let hasPP = mkHasPP pp
-    restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assurance
+    restoreFromSecretKey pwl face runCardanoMode mbWalletName esk hasPP assurance
   where
     -- TODO(AD-251): allow selecting assurance.
     assurance = AssuranceLevelNormal
@@ -89,9 +88,8 @@ restoreFromKeyFile ::
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> FilePath
-    -> WalletRestoreType
     -> IO ()
-restoreFromKeyFile pwl face runCardanoMode mbWalletName path rType = do
+restoreFromKeyFile pwl face runCardanoMode mbWalletName path = do
     keyFile <- BS.readFile path
     us <- case decodeFull' keyFile of
       Left e   -> throwM $ SecretsDecodingError path e
@@ -107,7 +105,6 @@ restoreFromKeyFile pwl face runCardanoMode mbWalletName path rType = do
                 runCardanoMode
                 (templateName i <$> mbWalletName)
                 esk
-                rType
                 hasPP
                 assurance)
         (zip [(0 :: Int)..] $ us ^. usKeys0)
@@ -122,14 +119,11 @@ restoreFromSecretKey ::
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> EncryptedSecretKey
-    -> WalletRestoreType
     -> HasNonemptyPassphrase
     -> AssuranceLevel
     -> IO ()
-restoreFromSecretKey pwl face runCardanoMode mbWalletName esk rType hasPP assurance = do
-    utxoByAccount <- case rType of
-        WalletRestoreQuick -> pure mempty
-        WalletRestoreFull  -> runCardanoMode $ collectUtxo esk
+restoreFromSecretKey pwl face runCardanoMode mbWalletName esk hasPP assurance = do
+    utxoByAccount <- runCardanoMode $ collectUtxo esk
     addWallet pwl face esk mbWalletName utxoByAccount hasPP WithoutAddress assurance
 
 collectUtxo ::

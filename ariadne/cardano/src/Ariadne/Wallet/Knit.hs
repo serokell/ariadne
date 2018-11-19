@@ -187,20 +187,13 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = do
             name <- fmap WalletName <$> getArgOpt tyString "name"
             mnemonic <- Mnemonic <$> getArg tyString "mnemonic"
-            restoreType <- getArg tyBool "full" <&>
-                \case False -> WalletRestoreQuick
-                      True -> WalletRestoreFull
-            return (name, mnemonic, restoreType)
-        , cpRepr = \(name, mnemonic, restoreType) -> CommandAction $ \WalletFace{..} -> do
-            toValue ValueUnit <$ walletRestore name mnemonic restoreType
+            return (name, mnemonic)
+        , cpRepr = \(name, mnemonic) -> CommandAction $ \WalletFace{..} -> do
+            toValue ValueUnit <$ walletRestore name mnemonic
         , cpHelp = "Restore a wallet from mnemonic. " <>
                    "A passphrase can be specified to encrypt the resulting " <>
                    "wallet (it doesn't have to be the same as the one used " <>
-                   "to encrypt the old wallet). " <>
-                   "There are two types of restoration: full restoration " <>
-                   "finds all used addresses (and their accounts), but is " <>
-                   "slow, while quick restoration only adds a wallet with " <>
-                   "secret key derived from the specified mnemonic."
+                   "to encrypt the old wallet)."
         }
     , CommandProc
         { cpName = restoreFromFileCommandName
@@ -208,12 +201,9 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpArgumentConsumer = do
             name <- fmap WalletName <$> getArgOpt tyString "name"
             filename <- getArg tyFilePath "file"
-            restoreType <- getArg tyBool "full" <&>
-                \case False -> WalletRestoreQuick
-                      True -> WalletRestoreFull
-            return (name, filename, restoreType)
-        , cpRepr = \(name, filename, restoreType) -> CommandAction $ \WalletFace{..} ->
-            toValue ValueUnit <$ walletRestoreFromFile name filename restoreType
+            return (name, filename)
+        , cpRepr = \(name, filename) -> CommandAction $ \WalletFace{..} ->
+            toValue ValueUnit <$ walletRestoreFromFile name filename
         , cpHelp = "Restore a wallet from Daedalus secrets file"
         }
     , CommandProc

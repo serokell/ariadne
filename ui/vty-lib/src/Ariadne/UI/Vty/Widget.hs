@@ -100,7 +100,6 @@ data WidgetNamePart
   | WidgetNameAddWalletRestoreName
   | WidgetNameAddWalletRestoreMnemonic
   | WidgetNameAddWalletRestorePass
-  | WidgetNameAddWalletRestoreFull
   | WidgetNameAddWalletRestoreButton
 
   | WidgetNameSendAdd

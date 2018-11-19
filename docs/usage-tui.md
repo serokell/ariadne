@@ -210,13 +210,9 @@ arguments will be marked with "`?`".
   fourth wallet.
 - `rename name: String`: give a new name to the currently selected wallet or account.
 - `remove`: remove the currently selected wallet or account.
-- `restore name: String? mnemonic: String full: Bool`: restore a wallet from 
-  mnemonic. `full` argument specifies whether Ariadne should perform a full 
-  restore (find all used accounts and addresses of the restored wallet in the 
-  blockchain).
-- `restore-from-daedalus-file name: String? file: FilePath full: Bool`: restore
-  wallet from Daedalus's secret file. `full` argument has the same effect as 
-  the `restore` command. Please note that the restored wallet will have the 
+- `restore name: String? mnemonic: String`: restore a wallet from mnemonic.
+- `restore-from-daedalus-file name: String? file: FilePath`: restore
+  wallet from Daedalus's secret file. Please note that the restored wallet will have the
   same passphrase as in Daedalus.
 
 There is also a command to send a transaction from your wallet:

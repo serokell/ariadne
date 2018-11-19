@@ -11,7 +11,6 @@ import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Form.Button
-import Ariadne.UI.Vty.Widget.Form.Checkbox
 import Ariadne.UI.Vty.Widget.Form.Edit
 import Ariadne.Util
 
@@ -30,10 +29,8 @@ data AddWalletWidgetState =
     , addWalletRestoreName :: !Text
     , addWalletRestoreMnemonic :: !Text
     , addWalletRestorePass :: !Text
-    , addWalletRestoreFull :: !Bool
     , addWalletRestoreResult :: !RestoreResult
 
-    , addWalletRestoreFullEnabled :: !Bool
     , addWalletMnemonicName :: !Text
     }
 
@@ -67,10 +64,8 @@ initAddWalletWidget langFace features =
       , addWalletRestoreName = ""
       , addWalletRestoreMnemonic = ""
       , addWalletRestorePass = ""
-      , addWalletRestoreFull = True
       , addWalletRestoreResult = RestoreResultNone
 
-      , addWalletRestoreFullEnabled = featureFullRestore features
       , addWalletMnemonicName = featureSecretKeyName features
       }
 
@@ -91,8 +86,6 @@ initAddWalletWidget langFace features =
       initEditWidget $ widgetParentLens addWalletRestoreMnemonicL
     addWidgetChild WidgetNameAddWalletRestorePass $
       initPasswordWidget $ widgetParentLens addWalletRestorePassL
-    addWidgetChild WidgetNameAddWalletRestoreFull $
-      initCheckboxWidget "Full restoration (find all used addresses)" $ widgetParentLens addWalletRestoreFullL
     addWidgetChild WidgetNameAddWalletRestoreButton $
       initButtonWidget "Restore"
 
@@ -107,7 +100,6 @@ initAddWalletWidget langFace features =
       , WidgetNameAddWalletRestoreName
       , WidgetNameAddWalletRestoreMnemonic
       , WidgetNameAddWalletRestorePass
-      , WidgetNameAddWalletRestoreFull
       , WidgetNameAddWalletRestoreButton
       ]
 
@@ -146,7 +138,6 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
       , label (addWalletMnemonicName <> ":") B.<+> drawChild WidgetNameAddWalletRestoreMnemonic
       , label "Passphrase:" B.<+> drawChild WidgetNameAddWalletRestorePass
       ] ++
-      (if addWalletRestoreFullEnabled then [label "" B.<+> drawChild WidgetNameAddWalletRestoreFull] else []) ++
       [ label            "" B.<+> drawChild WidgetNameAddWalletRestoreButton
       , case addWalletRestoreResult of
           RestoreResultNone -> B.emptyWidget
@@ -215,8 +206,7 @@ performRestoreWallet = do
   name <- use addWalletRestoreNameL
   mnemonic <- use addWalletRestoreMnemonicL
   passphrase <- use addWalletRestorePassL
-  full <- use addWalletRestoreFullL
   use addWalletRestoreResultL >>= \case
     RestoreResultWaiting _ -> pass
-    _ -> liftIO (langPutUiCommand $ UiRestoreWallet $ UiRestoreWalletArgs name mnemonic passphrase full) >>=
+    _ -> liftIO (langPutUiCommand $ UiRestoreWallet $ UiRestoreWalletArgs name mnemonic passphrase) >>=
       assign addWalletRestoreResultL . either RestoreResultError RestoreResultWaiting
