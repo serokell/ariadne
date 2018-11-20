@@ -31,7 +31,7 @@ spec = describe "Checking AcidState related functions behavior" $ do
              Left err -> fail err
              Right (acidDB, eventTag) -> do
                db <- liftIO $ query acidDB Snapshot
-               let isEmptyDB = chekEmptyWalletDB db
+               let isEmptyDB = checkEmptyWalletDB db
                return $ isEmptyDB && (eventTag == noEventsMsg)
   prop "Check that opened state is the same as it was before closing." $ withMaxSuccess 10 $ do
             monadicIO $ do
@@ -45,8 +45,8 @@ spec = describe "Checking AcidState related functions behavior" $ do
                       Left err -> fail $ toString err
                       Right () -> pass
 
-chekEmptyWalletDB :: DB -> Bool
-chekEmptyWalletDB (DB (HdWallets hdWallets hdAccounts hdAddresses)) =
+checkEmptyWalletDB :: DB -> Bool
+checkEmptyWalletDB (DB (HdWallets hdWallets hdAccounts hdAddresses)) =
   all (== 0) [size hdWallets, size hdAccounts, size hdAddresses]
 
 noEventsMsg :: BL.ByteString
