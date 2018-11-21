@@ -1,5 +1,5 @@
 module Ariadne.UI.Qt.Widgets.Dialogs.Util
-       ( CheckboxPosition (..) 
+       ( CheckboxPosition (..)
        , createLayout
        , addHeader
        , addRow
@@ -10,15 +10,17 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Util
        , createCheckBoxWithLabel
        , createPasswordField
        , createRowLayout
+       , onEventType
        ) where
 
-import Data.Bits
+import Data.Bits ((.|.))
 
 import Graphics.UI.Qtah.Core.Types (alignHCenter, alignVCenter)
 import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
+import qualified Graphics.UI.Qtah.Core.QObject as QObject
 import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
 import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
@@ -169,3 +171,10 @@ createPasswordField placeholder = do
     connect_ visibleButton QAbstractButton.toggledSignal togglePasswordVisibility
 
     return (layout, field)
+
+-- | Handle general 'QEvent' by passing the handler its 'QEvent.QEventType' and returning
+-- 'False' to Qt to continue event propagation.
+onEventType :: QObject.QObjectPtr this => this -> (QEvent.QEventType -> IO ()) -> IO ()
+onEventType this handler = void $
+  Event.onEvent this $ QEvent.eventType @QEvent.QEvent >=> (False <$) . handler
+
