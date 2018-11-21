@@ -262,6 +262,7 @@ data UiCurrency = ADA | Lovelace
 -- Display info for entities on all HD-wallet tree levels
 data UiWalletInfo = UiWalletInfo
   { uwiLabel :: !(Maybe Text)
+  , uwiWalletId :: !Text
   , uwiWalletIdx :: !Word
   , uwiBalance :: !(Text, UiCurrency)
   , uwiAccounts :: ![UiAccountInfo]
