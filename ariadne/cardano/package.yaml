@@ -12,6 +12,7 @@ library:
     - MissingH
     - QuickCheck
     - acid-state
+    - aeson
     - ansi-wl-pprint
     - ariadne-core
     - async
@@ -45,6 +46,7 @@ library:
     - directory
     - exceptions
     - file-embed
+    - filelock
     - filepath
     - formatting
     - http-client
@@ -123,6 +125,7 @@ tests:
     main: WalletUnitTest.hs
     dependencies:
       - acid-state
+      - aeson
       - ariadne-cardano
       - bytestring
       - cardano-sl

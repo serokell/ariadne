@@ -14,6 +14,7 @@ library:
     - formatting
     - knit
     - lens
+    - log-warper
     - megaparsec
     - ntype
     - o-clock
@@ -21,3 +22,4 @@ library:
     - text
     - time
     - transformers
+    - unix
