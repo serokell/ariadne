@@ -2,7 +2,7 @@ module Test.Spec.AcidState (spec) where
 
 import Control.Exception.Base (ErrorCall(..), handle)
 import Control.Monad.Component hiding (throwM)
--- import qualified Control.Monad.Component as C (throwM)
+
 import System.IO.Temp
 
 import Data.Acid (closeAcidState, openLocalStateFrom, query)
@@ -78,7 +78,7 @@ checkAcidDBOpenedState
   -> IO (Either Text ())
 checkAcidDBOpenedState pw pwl tempDBDir walletsToCreate = do
   let oldDB = pw ^. wallets
-  mapM_ (applyNewWallet  (pwlCreateWallet pwl)) walletsToCreate
+  mapM_ (applyNewWallet (pwlCreateWallet pwl)) walletsToCreate
   (DB (HdWallets oldWallets _ _)) <- query oldDB Snapshot
   closeAcidState oldDB
   newDB <- openLocalStateFrom tempDBDir defDB
