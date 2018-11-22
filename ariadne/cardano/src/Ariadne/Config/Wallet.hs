@@ -23,7 +23,7 @@ import Ariadne.Util (postfixLFields)
 defaultWalletConfig :: FilePath -> WalletConfig
 defaultWalletConfig dataDir = WalletConfig
     { wcEntropySize = 16
-    , wcKeyfilePath = dataDir </> "secret-mainnet.key"
+    , wcKeyfilePath = dataDir </> "ariadne-secret.json"
     , wcAcidDBPath  = dataDir </> "wallet-db"
     }
 
