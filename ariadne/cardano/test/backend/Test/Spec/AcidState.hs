@@ -1,5 +1,8 @@
 module Test.Spec.AcidState (spec) where
 
+import Control.Exception.Base (ErrorCall(..), handle)
+import Control.Monad.Component hiding (throwM)
+-- import qualified Control.Monad.Component as C (throwM)
 import System.IO.Temp
 
 import Data.Acid (closeAcidState, openLocalStateFrom, query)
@@ -27,23 +30,38 @@ spec :: Spec
 spec = describe "Checking AcidState related functions behavior" $ do
   prop "Check empty DB state" $ withMaxSuccess 1 $
     monadicIO $ run $ withSystemTempDirectory "testWalletDBEmpty" $ \path -> do
-      getState path defDB 0 True >>= \case
-             Left err -> fail err
-             Right (acidDB, eventTag) -> do
-               db <- liftIO $ query acidDB Snapshot
-               let isEmptyDB = checkEmptyWalletDB db
-               return $ isEmptyDB && (eventTag == noEventsMsg)
+        getState path defDB 0 True >>= \case
+          Left _ -> return False
+          Right (acidDB, eventTag) -> do
+            db <- liftIO $ query acidDB Snapshot
+            let isEmptyDB = checkEmptyWalletDB db
+            return $ isEmptyDB && (eventTag == noEventsMsg)
   prop "Check that opened state is the same as it was before closing." $ withMaxSuccess 10 $ do
-            monadicIO $ do
-                passwds <- genSpendingPasswords 10
-                requests <- mapM genNewWalletRq $ ordNub passwds
-                pm <- pick arbitrary
-                liftIO $ withSystemTempDirectory "testWalletDBNonEmpty" $ \path -> do
-                  withLayerLocalStorage pm path $ \layer wallet -> do
-                    res <- checkAcidDBOpenedState wallet layer path requests
-                    case res of
-                      Left err -> fail $ toString err
-                      Right () -> pass
+    monadicIO $ do
+      passwds <- genSpendingPasswords 10
+      requests <- mapM genNewWalletRq $ ordNub passwds
+      pm <- pick arbitrary
+      liftIO $ withSystemTempDirectory "testWalletDBNonEmpty" $ \path -> do
+        handle emptyDBErrorHandler $
+          withLayerLocalStorage pm path $ \layer wallet -> do
+            res <- checkAcidDBOpenedState wallet layer path requests
+            case res of
+              Left err -> fail $ toString err
+              Right () -> pass
+  where
+    emptyDBErrorHandler :: ComponentError -> IO ()
+    emptyDBErrorHandler
+      (ComponentBuildFailed [ComponentAllocationFailed desc internalException] _) =
+        case fromException internalException of
+          Just (ErrorCall msg) ->
+            if desc == "Temp Storage DB" &&
+              msg == "getState returned Left with pos == 0"
+            then fail $ "Failed to open an empty acid-state DB,\
+              \ probably your version of acid-state is broken.\
+              \ The text of the internal error: " ++ msg
+            else throwM internalException
+          Nothing -> throwM internalException
+    emptyDBErrorHandler exception = throwM exception
 
 checkEmptyWalletDB :: DB -> Bool
 checkEmptyWalletDB (DB (HdWallets hdWallets hdAccounts hdAddresses)) =
@@ -65,7 +83,6 @@ checkAcidDBOpenedState pw pwl tempDBDir walletsToCreate = do
   closeAcidState oldDB
   newDB <- openLocalStateFrom tempDBDir defDB
   (DB (HdWallets newWallets _ _)) <- query newDB Snapshot
-
   if (oldWallets /= newWallets)
   then return . Left $ showDifferences oldWallets newWallets
   else return $ Right ()
