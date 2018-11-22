@@ -27,8 +27,8 @@ import Ariadne.Wallet.Cardano.Kernel.Internal (PassiveWallet(..), wallets)
 import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer, pwlCreateWallet)
 
 spec :: Spec
-spec = describe "Checking AcidState related functions behavior" $ do
-  prop "Check empty DB state" $ withMaxSuccess 1 $
+spec = describe "AcidState" $ do
+  prop "can open empty database" $ withMaxSuccess 1 $
     monadicIO $ run $ withSystemTempDirectory "testWalletDBEmpty" $ \path -> do
         getState path defDB 0 True >>= \case
           Left _ -> return False
@@ -36,7 +36,7 @@ spec = describe "Checking AcidState related functions behavior" $ do
             db <- liftIO $ query acidDB Snapshot
             let isEmptyDB = checkEmptyWalletDB db
             return $ isEmptyDB && (eventTag == noEventsMsg)
-  prop "Check that opened state is the same as it was before closing." $ withMaxSuccess 10 $ do
+  prop "opened state is the same as it was before closing" $ withMaxSuccess 10 $ do
     monadicIO $ do
       passwds <- genSpendingPasswords 10
       requests <- mapM genNewWalletRq $ ordNub passwds
