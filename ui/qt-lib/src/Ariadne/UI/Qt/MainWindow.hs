@@ -40,8 +40,8 @@ data MainWindow =
 
 makeLensesWith postfixLFields ''MainWindow
 
-initMainWindow :: UiLangFace -> UiWalletFace -> UiHistoryFace -> IO MainWindow
-initMainWindow langFace uiWalletFace historyFace = do
+initMainWindow :: UiLangFace -> UiWalletFace -> UiHistoryFace -> IORef UiSettings -> IO MainWindow
+initMainWindow langFace uiWalletFace historyFace uiSettings = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
   QWidget.resizeRaw mainWindow 960 640
@@ -51,7 +51,7 @@ initMainWindow langFace uiWalletFace historyFace = do
   (qTopBar, topBar) <- initTopBar
   (qLogs, logs) <- initLogs
   (qHelp, help) <- initHelp langFace
-  (qSettings, settings) <- initSettings
+  (qSettings, settings) <- initSettings uiSettings
 
   QWidget.setParentWithFlags qLogs mainWindow Dialog
   QWidget.setParentWithFlags qHelp mainWindow Dialog

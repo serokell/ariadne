@@ -8,7 +8,8 @@ import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
 import Ariadne.UI.Qt.Face
-  (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
+  (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiSettings(..),
+  UiWalletFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -38,9 +39,10 @@ createAriadneUI
 createAriadneUI uiWalletFace historyFace putPass = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
+  settings <- newIORef $ UiSettings { uiNoConfirm = False }
   return
-    ( mkUiFace eventQueue dispatcherIORef
-    , runUIEventLoop eventQueue dispatcherIORef uiWalletFace historyFace putPass
+    ( mkUiFace eventQueue dispatcherIORef settings
+    , runUIEventLoop eventQueue dispatcherIORef uiWalletFace historyFace putPass settings
     )
 
 fonts :: [Text]
@@ -60,8 +62,9 @@ runUIEventLoop
   -> UiWalletFace
   -> UiHistoryFace
   -> PutPassword
+  -> IORef UiSettings
   -> UiAction
-runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langFace =
+runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass settings langFace =
   runInBoundThread $ withScopedPtr (getArgs >>= QApplication.new) $ \app -> do
     QApplication.setStyleSheet app $ toString styleSheet
     QApplication.setWindowIcon app =<< QIcon.newWithFile (":/images/yarn-ic.png" :: String)
@@ -70,7 +73,7 @@ runUIEventLoop eventIORef dispatcherIORef uiWalletFace historyFace putPass langF
 
     eventDispatcher <- QObject.new
     writeIORef dispatcherIORef $ Just eventDispatcher
-    mainWindow <- initMainWindow langFace uiWalletFace historyFace
+    mainWindow <- initMainWindow langFace uiWalletFace historyFace settings
     void $ Event.onEvent eventDispatcher $ \(_ :: QEvent.QEvent) ->
         handleAppEvent langFace putPass eventIORef mainWindow >> return True
 
@@ -83,15 +86,16 @@ postEventToQt :: QObject.QObject -> IO ()
 postEventToQt eventDispatcher = QEvent.new QEvent.None >>= QCoreApplication.postEvent eventDispatcher
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiFace
-mkUiFace eventBQueue dispatcherIORef =
+mkUiFace :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> IORef UiSettings -> UiFace
+mkUiFace eventBQueue dispatcherIORef settings =
   UiFace
     { putUiEvent = \event -> do
         -- Cardano backend can initialize and start sending events
-        -- before Qt thread is started, populationg dispatcherIORef.
+        -- before Qt thread is started, populating dispatcherIORef.
         -- Therefore we need to cache some events for later processing.
         atomically $ writeTBQueue eventBQueue event
         whenJustM (readIORef dispatcherIORef) postEventToQt
+    , uiSettings = settings
     }
 
 {-# ANN qtEventSubLoop ("HLint: ignore Redundant return" :: Text) #-}

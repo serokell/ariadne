@@ -23,6 +23,7 @@ import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
+import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UIConfig (changelogUrl, licenseUrl)
@@ -35,15 +36,15 @@ data Settings =
     , generalButton :: QPushButton.QPushButton
     , aboutButton :: QPushButton.QPushButton
     , supportButton :: QPushButton.QPushButton
+    , advancedButton :: QPushButton.QPushButton
     , generalWidget :: QWidget.QWidget
     , generalSettings :: GeneralSettings
     , aboutWidget :: QWidget.QWidget
     , aboutSettings :: AboutSettings
     , supportWidget :: QWidget.QWidget
     , supportSettings :: SupportSettings
+    , advancedWidget :: QWidget.QWidget
     }
-
-data SettingsMode = GeneralMode | AboutMode | SupportMode deriving (Show, Eq, Enum, Bounded)
 
 data GeneralSettings =
   GeneralSettings
@@ -68,8 +69,8 @@ data SupportSettings =
 
 makeLensesWith postfixLFields ''Settings
 
-initSettings :: IO (QDialog.QDialog, Settings)
-initSettings = do
+initSettings :: IORef UiSettings -> IO (QDialog.QDialog, Settings)
+initSettings uiSettingsRef = do
   settings <- QDialog.new
   QWidget.resizeRaw settings 776 363
 
@@ -89,8 +90,9 @@ initSettings = do
   generalButton <- QPushButton.newWithText ("GENERAL" :: String)
   aboutButton <- QPushButton.newWithText ("ABOUT" :: String)
   supportButton <- QPushButton.newWithText ("SUPPORT" :: String)
+  advancedButton <- QPushButton.newWithText ("ADVANCED" :: String)
   QBoxLayout.addStretch buttonsLayout
-  for_ [generalButton, aboutButton, supportButton] $ \b -> do
+  for_ [generalButton, aboutButton, supportButton, advancedButton] $ \b -> do
     setProperty b ("styleRole" :: Text) ("settingsTopbarButton" :: Text)
     QAbstractButton.setCheckable b True
     QBoxLayout.addWidget buttonsLayout b
@@ -109,8 +111,12 @@ initSettings = do
   (supportWidget, supportSettings) <- initSupportSettings
   QBoxLayout.addWidget settingsLayout supportWidget
 
+  advancedWidget <- initAdvancedSettings uiSettingsRef
+  QBoxLayout.addWidget settingsLayout advancedWidget
+
   QWidget.hide aboutWidget
   QWidget.hide supportWidget
+  QWidget.hide advancedWidget
 
   QWidget.setLayout settings settingsLayout
   QBoxLayout.addStretch settingsLayout
@@ -120,6 +126,7 @@ initSettings = do
   connect_ generalButton QAbstractButton.clickedSignal $ \_ -> showWidget st generalWidget generalButton
   connect_ aboutButton QAbstractButton.clickedSignal $ \_ -> showWidget st aboutWidget aboutButton
   connect_ supportButton QAbstractButton.clickedSignal $ \_ -> showWidget st supportWidget supportButton
+  connect_ advancedButton QAbstractButton.clickedSignal $ \_ -> showWidget st advancedWidget advancedButton
   return (settings, st)
 
 initGeneralSettings :: IO (QWidget.QWidget, GeneralSettings)
@@ -239,12 +246,29 @@ initSupportSettings = do
   let ss = SupportSettings{..}
   return (supportWidget, ss)
 
+initAdvancedSettings :: IORef UiSettings -> IO QWidget.QWidget
+initAdvancedSettings uiSettingsRef = do
+  advancedWidget <- QWidget.new
+  advancedLayout <- QVBoxLayout.new
+  QLayout.setContentsMarginsRaw advancedLayout 24 42 24 42
+  QBoxLayout.setSpacing advancedLayout 18
+  QWidget.setLayout advancedWidget advancedLayout
+
+  noConfirmCheckbox <- createCheckBox advancedLayout CheckboxOnRight $
+    "Do not require confirmations for important actions. \
+    \<b>WARNING: this can be very dangerous.</b>"
+
+  connect_ noConfirmCheckbox QAbstractButton.toggledSignal $
+        \checked -> modifyIORef' uiSettingsRef $ \settings -> settings { uiNoConfirm = checked }
+
+  return advancedWidget
+
 showWidget :: Settings -> QWidget.QWidget -> QPushButton.QPushButton -> IO ()
 showWidget Settings{..} widget button = do
-  for_ [generalButton, aboutButton, supportButton] $ \w ->
+  for_ [generalButton, aboutButton, supportButton, advancedButton] $ \w ->
     QAbstractButton.setChecked w False
   QAbstractButton.setChecked button True
-  for_ [generalWidget, aboutWidget, supportWidget] $ \w ->
+  for_ [generalWidget, aboutWidget, supportWidget, advancedWidget] $ \w ->
     QWidget.setVisible w False
   QWidget.setVisible widget True
   QWidget.adjustSize settings

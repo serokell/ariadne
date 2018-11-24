@@ -85,11 +85,13 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       , putCommandToUI = \_expr _taskId -> pass
       }
 
-    putUiCommand op = case opToExpr op of
-      Left err -> return $ Left err
-      Right expr -> do
-        whenJust (extractPass op) pushPassword
-        fmap Right $ putCommand (uiCommandHandle op) expr
+    putUiCommand op = do
+      noConfirm <- uiNoConfirm <$> readIORef uiSettings
+      case opToExpr noConfirm op of
+        Left err -> return $ Left err
+        Right expr -> do
+          whenJust (extractPass op) pushPassword
+          fmap Right $ putCommand (uiCommandHandle op) expr
     uiCommandHandle op commandId = KnitCommandHandle
       { putCommandResult = \mtid result ->
           whenJust (resultToUI result op) $
@@ -105,7 +107,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       _ -> Nothing
     pushPassword password = putPass WalletIdTemporary password Nothing
 
-    opToExpr = \case
+    opToExpr noConfirm = \case
       UiSelect ws ->
         Right $ exprProcCall
           (procCall Knit.selectCommandName $
@@ -126,6 +128,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
         Right $ exprProcCall
           (procCall Knit.sendCommandName $
             [ argKw "wallet" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ usaWalletIdx
+            , argNoConfirm
             ] ++
             map
               (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
@@ -141,6 +144,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
         Right $ exprProcCall
           (procCall Knit.newWalletCommandName $
             [ argKw "name" . exprLit . Knit.toLit . Knit.LitString $ name
+            , argNoConfirm
             ]
           )
       UiRestoreWallet name _ mnemonic -> do
@@ -169,7 +173,10 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             [argKw "name" . exprLit . Knit.toLit . Knit.LitString $ newName]
           )
       UiRemoveCurrentItem -> do
-        Right $ exprProcCall $ procCall Knit.removeCommandName []
+        Right $ exprProcCall $ procCall Knit.removeCommandName [argNoConfirm]
+
+      where
+        argNoConfirm = argKw "no-confirm" $ exprProcCall $ procCall (bool "false" "true" noConfirm) []
 
     resultToUI result = \case
       UiSend {} ->
