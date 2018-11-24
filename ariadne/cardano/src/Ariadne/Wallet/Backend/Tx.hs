@@ -193,7 +193,7 @@ sendTx
                 ourAddresses
                 (map TxOutAux outs)
                 (const newChangeAddress)
-        -- TODO: call newPending even when inputs are selected from multiple accounts.
+        -- [AD-518] TODO: call newPending even when inputs are selected from multiple accounts.
         when (length accountsToUse == 1) $
             liftIO $ whenLeftM (awlNewPending awl ourAccountId txAux) throwM
         let tx = taTx txAux
