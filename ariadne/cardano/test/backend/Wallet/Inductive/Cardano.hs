@@ -169,16 +169,19 @@ interpretT injIntEx mkWallet EventCallbacks{..} Inductive{..} =
 -------------------------------------------------------------------------------}
 
 equivalentT :: forall h e m. (Hash h Addr, MonadIO m)
-            => Kernel.PassiveWallet
+            => Kernel.ActiveWallet
             -> EncryptedSecretKey
             -> (DSL.Transaction h Addr -> Wallet h Addr)
             -> Inductive h Addr
             -> TranslateT e m (Validated EquivalenceViolation ())
-equivalentT passiveWallet esk = \mkWallet w ->
+equivalentT activeWallet esk = \mkWallet w ->
     fmap (void . validatedFromEither)
       $ catchTranslateErrors
       $ interpretT notChecked mkWallet EventCallbacks{..} w
   where
+    passiveWallet :: Kernel.PassiveWallet
+    passiveWallet = Internal.walletPassive activeWallet
+
     notChecked :: History -> IntException -> EquivalenceViolation
     notChecked history ex = EquivalenceNotChecked {
           equivalenceNotCheckedName   = "<error during interpretation>"
@@ -241,9 +244,8 @@ equivalentT passiveWallet esk = \mkWallet w ->
                       -> HD.HdAccountId
                       -> RawResolvedTx
                       -> TranslateT EquivalenceViolation m ()
-    walletNewPendingT ctxt accountId _tx = do
-        -- TODO (AD-369): enable after we implement newPending in the kernel
-        -- _ <- liftIO $ Kernel.newPending activeWallet accountId (rawResolvedTx tx)
+    walletNewPendingT ctxt accountId tx = do
+        _ <- liftIO $ Kernel.newPending activeWallet accountId (rawResolvedTx tx)
         checkWalletState ctxt accountId
 
     walletRollbackT :: InductiveCtxt h

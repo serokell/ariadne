@@ -47,6 +47,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 data NewPendingFailed =
     -- | Some inputs are not in the wallet utxo
     NewPendingInputsUnavailable (Set (InDb Txp.TxIn))
+    deriving Show
 
 deriveSafeCopySimple 1 'base ''NewPendingFailed
 

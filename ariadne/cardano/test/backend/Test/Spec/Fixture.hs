@@ -5,12 +5,15 @@
 module Test.Spec.Fixture (
       withLayer
     , withPassiveWalletFixture
+    , withActiveWalletFixture
+    , GenActiveWalletFixture
     , GenPassiveWalletFixture
     -- * Useful generators
     , genSpendingPassword
     , inMemoryDBComponent
     , bracketPassiveWallet
     , bracketKernelPassiveWallet
+    , bracketActiveWallet
     ) where
 
 import Control.Monad.Component (ComponentM, buildComponent_, runComponentM)
@@ -28,7 +31,8 @@ import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (defDB)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
-import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer)
+import Ariadne.Wallet.Cardano.WalletLayer
+  (ActiveWalletLayer, PassiveWalletLayer)
 import qualified Ariadne.Wallet.Cardano.WalletLayer as WalletLayer
 
 -- | Do not pollute the test runner output with logs.
@@ -49,6 +53,7 @@ withLayer pm cc = do
             cc layer wallet
 
 type GenPassiveWalletFixture x = PropertyM IO (Kernel.PassiveWallet -> IO x)
+type GenActiveWalletFixture x  = PropertyM IO (Keystore.Keystore -> Kernel.ActiveWallet -> IO x)
 
 withPassiveWalletFixture :: MonadIO m
                          => ProtocolMagic
@@ -61,6 +66,23 @@ withPassiveWalletFixture pm prepareFixtures cc = do
         bracketKernelPassiveWallet pm devNull keystore $ \layer wallet -> do
             fixtures <- generateFixtures wallet
             cc keystore layer wallet fixtures
+
+withActiveWalletFixture :: MonadIO m
+                        => ProtocolMagic
+                        -> GenActiveWalletFixture x
+                        -> (Keystore.Keystore -> ActiveWalletLayer m -> Kernel.ActiveWallet -> x -> IO a)
+                        -> PropertyM IO a
+withActiveWalletFixture pm prepareFixtures cc = do
+    generateFixtures <- prepareFixtures
+    liftIO $ Keystore.bracketTestKeystore $ \keystore -> do
+        bracketKernelPassiveWallet pm devNull keystore $ \passiveLayer passiveWallet -> do
+            bracketKernelActiveWallet passiveLayer passiveWallet $ \activeLayer activeWallet -> do
+                fixtures <- generateFixtures keystore activeWallet
+                cc keystore activeLayer activeWallet fixtures
+
+{-------------------------------------------------------------------------------
+  Utilities for creating and running in-memory acid-state DB
+-------------------------------------------------------------------------------}
 
 inMemoryDBComponent
     :: ComponentM (AcidState Kernel.DB)
@@ -97,3 +119,25 @@ bracketKernelPassiveWallet pm logFunction keystore f =
     pwlComponent = do
         acidDB <- inMemoryDBComponent
         WalletLayer.passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
+
+bracketActiveWallet
+    :: Kernel.PassiveWallet
+    -> (Kernel.ActiveWallet -> IO a) -> IO a
+bracketActiveWallet walletPassive runActiveWallet = do
+    runComponentM "Active wallet"
+        (Kernel.activeWalletComponent walletPassive)
+        runActiveWallet
+
+bracketKernelActiveWallet
+    :: forall m n a. (MonadIO m, MonadUnliftIO n)
+    => PassiveWalletLayer m
+    -> Kernel.PassiveWallet
+    -> (ActiveWalletLayer m -> Kernel.ActiveWallet -> n a) -> n a
+bracketKernelActiveWallet pwl pw f =
+    withRunInIO $ \runInIO ->
+        runComponentM "Active wallet layer"
+            awlComponent
+            (\(awl, aw) -> runInIO $ f awl aw)
+  where
+    awlComponent :: ComponentM (ActiveWalletLayer m, Kernel.ActiveWallet)
+    awlComponent = WalletLayer.activeWalletLayerComponent pwl pw

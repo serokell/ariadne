@@ -44,7 +44,7 @@ import qualified Data.Map.Merge.Strict as Map.Merge
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, sformat, (%))
+import Formatting (bprint, build, formatToString, sformat, (%))
 
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
@@ -115,6 +115,7 @@ data NewPendingError =
 
     -- | Some inputs are not in the wallet utxo
   | NewPendingFailed Spec.NewPendingFailed
+  deriving Show
 
 deriveSafeCopySimple 1 'base ''NewPendingError
 
@@ -128,6 +129,9 @@ instance Buildable NewPendingError where
         bprint ("NewPendingUnknown " % build) unknownAccount
     build (NewPendingFailed npf) =
         bprint ("NewPendingFailed " % build) npf
+
+instance Exception NewPendingError where
+    displayException = formatToString build
 
 newPending :: HdAccountId
            -> InDb Txp.TxAux

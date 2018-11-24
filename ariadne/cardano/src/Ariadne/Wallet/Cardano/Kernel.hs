@@ -12,6 +12,7 @@ module Ariadne.Wallet.Cardano.Kernel
        , passiveWalletCustomDBComponent
        , init
        , walletLogMessage
+       , walletPassive
        , walletKeystore
          -- ** Respond to block chain events
        , applyBlock
@@ -21,17 +22,23 @@ module Ariadne.Wallet.Cardano.Kernel
        , observableRollbackUseInTestsOnly
          -- ** The only effectful getter you will ever need
        , getWalletSnapshot
+         -- * Active wallet
+       , ActiveWallet -- opaque
+       , activeWalletComponent
+       , newPending
+       , NewPendingError
        ) where
 
 import Prelude hiding (init)
 
-import Control.Monad.Component (ComponentM, buildComponent_)
+import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import qualified Data.Map.Strict as Map
 import System.Wlog (Severity(..))
 
 import Pos.Core.Chrono (OldestFirst)
+import Pos.Core.Txp (TxAux)
 import Pos.Crypto (ProtocolMagic)
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
@@ -43,9 +50,10 @@ import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
 import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (ApplyBlock(..), DB, ObservableRollbackUseInTestsOnly(..), Snapshot(..),
-  SwitchToFork(..))
+  (ApplyBlock(..), DB, NewPending(..), NewPendingError,
+  ObservableRollbackUseInTestsOnly(..), Snapshot(..), SwitchToFork(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
+import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 
 {-------------------------------------------------------------------------------
@@ -64,8 +72,8 @@ passiveWalletCustomDBComponent
     -> ProtocolMagic
     -> ComponentM PassiveWallet
 passiveWalletCustomDBComponent logMsg keystore acidDB pm =
-    buildComponent_ "Passive wallet" $
-    initPassiveWallet logMsg keystore acidDB pm
+    buildComponent_ "Passive wallet"
+        $ initPassiveWallet logMsg keystore acidDB pm
 
 {-------------------------------------------------------------------------------
   Manage the Wallet's ESKs
@@ -148,6 +156,33 @@ switchToFork pw@PassiveWallet{..} n bs = do
 observableRollbackUseInTestsOnly :: PassiveWallet -> IO ()
 observableRollbackUseInTestsOnly PassiveWallet{..} =
     update' _wallets $ ObservableRollbackUseInTestsOnly
+
+{-------------------------------------------------------------------------------
+  Active wallet
+-------------------------------------------------------------------------------}
+
+-- | Initialize the active wallet
+activeWalletComponent
+    :: PassiveWallet
+    -> ComponentM ActiveWallet
+activeWalletComponent walletPassive = do
+    let logMsg = _walletLogMessage walletPassive
+    buildComponent "Active wallet"
+        (return ActiveWallet{..})
+        (\_ -> liftIO $ do
+            logMsg Error "stopping the wallet submission layer..."
+        )
+
+-- | Submit a new pending transaction
+--
+-- Will fail if the HdAccountId does not exist or if some inputs of the
+-- new transaction are not available for spending.
+--
+-- If the pending transaction is successfully added to the wallet state, the
+-- submission layer is notified accordingly.
+newPending :: ActiveWallet -> HdAccountId -> TxAux -> IO (Either NewPendingError ())
+newPending aw accountId tx =
+    update' (walletPassive aw ^. wallets) $ NewPending accountId (InDb tx)
 
 -- | The only effectful query on this 'PassiveWallet'.
 getWalletSnapshot :: PassiveWallet -> IO DB

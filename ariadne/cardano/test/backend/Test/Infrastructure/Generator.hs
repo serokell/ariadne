@@ -74,8 +74,7 @@ genInductiveUsingModel GeneratorModel{..} = do
       }
   where
     potentialOurs = filter gmPotentialOurs gmAllAddresses
-    -- TODO: newPending probability is set to 0 until AD-369 is resolved
-    params ours   = (defEventsParams gmEstimateFee gmAllAddresses ours initUtxo) {gepPendingProb = 0.0}
+    params ours   = defEventsParams gmEstimateFee gmAllAddresses ours initUtxo
     initUtxo      = utxoRestrictToAddr (`elem` gmAllAddresses) $ trUtxo gmBoot
     initState     = initEventsGlobalState 1
 
