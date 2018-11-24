@@ -1,24 +1,23 @@
-# Unless a later match takes precedence, @gromakovsky will be requested
-# for review when someone opens a pull request, because @gromakovsky
+# Unless a later match takes precedence, nobody will be requested
+# for review when someone opens a pull request, because nobody
 # is the Head Vulture of this project.
 
-*                               @gromakovsky
+*                               @nobody
 
 # Order is important; the last matching pattern takes the most precedence.
 
 # Knit
 knit/                           @int-index @hithroc
 
-# Wallet
+# Backends
 TaskManager/                    @hithroc
 Update/                         @hithroc
-Wallet/                         @Pastafarianist @gromakovsky
+Wallet/                         @artemohanjanyan @gromakovsky
+Cardano/                        @gromakovsky
 
 # UIs
-ui/qt-app                       @goodsoft @maksbotan
-ui/qt-lib                       @goodsoft @maksbotan
-ui/vty-app                      @goodsoft
-ui/vty-lib                      @goodsoft
+ui/qt-app                       @maksbotan
+ui/qt-lib                       @maksbotan
 
 # CI, Nix
 *.nix                           @yegortimoshenko
