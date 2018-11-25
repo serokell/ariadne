@@ -102,7 +102,7 @@ extra-deps:
 # Because it includes a bunch of safecopy instances that we currently rely upon.
 # Also the 'Serokell.AcidState.ExtendedState' thing.
 - git: https://github.com/serokell/acid-state
-  commit: 77291b5f7796a919414ce86fa47733e767bc5fdf
+  commit: bae90f7565b4fc621cd45ac94d211b7b84627465
 
 - git: https://github.com/input-output-hk/haskell-hedgehog
   commit: 2e741bb53afb085741807018948ae17d956c53af

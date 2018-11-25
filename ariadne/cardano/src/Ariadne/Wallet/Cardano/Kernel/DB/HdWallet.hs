@@ -261,9 +261,7 @@ data HdAccount = HdAccount {
       -- as stipulated by the wallet specification
     , _hdAccountCheckpoints :: NonEmpty AccCheckpoint
     }
-instance Eq HdAccount where
-  acc1 == acc2 =
-    _hdAccountId acc1 == _hdAccountId acc2 && _hdAccountName acc1 == _hdAccountName acc2
+    deriving Eq
 
 instance Buildable HdAccount where
     build HdAccount{..} =

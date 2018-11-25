@@ -3,22 +3,20 @@ module Test.Spec.AcidState (spec) where
 import Control.Exception.Base (ErrorCall(..), handle)
 import Control.Monad.Component hiding (throwM)
 
-import System.IO.Temp
+import System.IO.Temp (withSystemTempDirectory)
 
 import Data.Acid (closeAcidState, openLocalStateFrom, query)
-import Data.Acid.Local (getState)
 
-import qualified Data.ByteString.Lazy as BL
 import Data.Text.Buildable (build)
 import Data.Text.Lazy.Builder (toLazyText)
 
 import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (arbitrary, withMaxSuccess)
-import Test.QuickCheck.Monadic (monadicIO, pick, run)
+import Test.QuickCheck.Monadic (monadicIO, pick)
 
 import Test.Spec.CreateWallet (NewWallet, applyNewWallet, genNewWalletRq)
-import Test.Spec.Fixture (genSpendingPasswords, withLayerLocalStorage)
+import Test.Spec.Fixture (genSpendingPassword, withLayerLocalStorage)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..), Snapshot(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdWallets(..))
@@ -29,47 +27,55 @@ import Ariadne.Wallet.Cardano.WalletLayer (PassiveWalletLayer, pwlCreateWallet)
 spec :: Spec
 spec = describe "AcidState" $ do
   prop "can open empty database" $ withMaxSuccess 1 $
-    monadicIO $ run $ withSystemTempDirectory "testWalletDBEmpty" $ \path -> do
-        getState path defDB 0 True >>= \case
-          Left _ -> return False
-          Right (acidDB, eventTag) -> do
-            db <- liftIO $ query acidDB Snapshot
-            let isEmptyDB = checkEmptyWalletDB db
-            return $ isEmptyDB && (eventTag == noEventsMsg)
+    monadicIO $ do
+      pm <- pick arbitrary
+      liftIO $ withSystemTempDirectory "testWalletDBEmpty" $ \path -> do
+        handle emptyDBErrorCatch $
+          withLayerLocalStorage @IO pm path $ \_ wallet -> checkEmptyDB wallet
+
   prop "opened state is the same as it was before closing" $ withMaxSuccess 10 $ do
     monadicIO $ do
-      passwds <- genSpendingPasswords 10
-      requests <- mapM genNewWalletRq $ ordNub passwds
+      passwds <- replicateM 10 genSpendingPassword
+      requests <- mapM genNewWalletRq passwds
       pm <- pick arbitrary
       liftIO $ withSystemTempDirectory "testWalletDBNonEmpty" $ \path -> do
-        handle emptyDBErrorHandler $
+        handle emptyDBErrorReThrow $
           withLayerLocalStorage pm path $ \layer wallet -> do
             res <- checkAcidDBOpenedState wallet layer path requests
             case res of
               Left err -> fail $ toString err
               Right () -> pass
   where
-    emptyDBErrorHandler :: ComponentError -> IO ()
+    emptyDBErrorCatch :: ComponentError -> IO Bool
+    emptyDBErrorCatch err = emptyDBErrorHandler err >> return False
+
+    emptyDBErrorReThrow :: ComponentError -> IO ()
+    emptyDBErrorReThrow err = emptyDBErrorHandler err >>= \errMsg -> fail errMsg
+
+    emptyDBErrorHandler :: ComponentError -> IO String
     emptyDBErrorHandler
-      (ComponentBuildFailed [ComponentAllocationFailed desc internalException] _) =
+      excp@(ComponentBuildFailed [ComponentAllocationFailed desc internalException] _) =
         case fromException internalException of
           Just (ErrorCall msg) ->
-            if desc == "Temp Storage DB" &&
-              msg == "getState returned Left with pos == 0"
-            then fail $ "Failed to open an empty acid-state DB,\
+            if ifShouldCatchComponentError (toString desc) msg
+            then return $ "Failed to open an empty acid-state DB,\
               \ probably your version of acid-state is broken.\
               \ The text of the internal error: " ++ msg
-            else throwM internalException
-          Nothing -> throwM internalException
+            else throwM excp
+          Nothing -> throwM excp
     emptyDBErrorHandler exception = throwM exception
 
-checkEmptyWalletDB :: DB -> Bool
-checkEmptyWalletDB (DB (HdWallets hdWallets hdAccounts hdAddresses)) =
-  all (== 0) [size hdWallets, size hdAccounts, size hdAddresses]
+    ifShouldCatchComponentError :: String -> String -> Bool
+    ifShouldCatchComponentError description errMsg =
+      description == "Wallet DB" &&
+        errMsg == "getState returned Left with pos == 0"
 
-noEventsMsg :: BL.ByteString
-noEventsMsg = "This is the initial state. No methods were applied to the DB."
+checkEmptyDB :: PassiveWallet -> IO Bool
+checkEmptyDB pw = do
+  (DB (HdWallets hdWallets hdAccounts hdAddresses)) <- query (pw ^. wallets) Snapshot
+  return $ all (== 0) [size hdWallets, size hdAccounts, size hdAddresses]
 
+-- | Add few wallets, closes DB, open it again and check if wallets are the same.
 checkAcidDBOpenedState
   :: PassiveWallet
   -> PassiveWalletLayer IO

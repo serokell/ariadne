@@ -2,6 +2,7 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
        ( passiveWalletLayerComponent
        , passiveWalletLayerCustomDBComponent
        , activeWalletLayerComponent
+       , walletDBComponent
        ) where
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
@@ -32,6 +33,14 @@ import Ariadne.Wallet.Cardano.Kernel.Types
 import Ariadne.Wallet.Cardano.WalletLayer.Types
   (ActiveWalletLayer(..), PassiveWalletLayer(..))
 
+-- | Initialize Acid State database. Is used as a helper function
+-- and is exported only for tests.
+walletDBComponent :: FilePath -> ComponentM (AcidState Kernel.DB)
+walletDBComponent dbPath =
+  buildComponent "Wallet DB"
+    (openLocalStateFrom dbPath defDB)
+    closeAcidState
+
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
 passiveWalletLayerComponent
@@ -42,9 +51,7 @@ passiveWalletLayerComponent
     -> ProtocolMagic
     -> ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
 passiveWalletLayerComponent logFunction keystore dbPath pm = do
-    acidDB <- buildComponent "Wallet DB"
-        (openLocalStateFrom dbPath defDB)
-        closeAcidState
+    acidDB <- walletDBComponent dbPath
     passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 passiveWalletLayerCustomDBComponent
