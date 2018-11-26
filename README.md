@@ -1,5 +1,8 @@
 # ![](./img/logo.png) Ariadne
 
+[![Build status](https://badge.buildkite.com/50f5e1e5b64e085f138dc0f267c0578ce3104d4187d50e1cc7.svg)](https://buildkite.com/serokell/ariadne)
+[![GitHub license](https://img.shields.io/github/license/serokell/ariadne.svg)](https://github.com/serokell/ariadne/blob/master/COPYING.md)
+
 Ariadne is a cryptocurrency wallet developed by
 [Serokell](https://serokell.io/). It has two user interfaces: terminal
 user interface (TUI) and graphical user interface (GUI). At the time
