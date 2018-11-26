@@ -86,8 +86,8 @@ addWalletClicked UiLangFace{..} _uiWalletFace WalletTree{..} _checked =
     NewWalletAccepted NewWalletParameters{..} ->
       case nwSpecifier of
         NewWalletName -> void $ langPutUiCommand $ UiNewWallet nwName nwPassword
-        NewWalletMnemonic mnemonic full -> void $ langPutUiCommand $
-          UiRestoreWallet nwName nwPassword mnemonic full
+        NewWalletMnemonic mnemonic -> void $ langPutUiCommand $
+          UiRestoreWallet nwName nwPassword mnemonic
 
 data WalletTreeEvent
   = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult

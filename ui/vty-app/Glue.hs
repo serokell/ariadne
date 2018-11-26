@@ -166,7 +166,6 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
         Right $ exprProcCall
           (procCall Knit.restoreCommandName $
             [ argKw "mnemonic" . exprLit . Knit.toLit . Knit.LitString $ urwaMnemonic
-            , argKw "full" . Knit.componentInflate . Knit.ValueBool $ urwaFull
             ] ++
             optString "name" urwaName
           )

@@ -102,7 +102,7 @@ data UiCommand
   = UiSelect [Word]
   | UiSend Word [Word] Text Scientific -- ^ Wallet idx, accounts, address, amount
   | UiNewWallet Text (Maybe Text) -- ^ Name, password
-  | UiRestoreWallet Text (Maybe Text) Text Bool -- ^ Name, password, mnemonic, full restore
+  | UiRestoreWallet Text (Maybe Text) Text -- ^ Name, password, mnemonic
   | UiNewAccount Text  -- ^ Name
   | UiNewAddress Word Word -- ^ Wallet index, account index
   | UiRename Text -- ^ New name

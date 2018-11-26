@@ -46,7 +46,6 @@ main = defaultMain mainSettings
                 , featureExport = False
                 , featureAccounts = True
                 , featureTxHistory = False
-                , featureFullRestore = True
                 , featureSecretKeyName = "Mnemonic"
                 }
         in createAriadneUI features historyFace putPass
