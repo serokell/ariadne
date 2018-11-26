@@ -123,6 +123,7 @@ initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
   send <- QDialog.new
   QObject.setObjectName send ("sendDialog" :: String)
   layout <- createLayout send
+  QBoxLayout.setSpacing layout 25
 
   QWidget.setWindowTitle send ("SEND" :: String)
   modeSelector <- createModeSelector
@@ -353,8 +354,8 @@ createSingleReceiver uiWalletFace = do
   receiverWidget <- QWidget.new
   receiverLayout <- QVBoxLayout.new
 
-  QLayout.setContentsMarginsRaw receiverLayout 0 0 0 0
-  QBoxLayout.setSpacing receiverLayout 18
+  QLayout.setContentsMarginsRaw receiverLayout 0 0 0 30
+  QBoxLayout.setSpacing receiverLayout 25
   basicAddressLabel <- QLabel.newWithText ("<b>RECEIVER</b>" :: String)
   basicAmountLabel <- QLabel.newWithText ("<b>AMOUNT</b>" :: String)
   amountLayout <- QHBoxLayout.new
@@ -411,7 +412,7 @@ createNewReceiver :: UiLangFace -> Send -> IO ()
 createNewReceiver uiLangFace@UiLangFace{..} s@Send{..} = do
   receiverWidget <- QWidget.new
   layout <- createLayout receiverWidget
-  QLayout.setContentsMarginsRaw layout 0 18 0 18
+  QLayout.setContentsMarginsRaw layout 0 10 0 30
 
   amountEdit <- createAmountEdit
   unitLabel <- createUnitLabel
@@ -522,7 +523,7 @@ moveAddReceiverButton Send{..} = do
   HPoint{y = widgetY} <- QWidget.pos receiversWidget
   HSize{height = widgetHeight} <- QWidget.size receiversWidget
   HSize{width = sendWidth} <- QWidget.size send
-  QWidget.move addReceiverButton $ HPoint {x = sendWidth - 40, y = widgetY + widgetHeight - 73}
+  QWidget.move addReceiverButton $ HPoint {x = sendWidth - 40, y = widgetY + widgetHeight - 85}
 
 createAccountCheckbox :: QVBoxLayout.QVBoxLayout -> UiAccountInfo -> IO AccountCheckbox
 createAccountCheckbox layout UiAccountInfo{..} = do
