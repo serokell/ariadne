@@ -115,6 +115,7 @@ data AccCheckpoint = AccCheckpoint {
     , _accCheckpointPending     :: !Pending
     , _accCheckpointBlockMeta   :: !BlockMeta
     }
+    deriving Eq
 
 emptyAccCheckpoint :: AccCheckpoint
 emptyAccCheckpoint = AccCheckpoint {

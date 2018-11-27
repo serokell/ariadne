@@ -25,7 +25,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import Ariadne.Wallet.Cardano.Kernel.Word31 (unsafeMkWord31)
 
 import Test.Spec.Fixture
-  (GenPassiveWalletFixture, genSpendingPassword, withLayer,
+  (GenPassiveWalletFixture, genSpendingPassword, withLayerInMemoryStorage,
   withPassiveWalletFixture)
 import Util.Buildable (ShowThroughBuild(..))
 
@@ -106,7 +106,7 @@ spec = describe "Accounts" $ do
                 hdrId <- pick arbitrary
                 request <- genNewAccountRq hdrId
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     res <- (WalletLayer.pwlCreateAccount layer) `applyNewAccount` request
                     case res of
                          Left (Kernel.CreateAccountKeystoreNotFound _) ->
@@ -136,7 +136,7 @@ spec = describe "Accounts" $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     res <- (WalletLayer.pwlDeleteAccount layer) hdAccId
                     case res of
                          Left (Kernel.DeleteUnknownHdAccount (Kernel.UnknownHdAccountRoot _)) ->
@@ -183,7 +183,7 @@ spec = describe "Accounts" $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     res <- (WalletLayer.pwlUpdateAccountName layer) hdAccId "new account"
                     case res of
                          Left (Kernel.UnknownHdAccountRoot _) ->
@@ -229,7 +229,7 @@ spec = describe "Accounts" $ do
             monadicIO $ do
                 hdAccId <- pick arbitrary
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     res <- (WalletLayer.pwlGetAccount layer) hdAccId
                     case res of
                          Left (Kernel.UnknownHdAccountRoot _) ->
@@ -275,7 +275,7 @@ spec = describe "Accounts" $ do
             monadicIO $ do
                 hdrId <- pick arbitrary
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     res <- (WalletLayer.pwlGetAccounts layer) hdrId
                     case res of
                          Left (Kernel.UnknownHdRoot _) ->

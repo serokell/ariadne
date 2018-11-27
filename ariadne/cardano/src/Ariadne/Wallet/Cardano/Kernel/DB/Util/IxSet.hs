@@ -101,6 +101,7 @@ type family IndicesOf (a :: *) :: [*]
 newtype IxSet a = WrapIxSet {
       unwrapIxSet :: IxSet.IxSet (PrimKey a ': IndicesOf a) (OrdByPrimKey a)
     }
+deriving instance Indexable a => Eq (IxSet a)
 
 instance Show a => Show (IxSet a) where
     show = show . map unwrapOrdByPrimKey . IxSet.toList . unwrapIxSet

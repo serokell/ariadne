@@ -163,6 +163,7 @@ tests:
       - safe-exceptions
       - serokell-util
       - tabl
+      - temporary
       - text
       - text-format
       - time

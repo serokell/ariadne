@@ -41,6 +41,7 @@ data BlockMeta = BlockMeta {
     , -- | Address metadata
       _blockMetaAddressMeta :: !(InDb (Map Core.Address AddressMeta))
     }
+    deriving Eq
 
 makeLenses ''AddressMeta
 makeLenses ''BlockMeta

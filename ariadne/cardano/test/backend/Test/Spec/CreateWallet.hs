@@ -24,10 +24,11 @@ import Ariadne.Wallet.Cardano.Kernel.Types (WalletId(..))
 import Ariadne.Wallet.Cardano.Kernel.Wallets
   (CreateWalletError(..), CreateWithAddress(..), HasNonemptyPassphrase,
   mkHasPP)
+
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import qualified Ariadne.Wallet.Cardano.WalletLayer as WalletLayer
 
-import Test.Spec.Fixture (genSpendingPassword, withLayer)
+import Test.Spec.Fixture (genSpendingPassword, withLayerInMemoryStorage)
 import Util.Buildable (ShowThroughBuild(..))
 
 {-# ANN module ("HLint: ignore Reduce duplication" :: Text) #-}
@@ -77,7 +78,7 @@ spec = describe "CreateWallet" $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     liftIO $ do
                         res <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` request
                         (bimap STB STB res) `shouldSatisfy` isRight
@@ -86,7 +87,7 @@ spec = describe "CreateWallet" $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     liftIO $ do
                         -- The first time it must succeed.
                         res1 <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` request
@@ -104,7 +105,7 @@ spec = describe "CreateWallet" $ do
             monadicIO $ do
                 request <- genNewWalletRq =<< genSpendingPassword
                 pm <- pick arbitrary
-                withLayer pm $ \layer _ -> do
+                withLayerInMemoryStorage pm $ \layer _ -> do
                     let w' = request { newwalName = "İıÀļƒȑĕďŏŨƞįťŢęșťıİ 日本" }
                     liftIO $ do
                         res <- (WalletLayer.pwlCreateWallet layer) `applyNewWallet` w'
@@ -117,7 +118,7 @@ spec = describe "CreateWallet" $ do
                 request <- genNewWalletRq =<< genSpendingPassword
 
                 pm <- pick arbitrary
-                withLayer @IO pm $ \_ wallet -> do
+                withLayerInMemoryStorage @IO pm $ \_ wallet -> do
                     liftIO $ do
                         res <- (Kernel.createHdWallet wallet) `applyNewWallet` request
                         case res of
