@@ -11,6 +11,11 @@ steps:
       system: x86_64-linux
     label: build
 
+  - command: nix-build --no-out-link
+    agents:
+      system: x86_64-darwin
+    label: build-darwin
+
   - wait
 
   - command: nix-build release.nix -A ariadne-vty-app-flatpak -o ariadne-vty.flatpak
@@ -24,3 +29,8 @@ steps:
     agents:
       system: x86_64-linux
     label: shell
+
+  - command: nix-build shell.nix --no-out-link
+    agents:
+      system: x86_64-darwin
+    label: shell-darwin
