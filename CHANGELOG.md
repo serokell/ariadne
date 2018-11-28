@@ -4,6 +4,10 @@
 
 None
 
+## 0.3.1.0
+
+* Set proper version of the application
+
 ## 0.3.0.0
 
 * [AD-513] Fix incompability with Cardano mainnet which occurred due to a breaking
