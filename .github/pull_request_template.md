@@ -36,10 +36,10 @@ you must be able to justify that.
 - Documentation
   - [ ] I checked whether I should update the docs and did so if necessary:
     - [README](../tree/master/README.md)
-    - [TUI usage guide](docs/usage-tui.md)
-    - [GUI usage guide](docs/usage-gui.md)
-    - [Configuration documentation](docs/configuration.md)
-    - [GUI architecture documentation](docs/gui-architecture.md)
+    - [TUI usage guide](../tree/master/docs/usage-tui.md)
+    - [GUI usage guide](../tree/master/docs/usage-gui.md)
+    - [Configuration documentation](../tree/master/docs/configuration.md)
+    - [GUI architecture documentation](../tree/master/docs/gui-architecture.md)
     - Haddock
 
 - Public contracts
