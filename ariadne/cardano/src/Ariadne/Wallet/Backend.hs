@@ -27,14 +27,11 @@ import Ariadne.Wallet.Cardano.Kernel.Keystore
 import Ariadne.Wallet.Cardano.WalletLayer
   (PassiveWalletLayer(..), activeWalletLayerComponent,
   passiveWalletLayerComponent)
-import Ariadne.Wallet.Cardano.WalletLayer.Kernel (passiveWalletLayerComponent)
 import Ariadne.Wallet.Face
 
 -- | This is what we create initially, before actually creating 'WalletFace'.
 data WalletPreface = WalletPreface
     { wpBListener :: !BListenerHandle
-
-    , wpMakeWallet :: !((Doc -> IO ()) -> WalletFace, IO ())
     , wpMakeWallet :: !(CardanoFace -> ((Doc -> IO ()) -> WalletFace, IO (), IO ()))
     }
 
@@ -100,7 +97,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             sendWalletEvent $ WalletRequireConfirm mVar confirmType
             takeMVar mVar
 
-        mkWallet = (mkWalletFace, initWalletAction)
+        mkWallet = (mkWalletFace, initWalletAction, postInitAction)
         mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction, walletAction)
           where
             NT runCardanoMode = cardanoRunCardanoMode cardanoFace
@@ -143,12 +140,11 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 checkUnknownKeys pwl waitUiConfirm
                 checkWalletsWithoutSecretKey pwl waitUiConfirm
 
-            walletAction = pwlCleanupDBPeriodically pwl
+            postInitWalletAction = pwlCleanAcidDB
+              pwl
               (wcAcidDBPath walletConfig)
               (wcNumStoredArchives walletConfig)
-              (wcDBCleanupPerion walletConfig)
               (usingLoggerName "acid-db" ... logMessage)
-
 
         walletPreface = WalletPreface
             { wpBListener = bListenerHandle

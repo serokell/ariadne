@@ -10,7 +10,6 @@ import qualified Universum.Unsafe as Unsafe (fromJust)
 import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
 import System.Wlog (Severity(Debug))
-import Time (sec)
 
 import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (unsafeIntegerToCoin)
@@ -31,7 +30,8 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Consistency
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (DB, cleanupAcidState, dbHdWallets, defDB, runPeriodically)
+  (DB, dbHdWallets, defDB, runPeriodically)
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState (cleanupAcidState)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
@@ -56,7 +56,7 @@ walletDBComponent dbPath =
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
 passiveWalletLayerComponent
-    :: forall m. (MonadIO m)
+    :: forall m. (MonadIO m, MonadMask m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> FilePath
@@ -67,7 +67,7 @@ passiveWalletLayerComponent logFunction keystore dbPath pm = do
     passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 passiveWalletLayerCustomDBComponent
-    :: forall m. (MonadIO m)
+    :: forall m. (MonadIO m, MonadMask m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
@@ -166,13 +166,10 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
 
             , pwlApplyBlocks           = liftIO . invoke . Actions.ApplyBlocks
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
-            , pwlGetPassiveWallet      = wallet
-
             , pwlCreateEncryptedKey = \pp mnemonic ->
                 let seed     = mnemonicToSeedNoPassword $ unwords mnemonic
                     (_, esk) = safeDeterministicKeyGen seed pp
                 in pure esk
-
             , pwlEstimateFees          = \hdAccIds txOuts -> do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 let payees = ((,) <$> txOutAddress <*> txOutValue) <$> txOuts
@@ -180,7 +177,6 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
                     Spec.queryAccountAvailableUtxo hdAccId (snapshot ^. dbHdWallets)
                 ins <- liftIO $ transactionInputs availableUtxo payees
                 return $ cardanoFee ins (txOutValue <$> txOuts)
-
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $
                 Keystore.lookup (WalletIdHdSeq hdrId) (wallet ^. Kernel.walletKeystore)
@@ -190,7 +186,6 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
             , pwlGetWalletsWithoutSecretKeys =  getUnknownWallets wallet keystore
 
             }
-
 
     -- The use of the unsafe constructor 'UnsafeRawResolvedBlock' is justified
     -- by the invariants established in the 'Blund'.

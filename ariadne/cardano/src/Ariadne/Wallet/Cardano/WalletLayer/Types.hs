@@ -23,6 +23,8 @@ import Pos.Core.Txp (TxOut(..))
 import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
+import System.Wlog (Severity(..))
+
 type Mnemonic = [Text]
 
 ------------------------------------------------------------
@@ -115,8 +117,11 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlRollbackBlocks
           :: NewestFirst NE Blund
           -> m ()
-    , pwlGetPassiveWallet
-          :: Kernel.PassiveWallet
+    , pwlCleanAcidDB
+          :: FilePath
+          -> Int
+          -> (Severity -> Text -> m ())
+          -> m ()
 
     -- | generate EncryptedSecretKey
     , pwlCreateEncryptedKey

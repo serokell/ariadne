@@ -4,7 +4,7 @@ module Ariadne.Config.Wallet
        , wcKeyfilePathL
        , wcAcidDBPathL
        , wcNumStoredArchivesL
-       , wcDBCleanupPerionL
+       , wcDBCleanupPeriodL
        , walletFieldModifier
        , WalletConfig (..)
        ) where
@@ -17,10 +17,11 @@ import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import Serokell.Data.Memory.Units (Byte)
 import System.FilePath ((</>))
+import Time (Second, Time(..))
 
 import Ariadne.Config.DhallUtil
-  (injectByte, injectFilePath, injectInt, interpretByte, interpretFilePath,
-  interpretInt, parseField)
+  (injectByte, injectFilePath, injectInt, injectTime, interpretByte,
+  interpretFilePath, interpretInt, interpretTime, parseField)
 import Ariadne.Util (postfixLFields)
 
 defaultWalletConfig :: FilePath -> WalletConfig
@@ -29,7 +30,7 @@ defaultWalletConfig dataDir = WalletConfig
     , wcKeyfilePath       = dataDir </> "secret-mainnet.key"
     , wcAcidDBPath        = dataDir </> "wallet-db"
     , wcNumStoredArchives = 10
-    , wcDBCleanupPerion   = 600
+    , wcDBCleanupPeriod   = 600
     }
 
 parseFieldWallet ::
@@ -44,15 +45,15 @@ walletFieldModifier = f
     f "wcKeyfilePath"       = "keyfile"
     f "wcAcidDBPath"        = "wallet-db-path"
     f "wcNumStoredArchives" = "stored-db-archives"
-    f "wcDBCleanupPerion"   = "db-cleanup-period"
+    f "wcDBCleanupPeriod"   = "db-cleanup-period"
     f x = x
 
 data WalletConfig = WalletConfig
-  { wcEntropySize        :: !Byte
-  , wcKeyfilePath        :: !FilePath
-  , wcAcidDBPath         :: !FilePath
-  , wcNumStoredArchives  :: !Int
-  , wcDBCleanupPerion    :: !Int
+  { wcEntropySize       :: !Byte
+  , wcKeyfilePath       :: !FilePath
+  , wcAcidDBPath        :: !FilePath
+  , wcNumStoredArchives :: !Int
+  , wcDBCleanupPeriod   :: !(Time Second)
   } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''WalletConfig
@@ -65,7 +66,7 @@ instance D.Interpret WalletConfig where
         wcKeyfilePath        <- parseFieldWallet fields "wcKeyfilePath"       interpretFilePath
         wcAcidDBPath         <- parseFieldWallet fields "wcAcidDBPath"        interpretFilePath
         wcNumStoredArchives  <- parseFieldWallet fields "wcNumStoredArchives" interpretInt
-        wcDBCleanupPerion    <- parseFieldWallet fields "wcDBCleanupPerion"   interpretInt
+        wcDBCleanupPeriod    <- parseFieldWallet fields "wcDBCleanupPeriod"   interpretTime
         return WalletConfig {..}
       extractOut _ = Nothing
 
@@ -74,7 +75,7 @@ instance D.Interpret WalletConfig where
         , (walletFieldModifier "wcKeyfilePath", D.expected interpretFilePath)
         , (walletFieldModifier "wcAcidDBPath", D.expected interpretFilePath)
         , (walletFieldModifier "wcNumStoredArchives", D.expected interpretInt)
-        , (walletFieldModifier "wcDBCleanupPerion", D.expected interpretInt)
+        , (walletFieldModifier "wcDBCleanupPeriod", D.expected interpretTime)
         ]
 
 instance D.Inject WalletConfig where
@@ -93,8 +94,8 @@ injectWalletConfig = D.InputType {..}
                 D.embed injectFilePath wcAcidDBPath)
               , (walletFieldModifier "wcNumStoredArchives",
                 D.embed injectInt wcNumStoredArchives)
-              , (walletFieldModifier "wcDBCleanupPerion",
-                D.embed injectInt wcDBCleanupPerion)
+              , (walletFieldModifier "wcDBCleanupPeriod",
+                D.embed injectTime wcDBCleanupPeriod)
               ])
 
       declared = Record
@@ -103,5 +104,5 @@ injectWalletConfig = D.InputType {..}
           , (walletFieldModifier "wcKeyfilePath", D.declared injectFilePath)
           , (walletFieldModifier "wcAcidDBPath", D.declared injectFilePath)
           , (walletFieldModifier "wcNumStoredArchives", D.declared injectInt)
-          , (walletFieldModifier "wcDBCleanupPerion", D.declared injectInt)
+          , (walletFieldModifier "wcDBCleanupPeriod", D.declared injectTime)
           ])
