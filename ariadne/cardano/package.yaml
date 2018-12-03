@@ -115,6 +115,7 @@ tests:
       - lens
       - memory
       - ntype
+      - o-clock      
       - optparse-applicative
       - scientific
       - serokell-util

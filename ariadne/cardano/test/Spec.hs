@@ -141,7 +141,7 @@ cliArgs =
   , "--wallet:keyfile", "new-secret-mainnet.key"
   , "--wallet:wallet-db-path", "new-wallet-db"
   , "--wallet:stored-db-archives", "20"
-  , "--wallet:db-cleanup-period", "300"
+  , "--wallet:db-cleanup-period", "300.0"
   , "--update:version-check-url", "new-version-check-url"
   , "--update:update-url", "new-update-url"
   , "--update:check-delay", "21600"
@@ -174,7 +174,7 @@ expectedAriadneConfig = defaultAriadneCfg
     , wcKeyfilePath       = "new-secret-mainnet.key"
     , wcAcidDBPath        = "new-wallet-db"
     , wcNumStoredArchives = 20
-    , wcDBCleanupPerion   = 300
+    , wcDBCleanupPeriod   = 300
     }
   , acUpdate = defaultUpdateConfig
       { ucVersionCheckUrl = "new-version-check-url"

@@ -8,11 +8,13 @@ import Ariadne.Config.Wallet (WalletConfig(..))
 
 import Test.Ariadne.Cardano.Arbitrary (genValidString)
 
+import Time (sec)
+
 instance Arbitrary WalletConfig where
     arbitrary = do
         wcEntropySize       <- elements [16, 20, 24, 28, 32]
         wcKeyfilePath       <- genValidString
         wcAcidDBPath        <- genValidString
         wcNumStoredArchives <- chooseAny
-        wcDBCleanupPerion   <- chooseAny
+        wcDBCleanupPeriod   <- sec . realToFrac @Double <$> chooseAny
         return WalletConfig {..}
