@@ -128,7 +128,7 @@ closeDialog = do
         confirmSendWidgetCheckL .= False
 
 handleConfirmSendWidgetEvent
-    :: UiEvent
+    :: UiEvent Vty
     -> WidgetEventM ConfirmSendWidgetState p ()
 handleConfirmSendWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend sendInfo)) ->

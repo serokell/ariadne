@@ -29,7 +29,7 @@ data SendOutput =
 
 data SendWidgetState p =
   SendWidgetState
-    { sendLangFace :: !UiLangFace
+    { sendLangFace :: !(UiLangFace Vty)
     , sendWalletIdxGetter :: !(Maybe (p -> Maybe Word))
     , sendAccountsGetter :: !(Maybe (p -> [Word32]))
 
@@ -56,7 +56,7 @@ makeLensesWith postfixLFields ''SendOutput
 makeLensesWith postfixLFields ''SendWidgetState
 
 initSendWidget
-  :: UiLangFace
+  :: (UiLangFace Vty)
   -> Maybe (p -> Maybe Word)
   -> Maybe (p -> [Word32])
   -> Widget p
@@ -159,7 +159,7 @@ drawSendWidget focus SendWidgetState{..} = do
 ----------------------------------------------------------------------------
 
 handleSendWidgetEvent
-  :: UiEvent
+  :: (UiEvent Vty)
   -> WidgetEventM (SendWidgetState p) p ()
 handleSendWidgetEvent = \case
   UiCommandResult commandId (UiSendCommandResult result) -> do

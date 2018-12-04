@@ -192,7 +192,7 @@ updateFocusList = do
         ]
 
 handleConfirmMnemonicWidgetEvent
-    :: UiEvent
+    :: UiEvent Vty
     -> WidgetEventM ConfirmMnemonicWidgetState p ()
 handleConfirmMnemonicWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest resVar (UiConfirmMnemonic mnemonic)) -> do

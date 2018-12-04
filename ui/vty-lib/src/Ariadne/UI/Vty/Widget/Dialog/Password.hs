@@ -82,7 +82,7 @@ performContinue = do
             passwordWidgetContentL .= ""
 
 handlePasswordWidgetEvent
-    :: UiEvent
+    :: (UiEvent Vty)
     -> WidgetEventM PasswordWidgetState p ()
 handlePasswordWidgetEvent = \case
     UiPasswordEvent (UiPasswordRequest requestMode walletId cEvent) -> zoomWidgetState $

@@ -11,6 +11,8 @@ flags:
 packages:
 - ./ariadne/core
 - ./ariadne/cardano
+- ./ui/common-face
+- ./ui/common-glue
 - ./ui/qt-app
 - ./ui/qt-lib
 - ./ui/vty-app

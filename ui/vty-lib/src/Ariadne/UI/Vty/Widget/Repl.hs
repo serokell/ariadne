@@ -41,7 +41,7 @@ data ReplParseResult
 
 data ReplWidgetState p =
   ReplWidgetState
-    { replWidgetLangFace :: !UiLangFace
+    { replWidgetLangFace :: !(UiLangFace Vty)
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
     , replWidgetCommandLocation :: !(Int, Int)
@@ -53,7 +53,7 @@ data ReplWidgetState p =
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-initReplWidget :: UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
+initReplWidget :: UiLangFace Vty -> UiHistoryFace -> (p -> Bool) -> Widget p
 initReplWidget langFace historyFace fullsizeGetter =
   initWidget $ do
     setWidgetDrawWithFocus drawReplWidget
@@ -278,7 +278,7 @@ defaultCommandLocation cmd =
     (row, length $ ls !! row)
 
 handleReplWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM (ReplWidgetState p) p ()
 handleReplWidgetEvent = \case
     UiCommandEvent commandId commandEvent -> case commandEvent of
@@ -315,7 +315,7 @@ historyUpdate = zoomWidgetState $ do
   ReplWidgetState{..} <- get
   liftIO $ historySetPrefix replWidgetHistoryFace replWidgetCommand
 
-mkReplParseResult :: UiLangFace -> Text -> ReplParseResult
+mkReplParseResult :: UiLangFace Vty -> Text -> ReplParseResult
 mkReplParseResult UiLangFace{..} t =
   case langParse t of
     Left err ->
@@ -331,7 +331,7 @@ mkReplParseResult UiLangFace{..} t =
 
 updateCommandResult
   :: UiCommandId
-  -> UiCommandEvent
+  -> UiCommandEvent Vty
   -> OutputElement
   -> OutputElement
 updateCommandResult
@@ -352,6 +352,7 @@ updateCommandResult
               (pprDoc defAttr w doc)
         UiCommandOutput _ -> oldResultImage
         UiCommandWidget _ -> oldResultImage
+        UiFrontendCommandEvent (NoEvents v) -> absurd v
     messages =
       case commandEvent of
         UiCommandSuccess _ -> oldMessages
@@ -360,6 +361,7 @@ updateCommandResult
           let message (Arg defAttr) (Arg w) = pprDoc defAttr w doc
           in message:oldMessages
         UiCommandWidget _ -> oldMessages
+        UiFrontendCommandEvent (NoEvents v) -> absurd v
 updateCommandResult _ _ outCmd = outCmd
 
 spanAttrs :: ReplWidgetState p -> (Int, Int) -> B.AttrName

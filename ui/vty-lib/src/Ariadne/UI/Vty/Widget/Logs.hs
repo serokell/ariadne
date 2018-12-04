@@ -88,7 +88,7 @@ handleLogsWidgetScroll action = do
   return WidgetEventHandled
 
 handleLogsWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM LogsWidgetState p ()
 handleLogsWidgetEvent = \case
   UiBackendEvent (UiBackendLogEvent message) -> do

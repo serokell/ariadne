@@ -112,7 +112,7 @@ performPasswordChange = do
           confirmPasswordWidgetContentL .= ""
           changePasswordErrorL .= ChangePasswordNoError
 
-handleChangePasswordEvent :: UiEvent -> WidgetEventM ChangePasswordWidgetState p ()
+handleChangePasswordEvent :: UiEvent Vty -> WidgetEventM ChangePasswordWidgetState p ()
 handleChangePasswordEvent = \case
   UiPasswordEvent (UiPasswordRequest requestMode walletId cEvent) ->
     case requestMode of

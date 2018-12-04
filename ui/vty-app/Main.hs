@@ -22,11 +22,11 @@ type UiComponents = '[Knit.UI]
 main :: IO ()
 main = defaultMain mainSettings
   where
-    mainSettings :: MainSettings UiComponents UiFace UiLangFace
+    mainSettings :: MainSettings UiComponents (UiFace Vty) (UiLangFace Vty)
     mainSettings = MainSettings
         { msCommitHash = $(getCommitHash)
         , msCreateUI = createUI
-        , msPutWalletEventToUI = putWalletEventToUI
+        , msPutWalletEventToUI = putWalletEventToUI vtyToUiCurrency
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI
         , msPutPasswordEventToUI = putPasswordEventToUI
@@ -40,7 +40,7 @@ main = defaultMain mainSettings
         -> Logging
         -> CommandHistory
         -> PutPassword
-        -> ComponentM (UiFace, UiLangFace -> IO ())
+        -> ComponentM (UiFace Vty, UiLangFace Vty -> IO ())
     createUI _walletUIFace logging history putPass =
         let historyFace = historyToUI history
             features = UiFeatures
