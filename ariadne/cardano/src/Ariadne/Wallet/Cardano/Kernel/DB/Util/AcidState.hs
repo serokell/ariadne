@@ -108,16 +108,11 @@ mustBeRight :: Either Void b -> b
 mustBeRight (Left  a) = absurd a
 mustBeRight (Right b) = b
 
-type MonadAcidCleanup m =
-    ( MonadIO m
-    , MonadMask m
-    )
-
 -- | Creates checkpoint of the current state of Acid DB,
 -- archive previous checkpoints and remove too old archives.
 -- This is needed to avoid storing all logs permanently.
 cleanupAcidState
-    :: forall m st. (MonadAcidCleanup m)
+    :: forall m st. (MonadIO m, MonadMask m)
     => AcidState st
     -> FilePath
     -> Int

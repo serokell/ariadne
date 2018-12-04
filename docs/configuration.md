@@ -66,7 +66,7 @@ nodes.
 Wallet configuration has few values. All of them can be overwritten by
 command line arguments.  
 
-`entropy-size`  It specifies default number of bytes in entropy used to
+`entropy-size` specifies default number of bytes in entropy used to
 generate wallets. This value can be overridden by an argument of the
 `new-wallet` command.
 
@@ -83,7 +83,7 @@ and also deletes old archives. This number specifies how many archive files
 should be stored. By default it is 10 files. 
 
 `db-cleanup-period` is the period of archiving previous db's checkpoints in seconds. 
-by default it is 600 seconds. 
+By default it is 600 seconds. 
 
 ## Update configuration
 
