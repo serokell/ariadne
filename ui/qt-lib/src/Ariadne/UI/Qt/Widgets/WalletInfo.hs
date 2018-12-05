@@ -36,6 +36,7 @@ import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.AccountSettings
 import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmSend
 import Ariadne.UI.Qt.Widgets.Dialogs.Delete
+import Ariadne.UI.Qt.Widgets.Dialogs.Error
 import Ariadne.UI.Qt.Widgets.Dialogs.Request
 import Ariadne.UI.Qt.Widgets.Dialogs.Send
 import Ariadne.Util
@@ -226,7 +227,7 @@ handleWalletInfoEvent UiLangFace{..} ev = do
         UiSendCommandSuccess hash -> do
           void $ QMessageBox.information walletInfo ("Success" :: String) $ toString hash
         UiSendCommandFailure err -> do
-          void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+          runErrorDialog walletInfo $ toString err
     WalletInfoCalcTotalCommandResult result -> case result of
         UiCalcTotalCommandSuccess (amount, unit) -> do
           whenJustM (readIORef send) $ \dialog -> changeTotalAmount dialog amount unit
@@ -236,13 +237,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiNewAccountCommandSuccess -> do
         void $ QMessageBox.information walletInfo ("Success" :: String) ("Account created" :: String)
       UiNewAccountCommandFailure err -> do
-        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+        runErrorDialog walletInfo $ toString err
 
     WalletInfoNewAddressCommandResult _commandId result -> case result of
       UiNewAddressCommandSuccess wIdx aIdx address -> do
         whenJustM (readIORef requestDialog) $ \req -> addNewAddress req wIdx aIdx address
       UiNewAddressCommandFailure err ->
-        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+        runErrorDialog walletInfo $ toString err
 
     WalletInfoConfirmRemove resultVar delItemType ->
       liftIO $ runDelete delItemType >>= \case
@@ -304,7 +305,7 @@ sendButtonClicked uiLangFace@UiLangFace{..} uiWalletFace WalletInfo{..} _checked
     SendSuccess SendOptions{..} -> do
       let sendOutputs = zipWith UiSendOutput soAmounts soAddresses
       langPutUiCommand (UiSend $ UiSendArgs wIdx soAccounts sendOutputs) >>= \case
-        Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+        Left err -> runErrorDialog walletInfo $ toString err
         Right _ -> pass
 
 selectSomethingText :: Text

@@ -154,7 +154,7 @@ runNewWallet = do
   result <- toEnum <$> QDialog.exec newWallet
 
   case result of
-    QDialog.Accepted -> maybe NewWalletCanceled NewWalletAccepted <$> fillWaletParameters nw
+    QDialog.Accepted -> maybe NewWalletCanceled NewWalletAccepted <$> fillWalletParameters nw
     QDialog.Rejected -> return NewWalletCanceled
 
 passwordLabelText :: Text
@@ -169,8 +169,8 @@ hasPasswordToggled nw@NewWallet{..} checked = do
   QWidget.adjustSize newWallet
   revalidate nw
 
-fillWaletParameters :: NewWallet -> IO (Maybe NewWalletParameters)
-fillWaletParameters NewWallet{..} = do
+fillWalletParameters :: NewWallet -> IO (Maybe NewWalletParameters)
+fillWalletParameters NewWallet{..} = do
   nwName <- T.strip . fromString <$> QLineEdit.text walletName
   nwMnemonic <- T.strip . fromString <$> QLineEdit.text walletMnemonic
 
@@ -204,7 +204,7 @@ fillWaletParameters NewWallet{..} = do
     return NewWalletParameters{..}
 
 isValid :: NewWallet -> IO Bool
-isValid = fmap isJust . fillWaletParameters
+isValid = fmap isJust . fillWalletParameters
 
 revalidate :: NewWallet -> IO ()
 revalidate nw@NewWallet{..} = do

@@ -35,7 +35,6 @@ import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QLineEdit as QLineEdit
-import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -43,6 +42,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.Error
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Validation
 
@@ -501,7 +501,7 @@ recalcTotal UiLangFace{..} s@Send{..} = do
     then do
       QWidget.setStyleSheet totalAmount blackColorQLabelStyleSheet
       langPutUiCommand (UiCalcTotal amounts) >>= \case
-        Left err -> void $ QMessageBox.critical send ("Error" :: String) $ toString err
+        Left err -> runErrorDialog send $ toString err
         Right _ -> pass
     -- Color amount gray, when something is typed improperly. Last correct total amount will be shown
     else QWidget.setStyleSheet totalAmount grayColorQLabelStyleSheet

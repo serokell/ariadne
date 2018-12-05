@@ -177,4 +177,3 @@ createPasswordField placeholder = do
 onEventType :: QObject.QObjectPtr this => this -> (QEvent.QEventType -> IO ()) -> IO ()
 onEventType this handler = void $
   Event.onEvent this $ QEvent.eventType @QEvent.QEvent >=> (False <$) . handler
-

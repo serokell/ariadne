@@ -21,7 +21,6 @@ import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
-import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QPushButton as QPushButton
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
@@ -29,6 +28,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Util
+import Ariadne.UI.Qt.Widgets.Dialogs.Error
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
 data RequestAccounts
@@ -199,7 +199,7 @@ generateClicked UiLangFace{..} req@Request{..} = whenJustM (readIORef currentAcc
   langPutUiCommand (UiNewAddress wIdx aIdx) >>= handleResult req
 
 handleResult :: Request -> Either Text UiCommandId -> IO ()
-handleResult Request{..} (Left msg) = void $ QMessageBox.critical request ("Error" :: String) $ toString msg
+handleResult Request{..} (Left msg) = runErrorDialog request $ toString msg
 handleResult _ _ = pass
 
 addNewAddress :: Request -> Word -> Word -> Text -> IO ()

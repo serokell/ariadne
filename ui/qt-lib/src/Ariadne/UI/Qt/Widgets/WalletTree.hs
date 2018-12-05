@@ -30,6 +30,7 @@ import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.ConfirmMnemonic
+import Ariadne.UI.Qt.Widgets.Dialogs.Error
 import Ariadne.UI.Qt.Widgets.Dialogs.NewWallet
 import Ariadne.Util
 
@@ -105,16 +106,16 @@ handleWalletTreeEvent UiLangFace{..} ev = do
       UiNewWalletCommandSuccess -> do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet created" :: String)
       UiNewWalletCommandFailure err -> do
-        void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
+        runErrorDialog treeView $ toString err
     WalletTreeRestoreWalletCommandResult _commandId result -> case result of
       UiRestoreWalletCommandSuccess -> do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet restored" :: String)
       UiRestoreWalletCommandFailure err -> do
-        void $ QMessageBox.critical treeView ("Error" :: String) $ toString err
+        runErrorDialog treeView $ toString err
     WalletTreeConfirmMnemonic resultVar mnemonic -> do 
       liftIO $ runConfirmMnemonic mnemonic >>= \case
         ConfirmMnemonicSuccess -> putMVar resultVar True
         ConfirmMnemonicFailure -> do
           putMVar resultVar False
-          void $ QMessageBox.critical treeView ("Error" :: String)
+          runErrorDialog treeView
             ("You failed to verify the mnemonic. Please try creating a new wallet again." :: String)
