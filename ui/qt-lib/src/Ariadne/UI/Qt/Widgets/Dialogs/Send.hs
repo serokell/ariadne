@@ -6,33 +6,30 @@ module Ariadne.UI.Qt.Widgets.Dialogs.Send
   , initSend
   , runSend
   , changeTotalAmount
+  , showInvalidArgumentsError
   ) where
 
 import Control.Lens (has)
 import Data.Scientific (Scientific, normalize)
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Data.Traversable (for)
 import Data.Validation
   (Validation(..), bindValidation, ensure, validate, _Success)
 
+import Graphics.UI.Qtah.Core.Types (QtWindowType(Popup), alignRight)
 import Graphics.UI.Qtah.Signal (connect_)
-import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
 import Graphics.UI.Qtah.Core.HPoint (HPoint(..))
 import Graphics.UI.Qtah.Core.HSize (HSize(..))
-import Graphics.UI.Qtah.Core.Types (alignRight)
 import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QLocale as QLocale
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
-import Graphics.UI.Qtah.Core.Types (QtWindowType(Popup))
-import qualified Graphics.UI.Qtah.Event as Event
 import qualified Graphics.UI.Qtah.Gui.QDoubleValidator as QDoubleValidator
-import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
 import qualified Graphics.UI.Qtah.Gui.QValidator as QValidator
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QCheckBox as QCheckBox
+import qualified Graphics.UI.Qtah.Widgets.QComboBox as QComboBox
 import qualified Graphics.UI.Qtah.Widgets.QDialog as QDialog
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLabel as QLabel
@@ -50,6 +47,7 @@ import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Validation
 
 data SendInputs = SendInputsSingle Word | SendInputsMulti [UiAccountInfo]
+data SendMode = SendBasic | SendAdvanced deriving (Show, Eq, Enum, Bounded)
 
 data Error
   = Amount
@@ -58,7 +56,7 @@ data Error
   | AddressEmpty
   deriving (Eq, Show)
 
-type Errors = [(Reciever, Error)]
+type Errors = [(Receiver, Error)]
 
 data SendOptions =
   SendOptions
@@ -85,45 +83,61 @@ data AccountSelector =
 data Send =
   Send
     { send :: QDialog.QDialog
-    , recievers :: IORef [Reciever]
-    , recieversLayout :: QVBoxLayout.QVBoxLayout
-    , recieversWidget :: QWidget.QWidget
+    , modeSelector :: QComboBox.QComboBox
+    , receivers :: IORef [Receiver]
+    , singleReceiver :: Receiver
+    , receiversLayout :: QVBoxLayout.QVBoxLayout
+    , receiversWidget :: QWidget.QWidget
     , sendButton :: QPushButton.QPushButton
-    , addRecieverButton :: QPushButton.QPushButton
+    , addReceiverButton :: QPushButton.QPushButton
     , fromDisplay :: QLabel.QLabel
     , totalAmount :: QLabel.QLabel
+    , totalUnit :: QLabel.QLabel
+    , errorTextLabel :: QLabel.QLabel
     , accountSelector :: Either Word AccountSelector
     , uiWalletFace :: UiWalletFace
     }
 
-data Reciever = 
-  Reciever
-    { recieverWidget :: QWidget.QWidget
+data Receiver =
+  Receiver
+    { receiverWidget :: QWidget.QWidget
     , amountEdit :: QLineEdit.QLineEdit
     , addressEdit :: QLineEdit.QLineEdit
     , removeButton :: QPushButton.QPushButton
     , validations :: Validations
     }
 
+sendModeName :: SendMode -> Text
+sendModeName SendBasic = "SEND"
+sendModeName SendAdvanced = "SEND (ADVANCED)"
+
+createModeSelector :: IO QComboBox.QComboBox
+createModeSelector = do
+  modeSelector <- QComboBox.new
+  for_ [minBound..maxBound] $ \mode ->
+    QComboBox.addItem modeSelector $ toString $ sendModeName mode
+  return modeSelector
+
 initSend :: UiLangFace -> UiWalletFace -> SendInputs -> IO Send
 initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
   send <- QDialog.new
-  QObject.setObjectName send ("settingsDialog" :: String)
+  QObject.setObjectName send ("sendDialog" :: String)
   layout <- createLayout send
 
   QWidget.setWindowTitle send ("SEND" :: String)
-  headerLabel <- QLabel.newWithText ("SEND" :: String)
-  addHeader layout headerLabel
+  modeSelector <- createModeSelector
+  addHeader layout modeSelector
 
-  addressLabel <- QLabel.newWithText ("<b>RECIEVER</b>" :: String)
-  amountLabel <- QLabel.newWithText ("<b>AMOUNT</b>" :: String)
-  QLabel.setAlignment amountLabel alignRight
-  addRow layout addressLabel amountLabel
+  -- Create widget for SendBasic which contains single receiver
+  singleReceiver <- createSingleReceiver uiWalletFace
+  QBoxLayout.addWidget layout $ receiverWidget singleReceiver
 
-  recieversWidget <- QWidget.new
-  recieversLayout <- QVBoxLayout.new
-  QWidget.setLayout recieversWidget recieversLayout
-  QBoxLayout.addWidget layout recieversWidget
+  -- Create widget for SendAdvanced which contains multiple recevivers and top bar with labels
+  (receiversWidget, receiversLayout) <- createMulptipleReceivers
+  QBoxLayout.addWidget layout receiversWidget
+  QWidget.setVisible receiversWidget False
+
+  receivers <- newIORef []
 
   fromAccountsLabel <- QLabel.newWithText ("<b>FROM</b>" :: String)
   fromDisplay <- QLabel.newWithText ("select account..." :: String)
@@ -135,16 +149,28 @@ initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
       addRow layout fromAccountsLabel fromDisplay
       addSeparator layout
 
+  errorTextLabel <- QLabel.new
+  QLayout.addWidget layout errorTextLabel
+  QWidget.setVisible errorTextLabel False
+
   totalLabel <- QLabel.newWithText ("<b>TOTAL</b>" :: String)
   totalAmount <- QLabel.new
+  totalUnit <- QLabel.new
+  total <- QWidget.new
+  totalLayout <- QHBoxLayout.new
+  QWidget.setLayout total totalLayout
+  QLayout.addWidget totalLayout totalAmount
+  QLayout.addWidget totalLayout totalUnit
+  QLayout.setAlignment totalLayout alignRight
   QObject.setObjectName totalAmount ("amountLabel" :: String)
-  QWidget.setSizePolicyRaw totalAmount Maximum Fixed
-  addRow layout totalLabel totalAmount
+  QObject.setObjectName totalUnit ("amountLabel" :: String)
+  addRow layout totalLabel total
 
-  addRecieverButton <- QPushButton.new
-  QWidget.resizeRaw addRecieverButton 36 36
-  void $ setProperty addRecieverButton ("styleRole" :: Text) ("addButton" :: Text)
-  QWidget.setParent addRecieverButton send
+  addReceiverButton <- QPushButton.new
+  QWidget.resizeRaw addReceiverButton 36 36
+  void $ setProperty addReceiverButton ("styleRole" :: Text) ("addButton" :: Text)
+  QWidget.setParent addReceiverButton send
+  QWidget.setVisible addReceiverButton False
 
   sendButton <- QPushButton.newWithText ("NEXT" :: String)
   void $ setProperty sendButton ("dialogButtonRole" :: Text) ("dialogAction" :: Text)
@@ -156,7 +182,6 @@ initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
 
   QBoxLayout.addLayout layout buttonLayout
   QBoxLayout.addStretch layout
-
 
   accountSelector <- case sendInputs of
     SendInputsSingle aIdx -> return $ Left aIdx
@@ -210,6 +235,16 @@ initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
 
   return s
 
+modeChanged :: UiLangFace -> Send -> SendMode -> IO ()
+modeChanged uiLangFace s@Send{..} mode = do
+  let isBasic = mode == SendBasic
+  QWidget.setVisible receiversWidget $ not isBasic
+  QWidget.setVisible addReceiverButton $ not isBasic
+  QWidget.setVisible (receiverWidget singleReceiver) isBasic
+  QWidget.adjustSize send
+  recalcTotal uiLangFace s
+  revalidate s
+
 runSend :: Send -> IO SendResult
 runSend s@Send{..} = do
   result <- toEnum <$> QDialog.exec send
@@ -224,9 +259,6 @@ runSend s@Send{..} = do
 
 fillSendOptions :: Send -> IO (Validation Errors SendOptions)
 fillSendOptions s@Send{..} = do
-  enabledRecievers <- getEnabledRecievers s
-  amounts <- mapM (\r'@Reciever{..} -> liftM2 (,) (return $ r') (fromString <$> QLineEdit.text amountEdit)) enabledRecievers
-  addresses <- mapM (\r'@Reciever{..} -> liftM2 (,) (return $ r') (fromString <$> QLineEdit.text addressEdit)) enabledRecievers
   enabledReceivers <- getEnabledReceivers s
   amounts <- mapM (\r'@Receiver{..} -> (r', ) <$> (fromString <$> QLineEdit.text amountEdit)) enabledReceivers
   addresses <- mapM (\r'@Receiver{..} -> (r', ) <$> (fromString <$> QLineEdit.text addressEdit)) enabledReceivers
@@ -257,28 +289,51 @@ isValid = fmap isSuccess . fillSendOptions
 
 revalidate :: Send -> IO ()
 revalidate s@Send{..} = do
-  r <- readIORef recievers
-  enabledRecievers <- filterM (\Reciever{..} -> QWidget.isEnabled recieverWidget) r
+  enabledReceivers <- getEnabledReceivers s
 
   validation <- fillSendOptions s
   let valid = isSuccess validation
 
-  mapM_ (\r'@Reciever{..} -> 
-    showErrorsV validations (filteredValidation validation r') errorToWidget) enabledRecievers
+  mapM_ (\r'@Receiver{..} ->
+    showErrorsV validations (filteredValidation validation r') errorToWidget) enabledReceivers
 
+  QWidget.setEnabled addReceiverButton valid
   QWidget.setEnabled sendButton valid
 
-filteredValidation :: Validation Errors a -> Reciever -> Validation Errors a
+filteredValidation :: Validation Errors a -> Receiver -> Validation Errors a
 filteredValidation (Success x)  _ = Success x
-filteredValidation (Failure l) r = 
-  Failure $ filter (\(r', _) -> recieverWidget r == recieverWidget r') l
+filteredValidation (Failure l) r =
+  Failure $ filter (\(r', _) -> receiverWidget r == receiverWidget r') l
 
-errorToWidget :: (Reciever, Error) -> Maybe (Maybe Text, QWidget.QWidget)
-errorToWidget (Reciever{..}, e) =
+errorToWidget :: (Receiver, Error) -> Maybe (Maybe Text, QWidget.QWidget)
+errorToWidget (Receiver{..}, e) =
   case e of
     Amount -> Just (Nothing, QWidget.cast amountEdit)
     Address reason -> Just (Just reason, QWidget.cast addressEdit)
     _ -> Nothing
+
+createValidator :: UiWalletFace -> IO QDoubleValidator.QDoubleValidator
+createValidator UiWalletFace{..} = do
+  cLocale <- QLocale.newWithName ("C" :: String)
+  QLocale.setNumberOptions cLocale QLocale.RejectGroupSeparator
+  validator <- QDoubleValidator.new
+  QValidator.setLocale validator cLocale
+  QDoubleValidator.setBottom validator 0
+  QDoubleValidator.setDecimals validator uiCoinPrecision
+  return validator
+
+createAmountEdit :: IO QLineEdit.QLineEdit
+createAmountEdit = do
+  amountEdit <- QLineEdit.new
+  QObject.setObjectName amountEdit ("sendAmountEdit" :: String)
+  QLineEdit.setPlaceholderText amountEdit ("0" :: String)
+  return amountEdit
+
+createUnitLabel :: IO QLabel.QLabel
+createUnitLabel = do
+  unitLabel <- QLabel.newWithText ("ADA" :: String)
+  QObject.setObjectName unitLabel ("amountLabel" :: String)
+  return unitLabel
 
 createAccountSelector :: [UiAccountInfo] -> IO AccountSelector
 createAccountSelector uacis = do
@@ -293,26 +348,77 @@ createAccountSelector uacis = do
 
   return AccountSelector{..}
 
-createNewReciever :: UiLangFace -> Send -> IO ()
-createNewReciever uiLangFace@UiLangFace{..} s@Send{..} = do
-  recieverWidget <- QWidget.new
-  layout <- createLayout recieverWidget
+createSingleReceiver :: UiWalletFace -> IO Receiver
+createSingleReceiver uiWalletFace = do
+  receiverWidget <- QWidget.new
+  receiverLayout <- QVBoxLayout.new
+
+  QLayout.setContentsMarginsRaw receiverLayout 0 0 0 0
+  QBoxLayout.setSpacing receiverLayout 18
+  basicAddressLabel <- QLabel.newWithText ("<b>RECEIVER</b>" :: String)
+  basicAmountLabel <- QLabel.newWithText ("<b>AMOUNT</b>" :: String)
+  amountLayout <- QHBoxLayout.new
+
+  amountEdit <- createAmountEdit
+  unitLabel <- createUnitLabel
+
+  validator <- createValidator uiWalletFace
+  QLineEdit.setValidator amountEdit validator
+
+  QBoxLayout.addWidget amountLayout amountEdit
+  QBoxLayout.addWidget amountLayout unitLabel
+  QBoxLayout.setSpacing amountLayout 0
+  addRowLayout receiverLayout basicAmountLabel amountLayout
+  addSeparator receiverLayout
+  addressEdit <- QLineEdit.new
+  QLineEdit.setPlaceholderText addressEdit ("Type or paste receiver address here" :: String)
+  addRow receiverLayout basicAddressLabel addressEdit
+  addSeparator receiverLayout
+  -- stub
+  removeButton <- QPushButton.new
+  QWidget.setLayout receiverWidget receiverLayout
+
+  validations <- createValidations receiverWidget $
+    [ ("Wrong address", QWidget.cast addressEdit)
+    , ("Wrong amount", QWidget.cast amountEdit)
+    ]
+
+  let singleReceiver = Receiver{..}
+
+  return singleReceiver
+
+createMulptipleReceivers :: IO (QWidget.QWidget, QVBoxLayout.QVBoxLayout)
+createMulptipleReceivers = do
+  receiversWidget <- QWidget.new
+  receiversLayout <- QVBoxLayout.new
+
+  topBarWidget <- QWidget.new
+  addressLabel <- QLabel.newWithText ("<b>RECEIVER</b>" :: String)
+  amountLabel <- QLabel.newWithText ("<b>AMOUNT</b>" :: String)
+  QLabel.setAlignment amountLabel alignRight
+  rowLayout <- QHBoxLayout.new
+  QLayout.setContentsMarginsRaw rowLayout 18 0 64 0
+  QBoxLayout.addWidget rowLayout addressLabel
+  QBoxLayout.addWidget rowLayout amountLabel
+  QWidget.setLayout topBarWidget rowLayout
+  QBoxLayout.addWidget receiversLayout topBarWidget
+
+  QLayout.setContentsMarginsRaw receiversLayout 0 0 0 0
+  QWidget.setLayout receiversWidget receiversLayout
+  return (receiversWidget, receiversLayout)
+
+createNewReceiver :: UiLangFace -> Send -> IO ()
+createNewReceiver uiLangFace@UiLangFace{..} s@Send{..} = do
+  receiverWidget <- QWidget.new
+  layout <- createLayout receiverWidget
   QLayout.setContentsMarginsRaw layout 0 18 0 18
 
-  amountEdit <- QLineEdit.new
-  unitLabel <- QLabel.newWithText ("ADA" :: String)
-  QObject.setObjectName unitLabel ("amountLabel" :: String)
-  QObject.setObjectName amountEdit ("sendAmountEdit" :: String)
-  QLineEdit.setPlaceholderText amountEdit ("0" :: String)
+  amountEdit <- createAmountEdit
+  unitLabel <- createUnitLabel
 
   let UiWalletFace{..} = uiWalletFace
 
-  cLocale <- QLocale.newWithName ("C" :: String)
-  QLocale.setNumberOptions cLocale QLocale.RejectGroupSeparator
-  validator <- QDoubleValidator.new
-  QValidator.setLocale validator cLocale
-  QDoubleValidator.setBottom validator 0
-  QDoubleValidator.setDecimals validator uiCoinPrecision
+  validator <- createValidator uiWalletFace
   QLineEdit.setValidator amountEdit validator
 
   amountLayout <- QHBoxLayout.new
@@ -325,7 +431,7 @@ createNewReciever uiLangFace@UiLangFace{..} s@Send{..} = do
   addressEdit <- QLineEdit.new
   QLineEdit.setPlaceholderText addressEdit ("Type or paste receiver address here" :: String)
 
-  validations <- createValidations recieverWidget $
+  validations <- createValidations receiverWidget $
     [ ("Wrong address", QWidget.cast addressEdit)
     , ("Wrong amount", QWidget.cast amountEdit)
     ]
@@ -333,63 +439,90 @@ createNewReciever uiLangFace@UiLangFace{..} s@Send{..} = do
   addRowLayout layout addressEdit amountLayout
   addSeparator layout
 
-  QBoxLayout.addWidget recieversLayout recieverWidget
+  QBoxLayout.addWidget receiversLayout receiverWidget
 
+  void $ setProperty totalAmount ("styleRole" :: Text) ("incorrectTotal" :: Text)
   connect_ amountEdit QLineEdit.textChangedSignal $ \_ -> do
     revalidate s
     recalcTotal uiLangFace s
   connect_ addressEdit QLineEdit.textChangedSignal $ \_ -> revalidate s
 
-  let r = Reciever{..}
+  let r = Receiver{..}
 
   connect_ removeButton QAbstractButton.clickedSignal $ \_ -> do
-    removeReciever uiLangFace r s
-    
+    removeReceiver uiLangFace r s
 
-  modifyIORef' recievers (r :)
-  QWidget.adjustSize recieversWidget
+  modifyIORef' receivers (r :)
+  QWidget.adjustSize receiversWidget
   QWidget.adjustSize send
   revalidate s
 
-removeReciever :: UiLangFace -> Reciever -> Send -> IO ()
-removeReciever uiLangFace@UiLangFace{..} Reciever{..} s@Send{..} = do
-  enabledRecievers <- getEnabledRecievers s
-  QWidget.setEnabled recieverWidget False
-  QWidget.setVisible recieverWidget False
+removeReceiver :: UiLangFace -> Receiver -> Send -> IO ()
+removeReceiver uiLangFace@UiLangFace{..} Receiver{..} s@Send{..} = do
+  enabledReceivers <- getEnabledReceivers s
+  QWidget.setEnabled receiverWidget False
+  QWidget.setVisible receiverWidget False
   revalidate s
   recalcTotal uiLangFace s
-  -- To prevent removing last reciever
-  if length enabledRecievers == 1
+  -- To prevent removing last receiver
+  if length enabledReceivers == 1
     then do
-      createNewReciever uiLangFace s
+      createNewReceiver uiLangFace s
     else do
-      QWidget.adjustSize recieversWidget
+      QWidget.adjustSize receiversWidget
       QWidget.adjustSize send
 
-getEnabledRecievers :: Send -> IO [Reciever]
-getEnabledRecievers Send{..} = do
-  r <- readIORef recievers
-  filterM (\Reciever{..} -> QWidget.isEnabled recieverWidget) r
+getEnabledReceivers :: Send -> IO [Receiver]
+getEnabledReceivers Send{..} = do
+  mode <- toEnum <$> QComboBox.currentIndex modeSelector
+  case mode of
+    SendBasic ->
+      return [singleReceiver]
+    SendAdvanced -> do
+      r <- readIORef receivers
+      filterM (\Receiver{..} -> QWidget.isEnabled receiverWidget) r
+
+blackColorQLabelStyleSheet :: String
+blackColorQLabelStyleSheet = "QLabel { color : rgba(52, 52, 62, 255) }"
+
+grayColorQLabelStyleSheet :: String
+grayColorQLabelStyleSheet = "QLabel { color : rgba(52, 52, 62, 127) }"
 
 recalcTotal :: UiLangFace -> Send -> IO ()
 recalcTotal UiLangFace{..} s@Send{..} = do
-  enabledRecievers <- getEnabledRecievers s
-  textAmounts <- mapM (\Reciever{..} -> fromString <$> QLineEdit.text amountEdit) enabledRecievers
-  let amounts = map Unsafe.fromJust (filter isJust (map (\a -> normalize <$> readMaybe a) textAmounts))
-  langPutUiCommand (UiCalcTotal amounts) >>= \case
-    Left err -> void $ QMessageBox.critical send ("Error" :: String) $ toString err
-    Right _ -> pass
+  enabledReceivers <- getEnabledReceivers s
+  textAmounts <- mapM (fmap fromString . QLineEdit.text . amountEdit) enabledReceivers
+  QWidget.setVisible errorTextLabel False
+  QWidget.adjustSize send
+  let amounts = mapMaybe (fmap normalize . readMaybe) textAmounts
+  -- Calculate total sum only when all amount inputs are correct
+  if length enabledReceivers == length amounts
+    then do
+      QWidget.setStyleSheet totalAmount blackColorQLabelStyleSheet
+      langPutUiCommand (UiCalcTotal amounts) >>= \case
+        Left err -> void $ QMessageBox.critical send ("Error" :: String) $ toString err
+        Right _ -> pass
+    -- Color amount gray, when something is typed improperly. Last correct total amount will be shown
+    else QWidget.setStyleSheet totalAmount grayColorQLabelStyleSheet
 
-changeTotalAmount :: Send -> Text -> IO ()
-changeTotalAmount Send{..} amount = do
+changeTotalAmount :: Send -> Text -> Text -> IO ()
+changeTotalAmount Send{..} amount unit = do
   QLabel.setText totalAmount $ toString amount
+  QLabel.setText totalUnit $ toString unit
 
-moveAddRecieverButton :: Send -> IO ()
-moveAddRecieverButton Send{..} = do
-  HPoint{x = _, y = widgetY} <- QWidget.pos recieversWidget
-  HSize{width = _, height = widgetHeight} <- QWidget.size recieversWidget
-  HSize{width = sendWidth, height = _} <- QWidget.size send
-  QWidget.move addRecieverButton $ HPoint {x = sendWidth - 40, y = widgetY + widgetHeight - 78}  
+showInvalidArgumentsError :: Send -> Text -> IO ()
+showInvalidArgumentsError Send{..} err = do
+  QLabel.setText errorTextLabel $
+    ("An error occurred while calculating total: " :: String) <> toString err
+  QWidget.setStyleSheet totalAmount grayColorQLabelStyleSheet
+  QWidget.setVisible errorTextLabel True
+
+moveAddReceiverButton :: Send -> IO ()
+moveAddReceiverButton Send{..} = do
+  HPoint{y = widgetY} <- QWidget.pos receiversWidget
+  HSize{height = widgetHeight} <- QWidget.size receiversWidget
+  HSize{width = sendWidth} <- QWidget.size send
+  QWidget.move addReceiverButton $ HPoint {x = sendWidth - 40, y = widgetY + widgetHeight - 73}
 
 createAccountCheckbox :: QVBoxLayout.QVBoxLayout -> UiAccountInfo -> IO AccountCheckbox
 createAccountCheckbox layout UiAccountInfo{..} = do
@@ -428,11 +561,9 @@ moveDropDown dropdownWidget Send{..} = do
   QWidget.adjustSize dropdownWidget
 
   HSize{width = widgetWidth, height = widgetHeight} <- QWidget.size dropdownWidget
-  -- print (widgetWidth, widgetHeight)
   -- Make account widget occupy as much space as is available
   when (widgetWidth < labelWidth) $ QWidget.resizeRaw dropdownWidget labelWidth widgetHeight
-  -- print (labelWidth, widgetHeight)
-  QWidget.updateGeometry dropdownWidget
+  QWidget.setVisible dropdownWidget True
 
 selectAccountText :: Text
 selectAccountText = "select accounts..."
