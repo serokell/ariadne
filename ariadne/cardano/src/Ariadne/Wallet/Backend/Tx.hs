@@ -50,9 +50,9 @@ data SendTxException
 instance Buildable SendTxException where
     build = \case
         SendTxNoAddresses walletIdx ->
-            bprint ("Wallet "%build%" does not have any addresses") walletIdx
+            bprint ("Wallet '"%build%"' does not have any addresses") walletIdx
         SendTxNoAccounts walletIdx ->
-            bprint ("Wallet "%build%" does not have any accounts") walletIdx
+            bprint ("Wallet '"%build%"' does not have any accounts") walletIdx
         SendTxIncorrectPassPhrase ->
             "Incorrect passphrase"
         SendTxAccountIndexOutOfRange rootId idx ->

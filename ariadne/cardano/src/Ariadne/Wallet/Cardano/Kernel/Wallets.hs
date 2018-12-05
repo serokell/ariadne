@@ -15,7 +15,6 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
-import qualified Text.Show
 
 import Data.Acid.Advanced (update')
 
@@ -50,23 +49,23 @@ data CreateWalletError =
       -- ^ When trying to create the 'Wallet', the DB operation failed.
     | CreateAccountFailed CreateAccountError
     | CreateAddressFailed CreateAddressError
+    deriving (Show)
 
 instance Arbitrary CreateWalletError where
     arbitrary = error "Arbitrary CreateWalletError is not implemented"
 
 instance Buildable CreateWalletError where
     build (CreateWalletFailed dbOperation) =
-        bprint ("CreateWalletUnknownHdAccount " % F.build) dbOperation
-    build (CreateAccountFailed dbOperation) =
-        bprint ("CreateWalletAccountUnknown " % F.build) dbOperation
-    build (CreateAddressFailed dbOperation) =
-        bprint ("CreateWalletAddressUnknown " % F.build) dbOperation
+        bprint ("When trying to create the 'Wallet', the DB operation failed: " % F.build)
+          dbOperation
+    build (CreateAccountFailed createAccountError) =
+        bprint F.build createAccountError
+    build (CreateAddressFailed createAddressError) =
+        bprint F.build createAddressError
 
-
-instance Show CreateWalletError where
-    show = formatToString build
-
-instance Exception CreateWalletError
+instance Exception CreateWalletError where
+  displayException e = ("An error occurred during wallet creation:\n")
+    <> formatToString build e
 
 newtype HasNonemptyPassphrase = HasNonemptyPassphrase Bool
 
