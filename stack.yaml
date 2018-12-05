@@ -211,6 +211,7 @@ extra-deps:
 - teardown-0.5.0.0
 - unix-compat-0.5.1 # https://github.com/jystic/unix-compat/pull/40
 - ntype-0.1.0.0
+- dhall-1.15.1
 
 # Required by https://github.com/input-output-hk/cardano-sl/pull/3232
 - micro-recursion-schemes-5.0.2.2
