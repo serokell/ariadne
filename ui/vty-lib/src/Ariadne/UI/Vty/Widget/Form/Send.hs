@@ -148,7 +148,7 @@ drawSendWidget focus SendWidgetState{..} = do
       , case sendResult of
           SendResultNone -> B.emptyWidget
           SendResultWaiting _ -> B.txt "Sending..."
-          SendResultError err -> B.txt $ "Couldn't send a transaction: " <> err
+          SendResultError err -> B.txtWrap $ "Couldn't send a transaction: " <> err
           SendResultSuccess tr -> B.txt $ "Transaction sent: " <> tr
       ]
 

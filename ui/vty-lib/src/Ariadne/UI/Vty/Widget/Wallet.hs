@@ -245,17 +245,17 @@ drawWalletWidget focus WalletWidgetState{..} = do
       , case walletRenameResult of
           RenameResultNone -> B.emptyWidget
           RenameResultWaiting _ -> B.txt "Renaming..."
-          RenameResultError err -> B.txt $ "Couldn't rename a wallet: " <> err
+          RenameResultError err -> B.txtWrap $ "Couldn't rename a wallet: " <> err
           RenameResultSuccess -> B.emptyWidget
       , case walletRemoveResult of
           RemoveResultNone -> B.emptyWidget
           RemoveResultWaiting _ -> B.txt "Deleting..."
-          RemoveResultError err -> B.txt $ "Couldn't delete a wallet: " <> err
+          RemoveResultError err -> B.txtWrap $ "Couldn't delete a wallet: " <> err
           RemoveResultSuccess -> B.emptyWidget
       , label "Balance:" B.<+> case walletBalance of
           BalanceResultNone -> B.emptyWidget
           BalanceResultWaiting _ -> B.txt "requesting..."
-          BalanceResultError err -> B.txt err
+          BalanceResultError err -> B.txtWrap err
           BalanceResultSuccess balance -> B.txt balance
       ] ++
       (if not walletExportEnabled then [] else
@@ -264,7 +264,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
           , padLeft $ case walletExportResult of
               ExportResultNone -> B.emptyWidget
               ExportResultWaiting _ -> B.txt "Exporting..."
-              ExportResultError err -> B.txt err
+              ExportResultError err -> B.txtWrap err
               ExportResultSuccess key -> B.txt $ "Secret key: " <> key
               ExportResultCopied key -> B.txt $ "Copied to clipboard: " <> key
           ]
@@ -281,7 +281,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
         , padBottom $ case walletNewAccountResult of
             NewAccountResultNone -> B.emptyWidget
             NewAccountResultWaiting _ -> B.txt "Creating..."
-            NewAccountResultError err -> B.txt $ "Couldn't create an account: " <> err
+            NewAccountResultError err -> B.txtWrap $ "Couldn't create an account: " <> err
             NewAccountResultSuccess -> B.emptyWidget
         ]
       ) ++
@@ -292,7 +292,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
         , padBottom $ case walletTxHistory of
             TxHistoryResultNone -> B.emptyWidget
             TxHistoryResultWaiting _ -> B.txt "Loading..."
-            TxHistoryResultError err -> B.txt $ "Couldn't retrieve transaction history: " <> err
+            TxHistoryResultError err -> B.txtWrap $ "Couldn't retrieve transaction history: " <> err
             TxHistoryResultSuccess rows -> B.vBox $ drawTxRow <$> rows
         ]
       )
