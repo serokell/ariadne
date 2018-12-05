@@ -32,10 +32,12 @@ import System.Directory
 import System.FilePath (isAbsolute, takeDirectory, (</>))
 
 import Ariadne.Config.Ariadne
-  (AriadneConfig(..), acCardanoL, acHistoryL, acWalletL, defaultAriadneConfig)
+  (AriadneConfig(..), acCardanoL, acHistoryL, acLoggingL, acWalletL,
+  defaultAriadneConfig)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.History
+import Ariadne.Config.Logging
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
   (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
@@ -48,6 +50,7 @@ data CLI_AriadneConfig = CLI_AriadneConfig
     , cli_acWallet :: !CLI_WalletConfig
     , cli_acUpdate :: !CLI_UpdateConfig
     , cli_acHistory :: !CLI_HistoryConfig
+    , cli_acLogging :: !CLI_LoggingConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
@@ -85,9 +88,14 @@ data CLI_HistoryConfig = CLI_HistoryConfig
     { cli_hcPath :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
+data CLI_LoggingConfig = CLI_LoggingConfig
+    { cli_lcPath :: !(Maybe FilePath)
+    } deriving (Eq, Show)
+
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_CardanoConfig
 makeLensesWith postfixLFields ''CLI_HistoryConfig
+makeLensesWith postfixLFields ''CLI_LoggingConfig
 
 makeLensesWith postfixLFields ''ConfigurationOptions
 
@@ -103,6 +111,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , acWallet = mergedWalletConfig
         , acUpdate = mergedUpdateConfig
         , acHistory = mergedHistoryConfig
+        , acLogging = mergedLoggingConfig
         }
 
     -- Merge Wallet config
@@ -170,6 +179,13 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         { hcPath = merge (overrideHc ^. cli_hcPathL) (defaultHc ^. hcPathL)
         }
 
+    -- Merge Logging config
+    overrideLc = cli_acLogging overrideAc
+    defaultLc = acLogging defaultAc
+    mergedLoggingConfig = defaultLc
+        { lcPath = merge (overrideLc ^. cli_lcPathL) (defaultLc ^. lcPathL)
+        }
+
 data ConfigDirectories = ConfigDirectories
   { cdDataDir :: !FilePath
   , cdPWD :: !FilePath }
@@ -216,6 +232,8 @@ getConfig commitHash = do
           ccConfigurationOptionsL.cfoFilePathL %= resolve_
         zoom acHistoryL $ do
           hcPathL %= resolve_
+        zoom acLoggingL $ do
+          lcPathL %= resolve_
         zoom acWalletL $ do
           wcAcidDBPathL %= resolve_
           wcKeyfilePathL %= resolve_
@@ -269,6 +287,7 @@ cliAriadneConfigParser = do
   cli_acWallet <- cliWalletParser
   cli_acUpdate <- cliUpdateParser
   cli_acHistory <- cliHistoryParser
+  cli_acLogging <- cliLoggingParser
   pure CLI_AriadneConfig {..}
 
 cliWalletParser :: Opt.Parser CLI_WalletConfig
@@ -322,6 +341,15 @@ cliHistoryParser = do
     , help "Path to file with command history."
     ]
   pure CLI_HistoryConfig {..}
+
+cliLoggingParser :: Opt.Parser CLI_LoggingConfig
+cliLoggingParser = do
+  cli_lcPath <- optional $ strOption $ mconcat
+    [ long $ toOptionNameLogging "lcPath"
+    , metavar "FILEPATH"
+    , help "Path to store logs."
+    ]
+  pure CLI_LoggingConfig {..}
 
 cliCardanoConfigParser :: Opt.Parser CLI_CardanoConfig
 cliCardanoConfigParser = do
@@ -422,3 +450,6 @@ toOptionNameUpdate = ("update:" <>) . toString . updateFieldModifier
 
 toOptionNameHistory :: D.Text -> String
 toOptionNameHistory = ("history:" <>) . toString . historyFieldModifier
+
+toOptionNameLogging :: D.Text -> String
+toOptionNameLogging = ("logging:" <>) . toString . loggingFieldModifier

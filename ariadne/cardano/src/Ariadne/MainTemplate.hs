@@ -22,8 +22,10 @@ import Ariadne.Cardano.Knit (adaToCoin)
 import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.History (HistoryConfig(..))
+import Ariadne.Config.Logging (LoggingConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
+import Ariadne.Logging (logDebug, loggingComponent)
 import Ariadne.TaskManager.Backend
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
@@ -86,7 +88,7 @@ defaultMain settings = do
 
 initializeEverything
     :: forall uiComponents uiFace uiLangFace.
-       Components (AllComponents uiComponents)
+       (Components (AllComponents uiComponents), HasCallStack)
     => MainSettings uiComponents uiFace uiLangFace
     -> AriadneConfig
     -> ComponentM (IO ())
@@ -95,7 +97,9 @@ initializeEverything MainSettings {..}
                                    , acWallet = walletConfig
                                    , acUpdate = updateConfig
                                    , acHistory = historyConfig
+                                   , acLogging = loggingConfig
                                    } = do
+  logging <- loggingComponent $ lcPath loggingConfig
   history <- openCommandHistory $ hcPath historyConfig
   let
     walletUIFace = WalletUIFace
@@ -121,6 +125,7 @@ initializeEverything MainSettings {..}
         (msPutWalletEventToUI uiFace)
         (getPasswordWithUI (msPutPasswordEventToUI uiFace))
         voidPassword
+        logging
   let CardanoFace { cardanoRunCardanoMode = runCardanoMode
                   } = cardanoFace
   taskManagerFace <- createTaskManagerFace
@@ -177,6 +182,7 @@ initializeEverything MainSettings {..}
         -- Make custom link to service thread for UI apps.
         -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
         linkUI serviceThread $ msPutBackendErrorToUI uiFace
+        logDebug logging "Launching the UI..."
         uiAction
 
   return mainAction

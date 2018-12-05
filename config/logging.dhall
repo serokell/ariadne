@@ -1,0 +1,3 @@
+{
+    path = "@DATA/logs"
+}

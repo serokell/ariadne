@@ -37,6 +37,7 @@ import Pos.Util (eitherToThrow, maybeThrow)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Logging (Logging, logInfo)
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (entropyToMnemonic)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
@@ -288,16 +289,19 @@ generateMnemonic entropySize = do
 -- | Generate a mnemonic and a wallet from this mnemonic and add the
 -- wallet to the storage.
 newWallet ::
-       PassiveWalletLayer IO
+       HasCallStack
+    => PassiveWalletLayer IO
     -> WalletConfig
     -> WalletFace
     -> IO PassPhrase
     -> (ConfirmationType -> IO Bool)
+    -> Logging
     -> Bool
     -> Maybe WalletName
     -> Maybe Byte
     -> IO [Text]
-newWallet pwl walletConfig face getPassTemp waitUiConfirm noConfirm mbWalletName mbEntropySize = do
+newWallet pwl walletConfig face getPassTemp waitUiConfirm logging noConfirm mbWalletName mbEntropySize = do
+  logInfo logging "Creating a new wallet…"
   pp <- getPassTemp
   let entropySize = fromMaybe (wcEntropySize walletConfig) mbEntropySize
   mnemonic <- generateMnemonic entropySize
