@@ -3,21 +3,26 @@
 import Control.Lens (makeLensesWith)
 import Control.Spoon (teaspoon)
 import qualified Data.ByteString.Lazy as BSL
+import Data.Scientific
+  (Scientific(..), base10Exponent, normalize, scientific, toBoundedInteger)
 import qualified Data.Yaml as Yaml
 import qualified Options.Applicative as Opt
 import Serokell.Data.Memory.Units (fromBytes)
 import Test.Hspec
   (Expectation, Spec, describe, expectationFailure, hspec, it, shouldBe)
 import Test.Hspec.QuickCheck (prop)
-import Test.QuickCheck (Property)
+import Test.QuickCheck (Property, arbitrary, forAll, suchThat)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 import qualified Text.JSON.Canonical as Canonical
 
+import NType (Elem)
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
+import Pos.Core (Coin(..), mkCoin)
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
 import Pos.Launcher (Configuration, ConfigurationOptions(..))
 
+import Ariadne.Cardano.Knit (Cardano, adaMultiplier, adaToCoin, maxCoin, tyCoin)
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.Ariadne (AriadneConfig(..), defaultAriadneConfig)
 import Ariadne.Config.Cardano
@@ -29,11 +34,12 @@ import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Util (postfixLFields)
+import Knit (ComponentValue(..), Core, TyProjection(..), toValue)
 
 import Test.Ariadne.Bip44 (bip44PathGen,bip44KeyPairGen)
 import Test.Ariadne.Cardano.Arbitrary ()
-import Test.Ariadne.Knit (knitSpec)
 import Test.Ariadne.History.Arbitrary ()
+import Test.Ariadne.Knit (knitSpec)
 import Test.Ariadne.Update.Arbitrary ()
 import Test.Ariadne.Wallet.Arbitrary ()
 
@@ -50,7 +56,7 @@ main = hspec $ do
     knitSpec
     bip44PathGen
     bip44KeyPairGen
-
+    cardanoKnitSpec
 
 configSpec :: Spec
 configSpec = describe "Ariadne.Config" $ do
@@ -172,3 +178,61 @@ expectedAriadneConfig = defaultAriadneCfg
     defaultWalletConfig = acWallet defaultAriadneCfg
     defaultUpdateConfig = acUpdate defaultAriadneCfg
     defaultHistoryConfig = acHistory defaultAriadneCfg
+
+cardanoKnitSpec :: Spec
+cardanoKnitSpec = do
+  specAdaToCoin
+  specTyCoin
+
+type Components = '[Core, Cardano]
+
+getMaybeCoin :: (Elem Components Cardano, Elem Components Core) => Scientific -> Maybe Coin
+getMaybeCoin x = tpMatcher tyCoin $ toValue @Components @Core $ ValueNumber x
+
+specTyCoin :: Spec
+specTyCoin = describe "Check tyCoin" $ do
+  prop "Accept correct numbers" propTyCoinAccept
+  prop "Refuse incorrect numbers" propTyCoinRefuse
+
+coinAcceptanceCondition :: Scientific -> Bool
+coinAcceptanceCondition x =
+  x * adaMultiplier <= maxCoin && x > 0 && (base10Exponent $ normalize x) >= -6
+
+coinRefusionCondition :: Scientific -> Bool
+coinRefusionCondition x =
+  (base10Exponent $ normalize x) < -6 || x * adaMultiplier > maxCoin || x < 0
+
+propTyCoinAccept :: Property
+propTyCoinAccept =
+  forAll (arbitrary `suchThat` coinAcceptanceCondition) $ \x ->
+    getMaybeCoin x ==
+      (mkCoin <$> (toBoundedInteger @Word64) (x * adaMultiplier))
+
+propTyCoinRefuse :: Property
+propTyCoinRefuse =
+  forAll (arbitrary `suchThat` coinRefusionCondition) $ isNothing . getMaybeCoin
+
+specAdaToCoin :: Spec
+specAdaToCoin = describe "Check adaToCoin" $ do
+    prop "Accept correct numbers" propAdaToCoinAccept
+    prop "Refuse incorrect numbers" propAdaToCoinRefuse
+    it "Unit Test" adaToCoinUnitTest
+
+propAdaToCoinAccept :: Property
+propAdaToCoinAccept =
+    forAll (arbitrary `suchThat` coinAcceptanceCondition) $ \x ->
+      adaToCoin x == (Just $ x * adaMultiplier)
+
+propAdaToCoinRefuse :: Property
+propAdaToCoinRefuse =
+    forAll (arbitrary `suchThat` coinRefusionCondition) $ isNothing . adaToCoin
+
+adaToCoinUnitTest :: Expectation
+adaToCoinUnitTest = do
+  adaToCoin x `shouldBe` (Just $ (normalize x) * adaMultiplier)
+  adaToCoin y `shouldBe` Nothing
+  where
+    x :: Scientific
+    x = scientific 1 7
+    y :: Scientific
+    y = scientific 12345678 -7

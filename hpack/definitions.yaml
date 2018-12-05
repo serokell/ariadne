@@ -18,6 +18,7 @@ _definitions:
 
     - &default-extensions
         - ApplicativeDo
+        - AllowAmbiguousTypes
         - BangPatterns
         - ConstraintKinds
         - DataKinds
