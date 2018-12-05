@@ -292,9 +292,11 @@ sendButtonClicked UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJust
   result <- runSend uiWalletFace inputs
   case result of
     SendCancel -> pass
-    SendSuccess SendOptions{..} -> langPutUiCommand (UiSend wIdx soAccounts soAddress soAmount) >>= \case
-      Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
-      Right _ -> pass
+    SendSuccess SendOptions{..} -> do
+      let sendOutputs = zipWith UiSendOutput soAmounts soAddresses
+      langPutUiCommand (UiSend $ UiSendArgs wIdx soAccounts sendOutputs) >>= \case
+        Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+        Right _ -> pass
 
 selectSomethingText :: Text
 selectSomethingText = "Select something..."

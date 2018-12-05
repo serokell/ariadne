@@ -114,17 +114,20 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (procCall Knit.killCommandName
             [argPos . exprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiSend wallet accounts address amount -> do
-        argAddress <- decodeTextAddress address
+      UiSend UiSendArgs{..} -> do
+        argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
+            [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ usoAmount
+            ]
         Right $ exprProcCall
           (procCall Knit.sendCommandName $
-            [ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
-                [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
-                , argPos . exprLit . Knit.toLit . Knit.LitNumber $ amount
-                ]
-            , argKw "wallet" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wallet
+            [ argKw "wallet" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ usaWalletIdx
             ] ++
-            map (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts
+            map
+              (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
+            argOutputs
           )
       UiNewWallet name _ -> do
         Right $ exprProcCall

@@ -378,6 +378,27 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: #fafafa;
 }
 
+#sendDialog QComboBox {
+    border: none;
+    background: transparent;
+    padding-right: 5px;
+    color: rgb(52, 52, 62, 127);
+}
+
+#sendDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+  }
+
+#sendDialog QComboBox::down-arrow {
+    image: url(':/images/expand-arrow.png');
+}
+
+#sendDialog QComboBox QAbstractItemView {
+    border: 1px solid rgba(0, 0, 0, 30);
+    background: #fafafa;
+}
+
 QPushButton[styleRole="settingsTopbarButton"] {
     padding-left: 40px;
     padding-right: 40px;
@@ -453,6 +474,33 @@ QPushButton[styleRole="linkButton"]:pressed {
 }
 QPushButton[styleRole="linkButton"]:disabled {
     background: rgba(52, 52, 62, 0);
+}
+
+QPushButton[styleRole="removeButton"] {
+    height: 26;
+    width: 26;
+    image: url(':/images/delete-cross.png');
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+QPushButton[styleRole="removeButton"]:hover {
+    background: rgba(52, 52, 62, 25);
+}
+QPushButton[styleRole="removeButton"]:pressed {
+    background: rgba(52, 52, 62, 127);
+}
+QPushButton[styleRole="removeButton"]:disabled {
+    background: rgba(52, 52, 62, 0);
+}
+
+QPushButton[styleRole="addButton"] {
+    height: 26;
+    width: 26;
+    image: url(':/images/add-white-ic.png');
+    border: none;
+    padding: 0;
 }
 
 QDialog QLabel[styleRole="mnemonicDisplay"] {
