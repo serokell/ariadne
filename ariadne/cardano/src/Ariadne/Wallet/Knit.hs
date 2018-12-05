@@ -23,6 +23,7 @@ module Ariadne.Wallet.Knit
        , restoreFromFileCommandName
        , selectCommandName
        , sendCommandName
+       , sumCoinsCommamdName
        , balanceCommandName
        , renameCommandName
        , removeCommandName
@@ -41,7 +42,7 @@ import Pos.Crypto.Hashing (unsafeCheatingHashCoerce)
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec.Char as P
 
-import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut)
+import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut, tyCoin)
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
@@ -247,6 +248,14 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
             "\" policy will be used."
         }
     , CommandProc
+        { cpName = sumCoinsCommamdName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = getArgMany tyCoin "amount"
+        , cpRepr = \amounts -> CommandAction $ \WalletFace{..} -> do
+            toValue . ValueCoin <$> walletSumCoins amounts
+        , cpHelp = "Calculate total sum of given coin amounts"
+        }
+    , CommandProc
         { cpName = balanceCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pass
@@ -316,6 +325,9 @@ selectCommandName = "select"
 
 sendCommandName :: CommandId
 sendCommandName = "send"
+
+sumCoinsCommamdName :: CommandId
+sumCoinsCommamdName = "sum-coins"
 
 balanceCommandName :: CommandId
 balanceCommandName = "balance"

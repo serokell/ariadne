@@ -312,51 +312,6 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
     background: rgba(52, 52, 62, 48);
 }
 
-#newWalletDialog QComboBox {
-    border: none;
-    background: transparent;
-    color: #34343e;
-
-    selection-background-color: #e1e1e1;
-    selection-color: #34343e;
-
-    /* This is needed to make QComboBox respect color property, due to some bug in Qt probably
-     * See https://stackoverflow.com/questions/24447276/qcombobox-text-colour-wont-change-with-style-sheet
-     * Concrete value of padding is not important.
-     */
-    padding: 4px;
-}
-
-#newWalletDialog QComboBox:hover {
-    color: #34343e;
-}
-
-#newWalletDialog QComboBox::drop-down {
-    border: none;
-    background: transparent;
-}
-
-#newWalletDialog QComboBox::down-arrow {
-    image: url(':/images/branch-open.png');
-}
-
-#newWalletDialog QComboBox QAbstractItemView {
-    selection-background-color: #f0f0f0;
-    selection-color: #34343e;
-    color: #34343e;
-    border: 1px solid rgba(0, 0, 0, 30);
-}
-
-#newWalletDialog QComboBox:item {
-    color: #34343e;
-    background: #fafafa;
-}
-
-#newWalletDialog QComboBox:item:selected {
-    color: #34343e;
-    background: #f0f0f0;
-}
-
 #settingsDialog QComboBox {
     border: none;
     background: transparent;
@@ -376,6 +331,47 @@ QDialog QPushButton[styleRole="passwordVisibilityToggle"]:checked {
 #settingsDialog QComboBox QAbstractItemView {
     border: 1px solid rgba(0, 0, 0, 30);
     background: #fafafa;
+}
+
+QDialog QComboBox {
+    border: none;
+    background: transparent;
+    color: #34343e;
+
+    selection-background-color: #e1e1e1;
+    selection-color: #34343e;
+
+    /* This is needed to make QComboBox respect color property, due to some bug in Qt probably
+     * See https://stackoverflow.com/questions/24447276/qcombobox-text-colour-wont-change-with-style-sheet
+     * Concrete value of padding is not important.
+     */
+    padding: 4px;
+}
+
+QDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+}
+
+QDialog QComboBox::down-arrow {
+    image: url(':/images/expand-arrow.png');
+}
+
+QDialog QComboBox QAbstractItemView {
+    selection-background-color: #f0f0f0;
+    selection-color: #34343e;
+    color: #34343e;
+    border: 1px solid rgba(0, 0, 0, 30);
+}
+
+QDialog QComboBox:item {
+    color: #34343e;
+    background: #fafafa;
+}
+
+QDialog QComboBox:item:selected {
+    color: #34343e;
+    background: #f0f0f0;
 }
 
 QPushButton[styleRole="settingsTopbarButton"] {
@@ -455,6 +451,35 @@ QPushButton[styleRole="linkButton"]:disabled {
     background: rgba(52, 52, 62, 0);
 }
 
+QPushButton[styleRole="removeButton"] {
+    height: 36;
+    width: 36;
+    image: url(':/images/delete-cross.png');
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+QPushButton[styleRole="removeButton"]:hover {
+    background: rgba(52, 52, 62, 25);
+}
+QPushButton[styleRole="removeButton"]:pressed {
+    background: rgba(52, 52, 62, 127);
+}
+QPushButton[styleRole="removeButton"]:disabled {
+    background: rgba(52, 52, 62, 0);
+}
+
+QPushButton[styleRole="addButton"] {
+    height: 26;
+    width: 26;
+    image: url(':/images/add-white-ic.png');
+    border-radius: 4px;
+    border: none;
+    padding: 0;
+}
+
 QDialog QLabel[styleRole="mnemonicDisplay"] {
     background-color: rgba(13, 23, 23, 10);
     padding-top: 12px;
@@ -509,8 +534,13 @@ QWidget[styleRole="validationErrorDisplay"] {
     font-size: 14px;
     background: #ca5000;
 }
+
 QWidget[styleRole="validationErrorDisplay"] QLabel {
     color: #fafafa;
+}
+
+QDialog QLabel#amountLabel {
+    font-size: 20px;
 }
 
 /* vim: ft=css

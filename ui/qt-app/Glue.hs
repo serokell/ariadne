@@ -114,18 +114,25 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (procCall Knit.killCommandName
             [argPos . exprLit . Knit.toLit . Knit.LitTaskId . TaskId $ commandId]
           )
-      UiSend wallet accounts address amount -> do
-        argAddress <- decodeTextAddress address
+      UiSend UiSendArgs{..} -> do
+        argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- decodeTextAddress usoAddress
+          Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
+            [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ usoAmount
+            ]
         Right $ exprProcCall
           (procCall Knit.sendCommandName $
-            [ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
-                [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
-                , argPos . exprLit . Knit.toLit . Knit.LitNumber $ amount
-                ]
-            , argKw "wallet" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ wallet
+            [ argKw "wallet" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral $ usaWalletIdx
             ] ++
-            map (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) accounts
+            map
+              (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) usaAccounts ++
+            argOutputs
           )
+      UiCalcTotal amounts -> do
+        argAmounts <- forM amounts $ Right . (argKw "amount") . exprLit . Knit.toLit . Knit.LitNumber
+        Right $ exprProcCall
+          (procCall Knit.sumCoinsCommamdName argAmounts)
       UiNewWallet name _ -> do
         Right $ exprProcCall
           (procCall Knit.newWalletCommandName $
@@ -166,6 +173,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result >>= fromValue >>= \case
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
+      UiCalcTotal {} ->
+        Just . UiCalcTotalCommandResult . either UiCalcTotalCommandFailure UiCalcTotalCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueCoin c ->
+              let (amount, unit) = Knit.showCoin c in Right (amount, show unit)
+            e -> Left $ "Unrecognized return value: " <> show e
       UiNewWallet {} ->
         Just . UiNewWalletCommandResult .
           either UiNewWalletCommandFailure (const UiNewWalletCommandSuccess) $

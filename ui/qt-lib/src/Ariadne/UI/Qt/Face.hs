@@ -8,7 +8,10 @@ module Ariadne.UI.Qt.Face
        , UiEvent (..)
        , UiCommand (..)
        , UiCommandResult (..)
+       , UiSendOutput (..)
+       , UiSendArgs (..)
        , UiSendCommandResult (..)
+       , UiCalcTotalCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
@@ -100,7 +103,8 @@ data UiEvent
 -- | Commands issued by the UI widgets
 data UiCommand
   = UiSelect [Word]
-  | UiSend Word [Word] Text Scientific -- ^ Wallet idx, accounts, address, amount
+  | UiSend UiSendArgs
+  | UiCalcTotal [Scientific]
   | UiNewWallet Text (Maybe Text) -- ^ Name, password
   | UiRestoreWallet Text (Maybe Text) Text -- ^ Name, password, mnemonic
   | UiNewAccount Text  -- ^ Name
@@ -109,9 +113,21 @@ data UiCommand
   | UiKill Natural
   | UiRemoveCurrentItem
 
+data UiSendOutput = UiSendOutput
+  { usoAmount :: Scientific
+  , usoAddress :: Text
+  }
+
+data UiSendArgs = UiSendArgs
+  { usaWalletIdx :: Word
+  , usaAccounts :: [Word]
+  , usaOutputs :: [UiSendOutput]
+  }
+
 -- | Results of commands issued by the UI widgets
 data UiCommandResult
   = UiSendCommandResult UiSendCommandResult
+  | UiCalcTotalCommandResult UiCalcTotalCommandResult
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
@@ -120,6 +136,10 @@ data UiCommandResult
 data UiSendCommandResult
   = UiSendCommandSuccess Text
   | UiSendCommandFailure Text
+
+data UiCalcTotalCommandResult
+  = UiCalcTotalCommandSuccess (Text, Text)
+  | UiCalcTotalCommandFailure Text
 
 data UiNewWalletCommandResult
   = UiNewWalletCommandSuccess

@@ -16,9 +16,12 @@ module Ariadne.Cardano.Knit
        , ComponentCommandExec(..)
        , ComponentCommandProcs(..)
 
-       , showCoin
        , adaToCoin
+       , adaMultiplier
+       , maxCoin
+       , showCoin
        , txOutCommandName
+       , tyCoin
        , tyPublicKey
        , tyTxOut
        ) where
@@ -236,9 +239,13 @@ adaExponent = 6
 adaMultiplier :: Scientific
 adaMultiplier = scientific 1 adaExponent
 
+-- maxCoinVal from Pos.Core.Types
+maxCoin :: Scientific
+maxCoin = normalize (scientific (toInteger maxCoinVal) 0)
+
 adaToCoin :: Scientific -> Maybe Scientific
 adaToCoin (normalize -> normalized) =
-  if base10Exponent normalized > adaExponent
+  if base10Exponent normalized < -adaExponent || normalized < 0 || normalized * adaMultiplier > maxCoin
      then Nothing
      else Just $ normalized * adaMultiplier
 
@@ -255,8 +262,9 @@ showScientificCoin c =
   case floatingOrInteger ada of
     Left (_ :: Double) ->
       if ada >= 1
-         then (show ada, ADA)
-         else (componentTokenRender $ TokenNumber c, Lovelace)
+        -- Use formatScientific Fixed to not show exponential notation
+        then (fromString $ formatScientific Fixed Nothing ada, ADA)
+        else (componentTokenRender $ TokenNumber c, Lovelace)
     Right (n :: Integer) -> (show n, ADA)
   where
     ada :: Scientific
