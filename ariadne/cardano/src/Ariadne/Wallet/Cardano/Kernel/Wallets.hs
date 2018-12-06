@@ -64,7 +64,7 @@ instance Buildable CreateWalletError where
         bprint F.build createAddressError
 
 instance Exception CreateWalletError where
-  displayException e = ("An error occurred during wallet creation:\n")
+  displayException e = ("An error occurred during wallet creation: ")
     <> formatToString build e
 
 newtype HasNonemptyPassphrase = HasNonemptyPassphrase Bool

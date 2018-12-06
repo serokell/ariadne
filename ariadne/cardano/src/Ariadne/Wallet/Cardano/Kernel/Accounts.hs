@@ -56,7 +56,7 @@ instance Buildable CreateAccountError where
                 "' is completely exhausted") hdRootId
 
 instance Exception CreateAccountError where
-  displayException e = "An error occurred during account creation:\n"
+  displayException e = "An error occurred during account creation: "
     <> formatToString build e
 
 -- | Creates a new 'Account' for the input wallet.

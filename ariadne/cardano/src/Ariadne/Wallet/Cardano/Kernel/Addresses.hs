@@ -76,7 +76,7 @@ instance Exception CreateAddressError where
         CreateAddressHdSeqGenerationFailed _ -> walletPassExceptionToException e
         _ -> SomeException e
     fromException = walletPassExceptionFromException
-    displayException e = ("An error occurred during address request:\n")
+    displayException e = ("An error occurred during address request: ")
       <> formatToString build e
 
 -- | Creates a new 'HdAddress' for the input account.
