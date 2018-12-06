@@ -17,7 +17,7 @@ import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend.KeyStorage
-import Ariadne.Wallet.Backend.Restore
+import Ariadne.Wallet.Backend.Restore (restoreFromKeyFile, restoreWallet)
 import Ariadne.Wallet.Backend.Tx
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
@@ -104,8 +104,8 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = 
                     newAddress pwl this walletSelRef getPassPhrase voidWrongPass
                 , walletNewAccount = newAccount pwl this walletSelRef
                 , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm
-                , walletRestore = restoreWallet pwl this runCardanoMode getPassTemp
-                , walletRestoreFromFile = restoreFromKeyFile pwl this runCardanoMode
+                , walletRestore = restoreWallet pwl runCardanoMode getPassTemp
+                , walletRestoreFromFile = restoreFromKeyFile pwl runCardanoMode
                 , walletRename = renameSelection pwl this walletSelRef
                 , walletRemove = removeSelection pwl this walletSelRef waitUiConfirm
                 , walletRefreshState =

@@ -1,4 +1,4 @@
-module Ariadne.Wallet.Backend.AddressDiscovery
+module Ariadne.Wallet.Cardano.Kernel.AddressDiscovery
        ( AddressWithPathToUtxoMap
        , discoverHDAddressWithUtxo
        , discoverHDAddressesWithUtxo
