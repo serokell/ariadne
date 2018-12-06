@@ -31,6 +31,7 @@ import Data.Unique
 import qualified Data.Vector as V
 import Data.Version (Version)
 import NType (AllConstrained, Elem, KnownSpine)
+import Text.Wrap (defaultWrapSettings, wrapText)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Ariadne.Cardano.Face
@@ -253,7 +254,8 @@ knitCommandResultToUI commandId = Just . UiCommandEvent commandId . \case
   KnitCommandProcError e ->
     UiCommandFailure $ Knit.ppResolveErrors e
   KnitCommandException e ->
-    UiCommandFailure $ PP.text (displayException e)
+    UiCommandFailure $ PP.string $
+      toString $ wrapText defaultWrapSettings 80 (fromString $ displayException e)
 
 knitCommandOutputToUI :: UiCommandId -> PP.Doc -> UiEvent
 knitCommandOutputToUI commandId doc = UiCommandEvent commandId (UiCommandOutput doc)
