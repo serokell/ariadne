@@ -121,7 +121,7 @@ handleMainWindowEvent langFace putPass = \case
         WalletConfirmationRequest resultVar confirmationType
   UiBackendExceptionEvent (UiBackendException e) -> liftIO $ do
     msg <- QWidget.new
-    runErrorDialog msg ("Wallet backend died with an exception: " <> displayException e :: String)
+    runErrorDialog msg ("Wallet backend died with an exception: " <> displayException e)
     QCoreApplication.exit 1
 
 connectGlobalSignals :: UI MainWindow ()
