@@ -3,6 +3,9 @@ module Ariadne.Wallet.Cardano.WalletLayer.Types
        , ActiveWalletLayer (..)
        ) where
 
+import Control.Natural (type (~>))
+
+import Ariadne.Cardano.Face (CardanoMode)
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel
@@ -10,11 +13,13 @@ import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import qualified Ariadne.Wallet.Cardano.Kernel.PrefilterTx as Kernel
+import qualified Ariadne.Wallet.Cardano.Kernel.Restore as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Pos.Block.Types (Blund)
 import Pos.Core (Coin)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
+import Pos.Core.Configuration (HasConfiguration)
 import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
@@ -57,6 +62,12 @@ data PassiveWalletLayer m = PassiveWalletLayer
     , pwlDeleteWallet
           :: Kernel.HdRootId
           -> m (Either Kernel.DeleteHdRootError ())
+    , pwlRestoreWallet
+          :: HasConfiguration
+          => (CardanoMode ~> IO)
+          -> Kernel.RestoreFrom
+          -> Kernel.WalletName
+          -> m ()
 
     -- | accounts
     , pwlCreateAccount

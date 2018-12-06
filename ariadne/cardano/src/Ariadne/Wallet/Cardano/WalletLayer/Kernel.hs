@@ -22,6 +22,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
+import qualified Ariadne.Wallet.Cardano.Kernel.Restore as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
@@ -30,6 +31,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 import Ariadne.Wallet.Cardano.Kernel.Types
   (AccountId(..), RawResolvedBlock(..), WalletId(..), fromRawResolvedBlock)
+import Ariadne.Wallet.Cardano.Kernel.Wallets (CreateWithAddress(..))
 import Ariadne.Wallet.Cardano.WalletLayer.Types
   (ActiveWalletLayer(..), PassiveWalletLayer(..))
 
@@ -112,6 +114,22 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
 
             , pwlDeleteWallet          = \hdrId -> liftIO $
                 Kernel.deleteHdWallet wallet hdrId
+
+            , pwlRestoreWallet = \runCardanoMode rFrom walletName -> liftIO $ do
+                wallets <- Kernel.restoreWallets rFrom walletName
+                traverse_
+                    (\(Kernel.WalletToRestore esk hasPP templateWalletName assurance) -> do
+                        utxoByAccount <- runCardanoMode $ Kernel.collectUtxo esk
+                        Kernel.createHdWallet
+                            wallet
+                            esk
+                            hasPP
+                            WithoutAddress
+                            assurance
+                            templateWalletName
+                            utxoByAccount
+                    )
+                    wallets
 
             , pwlCreateAccount         = \hdrId accName -> liftIO $ do
                 let walletId = WalletIdHdSeq hdrId
