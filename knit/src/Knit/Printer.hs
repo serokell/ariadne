@@ -52,9 +52,12 @@ ppToken = \case
   TokenParenthesis _ -> "parenthesis"
   TokenEquals -> "equality sign"
   TokenSemicolon -> "semicolon"
-  TokenName _ -> "procedure name"
-  TokenKey _ -> "key"
+  TokenName (comp, _) -> compStr comp <> "procedure name"
+  TokenKey (comp, _) -> compStr comp <> "key"
   TokenUnknown c -> text ("character '" <> T.singleton c <> "'")
+  where
+    compStr Complete = ""
+    compStr Incomplete = "incomplete "
 
 ppExpr
   :: AllConstrained ComponentPrinter components

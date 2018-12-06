@@ -68,7 +68,7 @@ suggestionExprs procs = goExpr
     goPc
       :: ProcCall' FormattedExprExt CommandId components
       -> SuggestionMonad (ProcCall' FormattedExprExt CommandId components)
-    goPc pc@(ProcCall pcSelection cmd args) =
+    goPc pc@(ProcCall (pcSelection, comp) cmd args) =
       case cmd of
         CommandIdOperator OpUnit -> do
           lSpace <- use leftSpace
@@ -98,18 +98,18 @@ suggestionExprs procs = goExpr
               rLeftSpace' <- use leftSpace
               leftSpace .= lLeftSpace
 
-              pure $ ProcCall (selectionAtTheEnd lRightSpace') cmd
+              pure $ ProcCall (selectionAtTheEnd lRightSpace', comp) cmd
                 [ ArgPos (ArgPosSpace lRightSpace') lhs'
                 , ArgPos (ArgPosSpace rLeftSpace') rhs'
                 ]
             _ -> invalidOperatorApplication
         CommandIdName name -> do
-          ProcCall pcSelection' cmd' args' <-
+          ProcCall (pcSelection', comp') cmd' args' <-
             goPcName
               True
-              (ProcCall pcSelection name args)
-              (ProcCall pcSelection name $ reverse args)
-          pure $ ProcCall pcSelection' cmd' $ reverse args'
+              (ProcCall (pcSelection, comp) name args)
+              (ProcCall (pcSelection, comp) name $ reverse args)
+          pure $ ProcCall (pcSelection', comp') cmd' $ reverse args'
 
     goPcName
       :: Bool
@@ -133,15 +133,15 @@ suggestionExprs procs = goExpr
           suggestKeyword
             :: Expr FormattedExprExt CommandId components
             -> SuggestionMonad (Arg' FormattedExprExt CommandId components)
-          suggestKeyword (ExprProcCall NoExt (ProcCall aPcSelection (CommandIdName aPcName) []))
+          suggestKeyword (ExprProcCall NoExt (ProcCall (aPcSelection, comp) (CommandIdName aPcName) []))
             | Just c <- getSelection aPcSelection =
               lift $ ArgPos (ArgPosSpace space') e : do
-                let (toComplete, _) = splitAtCursor c $ nameStr aPcName
+                let (toComplete, _) = splitAtCursor c $ nameStr comp aPcName
                 pcParam <- procParams pcName
-                guard $ isPrefixOf toComplete $ nameStr pcParam
-                let selection = Selection $ Just $ cursorAfter $ nameStr pcParam ++ ":"
-                pure $ ArgKw (ArgKwSpace space' selection def) pcParam $
-                  ExprProcCall NoExt (ProcCall def (CommandIdOperator OpUnit) [])
+                guard $ isPrefixOf toComplete $ nameStr comp pcParam
+                let selection = Selection $ Just $ cursorAfter $ nameStr comp pcParam ++ ":"
+                pure $ ArgKw (ArgKwSpace space' selection def, Complete) pcParam $
+                  ExprProcCall NoExt (ProcCall (def, Complete) (CommandIdOperator OpUnit) [])
           suggestKeyword _ = lift []
 
         put def
@@ -152,12 +152,12 @@ suggestionExprs procs = goExpr
         pure $ ProcCall pcSelection' pcName' (arg' : argsRest')
 
 
-      ProcCall pcSelection pcName (ArgKw space keyword e : argsRest) -> do
+      ProcCall pcExt pcName (ArgKw (space, comp) keyword e : argsRest) -> do
         oldCtx <- get
 
         rightSpace .= aksPrefix space
-        (ProcCall pcSelection' pcName' argsRest') <-
-          goPcName False pc (ProcCall pcSelection pcName argsRest)
+        (ProcCall pcExt' pcName' argsRest') <-
+          goPcName False pc (ProcCall pcExt pcName argsRest)
         space' <- use rightSpace
 
         leftSpace .= def
@@ -166,21 +166,21 @@ suggestionExprs procs = goExpr
 
         put oldCtx
 
-        pure $ ProcCall pcSelection' pcName'
-          (ArgKw space { aksPrefix = space' } keyword e' : argsRest')
+        pure $ ProcCall pcExt' pcName'
+          (ArgKw (space { aksPrefix = space' }, comp) keyword e' : argsRest')
 
 
-      ProcCall pcSelection pcName [] ->
+      ProcCall (pcSelection, comp) pcName [] ->
         case getSelection pcSelection of
-          Nothing -> pure $ ProcCall pcSelection (CommandIdName pcName) []
+          Nothing -> pure $ ProcCall (pcSelection, comp) (CommandIdName pcName) []
           Just c ->
             let
-              pcNameStr = nameStr pcName
+              pcNameStr = nameStr comp pcName
               (toComplete, _) = splitAtCursor c pcNameStr
             in
-              lift $ (pure $ ProcCall pcSelection (CommandIdName pcName) []) <|> do
+              lift $ (pure $ ProcCall (pcSelection, comp) (CommandIdName pcName) []) <|> do
                 (pcName', _) <- suggestableProcs
-                guard $ isPrefixOf toComplete $ nameStr pcName'
+                guard $ isPrefixOf toComplete $ nameStr Complete pcName'
                 guard $ pcName' /= pcName || c /= cursorAfter pcNameStr
                 pure $ toProcCall pcName'
 
@@ -202,8 +202,8 @@ suggestionExprs procs = goExpr
               pcParam <- lift $ procParams pcName
               let
                 arg' =
-                  ArgKw (ArgKwSpace (SpaceWithSelection (Space lSpace') def) def def) pcParam $
-                    ExprProcCall NoExt (ProcCall def (CommandIdOperator OpUnit) [])
+                  ArgKw (ArgKwSpace (SpaceWithSelection (Space lSpace') def) def def, Complete) pcParam $
+                    ExprProcCall NoExt (ProcCall (def, Complete) (CommandIdOperator OpUnit) [])
               pure $ ProcCall pcSelection pcCmd $ arg' : pcArgs
 
     selectionAtTheStart :: Selection -> Selection
@@ -234,12 +234,17 @@ suggestionExprs procs = goExpr
     procParams :: Name -> [Name]
     procParams cmdName = maybe [] snd $ find ((== cmdName) . fst) suggestableProcs
 
+    toProcCall :: Name -> ProcCall' FormattedExprExt CommandId components
     toProcCall procName = ProcCall
-      (Selection $ Just $ cursorAfter $ nameStr procName)
+      (Selection $ Just $ cursorAfter $ nameStr Complete procName, Complete)
       (CommandIdName procName)
       []
 
-    nameStr = unpack . toLazyText . build
+    nameStr comp name =
+      let str = unpack $ toLazyText $ build name
+      in case comp of
+        Complete -> str
+        Incomplete -> str ++ "-"
 
 suggestions
   :: forall components proxy.
@@ -278,7 +283,7 @@ suggestions _ cursor cmd =
     tokens' = tokens ++ zipWith closingBracket [0..]
       (replicate parensBalance (TokenParenthesis BracketSideClosing))
   in
-    case fullParses (pExpr @components) tokens' of
+    case fullParses (pExpr @components True) tokens' of
       ([], _) -> [(cursor, cmd)]
       (tree:_, _) ->
         let

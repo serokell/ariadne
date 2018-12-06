@@ -49,10 +49,10 @@ type instance XXExpr FormattedExprExt cmd components =
 -- context. In the case of 'OpAndThen' space between the arguments and semicolon
 -- is stored. In the case of 'CommandIdName' each argument stores the space
 -- before itself.
-type instance XProcCall FormattedExprExt _ _ = Selection
+type instance XProcCall FormattedExprExt _ _ = (Selection, Completeness)
 
 type instance XArgPos FormattedExprExt _ = ArgPosSpace
-type instance XArgKw FormattedExprExt _ = ArgKwSpace
+type instance XArgKw FormattedExprExt _ = (ArgKwSpace, Completeness)
 type instance XXArg FormattedExprExt _ = Void
 
 newtype Space = Space { getSpace :: String }
@@ -204,12 +204,12 @@ parseTreeToFormattedExpr selection' = exprToFormattedExpr
     pcToFormattedPc
       :: ProcCall' ParseTreeExt CommandId components
       -> (ProcCall' FormattedExprExt CommandId components, Maybe (Located Skipped))
-    pcToFormattedPc (ProcCall tok cmd args) =
+    pcToFormattedPc (ProcCall (tok, comp) cmd args) =
       case cmd of
         CommandIdName _ ->
           case tok of
             Just tok' -> first
-              (ProcCall (selection $ tok'^.twsToken) cmd)
+              (ProcCall (selection $ tok'^.twsToken, comp) cmd)
               (argGo (tok'^.twsSpaceAfter) args)
             Nothing -> procedureWithNoName
         CommandIdOperator op ->
@@ -221,10 +221,10 @@ parseTreeToFormattedExpr selection' = exprToFormattedExpr
                 (rhs', rSpace) = exprToFormattedExpr rhs
                 rhs'' = ArgPos (ArgPosSpace $ skippedWithSelection $ tok'^.twsSpaceAfter) rhs'
               in
-                (ProcCall (selection $ tok'^.twsToken) cmd [lhs'', rhs''], rSpace)
+                (ProcCall (selection $ tok'^.twsToken, comp) cmd [lhs'', rhs''], rSpace)
             (OpAndThen, Nothing, [_, _]) -> procedureWithNoName
 
-            (OpUnit, Nothing, []) -> (ProcCall def cmd [], def)
+            (OpUnit, Nothing, []) -> (ProcCall (def, comp) cmd [], def)
             (OpUnit, Just _, []) -> opUnitWithAName
 
             _ -> invalidOperatorApplication
@@ -238,7 +238,7 @@ parseTreeToFormattedExpr selection' = exprToFormattedExpr
       ArgPos NoExt a -> first
         (ArgPos (ArgPosSpace $ skippedWithSelection skippedBefore))
         (exprToFormattedExpr a)
-      ArgKw nameTok name a ->
+      ArgKw (nameTok, comp) name a ->
         let
           skipped = ArgKwSpace
             { aksPrefix = skippedWithSelection skippedBefore
@@ -246,7 +246,7 @@ parseTreeToFormattedExpr selection' = exprToFormattedExpr
             , aksBetween = skippedWithSelection $ nameTok^.twsSpaceAfter
             }
         in
-          first (ArgKw skipped name) (exprToFormattedExpr a)
+          first (ArgKw (skipped, comp) name) (exprToFormattedExpr a)
 
     argGo
       :: Maybe (Located Skipped)
@@ -312,18 +312,20 @@ ppFormattedExpr swsBefore expr swsAfter = convertFormattedOutput $
         ++ ppSpace (fbSpace r)
         ++ strWithSelection (fbBracketSelection r) ")"
 
-    ppProcCall (ProcCall c commandName args) =
+    ppProcCall (ProcCall (c, comp) commandName args) =
       case commandName of
-        CommandIdName name -> ppProcedureCall (strWithSelection c $ show $ nameToDoc name) args
+        CommandIdName name -> ppProcedureCall
+          (strWithSelection c $ withCompleteness comp $ show $ nameToDoc name)
+          args
         CommandIdOperator op -> ppOperatorCall c op args
 
     ppProcedureCall procName args = procName ++ mconcat (map ppArg args)
 
     ppArg = \case
       ArgPos (ArgPosSpace prefix) a -> ppSpace prefix ++ ppFExpr a
-      ArgKw ArgKwSpace{..} name a ->
+      ArgKw (ArgKwSpace{..}, comp) name a ->
            ppSpace aksPrefix
-        ++ strWithSelection aksKwSelection (show (nameToDoc name) ++ ":")
+        ++ strWithSelection aksKwSelection (withCompleteness comp (show (nameToDoc name)) ++ ":")
         ++ ppSpace aksBetween
         ++ ppFExpr a
       XArg xxArg -> absurd xxArg
@@ -336,3 +338,7 @@ ppFormattedExpr swsBefore expr swsAfter = convertFormattedOutput $
       ++ ppSpace rs
       ++ ppFExpr r
     ppOperatorCall _ _ _ = invalidOperatorApplication
+
+    withCompleteness :: Completeness -> String -> String
+    withCompleteness Complete str = str
+    withCompleteness Incomplete str = str ++ "-"

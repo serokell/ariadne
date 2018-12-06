@@ -115,8 +115,8 @@ genTokenComponents = oneof $ componentTokens <> baseTokens
       , TokenParenthesis <$> elements [BracketSideOpening, BracketSideClosing]
       , return TokenEquals
       , return TokenSemicolon
-      , TokenName <$> genName
-      , TokenKey <$> genName
+      , curry TokenName Complete <$> genName
+      , curry TokenKey Complete <$> genName
       , elements (tokenUnknownList @components)
       ]
 

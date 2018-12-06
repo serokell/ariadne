@@ -2,6 +2,7 @@
 
 module Knit.Tokenizer
        ( BracketSide(..)
+       , Completeness(..)
        , Tokenizer
        , ComponentToken
        , ComponentTokenizer(..)
@@ -13,6 +14,8 @@ module Knit.Tokenizer
 
        , _BracketSideOpening
        , _BracketSideClosing
+       , _Complete
+       , _Incomplete
        , _Token
        , _TokenSquareBracket
        , _TokenParenthesis
@@ -66,6 +69,11 @@ data BracketSide = BracketSideOpening | BracketSideClosing
     deriving (Eq, Ord, Show)
 
 makePrisms ''BracketSide
+
+data Completeness = Complete | Incomplete
+    deriving (Show, Eq, Ord)
+
+makePrisms ''Completeness
 
 -- | Eliminator (inline case analysis) for 'BracketSide'.
 withBracketSide :: a -> a -> BracketSide -> a
@@ -169,8 +177,8 @@ data Token components
   | TokenParenthesis BracketSide
   | TokenEquals
   | TokenSemicolon
-  | TokenName Name
-  | TokenKey Name
+  | TokenName (Completeness, Name)
+  | TokenKey (Completeness, Name)
   | TokenUnknown Char
 
 deriving instance Eq (Union ComponentToken components) => Eq (Token components)
@@ -234,9 +242,12 @@ tokenRender = \case
   TokenParenthesis bs -> withBracketSide "(" ")" bs
   TokenEquals -> "="
   TokenSemicolon -> ";"
-  TokenName name -> sformat build name
-  TokenKey name -> sformat (build%":") name
+  TokenName (comp, name) -> sformat (build%compFmt comp) name
+  TokenKey (comp, name) -> sformat (build%compFmt comp%":") name
   TokenUnknown c -> T.singleton c
+  where
+    compFmt Complete = ""
+    compFmt Incomplete = "-"
 
 -- | Detokenize a sequence of tokens.
 --
@@ -310,7 +321,7 @@ pSkip = Just <$> withSpan (Skipped <$> NonEmpty.some spaceChar) <|> pure Nothing
 pToken
   :: (KnownSpine components, AllConstrained (ComponentTokenizer components) components)
   => Tokenizer (Token components)
-pToken = try (pPunctuation <|> pToken' <|> pIdentifier) <|> pUnknown
+pToken = try (pPunctuation <|> pToken' <|> try pIdentifier <|> pIncompleteIdentifier) <|> pUnknown
 
 -- | Parse any single character, considering it to be unrecognized/unknown.
 pUnknown :: Tokenizer (Token components)
@@ -360,9 +371,15 @@ pPunctuation = choice
 pIdentifier :: Tokenizer (Token components)
 pIdentifier = do
     name <- NonEmpty.sepBy1 pNameSection (char '-')
-    notFollowedBy (satisfy isAlphaNum)
+    notFollowedBy (satisfy isNumber)
     isKey <- isJust <$> optional (char ':')
-    return $ (if isKey then TokenKey else TokenName) (Name name)
+    return $ (if isKey then TokenKey else TokenName) (Complete, Name name)
+
+pIncompleteIdentifier :: Tokenizer (Token components)
+pIncompleteIdentifier = do
+    name <- NonEmpty.some1 (pNameSection <* char '-')
+    isKey <- isJust <$> optional (char ':')
+    return $ (if isKey then TokenKey else TokenName) $ (Incomplete, Name name)
 
 -- | Parser for name sections - non-empty sequences of alphabetic characters.
 pNameSection :: Tokenizer (NonEmpty Letter)
