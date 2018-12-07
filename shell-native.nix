@@ -24,7 +24,12 @@ stdenv.mkDerivation rec {
 
   shellHook = ''
     export LD_LIBRARY_PATH=${lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH
+    export LANG=en_US.UTF-8
   '';
+  LOCALE_ARCHIVE =
+    if pkgs.stdenv.isLinux
+    then "${pkgs.glibcLocales}/lib/locale/locale-archive"
+    else "";
 
   # NB: on Nixpkgs repin, update this path with new Qt version!
   # ls $(nix-build pkgs.nix -A qt5.qtbase.bin --no-out-link)/lib
