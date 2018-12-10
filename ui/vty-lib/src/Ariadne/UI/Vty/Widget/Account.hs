@@ -196,17 +196,17 @@ drawAccountWidget focus AccountWidgetState{..} = do
       , case accountRenameResult of
           RenameResultNone -> B.emptyWidget
           RenameResultWaiting _ -> B.txt "Renaming..."
-          RenameResultError err -> B.txt $ "Couldn't rename the account: " <> err
+          RenameResultError err -> B.txtWrap $ "Couldn't rename the account: " <> err
           RenameResultSuccess -> B.emptyWidget
       , case accountRemoveResult of
           RemoveResultNone -> B.emptyWidget
           RemoveResultWaiting _ -> B.txt "Removing..."
-          RemoveResultError err -> B.txt $ "Couldn't remove the account: " <> err
+          RemoveResultError err -> B.txtWrap $ "Couldn't remove the account: " <> err
           RemoveResultSuccess -> B.emptyWidget
       , padBottom $ label "Balance:" B.<+> case accountBalance of
           BalanceResultNone -> B.emptyWidget
           BalanceResultWaiting _ -> B.txt "requesting..."
-          BalanceResultError err -> B.txt err
+          BalanceResultError err -> B.txtWrap err
           BalanceResultSuccess balance -> B.txt balance
 
       , drawChild WidgetNameAccountSend
@@ -217,7 +217,7 @@ drawAccountWidget focus AccountWidgetState{..} = do
         , padLeft $ case accountAddressResult of
             AddressResultNone -> B.emptyWidget
             AddressResultWaiting _ -> B.txt "Generating..."
-            AddressResultError err -> B.txt err
+            AddressResultError err -> B.txtWrap err
             AddressNewResultSuccess -> B.txt "Generated"
             AddressCopyResultSuccess address -> B.txt $ "Copied to clipboard: " <> address
         ]

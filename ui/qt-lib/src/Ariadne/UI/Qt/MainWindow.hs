@@ -12,12 +12,12 @@ import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QLayout as QLayout
 import qualified Graphics.UI.Qtah.Widgets.QMainWindow as QMainWindow
-import qualified Graphics.UI.Qtah.Widgets.QMessageBox as QMessageBox
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
+import Ariadne.UI.Qt.Widgets.Dialogs.Error
 import Ariadne.UI.Qt.Widgets.Dialogs.Settings
 import Ariadne.UI.Qt.Widgets.Help
 import Ariadne.UI.Qt.Widgets.Logs
@@ -121,7 +121,7 @@ handleMainWindowEvent langFace putPass = \case
         WalletConfirmationRequest resultVar confirmationType
   UiBackendExceptionEvent (UiBackendException e) -> liftIO $ do
     msg <- QWidget.new
-    void $ QMessageBox.critical msg ("Error" :: String) ("Wallet backend died with exception: " <> show e :: String)
+    runErrorDialog msg ("Wallet backend died with an exception: " <> displayException e)
     QCoreApplication.exit 1
 
 connectGlobalSignals :: UI MainWindow ()

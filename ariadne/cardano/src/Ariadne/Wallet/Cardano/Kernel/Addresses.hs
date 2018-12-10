@@ -8,7 +8,6 @@ import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
-import qualified Text.Show
 
 import Data.Acid (AcidState, query, update)
 
@@ -44,7 +43,6 @@ data CreateAddressError =
     | CreateAddressKeystoreNotFound AccountId
       -- ^ When trying to create the 'HdAddress', the 'Keystore' didn't have
       -- any secret associated with this 'AccountId'.
-      -- there.
     | CreateAddressHdSeqGenerationFailed HdAccountId
       -- ^ The crypto-related part of address generation failed. This is
       -- likely to happen if the 'PassPhrase' does not match the one used
@@ -52,7 +50,7 @@ data CreateAddressError =
     | CreateAddressHdSeqAddressSpaceSaturated HdAccountId
       -- ^ The space of available HD addresses for this account is
       -- completely exhausted.
-    deriving Eq
+    deriving (Eq, Show)
 
 -- TODO(adn): This will be done as part of my work on the 'newTransaction'
 -- endpoint, see [CBR-313].
@@ -61,22 +59,25 @@ instance Arbitrary CreateAddressError where
 
 instance Buildable CreateAddressError where
     build (CreateAddressUnknownHdAccount uAccount) =
-        bprint ("CreateAddressUnknownHdAccount " % F.build) uAccount
+        bprint ("When trying to create the 'HdAddress' for account '"%F.build%
+                "' the parent 'HdAccount' was not there") uAccount
     build (CreateAddressKeystoreNotFound accId) =
-        bprint ("CreateAddressKeystoreNotFound " % F.build) accId
-    build (CreateAddressHdSeqGenerationFailed hdAcc) =
-        bprint ("CreateAddressHdSeqGenerationFailed " % F.build) hdAcc
+        bprint ("When trying to create the 'HdAddress' for account '"%F.build%
+                "' the 'Keystore' didn't have any secret associated with this AccountId") accId
+    build (CreateAddressHdSeqGenerationFailed accId) =
+        bprint ("The crypto-related part of address generation for account '"%F.build%
+                "' failed. This is likely to happen if the password was entered incorrectly") accId
     build (CreateAddressHdSeqAddressSpaceSaturated hdAcc) =
-        bprint ("CreateAddressHdSeqAddressSpaceSaturated " % F.build) hdAcc
-
-instance Show CreateAddressError where
-    show = formatToString build
+        bprint ("The space of available HD addresses for account '"%F.build%
+                "' is completely exhausted") hdAcc
 
 instance Exception CreateAddressError where
     toException e = case e of
         CreateAddressHdSeqGenerationFailed _ -> walletPassExceptionToException e
         _ -> SomeException e
     fromException = walletPassExceptionFromException
+    displayException e = ("An error occurred during address request: ")
+      <> formatToString build e
 
 -- | Creates a new 'HdAddress' for the input account.
 createAddress :: PassPhrase

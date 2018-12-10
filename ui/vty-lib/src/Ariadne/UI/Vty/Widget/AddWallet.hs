@@ -130,7 +130,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
       , case addWalletNewResult of
           NewResultNone -> B.emptyWidget
           NewResultWaiting _ -> B.txt "Creating..."
-          NewResultError err -> B.txt $ "Couldn't create a wallet: " <> err
+          NewResultError err -> B.txtWrap $ "Couldn't create a wallet: " <> err
           NewResultSuccess mnemonic -> B.txt $ "Wallet created, here's your " <> T.toLower addWalletMnemonicName <> ":\n\n" <> unwords mnemonic
 
       , B.txt $ "Restore wallet from a " <> T.toLower addWalletMnemonicName
@@ -142,7 +142,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
       , case addWalletRestoreResult of
           RestoreResultNone -> B.emptyWidget
           RestoreResultWaiting _ -> B.txt "Restoring..."
-          RestoreResultError err -> B.txt $ "Couldn't restore a wallet: " <> err
+          RestoreResultError err -> B.txtWrap $ "Couldn't restore a wallet: " <> err
           RestoreResultSuccess -> B.txt "Wallet successfully restored"
       ]
 

@@ -58,7 +58,7 @@ data WalletId =
     | WalletIdExt ...
     -}
 
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 instance Buildable WalletId where
     build (WalletIdHdSeq rootId) =
@@ -75,7 +75,7 @@ accountToWalletId accountId
 data AccountId =
     -- | HD wallet with randomly generated (hardened) index.
     AccountIdHdSeq HD.HdAccountId
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 instance Buildable AccountId where
     build (AccountIdHdSeq accountId) =

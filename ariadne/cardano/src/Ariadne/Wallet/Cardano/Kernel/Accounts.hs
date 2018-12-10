@@ -10,7 +10,6 @@ import Control.Monad.Error.Class (liftEither, throwError)
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
-import qualified Text.Show
 
 import Data.Acid (AcidState, query, update)
 
@@ -43,20 +42,22 @@ data CreateAccountError =
     | CreateAccountHdSeqAccountSpaceSaturated HdRootId
       -- ^ The space of available HD accounts for this root is
       -- completely exhausted.
-    deriving Eq
+    deriving (Eq, Show)
 
 instance Buildable CreateAccountError where
     build (CreateAccountUnknownHdRoot uRoot) =
-        bprint ("CreateAccountUnknownHdRoot " % F.build) uRoot
+        bprint ("When trying to create the 'Account', the parent '"%F.build%
+                "' was not there") uRoot
     build (CreateAccountKeystoreNotFound accId) =
-        bprint ("CreateAccountKeystoreNotFound " % F.build) accId
-    build (CreateAccountHdSeqAccountSpaceSaturated hdAcc) =
-        bprint ("CreateAccountHdSeqAccountSpaceSaturated " % F.build) hdAcc
+        bprint ("When trying to create the 'Account', the 'Keystore' didn't have \
+                \ any secret associated with the input '"%F.build% "'") accId
+    build (CreateAccountHdSeqAccountSpaceSaturated hdRootId) =
+        bprint ("The space of available HD accounts for root '"%F.build%
+                "' is completely exhausted") hdRootId
 
-instance Show CreateAccountError where
-    show = formatToString build
-
-instance Exception CreateAccountError
+instance Exception CreateAccountError where
+  displayException e = "An error occurred during account creation: "
+    <> formatToString build e
 
 -- | Creates a new 'Account' for the input wallet.
 -- Note: @it does not@ generate a new 'Address' to go in tandem with this
