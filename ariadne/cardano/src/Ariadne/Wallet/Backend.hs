@@ -15,6 +15,7 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Wallet (WalletConfig(..))
+import Ariadne.Logging (Logging)
 import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore (restoreFromKeyFile, restoreWallet)
@@ -38,8 +39,9 @@ createWalletBackend
     -> (WalletEvent -> IO ())
     -> GetPassword
     -> VoidPassword
+    -> Logging
     -> ComponentM WalletPreface
-createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = do
+createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass logging = do
     walletSelRef <- newIORef Nothing
 
     keystore <- keystoreComponent
@@ -103,7 +105,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass = 
                 { walletNewAddress =
                     newAddress pwl this walletSelRef getPassPhrase voidWrongPass
                 , walletNewAccount = newAccount pwl this walletSelRef
-                , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm
+                , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm logging
                 , walletRestore = restoreWallet pwl runCardanoMode getPassTemp
                 , walletRestoreFromFile = restoreFromKeyFile pwl runCardanoMode
                 , walletRename = renameSelection pwl this walletSelRef

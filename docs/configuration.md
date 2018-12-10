@@ -84,3 +84,10 @@ Update configuration parameterizes update checker.
 
 History configuration has only one value with the key `path`. It's a
 path to the file with command history.
+
+## Logging configuration
+
+History configuration has only one value with the key `path`. Logs
+produced by Ariadne itself will be in that folder. Note that Cardano
+uses different machinery for logging, so its logs are configured by
+Cardano configuration.

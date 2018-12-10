@@ -31,12 +31,13 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.CLI (mergeConfigs, opts)
 import Ariadne.Config.DhallUtil (fromDhall, toDhall)
 import Ariadne.Config.History (HistoryConfig(..))
+import Ariadne.Config.Logging (LoggingConfig(..))
 import Ariadne.Config.Update (UpdateConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Util (postfixLFields)
 import Knit (ComponentValue(..), Core, TyProjection(..), toValue)
 
-import Test.Ariadne.Bip44 (bip44PathGen,bip44KeyPairGen)
+import Test.Ariadne.Bip44 (bip44KeyPairGen, bip44PathGen)
 import Test.Ariadne.Cardano.Arbitrary ()
 import Test.Ariadne.History.Arbitrary ()
 import Test.Ariadne.Knit (knitSpec)
@@ -66,6 +67,7 @@ configSpec = describe "Ariadne.Config" $ do
   prop "handles any WalletConfig" propHandleWalletConfig
   prop "handles any UpdateConfig" propHandleUpdateConfig
   prop "handles any HistoryConfig" propHandleHistoryConfig
+  prop "handles any LoggingConfig" propHandleHistoryConfig
 
 propHandleCardanoConfig :: CardanoConfig -> Property
 propHandleCardanoConfig conf = monadicIO $ do
@@ -84,6 +86,11 @@ propHandleUpdateConfig conf = monadicIO $ do
 
 propHandleHistoryConfig :: HistoryConfig -> Property
 propHandleHistoryConfig conf = monadicIO $ do
+  parsed <- run $ (fromDhall . toDhall) conf
+  assert (conf == parsed)
+
+propHandleLoggingConfig :: LoggingConfig -> Property
+propHandleLoggingConfig conf = monadicIO $ do
   parsed <- run $ (fromDhall . toDhall) conf
   assert (conf == parsed)
 
@@ -137,6 +144,7 @@ cliArgs =
   , "--update:update-url", "new-update-url"
   , "--update:check-delay", "21600"
   , "--history:path", "new-history-path"
+  , "--logging:path", "new-logging-path"
   ]
 
 
@@ -172,12 +180,16 @@ expectedAriadneConfig = defaultAriadneCfg
   , acHistory = defaultHistoryConfig
       { hcPath = "new-history-path"
       }
+  , acLogging = defaultLoggingConfig
+      { lcPath = "new-logging-path"
+      }
   }
   where
     defaultCardanoConfig = acCardano defaultAriadneCfg
     defaultWalletConfig = acWallet defaultAriadneCfg
     defaultUpdateConfig = acUpdate defaultAriadneCfg
     defaultHistoryConfig = acHistory defaultAriadneCfg
+    defaultLoggingConfig = acLogging defaultAriadneCfg
 
 cardanoKnitSpec :: Spec
 cardanoKnitSpec = do

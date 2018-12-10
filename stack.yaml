@@ -211,6 +211,11 @@ extra-deps:
 - teardown-0.5.0.0
 - unix-compat-0.5.1 # https://github.com/jystic/unix-compat/pull/40
 - ntype-0.1.0.0
+- contravariant-1.5 # needed for co-log
+- typerep-map-0.3.0 # needed for co-log
+- dhall-1.15.1      # needed due to contravariant
+- co-log-core-0.1.1
+- co-log-0.2.0
 
 # Required by https://github.com/input-output-hk/cardano-sl/pull/3232
 - micro-recursion-schemes-5.0.2.2

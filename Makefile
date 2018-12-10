@@ -34,7 +34,7 @@ dev-qt:
 
 # Run tests in all packages which have them.
 test:
-	stack test knit ariadne-cardano
+	stack test knit ariadne-core ariadne-cardano
 
 # Run haddock for all packages.
 haddock:

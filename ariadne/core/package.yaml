@@ -11,6 +11,9 @@ library:
     - componentm
     - concurrent-extra
     - containers
+    - co-log
+    - co-log-core
+    - filepath
     - formatting
     - knit
     - lens
@@ -23,3 +26,15 @@ library:
     - time
     - transformers
     - unix
+
+tests:
+  ariadne-core-test:
+    <<: *test-common
+    main: Spec.hs
+    dependencies:
+      - ariadne-core
+      - componentm
+      - filepath
+      - hspec
+      - temporary
+      - text

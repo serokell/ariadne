@@ -5,6 +5,7 @@ module Ariadne.Config.Ariadne
        , acWalletL
        , acUpdateL
        , acHistoryL
+       , acLoggingL
        ) where
 
 import Control.Lens (makeLensesWith)
@@ -17,6 +18,7 @@ import Dhall.TypeCheck (X)
 import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (parseField)
 import Ariadne.Config.History
+import Ariadne.Config.Logging
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
 import Ariadne.Util
@@ -29,6 +31,7 @@ defaultAriadneConfig dataDir =
         , acWallet  = defaultWalletConfig  dataDir
         , acUpdate  = defaultUpdateConfig
         , acHistory = defaultHistoryConfig dataDir
+        , acLogging = defaultLoggingConfig dataDir
         }
 
 parseFieldAriadne ::
@@ -42,6 +45,7 @@ ariadneFieldModifier = f
     f "acWallet" = "wallet"
     f "acUpdate" = "update"
     f "acHistory" = "history"
+    f "acLogging" = "logging"
     f x = x
 
 -- dhall representation of AriadneConfig is a record
@@ -53,6 +57,7 @@ data AriadneConfig = AriadneConfig
   , acWallet :: WalletConfig
   , acUpdate :: UpdateConfig
   , acHistory :: HistoryConfig
+  , acLogging :: LoggingConfig
   } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''AriadneConfig
@@ -65,6 +70,7 @@ instance D.Interpret AriadneConfig where
         acWallet <- parseFieldAriadne fields "acWallet" (D.auto @WalletConfig)
         acUpdate <- parseFieldAriadne fields "acUpdate" (D.auto @UpdateConfig)
         acHistory <- parseFieldAriadne fields "acHistory" (D.auto @HistoryConfig)
+        acLogging <- parseFieldAriadne fields "acLogging" (D.auto @LoggingConfig)
         return AriadneConfig {..}
       extractOut _ = Nothing
 
@@ -75,4 +81,5 @@ instance D.Interpret AriadneConfig where
                 , (ariadneFieldModifier "acWallet", D.expected (D.auto @WalletConfig))
                 , (ariadneFieldModifier "acUpdate", D.expected (D.auto @UpdateConfig))
                 , (ariadneFieldModifier "acHistory", D.expected (D.auto @HistoryConfig))
+                , (ariadneFieldModifier "acLogging", D.expected (D.auto @LoggingConfig))
                 ])
