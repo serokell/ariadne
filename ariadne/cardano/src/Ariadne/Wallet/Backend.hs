@@ -20,6 +20,7 @@ import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore (restoreFromKeyFile, restoreWallet)
 import Ariadne.Wallet.Backend.Tx
+import Ariadne.Wallet.Backend.Util (allAccountIds)
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
 import Ariadne.Wallet.Cardano.WalletLayer
