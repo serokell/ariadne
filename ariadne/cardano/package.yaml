@@ -62,6 +62,7 @@ library:
     - memory
     - monad-control
     - mtl
+    - mwc-random
     - named
     - natural-transformation
     - ntype
