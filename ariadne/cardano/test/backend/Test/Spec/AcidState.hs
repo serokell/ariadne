@@ -15,8 +15,8 @@ import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (arbitrary, withMaxSuccess)
 import Test.QuickCheck.Monadic (monadicIO, pick)
 
-import Test.Spec.CreateWallet (NewWallet, applyNewWallet, genNewWalletRq)
 import Test.Spec.Fixture (genSpendingPassword, withLayerLocalStorage)
+import Test.Spec.Wallets (NewWallet, applyNewWallet, genNewWalletRq)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB(..), Snapshot(..), defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdWallets(..))

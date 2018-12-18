@@ -26,6 +26,7 @@ module Ariadne.Wallet.Knit
        , sumCoinsCommamdName
        , balanceCommandName
        , renameCommandName
+       , changePasswordCommandName
        , removeCommandName
        , feeCommandName
 
@@ -292,6 +293,15 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Rename currently selected wallet or account"
         }
     , CommandProc
+        { cpName = changePasswordCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = pass
+        , cpRepr = \() -> CommandAction $ \WalletFace{..} -> do
+            walletChangePassword
+            return $ toValue ValueUnit
+        , cpHelp = "Change spending-password of currently selected wallet"
+        }
+    , CommandProc
         { cpName = removeCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = getNoConfirmArgOpt
@@ -356,6 +366,9 @@ balanceCommandName = "balance"
 
 renameCommandName :: CommandId
 renameCommandName = "rename"
+
+changePasswordCommandName :: CommandId
+changePasswordCommandName = "change-password"
 
 removeCommandName :: CommandId
 removeCommandName = "remove"

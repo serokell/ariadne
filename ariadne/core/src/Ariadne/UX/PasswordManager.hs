@@ -2,6 +2,8 @@ module Ariadne.UX.PasswordManager
     ( WalletId (..)
     , PutPassword
     , GetPassword
+    , PasswordRequestMode (..)
+    , PasswordRequestType (..)
     , VoidPassword
     , RequestPasswordToUi
     , PasswordManager (..)
@@ -17,10 +19,20 @@ import qualified Control.Concurrent.Event as CE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
+data PasswordRequestMode
+    = RequestCurrentPassword
+    | RequestNewPassword
+
+data PasswordRequestType
+    = GetPasswordFromUI
+    -- Get new password from UI (without searching in map)
+    | GetCached
+    -- Try to get password from map, otherwise get it from UI
+
 type PutPassword         = WalletId -> T.Text -> Maybe CE.Event -> IO ()
-type GetPassword         = WalletId -> IO T.Text
+type GetPassword         = PasswordRequestMode -> PasswordRequestType -> WalletId -> IO T.Text
 type VoidPassword        = WalletId -> IO ()
-type RequestPasswordToUi = WalletId -> CE.Event -> IO ()
+type RequestPasswordToUi = PasswordRequestMode -> WalletId -> CE.Event -> IO ()
 
 data WalletId
     = WalletIdTemporary
@@ -35,9 +47,9 @@ data WalletId
     deriving (Eq, Ord)
 
 data PasswordManager = PasswordManager
-    { putPassword        :: PutPassword
-    , getPasswordWithUI  :: RequestPasswordToUi -> GetPassword
-    , voidPassword       :: VoidPassword
+    { putPassword       :: PutPassword
+    , getPasswordWithUI :: RequestPasswordToUi -> GetPassword
+    , voidPassword      :: VoidPassword
     }
 
 createPasswordManager :: ComponentM PasswordManager
@@ -73,10 +85,10 @@ createPasswordManager = buildComponent_ "Password Manager" $ do
         voidPassword walletId = atomicModify_ passMapVar $ Map.delete walletId
 
         getPasswordWithUI :: RequestPasswordToUi -> GetPassword
-        getPasswordWithUI requestToUI walletId = do
+        getPasswordWithUI requestToUI requestMode requestType walletId = do
             passMap <- readIORef passMapVar
-            case Map.lookup walletId passMap of
-                Just (password, _) -> do
+            case (Map.lookup walletId passMap, requestType) of
+                (Just (password, _), GetCached) -> do
                     case walletId of
                         -- clear the password if it was temporary
                         WalletIdTemporary -> voidPassword WalletIdTemporary
@@ -86,13 +98,13 @@ createPasswordManager = buildComponent_ "Password Manager" $ do
                             atomicModify_ passMapVar $
                                 Map.insert walletId (password, currentTime)
                     return password
-                Nothing -> do
+                _ -> do
                     -- needs to launch an ui event and wait for it to be done
                     event <- CE.new
-                    requestToUI walletId event
+                    requestToUI requestMode walletId event
                     CE.wait event
                     -- should be set, try to read the password again
-                    getPasswordWithUI requestToUI walletId
+                    getPasswordWithUI requestToUI requestMode GetCached walletId
 
     return PasswordManager{..}
 

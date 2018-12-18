@@ -105,6 +105,8 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
                 Kernel.updateHdWalletName wallet hdrId walletName
             , pwlUpdateWalletAssurance = \hdrId assurance -> liftIO $
                 Kernel.updateHdWalletAssurance wallet hdrId assurance
+            , pwlUpdateWalletPassword = \hdrId newPassPhrase oldPassPhrase -> liftIO $
+                Kernel.updateHdWalletPassPhrase wallet hdrId newPassPhrase oldPassPhrase
 
             , pwlGetAccountBalance = \accountId -> liftIO $ do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)

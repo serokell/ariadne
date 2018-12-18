@@ -35,6 +35,8 @@ module Ariadne.UIConfig
        , rmBrokenWalletDelSureMessage
        , rmBrokenWltRetypeMkMessage
        , rmBrokenRetypeConfirm
+       , changePasswordHeaderMessage
+       , changePasswordInfoMessage
        ) where
 
 import Formatting
@@ -170,3 +172,9 @@ passwordUseOneMessage = "Activate to use a password."
 passwordLabelMessage :: Text
 passwordLabelMessage = "Password"
 
+changePasswordHeaderMessage :: Text
+changePasswordHeaderMessage = "Change password"
+
+changePasswordInfoMessage :: Text
+changePasswordInfoMessage = "Make sure to remember your password. \
+    \Losing your password requires resetting wallet"

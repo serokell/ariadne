@@ -54,6 +54,11 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdRootId
           -> Kernel.AssuranceLevel
           -> m (Either Kernel.UnknownHdRoot Kernel.HdRoot)
+    , pwlUpdateWalletPassword
+          :: Kernel.HdRootId
+          -> PassPhrase
+          -> PassPhrase
+          -> m (Either Kernel.PassPhraseUpdateError ())
     , pwlGetAccountBalance
           :: Kernel.HdAccountId
           -> m Coin

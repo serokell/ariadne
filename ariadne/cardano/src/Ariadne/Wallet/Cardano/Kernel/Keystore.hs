@@ -15,6 +15,8 @@ module Ariadne.Wallet.Cardano.Kernel.Keystore
        , delete
        -- * Queries on a keystore
        , lookup
+       -- * Updating keys
+       , update
        -- * Conversions
        , toList
        , toMap
@@ -166,6 +168,19 @@ delete :: WalletId -> Keystore -> IO ()
 delete walletId (Keystore mstorage fp) = do
     modifyMVar_ mstorage $ \istorage -> do
         let istorage' = istorage & over isWallets (Map.delete (walletIdToPublicHash walletId))
+        writeInternalStorage fp istorage'
+        return istorage'
+
+{------------------------------------------------------------------------------
+  Updating values in keystore
+-------------------------------------------------------------------------------}
+
+-- | Updates EncryptedSecretyKey assotiated with WalletId
+update :: WalletId -> EncryptedSecretKey -> Keystore -> IO ()
+update walletId newEsk (Keystore mstorage fp) = do
+    modifyMVar_ mstorage $ \istorage -> do
+        let istorage' = istorage & over isWallets
+              (Map.update (\_ -> Just newEsk) (walletIdToPublicHash walletId))
         writeInternalStorage fp istorage'
         return istorage'
 
