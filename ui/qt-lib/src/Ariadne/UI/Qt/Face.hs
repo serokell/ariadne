@@ -16,6 +16,7 @@ module Ariadne.UI.Qt.Face
        , UiRestoreWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
        , UiNewAddressCommandResult (..)
+       , UiChangePasswordCommandResult (..)
        , UiLangFace (..)
        , UiWalletFace (..)
        , UiHistoryFace (..)
@@ -105,6 +106,7 @@ data UiCommand
   = UiSelect [Word]
   | UiSend UiSendArgs
   | UiCalcTotal [Scientific]
+  | UiChangePassword
   | UiNewWallet Text (Maybe Text) -- ^ Name, password
   | UiRestoreWallet Text (Maybe Text) Text -- ^ Name, password, mnemonic
   | UiNewAccount Text  -- ^ Name
@@ -132,6 +134,7 @@ data UiCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
   | UiNewAddressCommandResult UiNewAddressCommandResult
+  | UiChangePasswordCommandResult UiChangePasswordCommandResult
 
 data UiSendCommandResult
   = UiSendCommandSuccess Text
@@ -157,9 +160,13 @@ data UiNewAddressCommandResult
   = UiNewAddressCommandSuccess Word Word Text
   | UiNewAddressCommandFailure Text
 
+data UiChangePasswordCommandResult
+  = UiChangePasswordCommandSuсcess
+  | UiChangePasswordCommandFailure Text
+
 -- | Ui event triggered by the password manager
 data UiPasswordEvent
-  = UiPasswordRequest WalletId CE.Event
+  = UiPasswordRequest PasswordRequestMode WalletId CE.Event
 
 -- | Ui event to handle confirmations
 data UiConfirmEvent

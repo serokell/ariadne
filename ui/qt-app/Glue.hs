@@ -133,6 +133,8 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
         argAmounts <- forM amounts $ Right . (argKw "amount") . exprLit . Knit.toLit . Knit.LitNumber
         Right $ exprProcCall
           (procCall Knit.sumCoinsCommamdName argAmounts)
+      UiChangePassword -> do
+        Right $ exprProcCall $ procCall Knit.changePasswordCommandName []
       UiNewWallet name _ -> do
         Right $ exprProcCall
           (procCall Knit.newWalletCommandName $
@@ -197,6 +199,10 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result >>= fromValue >>= \case
             Knit.ValueAddress a -> Right $ pretty a
             _ -> Left "Unrecognized return value"
+      UiChangePassword {} ->
+        Just . UiChangePasswordCommandResult .
+          either UiChangePasswordCommandFailure (const UiChangePasswordCommandSuсcess) $
+          fromResult result
       _ -> Nothing
 
     fromResult = \case
@@ -398,6 +404,6 @@ historyToUI ch = UiHistoryFace
 -- Glue between the Password Manager and Vty frontend
 ----------------------------------------------------------------------------
 
-putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
-putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
-    UiPasswordRequest walletId cEvent
+putPasswordEventToUI :: UiFace -> PasswordRequestMode -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} requestMode walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest requestMode walletId cEvent

@@ -110,12 +110,15 @@ handleMainWindowEvent langFace putPass = \case
     UiNewAddressCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletNewAddressCommandResult commandId result
+    UiChangePasswordCommandResult result ->
+      magnify walletL $ handleWalletEvent langFace putPass $
+          WalletPasswordChangeCommandResult commandId result
   UiWalletEvent UiWalletUpdate{..} ->
     magnify walletL $ handleWalletEvent langFace putPass $
         WalletUpdateEvent wuTrees wuSelection wuSelectionInfo
-  UiPasswordEvent (UiPasswordRequest walletRef cEvent) ->
+  UiPasswordEvent (UiPasswordRequest requestMode walletRef cEvent) ->
     magnify walletL $ handleWalletEvent langFace putPass $
-        WalletPasswordRequest walletRef cEvent
+        WalletPasswordRequest requestMode walletRef cEvent
   UiConfirmEvent (UiConfirmRequest resultVar confirmationType) -> do
     magnify walletL $ handleWalletEvent langFace putPass $
         WalletConfirmationRequest resultVar confirmationType

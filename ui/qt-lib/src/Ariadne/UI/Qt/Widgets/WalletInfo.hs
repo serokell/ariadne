@@ -56,6 +56,7 @@ data WalletInfo =
     , itemModel :: QStandardItemModel.QStandardItemModel
     , selectionModel :: QItemSelectionModel.QItemSelectionModel
     , createAccountButton :: QPushButton.QPushButton
+    , changePasswordButton :: QPushButton.QPushButton
     , accountSettingsButton :: QPushButton.QPushButton
     , currentItem :: IORef (Maybe CurrentItem)
     , currentItemName :: IORef Text
@@ -99,6 +100,11 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   QWidget.setCursor createAccountButton pointingCursor
   QWidget.hide createAccountButton -- will be shown only if applicable
   QLayout.addWidget headerLayout createAccountButton
+
+  changePasswordButton <- QPushButton.newWithText ("Change password" :: String)
+  QWidget.setCursor changePasswordButton pointingCursor
+  QWidget.hide changePasswordButton
+  QLayout.addWidget headerLayout changePasswordButton
 
   accountSettingsButton <- QPushButton.newWithText ("Account settings" :: String)
   settingsIcon <- QIcon.newWithFile (":/images/settings-ic.png" :: String)
@@ -162,6 +168,8 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
 
   connect_ createAccountButton QAbstractButton.clickedSignal $
     addAccountClicked langFace WalletInfo{..}
+  connect_ changePasswordButton QAbstractButton.clickedSignal $
+    changePasswordClicked langFace WalletInfo{..}
   connect_ accountSettingsButton QAbstractButton.clickedSignal $
     accountSettingsClicked langFace WalletInfo{..}
   connect_ deleteItemButton QAbstractButton.clickedSignal $
@@ -191,6 +199,7 @@ data WalletInfoEvent
   | WalletInfoCalcTotalCommandResult UiCalcTotalCommandResult
   | WalletInfoNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletInfoNewAddressCommandResult UiCommandId UiNewAddressCommandResult
+  | WalletInfoChangePasswordCommandResult UiCommandId UiChangePasswordCommandResult
   | WalletInfoConfirmRemove (MVar Bool) UiDeletingItem
   | WalletInfoConfirmSend (MVar Bool) [UiConfirmSendInfo]
 
@@ -216,11 +225,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       case item of
         WIWallet _ accounts -> do
           QWidget.setVisible createAccountButton True
+          QWidget.setVisible changePasswordButton True
           QWidget.setVisible accountSettingsButton False
           QWidget.setVisible requestButton $ not $ null accounts
           QWidget.setVisible sendButton $ not $ null accounts
         WIAccount {} -> do
           QWidget.setVisible createAccountButton False
+          QWidget.setVisible changePasswordButton False
           QWidget.setVisible accountSettingsButton True
           QWidget.setVisible requestButton True
           QWidget.setVisible sendButton True
@@ -262,6 +273,13 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       UiNewAddressCommandSuccess wIdx aIdx address -> do
         whenJustM (readIORef requestDialog) $ \req -> addNewAddress req wIdx aIdx address
       UiNewAddressCommandFailure err ->
+        void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
+
+    WalletInfoChangePasswordCommandResult _commandId result -> case result of
+      UiChangePasswordCommandSuсcess -> do
+        void $ QMessageBox.information walletInfo ("Success" :: String)
+          ("Password was successfully changed" :: String)
+      UiChangePasswordCommandFailure err ->
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
     WalletInfoConfirmRemove resultVar delItemType ->
@@ -326,6 +344,10 @@ sendButtonClicked uiLangFace@UiLangFace{..} uiWalletFace WalletInfo{..} _checked
       langPutUiCommand (UiSend $ UiSendArgs wIdx soAccounts sendOutputs) >>= \case
         Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
         Right _ -> pass
+
+changePasswordClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+changePasswordClicked UiLangFace{..} WalletInfo{..} _checked = do
+  void $ langPutUiCommand (UiChangePassword)
 
 selectSomethingText :: Text
 selectSomethingText = "Select something..."
