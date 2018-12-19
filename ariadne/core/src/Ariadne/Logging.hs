@@ -15,8 +15,10 @@ module Ariadne.Logging
        ) where
 
 import Colog.Actions (logTextHandle)
-import Colog.Core (LogAction(..), Severity(..), cmap, (<&))
-import Colog.Message (Message(..), fmtMessage)
+import Colog.Core (LogAction(..), Severity(..), cmapM, (<&))
+import Colog.Message
+  (FieldMap, Message(..), RichMessage, defaultFieldMap, fmtRichMessageDefault,
+  upgradeMessageAction)
 import Control.Monad.Component (ComponentM, buildComponent)
 import System.FilePath ((</>))
 import System.IO (hClose, hFlush)
@@ -64,8 +66,16 @@ loggingComponent logFile = fst <$> buildComponent "Logging" mkLogging snd
     mkLogging :: IO (Logging, IO ())
     mkLogging = do
         hdl <- openFile (logFile </> "ariadne.log") AppendMode
-        let logToFile = cmap fmtMessage (logTextHandle hdl) <> logFlush hdl
-        return (Logging logToFile, hClose hdl)
+        let logToFile :: LogAction IO (RichMessage IO)
+            logToFile =
+                cmapM fmtRichMessageDefault (logTextHandle hdl) <>
+                logFlush hdl
+        let logToFile' :: LogAction IO Message
+            logToFile' = upgradeMessageAction fieldMap logToFile
+        return (Logging logToFile', hClose hdl)
+
+    fieldMap :: FieldMap IO
+    fieldMap = defaultFieldMap
 
 -- A 'LogAction' which does not actually log anything, only
 -- flushes the handle.
