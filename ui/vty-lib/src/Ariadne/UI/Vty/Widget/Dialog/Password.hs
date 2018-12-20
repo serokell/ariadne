@@ -85,6 +85,8 @@ handlePasswordWidgetEvent
     :: UiEvent
     -> WidgetEventM PasswordWidgetState p ()
 handlePasswordWidgetEvent = \case
-    UiPasswordEvent (UiPasswordRequest walletId cEvent) -> zoomWidgetState $
-        passwordWidgetRecipientL .= Just (walletId, cEvent)
+    UiPasswordEvent (UiPasswordRequest requestMode walletId cEvent) -> zoomWidgetState $
+        case requestMode of
+            RequestCurrentPassword -> passwordWidgetRecipientL .= Just (walletId, cEvent)
+            RequestNewPassword -> pass
     _ -> pass

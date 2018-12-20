@@ -44,6 +44,8 @@ data WalletWidgetState =
     , walletId :: !Text
     , walletRenameResult :: !RenameResult
     , walletRemoveResult :: !RemoveResult
+    , walletChangePasswordResult :: !ChangePasswordResult
+
     , walletBalance :: !BalanceResult
     , walletExportResult :: !ExportResult
 
@@ -96,6 +98,12 @@ data TxHistoryResult
   | TxHistoryResultError !Text
   | TxHistoryResultSuccess ![UiTxHistoryRow]
 
+data ChangePasswordResult
+  = ChangePasswordResultNone
+  | ChangePasswordResultWaiting !UiCommandId
+  | ChangePasswordResultError !Text
+  | ChangePasswordResultSuccess
+
 makeLensesWith postfixLFields ''WalletAccount
 makeLensesWith postfixLFields ''WalletWidgetState
 
@@ -114,6 +122,7 @@ initWalletWidget langFace UiFeatures{..} =
       , walletId = ""
       , walletRenameResult = RenameResultNone
       , walletRemoveResult = RemoveResultNone
+      , walletChangePasswordResult = ChangePasswordResultNone
       , walletBalance = BalanceResultNone
       , walletExportResult = ExportResultNone
 
@@ -135,6 +144,12 @@ initWalletWidget langFace UiFeatures{..} =
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
       WidgetEventButtonPressed -> zoomWidgetState performRename
+      _ -> pass
+
+    addWidgetChild WidgetNameWalletChangePasswordButton $
+      initButtonWidget "Change Password"
+    addWidgetEventHandler WidgetNameWalletChangePasswordButton $ \case
+      WidgetEventButtonPressed -> zoomWidgetState performPasswordChange
       _ -> pass
 
     addWidgetChild WidgetNameWalletRemoveButton $
@@ -226,7 +241,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
     padLeft = B.padLeft (B.Pad 1)
     fillLeft w = T.takeEnd w . (T.append $ T.replicate w " ")
 
-    labelWidth = 16
+    labelWidth = 17
 
     drawChild = last . drawWidgetChild focus widget
     label = B.padRight (B.Pad 1) . B.txt . fillLeft labelWidth
@@ -240,6 +255,12 @@ drawWalletWidget focus WalletWidgetState{..} = do
           B.<+> drawChild WidgetNameWalletName
           B.<+> padLeft (drawChild WidgetNameWalletRenameButton)
           B.<+> padLeft (drawChild WidgetNameWalletRemoveButton)
+      , padLeft (drawChild WidgetNameWalletChangePasswordButton)
+      , case walletChangePasswordResult of
+          ChangePasswordResultNone -> B.emptyWidget
+          ChangePasswordResultWaiting _ -> B.txt "Changing password..."
+          ChangePasswordResultError err -> B.txtWrap $ "Couldn't change password: " <> err
+          ChangePasswordResultSuccess -> B.txt "Password was sucessfully changed"
       , label "Wallet id:"
           B.<+> B.txt walletId
       , case walletRenameResult of
@@ -394,6 +415,14 @@ handleWalletWidgetEvent = \case
               walletExportResultL .= ExportResultError err
         _ ->
           pass
+  UiCommandResult commandId (UiChangePasswordCommandResult result) ->
+    zoomWidgetState $ do
+      walletChangePasswordResultL %= \case
+        ChangePasswordResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiChangePasswordCommandSuccess -> ChangePasswordResultSuccess
+            UiChangePasswordCommandFailure err -> ChangePasswordResultError err
+        other -> other
   UiCommandResult commandId (UiNewAccountCommandResult result) ->
     zoomWidgetState $ do
       use walletNewAccountResultL >>= \case
@@ -422,6 +451,7 @@ updateFocusList = do
     [ WidgetNameWalletName
     , WidgetNameWalletRenameButton
     , WidgetNameWalletRemoveButton
+    , WidgetNameWalletChangePasswordButton
     ] ++
     (if not exportEnabled then [] else [WidgetNameWalletExportButton]) ++
     (if not accountsEnabled then [] else
@@ -476,3 +506,12 @@ performNewAccount = do
     NewAccountResultWaiting _ -> pass
     _ -> liftIO (langPutUiCommand $ UiNewAccount $ UiNewAccountArgs wIdx name) >>=
       assign walletNewAccountResultL . either NewAccountResultError NewAccountResultWaiting
+
+performPasswordChange ::
+  StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
+performPasswordChange = do
+  UiLangFace{..} <- use walletLangFaceL
+  use walletChangePasswordResultL >>= \case
+    ChangePasswordResultWaiting _ -> pass
+    _ -> liftIO (langPutUiCommand $ UiChangePassword $ UiChangePasswordArgs) >>=
+      assign walletChangePasswordResultL . either ChangePasswordResultError ChangePasswordResultWaiting

@@ -22,10 +22,11 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
+import Ariadne.UI.Vty.Widget.Dialog.Password
+import Ariadne.UI.Vty.Widget.Dialog.ChangePassword
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
-import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -54,6 +55,7 @@ data AppCompleted = AppCompleted | AppInProgress
 data AppModal
   = NoModal
   | PasswordMode
+  | ChangePasswordMode
   | ConfirmationMode UiConfirmationType
 
 data AppWidgetState =
@@ -108,6 +110,7 @@ initApp features logging putPass langFace historyFace =
       addWidgetChild WidgetNameAbout initAboutWidget
       addWidgetChild WidgetNameLogs initLogsWidget
       addWidgetChild WidgetNamePassword $ initPasswordWidget putPass
+      addWidgetChild WidgetNameChangePassword $ initChangePasswordWidget putPass
       addWidgetChild WidgetNameConfirmMnemonic initConfirmMnemonicWidget
       addWidgetChild WidgetNameConfirmRemove initConfirmRemoveWidget
       addWidgetChild WidgetNameConfirmSend initConfirmSendWidget
@@ -126,6 +129,7 @@ initApp features logging putPass langFace historyFace =
 
       mapM_ addHandlerNoModal
         [ WidgetNamePassword
+        , WidgetNameChangePassword
         , WidgetNameConfirmMnemonic
         , WidgetNameConfirmRemove
         , WidgetNameConfirmSend
@@ -168,6 +172,7 @@ resetAppFocus = do
   setWidgetFocusList =<< case modal of
     NoModal -> appFocusList <$> getWidgetState
     PasswordMode -> return [WidgetNamePassword]
+    ChangePasswordMode -> return [WidgetNameChangePassword]
     ConfirmationMode confirmationType -> case confirmationType of
       UiConfirmMnemonic _   -> return [WidgetNameConfirmMnemonic]
       UiConfirmRemove _     -> return [WidgetNameConfirmRemove]
@@ -270,6 +275,7 @@ drawAppWidget focus AppWidgetState{..} = do
   return $ case modal of
     NoModal -> singleDrawing screenDraw
     PasswordMode -> layeredDrawing (drawChild WidgetNamePassword) [screenDraw]
+    ChangePasswordMode -> layeredDrawing (drawChild WidgetNameChangePassword) [screenDraw]
     ConfirmationMode confirmationType -> (`layeredDrawing` [screenDraw]) $
       case confirmationType of
         UiConfirmMnemonic _ -> (drawChild WidgetNameConfirmMnemonic)
@@ -322,6 +328,7 @@ handleAppEvent brickEvent = do
       let modalName = case modal of
             NoModal -> []
             PasswordMode -> [WidgetNamePassword]
+            ChangePasswordMode -> [WidgetNameChangePassword]
             ConfirmationMode confirmationType -> case confirmationType of
               UiConfirmMnemonic _ -> [WidgetNameConfirmMnemonic]
               UiConfirmRemove _   -> [WidgetNameConfirmRemove]
@@ -412,9 +419,12 @@ handleAppWidgetEvent logging = \case
     logDebug logging "Received 'Logs' event"
     widgetStateL . appScreenL .= AppScreenLogs
     resetAppFocus
-  UiPasswordEvent _ -> do
+  UiPasswordEvent passEvent -> do
     logDebug logging "App widget received a password event"
-    assignWidgetLens (Lens appModalL) PasswordMode
+    assignWidgetLens (Lens appModalL) $ case passEvent of
+      UiPasswordRequest requestMode _ _ -> case requestMode of
+        RequestCurrentPassword -> PasswordMode
+        RequestNewPassword -> ChangePasswordMode
     resetAppFocus
   UiConfirmEvent (UiConfirmRequest _ confirmationType) -> do
     logDebug logging "App widget received a confirm event"

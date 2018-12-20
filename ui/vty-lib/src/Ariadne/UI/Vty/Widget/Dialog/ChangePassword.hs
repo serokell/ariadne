@@ -19,7 +19,6 @@ import Ariadne.UX.PasswordManager
 
 data ChangePasswordWidgetState = ChangePasswordWidgetState
   { changePasswordPutPassword :: !PutPassword
-  , changePasswordUiFace :: !UiFace
   , newPasswordWidgetContent :: !Text
   , confirmPasswordWidgetContent :: !Text
   , changePasswordError :: !ChangePasswordErrorMessage
@@ -33,15 +32,14 @@ data ChangePasswordErrorMessage
 
 makeLensesWith postfixLFields ''ChangePasswordWidgetState
 
-initChangePasswordWidget :: PutPassword -> UiFace -> Widget p
-initChangePasswordWidget putPassword uiFace =
+initChangePasswordWidget :: PutPassword -> Widget p
+initChangePasswordWidget putPassword =
   initWidget $ do
     setWidgetDrawWithFocus drawChangePasswordWidget
     setWidgetHandleKey handleChangePasswordKey
     setWidgetHandleEvent handleChangePasswordEvent
     setWidgetState ChangePasswordWidgetState
       { changePasswordPutPassword = putPassword
-      , changePasswordUiFace = uiFace
       , newPasswordWidgetContent = ""
       , confirmPasswordWidgetContent = ""
       , changePasswordError = ChangePasswordNoError
@@ -100,23 +98,25 @@ handleChangePasswordKey = \case
 
 performPasswordChange :: WidgetEventM ChangePasswordWidgetState p ()
 performPasswordChange = do
-  ChangePasswordWidgetState{..} <- get
+  ChangePasswordWidgetState{..} <- getWidgetState
   if newPasswordWidgetContent /= confirmPasswordWidgetContent
-    then do
+    then zoomWidgetState $ do
       changePasswordErrorL .= ChangePasswordPasswordsDontMatch
     else
       whenJust changePasswordWidgetRecipient $ \(walletId, cEvent) -> do
         liftIO $ changePasswordPutPassword walletId newPasswordWidgetContent $ Just cEvent
-        liftIO $ putUiEvent changePasswordUiFace $ UiPasswordEvent UiPasswordSent
-        changePasswordWidgetRecipientL .= Nothing
-        newPasswordWidgetContentL .= ""
-        confirmPasswordWidgetContentL .= ""
-        changePasswordErrorL .= ChangePasswordNoError
+        widgetEvent WidgetEventModalExited
+        zoomWidgetState $ do
+          changePasswordWidgetRecipientL .= Nothing
+          newPasswordWidgetContentL .= ""
+          confirmPasswordWidgetContentL .= ""
+          changePasswordErrorL .= ChangePasswordNoError
 
 handleChangePasswordEvent :: UiEvent -> WidgetEventM ChangePasswordWidgetState p ()
 handleChangePasswordEvent = \case
   UiPasswordEvent (UiPasswordRequest requestMode walletId cEvent) ->
     case requestMode of
-      RequestOldPassword -> pass
-      RequestNewPassword -> changePasswordWidgetRecipientL .= Just (walletId, cEvent)
+      RequestCurrentPassword -> pass
+      RequestNewPassword -> zoomWidgetState $
+        changePasswordWidgetRecipientL .= Just (walletId, cEvent)
   _ -> pass
