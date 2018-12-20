@@ -27,6 +27,7 @@ module Ariadne.Wallet.Knit
        , balanceCommandName
        , renameCommandName
        , removeCommandName
+       , feeCommandName
 
        , getWalletRefArg
        ) where
@@ -42,13 +43,15 @@ import Pos.Crypto.Hashing (unsafeCheatingHashCoerce)
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec.Char as P
 
-import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyTxOut, tyCoin)
+import Ariadne.Cardano.Knit (Cardano, ComponentValue(..), tyCoin, tyTxOut)
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Face
 import Ariadne.Wallet.UiAdapter (formatAddressHash)
 
 import Knit
+
+{-# ANN module ("HLint: ignore Reduce duplication" :: Text) #-}
 
 -- Component type for Knit
 data Wallet
@@ -256,6 +259,22 @@ instance (Elem components Wallet, Elem components Core, Elem components Cardano)
         , cpHelp = "Calculate total sum of given coin amounts"
         }
     , CommandProc
+        { cpName = feeCommandName
+        , cpArgumentPrepare = identity
+        , cpArgumentConsumer = do
+            walletRef <- getWalletRefArgOpt
+            accRefs <- getArgMany tyLocalAccountRef "account"
+            outs <- getArgSome tyTxOut "out"
+            isp <- fromMaybe defaultInputSelectionPolicy <$>
+                getArgOpt tyInputSelectionPolicy "policy"
+            return (walletRef, accRefs, isp, outs)
+        , cpRepr = \(walletRef, accRefs, isp, outs) -> CommandAction $ \WalletFace{..} ->
+            toValue . ValueCoin <$> walletFee walletRef accRefs isp outs
+        , cpHelp =
+            "Estimate a fee for a transaction. \
+            \Parameters have the same meaning as the \"send\" command parameters."
+        }
+    , CommandProc
         { cpName = balanceCommandName
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pass
@@ -328,6 +347,9 @@ sendCommandName = "send"
 
 sumCoinsCommamdName :: CommandId
 sumCoinsCommamdName = "sum-coins"
+
+feeCommandName :: CommandId
+feeCommandName = "fee"
 
 balanceCommandName :: CommandId
 balanceCommandName = "balance"

@@ -62,6 +62,7 @@ library:
     - memory
     - monad-control
     - mtl
+    - mwc-random
     - named
     - natural-transformation
     - ntype
@@ -107,7 +108,7 @@ tests:
       - cardano-sl-core
       - cardano-sl-crypto
       - cardano-sl-infra
-      - data-default 
+      - data-default
       - hspec
       - knit
       - lens
@@ -140,8 +141,10 @@ tests:
       - cardano-sl-lrc
       - cardano-sl-ssc
       - cardano-sl-txp
+      - cardano-sl-txp-test
       - cardano-sl-update
       - cardano-sl-util
+      - cardano-sl-util-test
       - componentm
       - conduit
       - constraints
@@ -157,6 +160,7 @@ tests:
       - mtl
       - normaldistribution
       - optparse-applicative
+      - o-clock
       - QuickCheck
       - quickcheck-instances
       - random

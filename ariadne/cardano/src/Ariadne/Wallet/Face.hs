@@ -78,6 +78,9 @@ data WalletFace =
     , walletSend ::
         Bool -> WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO TxId
+    , walletFee ::
+        WalletReference -> [LocalAccountReference] ->
+        InputSelectionPolicy -> NonEmpty TxOut -> IO Coin
     , walletBalance :: IO Coin
     , walletSumCoins :: [Coin] -> IO Coin
     }

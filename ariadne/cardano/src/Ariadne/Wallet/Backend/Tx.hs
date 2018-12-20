@@ -11,7 +11,7 @@ import qualified Data.Text.Buildable
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
 import Control.Natural ((:~>)(..))
-import Formatting (bprint, build, formatToString, int, (%))
+import Formatting (bprint, build, formatToString, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
@@ -25,8 +25,8 @@ import Pos.Util (maybeThrow)
 
 import Ariadne.Cardano.Face
 import Ariadne.Cardano.Knit (showCoin)
-import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Mode ()
+import Ariadne.Wallet.Backend.Util (accountsToUse)
 import Ariadne.Wallet.Cardano.Kernel.Bip32
   (DerivationPath(..), deriveHDSecretKeyByPath)
 import Ariadne.Wallet.Cardano.Kernel.Bip44
@@ -34,7 +34,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
-import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet, (@+))
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Cardano.WalletLayer
   (ActiveWalletLayer(..), PassiveWalletLayer(..))
 import Ariadne.Wallet.Face
@@ -43,20 +43,17 @@ data SendTxException
     = SendTxNoAddresses !HdRootId
     | SendTxNoAccounts !HdRootId
     | SendTxIncorrectPassPhrase
-    | SendTxAccountIndexOutOfRange !HdRootId !Word
     | SendTxNotConfirmed
     deriving (Show)
 
 instance Buildable SendTxException where
     build = \case
-        SendTxNoAddresses walletIdx ->
-            bprint ("Wallet "%build%" does not have any addresses") walletIdx
         SendTxNoAccounts walletIdx ->
             bprint ("Wallet "%build%" does not have any accounts") walletIdx
+        SendTxNoAddresses walletIdx ->
+            bprint ("Wallet "%build%" does not have any addresses") walletIdx
         SendTxIncorrectPassPhrase ->
             "Incorrect passphrase"
-        SendTxAccountIndexOutOfRange rootId idx ->
-            bprint ("Account #"%int%" doesn't exist in "%build) idx rootId
         SendTxNotConfirmed ->
             "Not confirmed by User"
 
@@ -106,49 +103,16 @@ sendTx
     let NT runCardanoMode = cardanoRunCardanoMode
     walletDb <- pwlGetDBSnapshot pwl
     let wallets = walletDb ^. dbHdWallets
-    (walletRootId, walletAccounts) <-
-        resolveWalletRefThenRead walletSelRef walletRef
-        walletDb readAccountsByRootId
-    accountIds <- getSuitableAccounts walletRootId walletAccounts
-    let filteredAccounts :: IxSet HdAccount
-        filteredAccounts = maybe identity filterAccounts accountIds walletAccounts
-
-        filterAccounts :: NonEmpty HdAccountId -> IxSet HdAccount -> IxSet HdAccount
-        filterAccounts ids accounts = accounts @+ toList ids
+    (walletRootId, accountsToUse') <- accountsToUse pwl walletSelRef walletRef accRefs
     unless noConfirm $
         unlessM (waitUiConfirm . ConfirmSend . map txOutToInfo $ toList outs) $
             throwM SendTxNotConfirmed
     pp <- getPassPhrase $ WalletRefByHdRootId walletRootId
     voidWrongPass walletRef . runCardanoMode $
-        sendTxDo wallets walletRootId pp filteredAccounts =<< cardanoGetDiffusion
+        sendTxDo wallets walletRootId pp accountsToUse' =<< cardanoGetDiffusion
   where
     pwl :: PassiveWalletLayer IO
     pwl = walletPassiveLayer awl
-
-    -- Returns list of accounts which can be used.
-    -- 'Nothing' means all accounts can be used.
-    getSuitableAccounts ::
-           HdRootId
-        -> IxSet HdAccount
-        -> IO (Maybe (NonEmpty HdAccountId))
-    getSuitableAccounts rootId accountsSet =
-        case nonEmpty accRefs of
-            Nothing -> do
-                readIORef walletSelRef >>= \case
-                    Just (WSAccount selectedAccId)
-                        | selectedAccId ^. hdAccountIdParent == rootId ->
-                            return (Just $ one selectedAccId)
-                    _ -> return Nothing
-            Just accRefsNE -> Just <$> mapM refToId accRefsNE
-      where
-        -- Here we use knowledge of the order in UI, which is not very good.
-        accountsList :: [HdAccount]
-        accountsList = toList accountsSet
-
-        refToId :: LocalAccountReference -> IO HdAccountId
-        refToId (LocalAccountRefByIndex uiIdx) =
-            maybeThrow (SendTxAccountIndexOutOfRange rootId uiIdx) $
-            accountsList ^? ix (fromIntegral uiIdx) . hdAccountId
 
     sendTxDo ::
            HdWallets
@@ -157,7 +121,7 @@ sendTx
         -> IxSet HdAccount
         -> Diffusion CardanoMode
         -> CardanoMode TxId
-    sendTxDo wallets walletRootId pp accountsToUse diffusion = do
+    sendTxDo wallets walletRootId pp accountsToUse' diffusion = do
         -- Wallet creation and deletion is organized in such way that
         -- the absence of a key is not possible.
         esk <- liftIO $ fromMaybe
@@ -168,21 +132,16 @@ sendTx
             checkPassMatches pp esk
         let signersMap :: HashMap Address SafeSigner
             -- safe due to passphrase check above
-            signersMap = walletSigners esk wallets pp accountsToUse
+            signersMap = walletSigners esk wallets pp accountsToUse'
         let getSigner :: Address -> Maybe SafeSigner
             getSigner addr = signersMap ^. at addr
         ourAddresses <-
             maybeThrow
                 (SendTxNoAddresses walletRootId)
                 (nonEmpty $ keys signersMap)
-        -- We pick one of the accounts to generate change address in it.
-        ourAccount <-
-            maybeThrow
-                (SendTxNoAccounts walletRootId)
-                (toList accountsToUse ^? ix 0)
-        let ourAccountId = ourAccount ^. hdAccountId
+        changeAccountId <- changeAccountIdFromAccounts
         let newChangeAddress = walletNewAddress
-                (AccountRefByHdAccountId ourAccountId)
+                (AccountRefByHdAccountId changeAccountId)
                 HdChainInternal
         (txAux, _) <-
             prepareMTx
@@ -194,12 +153,24 @@ sendTx
                 (map TxOutAux outs)
                 (const newChangeAddress)
         -- [AD-518] TODO: call newPending even when inputs are selected from multiple accounts.
-        when (length accountsToUse == 1) $
-            liftIO $ whenLeftM (awlNewPending awl ourAccountId txAux) throwM
+        when (length accountsToUse' == 1) $
+            liftIO $ whenLeftM (awlNewPending awl changeAccountId txAux) throwM
         let tx = taTx txAux
         let txId = hash tx
         liftIO $ printAction $ formatSubmitTxMsg tx
         txId <$ submitTxRaw diffusion txAux
+
+      where
+        -- | Used for sending tx with existing accountsToUse
+        changeAccountIdFromAccounts :: MonadThrow m
+                                 => m HdAccountId
+        changeAccountIdFromAccounts = do
+            -- We pick one of the accounts to generate change address in it.
+            changeAccount <-
+                maybeThrow
+                    (SendTxNoAccounts walletRootId)
+                    (toList accountsToUse'  ^? ix 0)
+            return $ changeAccount ^. hdAccountId
 
     formatToDoc :: forall a. Buildable a => a -> Doc
     formatToDoc = string . formatToString build

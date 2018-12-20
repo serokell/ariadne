@@ -9,8 +9,9 @@ import qualified Universum.Unsafe as Unsafe (head)
 import UTxO.Context
 import UTxO.DSL
 
+import Ariadne.Wallet.Cardano.Kernel.CoinSelection.FromGeneric
+  (estimateCardanoFee)
 import Pos.Core (TxSizeLinear, getCoin)
-import Test.Infrastructure.Generator (estimateCardanoFee)
 
 {-------------------------------------------------------------------------------
   Convenient access to some values in the Cardano genesis block

@@ -14,13 +14,13 @@ import System.Wlog (Severity(Debug))
 import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (unsafeIntegerToCoin)
 import Pos.Core.Chrono (OldestFirst(..))
+import Pos.Core.Txp (TxOut(..))
 import Pos.Crypto (ProtocolMagic, safeDeterministicKeyGen)
 
 import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Actions as Actions
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore (lookup)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.Restore as Kernel
@@ -30,7 +30,11 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Consistency
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
+
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read as Spec
+import Ariadne.Wallet.Cardano.Kernel.FeeEstimate (cardanoFee, transactionInputs)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)
 
 import Ariadne.Wallet.Cardano.Kernel.Types
@@ -163,6 +167,14 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
                 let seed     = mnemonicToSeedNoPassword $ unwords mnemonic
                     (_, esk) = safeDeterministicKeyGen seed pp
                 in pure esk
+
+            , pwlEstimateFees          = \hdAccIds txOuts -> do
+                snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
+                let payees = ((,) <$> txOutAddress <*> txOutValue) <$> txOuts
+                availableUtxo <- concatForM hdAccIds $ \hdAccId -> liftIO $ either throwM pure $
+                    Spec.queryAccountAvailableUtxo hdAccId (snapshot ^. dbHdWallets)
+                ins <- liftIO $ transactionInputs availableUtxo payees
+                return $ cardanoFee ins (txOutValue <$> txOuts)
 
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $

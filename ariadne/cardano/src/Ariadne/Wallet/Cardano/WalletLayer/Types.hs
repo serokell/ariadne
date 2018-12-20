@@ -20,6 +20,7 @@ import Pos.Block.Types (Blund)
 import Pos.Core (Coin)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
 import Pos.Core.Configuration (HasConfiguration)
+import Pos.Core.Txp (TxOut(..))
 import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
@@ -116,6 +117,12 @@ data PassiveWalletLayer m = PassiveWalletLayer
         :: PassPhrase
         -> Mnemonic
         -> m EncryptedSecretKey
+
+    -- | fees
+    , pwlEstimateFees
+          :: [Kernel.HdAccountId]
+          -> NonEmpty TxOut
+          -> m Coin
 
     -- | internal, hopefully these will go in the future
     , pwlGetDBSnapshot

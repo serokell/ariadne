@@ -47,6 +47,8 @@ import qualified Ariadne.TaskManager.Knit as Knit
 import qualified Ariadne.Wallet.Knit as Knit
 import qualified Knit
 
+{-# ANN module ("HLint: ignore Reduce duplication" :: Text) #-}
+
 ----------------------------------------------------------------------------
 -- Glue between Knit backend and Vty frontend
 ----------------------------------------------------------------------------
@@ -138,8 +140,19 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             argOutputs
           )
       UiFee UiFeeArgs{..} -> do
-        -- TODO: Proper fee requesting should be implemented as part of AD-397
-        Right $ exprProcCall $ procCall (Knit.CommandIdOperator Knit.OpUnit) []
+        argOutputs <- forM ufaOutputs $ \UiSendOutput{..} -> do
+          argAddress <- first (const "Invalid address") $ decodeTextAddress usoAddress
+          argCoin <- first (const "Invalid amount") $ readEither usoAmount
+          Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
+            [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            ]
+        Right $ exprProcCall
+          (procCall Knit.feeCommandName $
+            justOptNumber "wallet" ufaWalletIdx ++
+            map (argKw "account" . exprLit . Knit.toLit . Knit.LitNumber . fromIntegral) ufaAccounts ++
+            argOutputs
+          )
       UiKill commandId ->
         Right $ exprProcCall
           (procCall Knit.killCommandName
@@ -186,7 +199,12 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             Knit.ValueHash h -> Right $ pretty h
             _ -> Left "Unrecognized return value"
       UiFee{} ->
-        Just . UiFeeCommandResult . UiFeeCommandSuccess $ "not implemented"
+        Just . UiFeeCommandResult . either UiFeeCommandFailure UiFeeCommandSuccess $
+          fromResult result >>= fromValue >>= \case
+            Knit.ValueCoin c ->
+                let (amount, unit) = Knit.showCoin c in Right $ amount <> " " <> show unit
+            v -> Left $ "Unrecognized return value " <> show v
+
       UiNewWallet{} ->
         Just . UiNewWalletCommandResult . either UiNewWalletCommandFailure UiNewWalletCommandSuccess $
           fromResult result >>= fromValue >>= \case

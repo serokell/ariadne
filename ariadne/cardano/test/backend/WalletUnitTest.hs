@@ -13,6 +13,7 @@ import qualified Test.Spec.Accounts
 import qualified Test.Spec.AcidState
 import qualified Test.Spec.CreateAddress
 import qualified Test.Spec.CreateWallet
+import qualified Test.Spec.Fee
 import qualified Test.Spec.Kernel
 import qualified Test.Spec.Keystore
 import qualified Test.Spec.Models
@@ -53,3 +54,4 @@ tests = describe "Wallet unit tests" $ do
     Test.Spec.CreateWallet.spec
     Test.Spec.Accounts.spec
     Test.Spec.AcidState.spec
+    Test.Spec.Fee.spec

@@ -20,6 +20,7 @@ import Ariadne.UX.PasswordManager
 import Ariadne.Wallet.Backend.KeyStorage
 import Ariadne.Wallet.Backend.Restore (restoreFromKeyFile, restoreWallet)
 import Ariadne.Wallet.Backend.Tx
+import Ariadne.Wallet.Backend.Util (allAccountIds)
 import Ariadne.Wallet.Cardano.Kernel.Keystore
   (DeletePolicy(..), keystoreComponent)
 import Ariadne.Wallet.Cardano.WalletLayer
@@ -116,6 +117,9 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 , walletSend =
                     sendTx awl this cardanoFace walletSelRef putCommandOutput
                         getPassPhrase voidWrongPass waitUiConfirm
+                , walletFee = \walletRef accRefs _ txOuts -> do
+                    accountIds <- allAccountIds pwl walletSelRef walletRef accRefs
+                    pwlEstimateFees pwl accountIds txOuts
                 , walletBalance = getBalance pwl walletSelRef
                 , walletSumCoins = \amounts -> return $ unsafeIntegerToCoin $ sumCoins amounts
                 }
