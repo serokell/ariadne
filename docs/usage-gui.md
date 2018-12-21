@@ -46,6 +46,9 @@ one account and one address in that account.
 When there are too many accounts in a wallet and you don't need to see all of them, you can fold it
 by clicking on the triangle left of the wallet's name.
 
+In order to change password click on "Change password" button in the wallet pane and then password
+changing dialog will appear.
+
 If you want to delete an account or a wallet, just click "Delete" button in the wallet pane. Since
 deleting a wallet is a rather dangerous operation, you will be asked to enter its name to confirm
 you understand what you are doing.
