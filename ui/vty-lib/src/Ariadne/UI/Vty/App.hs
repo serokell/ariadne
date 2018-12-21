@@ -101,7 +101,7 @@ initApp features putPass uiFace langFace historyFace =
       addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace features
       addWidgetChild WidgetNameWallet $ initWalletWidget langFace features
       addWidgetChild WidgetNameAccount $ initAccountWidget langFace
-      addWidgetChild WidgetNameRepl $ initReplWidget uiFace langFace historyFace
+      addWidgetChild WidgetNameRepl $ initReplWidget langFace historyFace
         (widgetParentGetter $ (== AppScreenWallet) . appScreen)
       addWidgetChild WidgetNameHelp $ initHelpWidget langFace
       addWidgetChild WidgetNameAbout initAboutWidget
@@ -296,6 +296,8 @@ handleAppEvent brickEvent = do
                   return AppInProgress
               | otherwise ->
                   return AppInProgress
+            WidgetEventHalt -> return AppCompleted
+        WidgetEventHalt -> return AppCompleted
     B.VtyEvent (V.EvPaste raw) -> do
       whenRight (decodeUtf8' raw) $ \pasted -> do
         focus <- gets getAppFocus
@@ -318,8 +320,6 @@ handleAppEvent brickEvent = do
           setAppFocus name
           void $ runHandler $ handleWidgetMouseDown coords name
       return AppInProgress
-    B.AppEvent (UiCommandAction UiCommandQuit) -> do
-      return AppCompleted
     B.AppEvent event -> do
       runHandler $ handleWidgetEvent event
       return AppInProgress

@@ -41,8 +41,7 @@ data ReplParseResult
 
 data ReplWidgetState p =
   ReplWidgetState
-    { replWidgetUiFace :: !UiFace
-    , replWidgetLangFace :: !UiLangFace
+    { replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
     , replWidgetCommandLocation :: !(Int, Int)
@@ -54,16 +53,15 @@ data ReplWidgetState p =
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-initReplWidget :: UiFace -> UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
-initReplWidget uiFace langFace historyFace fullsizeGetter =
+initReplWidget :: UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
+initReplWidget langFace historyFace fullsizeGetter =
   initWidget $ do
     setWidgetDrawWithFocus drawReplWidget
     setWidgetScrollable
     setWidgetHandleKey handleReplWidgetKey
     setWidgetHandleEvent handleReplWidgetEvent
     setWidgetState ReplWidgetState
-      { replWidgetUiFace = uiFace
-      , replWidgetLangFace = langFace
+      { replWidgetLangFace = langFace
       , replWidgetHistoryFace = historyFace
       , replWidgetCommand = ""
       , replWidgetCommandLocation = (0, 0)
@@ -204,9 +202,9 @@ handleReplWidgetKey = \case
       ReplWidgetState{..} <- get
       if
         | null replWidgetCommand ->
-            pass
+            return WidgetEventHandled
         | isQuitCommand replWidgetCommand ->
-            liftIO $ putUiEvent replWidgetUiFace $ UiCommandAction UiCommandQuit
+            return WidgetEventHalt
         | otherwise -> do
             liftIO $ historyAddCommand replWidgetHistoryFace replWidgetCommand
             case replWidgetParseResult of
@@ -224,7 +222,7 @@ handleReplWidgetKey = \case
             liftBrick $ do
               B.invalidateCacheEntry widgetName
               scrollToEnd widgetName
-      return WidgetEventHandled
+            return WidgetEventHandled
     KeyUp -> historyNavigate historyPrevCommand
     KeyDown -> historyNavigate historyNextCommand
     _ ->

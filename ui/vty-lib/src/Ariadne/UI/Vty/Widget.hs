@@ -176,9 +176,12 @@ data WidgetEvent
 -- Each UI event is sent to the deepest focused widget possible.
 -- If its handler returns @WidgetEventNotHandled@, the event "bubbles" up
 -- through the widget hierarchy and is fed to parent widget's event handler.
+-- Event handler can return @WidgetEventHalt@, which means that the whole
+-- application should be halted.
 data WidgetEventResult
   = WidgetEventHandled
   | WidgetEventNotHandled
+  | WidgetEventHalt
 
 -- | Base widget type
 --
@@ -533,6 +536,7 @@ handleByName widget@WidgetInfo{..} name widgetHandler childHandler =
           case res of
             WidgetEventNotHandled -> widgetHandler
             WidgetEventHandled -> return res
+            WidgetEventHalt -> return res
 
 -- | Executes a particular widget's event handler, then executes parent's handlers for child→parent events, if any
 withWidget

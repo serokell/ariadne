@@ -149,7 +149,6 @@ data UiCommandEvent
 data UiCommandAction
   = UiCommandHelp
   | UiCommandLogs
-  | UiCommandQuit
 
 -- Update current displayed slot, chain difficulty, etc
 data UiBackendEvent
