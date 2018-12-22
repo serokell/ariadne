@@ -33,11 +33,13 @@ module Ariadne.UI.Vty.Widget
        , liftBrick
        , widgetParentGetter
        , widgetParentLens
+       , widgetStateL
+       , zoomWidgetState
+       , getWidgetState
        , viewWidgetLens
        , useWidgetLens
        , assignWidgetLens
        , widgetEvent
-       , withWidgetState
        , updateEditable
 
        , drawWidget
@@ -58,7 +60,8 @@ module Ariadne.UI.Vty.Widget
        ) where
 
 import Control.Lens
-  (ReifiedLens(..), ReifiedLens', assign, makeLensesWith, to, (%=), (.=))
+  (ReifiedLens(..), ReifiedLens', Zoom, Zoomed, assign, makeLensesWith, to,
+  zoom, (%=), (.=))
 
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -247,11 +250,10 @@ type WidgetDrawM s p a = ReaderT (WidgetInfo s p) (Reader p) a
 -- | Widget event handler monad
 --
 -- Allows access to:
--- * @s@: widget-local state, lenses just work
--- * @WidgetInfo s p@: widget itself
+-- * @WidgetInfo s p@: widget itself (use 'widgetStateL' to access local state)
 -- * @p@: parent widget via lenses and @widgetEvent@
 -- * @B.EventM@: Brick event handling environment
-type WidgetEventM s p a = StateT s (StateT (WidgetInfo s p) (StateT p (B.EventM WidgetName))) a
+type WidgetEventM s p a = StateT (WidgetInfo s p) (StateT p (B.EventM WidgetName)) a
 
 makeLensesWith postfixLFields ''WidgetInfo
 
@@ -298,7 +300,7 @@ setWidgetState = assign widgetStateL
 addWidgetChild :: MonadState (WidgetInfo s p) m => WidgetNamePart -> Widget (WidgetInfo s p) -> m ()
 addWidgetChild namePart (Widget child) = do
     parentName <- use widgetNameL
-    let child' = child{ widgetEventSend = \event -> lift . lift $ widgetEventQueueL %= ((namePart, event):) }
+    let child' = child{ widgetEventSend = \event -> lift $ widgetEventQueueL %= ((namePart, event):) }
     widgetChildrenL %= Map.insert namePart (rename parentName $ Widget child')
   where
     rename :: WidgetName -> Widget p -> Widget p
@@ -327,7 +329,7 @@ setWidgetDrawWithFocus = assign widgetDrawWithFocusL
 -- | Sets a default scroll handler, which fits for most widgets
 setWidgetScrollable :: MonadState (WidgetInfo s p) m => m ()
 setWidgetScrollable = assign widgetHandleScrollL $ \action -> do
-  name <- lift $ use widgetNameL
+  name <- use widgetNameL
   liftBrick $ handleScrollingEvent name action
   return WidgetEventHandled
 
@@ -394,7 +396,7 @@ findClosestFocus current focus@(np:nps) widget@(Widget WidgetInfo{..})
   | otherwise = findClosestFocus current [] widget
 
 liftBrick :: B.EventM WidgetName a -> WidgetEventM s p a
-liftBrick = lift . lift . lift
+liftBrick = lift . lift
 
 -- | As a widget is parametrized by parent widget, not parent state,
 -- we have to convert getters and lenses
@@ -404,26 +406,31 @@ widgetParentGetter f = view $ widgetStateL . to f
 widgetParentLens :: Lens' p a -> Lens' (WidgetInfo p q) a
 widgetParentLens l = widgetStateL . l
 
+-- | Basically this function allows you to run an action which needs
+-- @MonadState s@ inside @WidgetEventM s p@.
+zoomWidgetState ::
+       (Functor (Zoomed m c), Zoom m n s (WidgetInfo s p))
+    => m c
+    -> n c
+zoomWidgetState = zoom widgetStateL
+
+getWidgetState :: WidgetEventM s p s
+getWidgetState = zoomWidgetState get
+
 viewWidgetLens :: ReifiedLens' p a -> WidgetDrawM s p a
 viewWidgetLens = lift . view . runLens
 
 useWidgetLens :: ReifiedLens' p a -> WidgetEventM s p a
-useWidgetLens = lift . lift . use . runLens
+useWidgetLens = lift . use . runLens
 
 assignWidgetLens :: ReifiedLens' p a -> a -> WidgetEventM s p ()
-assignWidgetLens (Lens l) = lift . lift . assign l
+assignWidgetLens (Lens l) = lift . assign l
 
 -- | Send event from child widget to parent
 widgetEvent :: WidgetEvent -> WidgetEventM s p ()
 widgetEvent event = do
-  WidgetInfo{..} <- lift get
+  WidgetInfo{..} <- get
   widgetEventSend event
-
-withWidgetState :: Monad m => StateT s (StateT (WidgetInfo s p) m) a -> StateT (WidgetInfo s p) m a
-withWidgetState action = do
-  (res, st) <- runStateT action =<< use widgetStateL
-  widgetStateL .= st
-  return res
 
 updateEditable :: (MonadState s m, Eq a) => Lens' s a -> Lens' s a -> a -> m ()
 updateEditable origL editL newValue = do
@@ -540,17 +547,17 @@ handleByName widget@WidgetInfo{..} name widgetHandler childHandler =
 
 -- | Executes a particular widget's event handler, then executes parent's handlers for child→parent events, if any
 withWidget
-  :: WidgetInfo s p
+  :: forall s p a. WidgetInfo s p
   -> WidgetEventM s p a
   -> StateT (Widget p) (StateT p (B.EventM WidgetName)) a
 withWidget widget@WidgetInfo{..} action = do
   let
+    subaction :: StateT (WidgetInfo s p) (StateT p (B.EventM WidgetName)) a
     subaction = do
-      (res, widgetState') <- runStateT action widgetState
-      widgetStateL .= widgetState'
+      res <- action
       forM_ widgetEventQueue $ \(namePart, event) -> do
         whenJust (Map.lookup namePart widgetEventHandlers) $ \handler -> do
-          withWidgetState $ handler event
+          handler event
       widgetEventQueueL .= []
       return res
   (res, widget') <- lift $ runStateT subaction widget

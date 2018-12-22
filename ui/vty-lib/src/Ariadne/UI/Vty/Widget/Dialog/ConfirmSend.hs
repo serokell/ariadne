@@ -111,14 +111,17 @@ handleConfirmSendWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmSendWidgetState p ()
-performContinue = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
+performContinue = zoomWidgetState $
+  whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
     whenM (use confirmSendWidgetCheckL) $ putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmSendWidgetState p ()
-performCancel = whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
+performCancel = zoomWidgetState $
+  whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
     putMVar resultVar False *> closeDialog
 
-closeDialog :: WidgetEventM ConfirmSendWidgetState p ()
+closeDialog ::
+    StateT ConfirmSendWidgetState (StateT p (B.EventM WidgetName)) ()
 closeDialog = do
     UiFace{..} <- use confirmSendWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
@@ -130,7 +133,8 @@ handleConfirmSendWidgetEvent
     :: UiEvent
     -> WidgetEventM ConfirmSendWidgetState p ()
 handleConfirmSendWidgetEvent = \case
-    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend sendInfo)) -> do
+    UiConfirmEvent (UiConfirmRequest resVar (UiConfirmSend sendInfo)) ->
+      zoomWidgetState $ do
         confirmSendWidgetResultVarL .= Just resVar
         confirmSendWidgetOutputListL .= sendInfo
     _ -> pass

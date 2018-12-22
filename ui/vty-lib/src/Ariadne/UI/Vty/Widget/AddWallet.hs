@@ -157,34 +157,36 @@ handleAddWalletWidgetEvent
   -> WidgetEventM AddWalletWidgetState p ()
 handleAddWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..}
-    | isJust wuSelectionInfo -> do
+    | isJust wuSelectionInfo -> zoomWidgetState $ do
         addWalletNewResultL .= NewResultNone
         addWalletRestoreResultL .= RestoreResultNone
-  UiCommandResult commandId (UiNewWalletCommandResult result) -> do
-    use addWalletNewResultL >>= \case
-      NewResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiNewWalletCommandSuccess mnemonic -> do
-            addWalletNewNameL .= ""
-            addWalletNewPassL .= ""
-            addWalletNewResultL .= NewResultSuccess mnemonic
-          UiNewWalletCommandFailure err -> do
-            addWalletNewResultL .= NewResultError err
-      _ ->
-        pass
-  UiCommandResult commandId (UiRestoreWalletCommandResult result) -> do
-    use addWalletRestoreResultL >>= \case
-      RestoreResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiRestoreWalletCommandSuccess -> do
-            addWalletRestoreNameL .= ""
-            addWalletRestoreMnemonicL .= ""
-            addWalletRestorePassL .= ""
-            addWalletRestoreResultL .= RestoreResultSuccess
-          UiRestoreWalletCommandFailure err -> do
-            addWalletRestoreResultL .= RestoreResultError err
-      _ ->
-        pass
+  UiCommandResult commandId (UiNewWalletCommandResult result) ->
+    zoomWidgetState $ do
+      use addWalletNewResultL >>= \case
+        NewResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiNewWalletCommandSuccess mnemonic -> do
+              addWalletNewNameL .= ""
+              addWalletNewPassL .= ""
+              addWalletNewResultL .= NewResultSuccess mnemonic
+            UiNewWalletCommandFailure err -> do
+              addWalletNewResultL .= NewResultError err
+        _ ->
+          pass
+  UiCommandResult commandId (UiRestoreWalletCommandResult result) ->
+    zoomWidgetState $ do
+      use addWalletRestoreResultL >>= \case
+        RestoreResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiRestoreWalletCommandSuccess -> do
+              addWalletRestoreNameL .= ""
+              addWalletRestoreMnemonicL .= ""
+              addWalletRestorePassL .= ""
+              addWalletRestoreResultL .= RestoreResultSuccess
+            UiRestoreWalletCommandFailure err -> do
+              addWalletRestoreResultL .= RestoreResultError err
+        _ ->
+          pass
   _ ->
     pass
 
@@ -193,7 +195,7 @@ handleAddWalletWidgetEvent = \case
 ----------------------------------------------------------------------------
 
 performCreateWallet :: WidgetEventM AddWalletWidgetState p ()
-performCreateWallet = do
+performCreateWallet = zoomWidgetState $ do
   UiLangFace{..} <- use addWalletLangFaceL
   name <- use addWalletNewNameL
   passphrase <- use addWalletNewPassL
@@ -203,7 +205,7 @@ performCreateWallet = do
       assign addWalletNewResultL . either NewResultError NewResultWaiting
 
 performRestoreWallet :: WidgetEventM AddWalletWidgetState p ()
-performRestoreWallet = do
+performRestoreWallet = zoomWidgetState $ do
   UiLangFace{..} <- use addWalletLangFaceL
   name <- use addWalletRestoreNameL
   mnemonic <- use addWalletRestoreMnemonicL

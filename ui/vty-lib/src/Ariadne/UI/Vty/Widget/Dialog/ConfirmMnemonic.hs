@@ -135,14 +135,16 @@ handleConfirmMnemonicWidgetKey = \case
 
 performContinue :: WidgetEventM ConfirmMnemonicWidgetState p ()
 performContinue = do
-    ConfirmMnemonicWidgetState{..} <- get
+    ConfirmMnemonicWidgetState{..} <- getWidgetState
     whenJust confirmMnemonicWidgetResultVar $ \resultVar ->
         case confirmMnemonicWidgetConfirmationState of
             Before -> when confirmRemoveWidgetCheckScreen $ do
-                confirmMnemonicWidgetConfirmationStateL .= DisplayConfirmMnemonic
+                widgetStateL . confirmMnemonicWidgetConfirmationStateL .=
+                  DisplayConfirmMnemonic
                 updateFocusList
             DisplayConfirmMnemonic -> do
-                confirmMnemonicWidgetConfirmationStateL .= RetypeConfirmMnemonic
+                widgetStateL . confirmMnemonicWidgetConfirmationStateL .=
+                  RetypeConfirmMnemonic
                 updateFocusList
             RetypeConfirmMnemonic -> when
                 ( words confirmMnemonicWidgetContent == confirmMnemonicWidgetValue
@@ -151,29 +153,32 @@ performContinue = do
                 ) $ putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmMnemonicWidgetState p ()
-performCancel = whenJustM (use confirmMnemonicWidgetResultVarL) $ \resultVar ->
+performCancel =
+  whenJustM (use (widgetStateL . confirmMnemonicWidgetResultVarL)) $ \resultVar ->
     putMVar resultVar False *> closeDialog
 
 closeDialog :: WidgetEventM ConfirmMnemonicWidgetState p ()
 closeDialog = do
-    UiFace{..} <- use confirmMnemonicWidgetUiFaceL
-    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmMnemonicWidgetContentL .= ""
-    confirmMnemonicWidgetValueL .= []
-    confirmMnemonicWidgetConfirmationStateL .= Before
-    confirmMnemonicWidgetResultVarL .= Nothing
-    confirmRemoveWidgetCheckScreenL .= False
-    confirmRemoveWidgetCheckOnDeviceL .= False
-    confirmRemoveWidgetCheckMovedL .= False
+    zoomWidgetState $ do
+        UiFace{..} <- use confirmMnemonicWidgetUiFaceL
+        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
+        confirmMnemonicWidgetContentL .= ""
+        confirmMnemonicWidgetValueL .= []
+        confirmMnemonicWidgetConfirmationStateL .= Before
+        confirmMnemonicWidgetResultVarL .= Nothing
+        confirmRemoveWidgetCheckScreenL .= False
+        confirmRemoveWidgetCheckOnDeviceL .= False
+        confirmRemoveWidgetCheckMovedL .= False
     updateFocusList
 
 updateFocusList :: WidgetEventM ConfirmMnemonicWidgetState p ()
 updateFocusList = do
-    confirmationState <- use confirmMnemonicWidgetConfirmationStateL
-    lift . setWidgetFocusList =<< case confirmationState of
+    confirmationState <-
+        use (widgetStateL . confirmMnemonicWidgetConfirmationStateL)
+    setWidgetFocusList =<< case confirmationState of
         Before -> return $ WidgetNameConfirmMnemonicCheckScreen : dialogButtons
         DisplayConfirmMnemonic -> return dialogButtons
-        RetypeConfirmMnemonic -> do
+        RetypeConfirmMnemonic -> zoomWidgetState $ do
             confirmContent <- use confirmMnemonicWidgetContentL
             confirmValue <- use confirmMnemonicWidgetValueL
             return $ if words confirmContent == confirmValue
@@ -194,7 +199,8 @@ handleConfirmMnemonicWidgetEvent
     -> WidgetEventM ConfirmMnemonicWidgetState p ()
 handleConfirmMnemonicWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest resVar (UiConfirmMnemonic mnemonic)) -> do
+      zoomWidgetState $ do
         confirmMnemonicWidgetResultVarL .= Just resVar
         confirmMnemonicWidgetValueL .= mnemonic
-        updateFocusList
+      updateFocusList
     _ -> pass

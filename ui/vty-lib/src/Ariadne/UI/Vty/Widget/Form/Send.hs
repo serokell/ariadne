@@ -76,7 +76,7 @@ initSendWidget langFace walletIdxGetter accountsGetter =
       , sendResult = SendResultNone
       }
 
-    withWidgetState addOutput
+    addOutput
     addWidgetChild WidgetNameSendAdd $
       initButtonWidget "+"
     addWidgetChild WidgetNameSendPass $
@@ -91,7 +91,7 @@ initSendWidget langFace walletIdxGetter accountsGetter =
       WidgetEventButtonPressed -> performSendTransaction
       _ -> pass
 
-    withWidgetState updateFocusList
+    updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -163,20 +163,21 @@ handleSendWidgetEvent
   -> WidgetEventM (SendWidgetState p) p ()
 handleSendWidgetEvent = \case
   UiCommandResult commandId (UiSendCommandResult result) -> do
-    use sendResultL >>= \case
+    use (widgetStateL . sendResultL) >>= \case
       SendResultWaiting commandId' | commandId == commandId' ->
         case result of
           UiSendCommandSuccess tr -> do
-            sendResultL .= SendResultSuccess tr
-            sendPassL .= ""
-            sendOutputsL .= Map.empty
+            zoomWidgetState $ do
+              sendResultL .= SendResultSuccess tr
+              sendPassL .= ""
+              sendOutputsL .= Map.empty
             addOutput
             updateFee
           UiSendCommandFailure err -> do
-            sendResultL .= SendResultError err
+            widgetStateL . sendResultL .= SendResultError err
       _ ->
         pass
-  UiCommandResult commandId (UiFeeCommandResult result) -> do
+  UiCommandResult commandId (UiFeeCommandResult result) -> zoomWidgetState $ do
     sendFeeResultL %= \case
       FeeResultWaiting commandId' | commandId == commandId' ->
         case result of
@@ -190,10 +191,10 @@ handleSendWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
-updateFocusList :: Monad m => StateT (SendWidgetState p) (StateT (WidgetInfo (SendWidgetState p) p) m) ()
+updateFocusList :: Monad m => StateT (WidgetInfo (SendWidgetState p) p) m ()
 updateFocusList = do
-    outputs <- uses sendOutputsL Map.keys
-    lift $ setWidgetFocusList $
+    outputs <- uses (widgetStateL . sendOutputsL) Map.keys
+    setWidgetFocusList $
       concat (outputFocuses <$> outputs) ++
       [ WidgetNameSendAdd
       , WidgetNameSendPass
@@ -206,16 +207,17 @@ updateFocusList = do
       , WidgetNameSendRemove idx
       ]
 
-collectFormData :: WidgetEventM (SendWidgetState p) p (Maybe Word, [Word32], [UiSendOutput])
+collectFormData ::
+  StateT (SendWidgetState p) (StateT p (B.EventM WidgetName)) (Maybe Word, [Word32], [UiSendOutput])
 collectFormData = do
-  parentState <- lift $ lift get
+  parentState <- lift get
   walletIdx <- uses sendWalletIdxGetterL $ maybe Nothing (\getter -> getter parentState)
   accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
   outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
   return (walletIdx, accounts, outputs)
 
 updateFee :: WidgetEventM (SendWidgetState p) p ()
-updateFee = do
+updateFee = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
   (walletIdx, accounts, outputs) <- collectFormData
   use sendFeeResultL >>= \case
@@ -226,40 +228,41 @@ updateFee = do
   liftIO (langPutUISilentCommand $ UiFee $ UiFeeArgs walletIdx accounts outputs) >>=
     assign sendFeeResultL . either FeeResultError FeeResultWaiting
 
-addOutput :: Monad m => StateT (SendWidgetState p) (StateT (WidgetInfo (SendWidgetState p) p) m) ()
+addOutput :: Monad m => StateT (WidgetInfo (SendWidgetState p) p) m ()
 addOutput = do
-  idx <- sendNextOutputL <<+= 1
-  sendOutputsL %= Map.insert idx (SendOutput "" "")
+  idx <- zoomWidgetState $ do
+    idx <- sendNextOutputL <<+= 1
+    sendOutputsL %= Map.insert idx (SendOutput "" "")
+    return idx
   updateFocusList
 
-  lift $ do
-    addWidgetChild (WidgetNameSendAddress idx) $
-      initEditWidget $ widgetParentLens $ sendOutputsL . at idx . unsafeFromJust . sendAddressL
-    addWidgetChild (WidgetNameSendAmount idx) $
-      initEditWidget $ widgetParentLens $ sendOutputsL . at idx . unsafeFromJust . sendAmountL
-    addWidgetChild (WidgetNameSendRemove idx) $
-      initButtonWidget "-"
+  addWidgetChild (WidgetNameSendAddress idx) $
+    initEditWidget $ widgetParentLens sendOutputsL . at idx . unsafeFromJust . sendAddressL
+  addWidgetChild (WidgetNameSendAmount idx) $
+    initEditWidget $ widgetParentLens sendOutputsL . at idx . unsafeFromJust . sendAmountL
+  addWidgetChild (WidgetNameSendRemove idx) $
+    initButtonWidget "-"
 
-    addWidgetEventHandler (WidgetNameSendAddress idx) $ \case
-      WidgetEventEditChanged -> updateFee
-      _ -> pass
-    addWidgetEventHandler (WidgetNameSendAmount idx) $ \case
-      WidgetEventEditChanged -> updateFee
-      _ -> pass
-    addWidgetEventHandler (WidgetNameSendRemove idx) $ \case
-      WidgetEventButtonPressed -> removeOutput idx
-      _ -> pass
+  addWidgetEventHandler (WidgetNameSendAddress idx) $ \case
+    WidgetEventEditChanged -> updateFee
+    _ -> pass
+  addWidgetEventHandler (WidgetNameSendAmount idx) $ \case
+    WidgetEventEditChanged -> updateFee
+    _ -> pass
+  addWidgetEventHandler (WidgetNameSendRemove idx) $ \case
+    WidgetEventButtonPressed -> removeOutput idx
+    _ -> pass
 
 removeOutput :: Int -> WidgetEventM (SendWidgetState p) p ()
 removeOutput idx = do
-  remaining <- uses sendOutputsL Map.size
+  remaining <- uses (widgetStateL . sendOutputsL) Map.size
   when (remaining > 1) $ do
-    sendOutputsL %= Map.delete idx
+    widgetStateL . sendOutputsL %= Map.delete idx
     updateFocusList
     updateFee
 
 performSendTransaction :: WidgetEventM (SendWidgetState p) p ()
-performSendTransaction = do
+performSendTransaction = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
   (walletIdx, accounts, outputs) <- collectFormData
   passphrase <- use sendPassL

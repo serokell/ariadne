@@ -167,7 +167,7 @@ handleEditWidgetEditKey = \case
     modifyZipper $ byWord TZ.moveRight TZ.currentChar
     return WidgetEventHandled
   KeyEditUp -> do
-    widgetState@EditWidgetState{..} <- get
+    widgetState@EditWidgetState{..} <- getWidgetState
     (_, (row, _)) <- currentState widgetState
       <$> useWidgetLens editWidgetTextLens
       <*> mapM useWidgetLens editWidgetLocationLens
@@ -177,7 +177,7 @@ handleEditWidgetEditKey = \case
         modifyZipper $ TZ.moveUp
         return WidgetEventHandled
   KeyEditDown -> do
-    widgetState@EditWidgetState{..} <- get
+    widgetState@EditWidgetState{..} <- getWidgetState
     (ls, (row, _)) <- currentState widgetState
       <$> useWidgetLens editWidgetTextLens
       <*> mapM useWidgetLens editWidgetLocationLens
@@ -194,7 +194,7 @@ handleEditWidgetEditKey = \case
     return WidgetEventHandled
 
   KeyEditEnter -> do
-    widgetState@EditWidgetState{..} <- get
+    widgetState@EditWidgetState{..} <- getWidgetState
     case editWidgetEnterMode of
       EnterIgnore ->
         return WidgetEventNotHandled
@@ -226,8 +226,8 @@ handleEditWidgetMouseDown
   :: B.Location
   -> WidgetEventM (EditWidgetState p) p WidgetEventResult
 handleEditWidgetMouseDown (B.Location (col, row)) = do
-    EditWidgetState{..} <- get
-    whenJustM (B.getName <$> lift get >>= liftBrick . B.lookupViewport) $ \vp -> do
+    EditWidgetState{..} <- getWidgetState
+    whenJustM (B.getName <$> get >>= liftBrick . B.lookupViewport) $ \vp -> do
       let width = vp ^. (B.vpSize . _1)
       ls <- T.splitOn "\n" <$> useWidgetLens editWidgetTextLens
       modifyZipper $ safeMoveCursor $ go 0 (row, col - 1) width ls
@@ -259,7 +259,7 @@ modifyZipper
   :: (TextZipper Text -> TextZipper Text)
   -> WidgetEventM (EditWidgetState p) p ()
 modifyZipper f = do
-  widgetState@EditWidgetState{..} <- get
+  widgetState@EditWidgetState{..} <- getWidgetState
   oldText <- useWidgetLens editWidgetTextLens
   oldLocation <- mapM useWidgetLens editWidgetLocationLens
   let
@@ -268,11 +268,13 @@ modifyZipper f = do
     newLocation = TZ.cursorPosition zipper
   assignWidgetLens editWidgetTextLens newText
   whenJust editWidgetLocationLens (`assignWidgetLens` newLocation)
-  editWidgetTextL .= newText
-  editWidgetLocationL .= newLocation
-  editWidgetTextZipperL .= zipper
+  zoomWidgetState $ do
+    editWidgetTextL .= newText
+    editWidgetLocationL .= newLocation
+    editWidgetTextZipperL .= zipper
   when (newText /= oldText) $ widgetEvent WidgetEventEditChanged
-  when (maybe False (newLocation /=) oldLocation) $ widgetEvent WidgetEventEditLocationChanged
+  when (maybe False (newLocation /=) oldLocation) $
+    widgetEvent WidgetEventEditLocationChanged
 
 safeMoveCursor :: (Int, Int) -> TextZipper Text -> TextZipper Text
 safeMoveCursor (row, col) tz = TZ.moveCursor (row', col') tz

@@ -182,7 +182,8 @@ handleConfirmRemoveWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
-performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
+performContinue = zoomWidgetState $
+  whenJustM (use confirmRemoveWidgetDelRequestL) $
     \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
         putMVar requestResultVar True *> closeDialog
   where
@@ -193,10 +194,12 @@ performContinue = whenJustM (use confirmRemoveWidgetDelRequestL) $
         Nothing -> return False
 
 performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
-performCancel = whenJustM (use confirmRemoveWidgetDelRequestL) $
+performCancel = zoomWidgetState $
+  whenJustM (use confirmRemoveWidgetDelRequestL) $
     \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
 
-closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
+closeDialog ::
+    StateT ConfirmRemoveWidgetState (StateT p (B.EventM WidgetName)) ()
 closeDialog = do
     UiFace{..} <- use confirmRemoveWidgetUiFaceL
     liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
@@ -207,11 +210,11 @@ closeDialog = do
 
 updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
 updateFocusList = do
-    removeCheck <- use confirmRemoveWidgetCheckL
-    deleteRequest <- use confirmRemoveWidgetDelRequestL
+    removeCheck <- use (widgetStateL . confirmRemoveWidgetCheckL)
+    deleteRequest <- use (widgetStateL . confirmRemoveWidgetDelRequestL)
     let deleteItem = requestDelItem <$> deleteRequest
     let nameToConfirm = itemNameToConfirm =<< deleteItem
-    lift . setWidgetFocusList $
+    setWidgetFocusList $
         focusList deleteItem (removeCheck && isJust nameToConfirm)
 
 focusList :: Maybe UiDeletingItem -> Bool -> [WidgetNamePart]
@@ -236,6 +239,7 @@ handleConfirmRemoveWidgetEvent
     -> WidgetEventM ConfirmRemoveWidgetState p ()
 handleConfirmRemoveWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
+      zoomWidgetState $ do
         confirmRemoveWidgetDelRequestL .= Just DeleteRequest {..}
         let msgs = makeMessages requestDelItem
         confirmRemoveWidgetDialogL . dialogLabelL .= header msgs
@@ -245,15 +249,15 @@ handleConfirmRemoveWidgetEvent = \case
             UiDelBrokenWallets _ -> confirmRemoveWidgetExpandTitleL .= expandingMessge msgs
             _ -> pass
         -- Adding Checkbox widget here to make the label dependent on deleted item.
-        lift $ case requestDelItem of
-                  (UiDelUnknownKeys _) -> do
-                        addWidgetChild WidgetNameConfirmRemoveKeysExpand
-                            $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
-                            $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
-                  (UiDelBrokenWallets _) -> do
-                        addWidgetChild WidgetNameConfirmRemoveKeysExpand
-                            $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
-                            $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
-                  _ -> pass
-        updateFocusList
+      case requestDelItem of
+        UiDelUnknownKeys _ -> do
+            addWidgetChild WidgetNameConfirmRemoveKeysExpand
+                $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
+                $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
+        UiDelBrokenWallets _ -> do
+            addWidgetChild WidgetNameConfirmRemoveKeysExpand
+                $ initCheckboxWidget Expand (widgetParentLens confirmRemoveWidgetExpandTitleL)
+                $ widgetParentLens confirmRemoveWidgetShowDeletingObjsL
+        _ -> pass
+      updateFocusList
     _ -> pass

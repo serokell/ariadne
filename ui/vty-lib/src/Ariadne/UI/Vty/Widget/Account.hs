@@ -125,7 +125,7 @@ initAccountWidget langFace =
       WidgetEventListSelected idx -> performCopyAddress idx
       _ -> pass
 
-    withWidgetState updateFocusList
+    updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -235,57 +235,63 @@ handleAccountWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
       UiSelectionAccount newInfo@UiAccountInfo{..} -> do
-        UiLangFace{..} <- use accountLangFaceL
+        zoomWidgetState $ do
+          UiLangFace{..} <- use accountLangFaceL
 
-        curInfo <- use accountInfoL
-        when (curInfo /= Just newInfo) $ do
-          accountRenameResultL .= RenameResultNone
-          accountRemoveResultL .= RemoveResultNone
-          accountAddressResultL .= AddressResultNone
-        accountInfoL .= Just newInfo
+          curInfo <- use accountInfoL
+          when (curInfo /= Just newInfo) $ do
+            accountRenameResultL .= RenameResultNone
+            accountRemoveResultL .= RemoveResultNone
+            accountAddressResultL .= AddressResultNone
+          accountInfoL .= Just newInfo
 
-        whenJust uaciLabel $ updateEditable accountNameL accountNameEditL
-        accountAddressesL .= map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
-        case uaciBalance of
-          Just balance -> accountBalanceL .= BalanceResultSuccess balance
-          Nothing -> do
-            use accountBalanceL >>= \case
-              BalanceResultWaiting commandId
-                | Just taskId <- cmdTaskId commandId ->
-                    void . liftIO . langPutUISilentCommand $ UiKill taskId
-              _ -> pass
-            liftIO (langPutUISilentCommand UiBalance) >>=
-              assign accountBalanceL . either BalanceResultError BalanceResultWaiting
+          whenJust uaciLabel $ updateEditable accountNameL accountNameEditL
+          accountAddressesL .=
+            map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
+          case uaciBalance of
+            Just balance -> accountBalanceL .= BalanceResultSuccess balance
+            Nothing -> do
+              use accountBalanceL >>= \case
+                BalanceResultWaiting commandId
+                  | Just taskId <- cmdTaskId commandId ->
+                      void . liftIO . langPutUISilentCommand $ UiKill taskId
+                _ -> pass
+              liftIO (langPutUISilentCommand UiBalance) >>=
+                assign accountBalanceL . either BalanceResultError BalanceResultWaiting
         updateFocusList
       _ -> pass
-  UiCommandResult commandId (UiRenameCommandResult result) -> do
-    accountRenameResultL %= \case
-      RenameResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiRenameCommandSuccess -> RenameResultSuccess
-          UiRenameCommandFailure err -> RenameResultError err
-      other -> other
-  UiCommandResult commandId (UiRemoveCommandResult result) -> do
-    accountRemoveResultL %= \case
-      RemoveResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiRemoveCommandSuccess -> RemoveResultSuccess
-          UiRemoveCommandFailure err -> RemoveResultError err
-      other -> other
-  UiCommandResult commandId (UiBalanceCommandResult result) -> do
-    accountBalanceL %= \case
-      BalanceResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
-          UiBalanceCommandFailure err -> BalanceResultError err
-      other -> other
-  UiCommandResult commandId (UiNewAddressCommandResult result) -> do
-    accountAddressResultL %= \case
-      AddressResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiNewAddressCommandSuccess -> AddressNewResultSuccess
-          UiNewAddressCommandFailure err -> AddressResultError err
-      other -> other
+  UiCommandResult commandId (UiRenameCommandResult result) ->
+    zoomWidgetState $ do
+      accountRenameResultL %= \case
+        RenameResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiRenameCommandSuccess -> RenameResultSuccess
+            UiRenameCommandFailure err -> RenameResultError err
+        other -> other
+  UiCommandResult commandId (UiRemoveCommandResult result) ->
+    zoomWidgetState $ do
+      accountRemoveResultL %= \case
+        RemoveResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiRemoveCommandSuccess -> RemoveResultSuccess
+            UiRemoveCommandFailure err -> RemoveResultError err
+        other -> other
+  UiCommandResult commandId (UiBalanceCommandResult result) ->
+    zoomWidgetState $ do
+      accountBalanceL %= \case
+        BalanceResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
+            UiBalanceCommandFailure err -> BalanceResultError err
+        other -> other
+  UiCommandResult commandId (UiNewAddressCommandResult result) ->
+    zoomWidgetState $ do
+      accountAddressResultL %= \case
+        AddressResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiNewAddressCommandSuccess -> AddressNewResultSuccess
+            UiNewAddressCommandFailure err -> AddressResultError err
+        other -> other
   _ ->
     pass
 
@@ -293,10 +299,10 @@ handleAccountWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
-updateFocusList :: Monad m => StateT AccountWidgetState (StateT (WidgetInfo AccountWidgetState p) m) ()
+updateFocusList :: Monad m => StateT (WidgetInfo AccountWidgetState p) m ()
 updateFocusList = do
-  addresses <- use accountAddressesL
-  lift $ setWidgetFocusList $
+  addresses <- use (widgetStateL . accountAddressesL)
+  setWidgetFocusList $
     [ WidgetNameAccountName
     , WidgetNameAccountRenameButton
     , WidgetNameAccountRemoveButton
@@ -306,7 +312,7 @@ updateFocusList = do
     (if null addresses then [] else [WidgetNameAccountAddressList])
 
 performRename :: WidgetEventM AccountWidgetState p ()
-performRename = do
+performRename = zoomWidgetState $ do
   UiLangFace{..} <- use accountLangFaceL
   name <- use accountNameEditL
   use accountRenameResultL >>= \case
@@ -315,7 +321,7 @@ performRename = do
       assign accountRenameResultL . either RenameResultError RenameResultWaiting
 
 performRemove :: WidgetEventM AccountWidgetState p ()
-performRemove = do
+performRemove = zoomWidgetState $ do
   UiLangFace{..} <- use accountLangFaceL
   use accountRemoveResultL >>= \case
     RemoveResultWaiting _ -> pass
@@ -323,7 +329,7 @@ performRemove = do
       assign accountRemoveResultL . either RemoveResultError RemoveResultWaiting
 
 performNewAddress :: WidgetEventM AccountWidgetState p ()
-performNewAddress = do
+performNewAddress = zoomWidgetState $ do
   UiLangFace{..} <- use accountLangFaceL
   mUiAccountInfo <- use accountInfoL
   let wIdx = uaciWalletIdx <$> mUiAccountInfo
@@ -336,7 +342,7 @@ performNewAddress = do
       assign accountAddressResultL . either AddressResultError AddressResultWaiting
 
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()
-performCopyAddress idx = do
+performCopyAddress idx = zoomWidgetState $ do
   whenJustM ((^? ix idx) <$> use accountAddressesL) $ \AccountAddress{..} -> do
     result <- liftIO . handle (\e -> return $ AddressResultError $ fromString $ displayException (e :: ClipboardException)) $ do
       setClipboard . toString $ accountAddressHash

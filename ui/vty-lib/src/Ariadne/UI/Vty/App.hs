@@ -21,10 +21,10 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
-import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
+import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -151,8 +151,8 @@ getAppFocus AppState{..} =
 resetAppFocus :: WidgetEventM AppWidgetState AppState ()
 resetAppFocus = do
   modal <- useWidgetLens (Lens appModalL)
-  lift . setWidgetFocusList =<< case modal of
-    NoModal -> appFocusList <$> get
+  setWidgetFocusList =<< case modal of
+    NoModal -> appFocusList <$> getWidgetState
     PasswordMode -> return [WidgetNamePassword]
     ConfirmationMode confirmationType -> case confirmationType of
       UiConfirmMnemonic _   -> return [WidgetNameConfirmMnemonic]
@@ -326,6 +326,9 @@ handleAppEvent brickEvent = do
     _ ->
       return AppInProgress
   where
+    runHandler
+      :: StateT (Widget AppState) (StateT AppState (B.EventM WidgetName)) a
+      -> StateT AppState (B.EventM WidgetName) a
     runHandler handler = do
       widget <- use appWidgetL
       (res, widget') <- runStateT handler widget
@@ -337,15 +340,15 @@ handleAppWidgetKey
   -> WidgetEventM AppWidgetState AppState WidgetEventResult
 handleAppWidgetKey key = do
     navMode <- useWidgetLens $ Lens appNavModeL
-    selection <- use appSelectionL
+    selection <- use (widgetStateL . appSelectionL)
     case key of
       KeyChar (toLower -> c)
         | navMode -> do
             whenJust (charToScreen c) $ \screen -> do
-              appScreenL .= screen
+              widgetStateL . appScreenL .= screen
               resetAppFocus
             whenJust (charToFocus selection c) $ \focus -> do
-              lift . lift . setAppFocus $ [focus]
+              lift . setAppFocus $ [focus]
             assignWidgetLens (Lens appNavModeL) False
             return WidgetEventHandled
       _ ->
@@ -378,16 +381,17 @@ handleAppWidgetEvent
   -> WidgetEventM AppWidgetState AppState ()
 handleAppWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    appSelectionL .= AppSelectionAddWallet
-    whenJust wuSelectionInfo $ \case
-      UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
-      UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
+    zoomWidgetState $ do
+      appSelectionL .= AppSelectionAddWallet
+      whenJust wuSelectionInfo $ \case
+        UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
+        UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
     resetAppFocus
   UiCommandAction UiCommandHelp -> do
-    appScreenL .= AppScreenHelp
+    widgetStateL . appScreenL .= AppScreenHelp
     resetAppFocus
   UiCommandAction UiCommandLogs -> do
-    appScreenL .= AppScreenLogs
+    widgetStateL . appScreenL .= AppScreenLogs
     resetAppFocus
   UiPasswordEvent passEvent -> do
     assignWidgetLens (Lens appModalL) $ case passEvent of
