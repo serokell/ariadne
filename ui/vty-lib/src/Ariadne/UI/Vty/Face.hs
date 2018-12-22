@@ -56,8 +56,10 @@ module Ariadne.UI.Vty.Face
 
 import qualified Control.Concurrent.Event as CE
 import Data.Loc (Loc, Span)
+import qualified Data.Text.Buildable as Buildable
 import Data.Tree (Tree)
 import Data.Version (Version)
+import Formatting (bprint, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.UX.PasswordManager (WalletId)
@@ -135,6 +137,12 @@ data UiCommandId = UiCommandId
   , cmdTaskId :: Maybe Natural
   }
 
+instance Buildable UiCommandId where
+    build UiCommandId {..} =
+        case cmdTaskIdRendered of
+            Just rendered -> Buildable.build rendered
+            Nothing -> bprint ("EqObject:"%int) cmdIdEqObject
+
 instance Eq UiCommandId where
   a == b = cmdIdEqObject a == cmdIdEqObject b
 
@@ -144,6 +152,7 @@ data UiCommandEvent
   | UiCommandFailure Doc
   | UiCommandOutput Doc
   | UiCommandWidget Doc
+  deriving (Show)
 
 -- UI event triggered by REPL command
 data UiCommandAction

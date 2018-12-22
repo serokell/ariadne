@@ -25,7 +25,7 @@ import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.Logging (LoggingConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
-import Ariadne.Logging (logDebug, loggingComponent)
+import Ariadne.Logging (Logging, logDebug, loggingComponent)
 import Ariadne.TaskManager.Backend
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
@@ -53,6 +53,7 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
     -- executables, not when we build the library.
     , msCreateUI :: !(
         WalletUIFace ->
+        Logging ->
         CommandHistory ->
         PutPassword ->
         ComponentM (uiFace, uiLangFace -> IO ())
@@ -111,7 +112,7 @@ initializeEverything MainSettings {..}
       }
   PasswordManager {..} <- createPasswordManager
 
-  (uiFace, mkUiAction) <- msCreateUI walletUIFace history putPassword
+  (uiFace, mkUiAction) <- msCreateUI walletUIFace logging history putPassword
   CardanoBackend
     { cbFace = cardanoFace
     , cbMkAction = mkCardanoAction

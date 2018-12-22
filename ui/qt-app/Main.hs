@@ -6,6 +6,7 @@ import Control.Monad.Component (ComponentM)
 import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)
+import Ariadne.Logging (Logging)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Qt
 import Ariadne.UI.Qt.Face (UiLangFace, UiWalletFace(..))
@@ -35,10 +36,11 @@ main = defaultMain mainSettings
 
     createUI
         :: WalletUIFace
+        -> Logging
         -> CommandHistory
         -> PutPassword
         -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI WalletUIFace{..} history putPass =
+    createUI WalletUIFace{..} _logging history putPass =
         let
           historyFace = historyToUI history
           uiWalletFace = UiWalletFace
