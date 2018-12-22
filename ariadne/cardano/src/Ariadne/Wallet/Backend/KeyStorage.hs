@@ -415,9 +415,11 @@ renameSelection
   :: PassiveWalletLayer IO
   -> WalletFace
   -> IORef (Maybe WalletSelection)
+  -> Logging
   -> Text
   -> IO ()
-renameSelection pwl WalletFace{..} walletSelRef name = do
+renameSelection pwl WalletFace{..} walletSelRef logging name = do
+  logInfo logging $ "Renaming selection to '" <> name <> "'…"
   mWalletSel <- readIORef walletSelRef
   case mWalletSel of
     Nothing -> pass
