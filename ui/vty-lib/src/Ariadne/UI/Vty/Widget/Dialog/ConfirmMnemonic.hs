@@ -17,8 +17,7 @@ import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmMnemonicWidgetState = ConfirmMnemonicWidgetState
-    { confirmMnemonicWidgetUiFace            :: !UiFace
-    , confirmMnemonicWidgetContent           :: !Text
+    { confirmMnemonicWidgetContent           :: !Text
     , confirmMnemonicWidgetAppMovedMessage   :: !Text
     , confirmMnemonicWidgetOnDeviceMessage   :: !Text
     , confirmMnemonicWidgetNoLooksMessage    :: !Text
@@ -38,14 +37,13 @@ data ConfirmationState
 
 makeLensesWith postfixLFields ''ConfirmMnemonicWidgetState
 
-initConfirmMnemonicWidget :: UiFace -> Widget p
-initConfirmMnemonicWidget uiFace = initWidget $ do
+initConfirmMnemonicWidget :: Widget p
+initConfirmMnemonicWidget = initWidget $ do
     setWidgetDrawWithFocus drawConfirmMnemonicWidget
     setWidgetHandleKey handleConfirmMnemonicWidgetKey
     setWidgetHandleEvent handleConfirmMnemonicWidgetEvent
     setWidgetState ConfirmMnemonicWidgetState
-        { confirmMnemonicWidgetUiFace            = uiFace
-        , confirmMnemonicWidgetContent           = ""
+        { confirmMnemonicWidgetContent           = ""
         , confirmMnemonicWidgetAppMovedMessage   = mnemonicAppMovedMessage
         , confirmMnemonicWidgetOnDeviceMessage   = mnemonicOnDeviceMessage
         , confirmMnemonicWidgetNoLooksMessage    = mnemonicNoLooksMessage
@@ -159,9 +157,8 @@ performCancel =
 
 closeDialog :: WidgetEventM ConfirmMnemonicWidgetState p ()
 closeDialog = do
+    widgetEvent WidgetEventModalExited
     zoomWidgetState $ do
-        UiFace{..} <- use confirmMnemonicWidgetUiFaceL
-        liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
         confirmMnemonicWidgetContentL .= ""
         confirmMnemonicWidgetValueL .= []
         confirmMnemonicWidgetConfirmationStateL .= Before

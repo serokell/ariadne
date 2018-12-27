@@ -22,8 +22,7 @@ import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmSendWidgetState = ConfirmSendWidgetState
-    { confirmSendWidgetUiFace        :: !UiFace
-    , confirmSendWidgetOutputList    :: ![UiConfirmSendInfo]
+    { confirmSendWidgetOutputList    :: ![UiConfirmSendInfo]
     , confirmSendWidgetResultVar     :: !(Maybe (MVar Bool))
     , confirmSendWidgetCheck         :: !Bool
     , confirmSendWidgetDialog        :: !DialogState
@@ -32,15 +31,14 @@ data ConfirmSendWidgetState = ConfirmSendWidgetState
 
 makeLensesWith postfixLFields ''ConfirmSendWidgetState
 
-initConfirmSendWidget :: UiFace -> Widget p
-initConfirmSendWidget uiFace = initWidget $ do
+initConfirmSendWidget :: Widget p
+initConfirmSendWidget = initWidget $ do
     setWidgetDrawWithFocus drawConfirmSendWidget
     setWidgetHandleKey handleConfirmSendWidgetKey
     setWidgetHandleEvent handleConfirmSendWidgetEvent
     setWidgetScrollable
     setWidgetState ConfirmSendWidgetState
-        { confirmSendWidgetUiFace        = uiFace
-        , confirmSendWidgetOutputList    = []
+        { confirmSendWidgetOutputList    = []
         , confirmSendWidgetResultVar     = Nothing
         , confirmSendWidgetCheck         = False
         , confirmSendWidgetDialog        = newDialogState sendHeaderMessage
@@ -111,23 +109,23 @@ handleConfirmSendWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmSendWidgetState p ()
-performContinue = zoomWidgetState $
-  whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
-    whenM (use confirmSendWidgetCheckL) $ putMVar resultVar True *> closeDialog
+performContinue =
+  whenJustM (use (widgetStateL . confirmSendWidgetResultVarL)) $ \resultVar ->
+    whenM (use (widgetStateL . confirmSendWidgetCheckL)) $
+      putMVar resultVar True *> closeDialog
 
 performCancel :: WidgetEventM ConfirmSendWidgetState p ()
-performCancel = zoomWidgetState $
-  whenJustM (use confirmSendWidgetResultVarL) $ \resultVar ->
+performCancel =
+  whenJustM (use (widgetStateL . confirmSendWidgetResultVarL)) $ \resultVar ->
     putMVar resultVar False *> closeDialog
 
-closeDialog ::
-    StateT ConfirmSendWidgetState (StateT p (B.EventM WidgetName)) ()
+closeDialog :: WidgetEventM ConfirmSendWidgetState p ()
 closeDialog = do
-    UiFace{..} <- use confirmSendWidgetUiFaceL
-    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmSendWidgetResultVarL .= Nothing
-    confirmSendWidgetOutputListL .= []
-    confirmSendWidgetCheckL .= False
+    widgetEvent WidgetEventModalExited
+    zoomWidgetState $ do
+        confirmSendWidgetResultVarL .= Nothing
+        confirmSendWidgetOutputListL .= []
+        confirmSendWidgetCheckL .= False
 
 handleConfirmSendWidgetEvent
     :: UiEvent

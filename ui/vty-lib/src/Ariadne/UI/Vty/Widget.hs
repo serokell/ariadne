@@ -173,6 +173,7 @@ data WidgetEvent
   | WidgetEventEditLocationChanged
   | WidgetEventListSelected Int
   | WidgetEventCheckboxToggled
+  | WidgetEventModalExited
 
 -- | Result of handling a UI event
 --

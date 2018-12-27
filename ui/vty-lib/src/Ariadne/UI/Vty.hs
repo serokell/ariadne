@@ -29,7 +29,7 @@ createAriadneUI features logging historyFace putPass = buildComponent_ "UI-Vty" 
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan logging
 
-  return (uiFace, runUI eventChan features logging putPass uiFace historyFace)
+  return (uiFace, runUI eventChan features logging putPass historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
@@ -39,11 +39,10 @@ runUI
   -> UiFeatures
   -> Logging
   -> PutPassword
-  -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI eventChan features logging putPass uiFace historyFace langFace = do
+runUI eventChan features logging putPass historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -74,7 +73,7 @@ runUI eventChan features logging putPass uiFace historyFace langFace = do
     app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initApp features logging putPass uiFace langFace historyFace)
+    (initApp features logging putPass langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name

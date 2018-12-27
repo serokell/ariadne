@@ -185,12 +185,10 @@ data UiNewVersionEvent = UiNewVersion
 -- | Ui event triggered by the password manager
 data UiPasswordEvent
   = UiPasswordRequest WalletId CE.Event
-  | UiPasswordSent
 
 -- | Ui event to handle confirmations
 data UiConfirmEvent
   = UiConfirmRequest (MVar Bool) UiConfirmationType
-  | UiConfirmDone
 
 data UiConfirmationType
   = UiConfirmMnemonic [Text]          -- ^ mnemonic
