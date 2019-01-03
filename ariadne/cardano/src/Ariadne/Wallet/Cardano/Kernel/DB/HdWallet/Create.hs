@@ -6,28 +6,36 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
          CreateHdRootError(..)
        , CreateHdAccountError(..)
        , CreateHdAddressError(..)
-        -- * Functions
+         -- * Functions
+       , createAddrPrefiltered
        , createHdRoot
        , createHdAccount
        , createHdAddress
+       , createPrefiltered
+         -- * Utilities
+       , doNothing
+       , mkSingleton
          -- * Initial values
        , initHdRoot
        , initHdAccount
-       , initHdAddress
        ) where
 
-import Control.Lens (at, (.=))
+import Control.Lens (at, non, to, (.=))
+import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
 import qualified Data.Text.Buildable
-import Formatting (bprint, build, (%))
+import Formatting (bprint, build, sformat, (%))
 
 import qualified Pos.Core as Core
+import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 import Ariadne.Wallet.Cardano.Kernel.DB.Spec
+import qualified Ariadne.Wallet.Cardano.Kernel.DB.Spec.Util as Spec (balance)
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
+import Ariadne.Wallet.Cardano.Kernel.PrefilterTx (AddrWithId, PrefilteredUtxo)
 
 {-------------------------------------------------------------------------------
   Errors
@@ -94,8 +102,11 @@ createHdRoot hdRoot =
     rootId = hdRoot ^. hdRootId
 
 -- | Create a new account
-createHdAccount :: HdAccount -> Update' HdWallets CreateHdAccountError ()
-createHdAccount hdAccount = do
+createHdAccount :: HdAccountId
+                -> PrefilteredUtxo
+                -> AccountName
+                -> Update' HdWallets CreateHdAccountError HdAccount
+createHdAccount accountId prefilteredUtxo accountName = do
     -- Check that the root ID exists
     zoomHdRootId CreateHdAccountUnknownRoot rootId $
       pass
@@ -103,24 +114,144 @@ createHdAccount hdAccount = do
     zoom hdWalletsAccounts $ do
       exists <- gets $ IxSet.member accountId
       when exists $ throwError $ CreateHdAccountExists accountId
-      at accountId .= Just hdAccount
+
+    createAccPrefiltered
+      identity
+      doNothing
+      mkSingleton
+      doNothing
+      accountId
+      prefilteredUtxo
+      (Just accountName)
+
   where
-    accountId = hdAccount ^. hdAccountId
-    rootId    = accountId ^. hdAccountIdParent
+    rootId = accountId ^. hdAccountIdParent
 
 -- | Create a new address
-createHdAddress :: HdAddress -> Update' HdWallets CreateHdAddressError ()
-createHdAddress hdAddress = do
-    -- Check that the account ID exists
-    zoomHdAccountId CreateHdAddressUnknown (addrId ^. hdAddressIdParent) $
-      pass
-    -- Create the new address
+createHdAddress :: HdAddressId
+                -> Core.Address
+                -> Update' HdWallets CreateHdAddressError HdAddress
+createHdAddress addressId address = do
+    zoomHdAccountId CreateHdAddressUnknown (addressId ^. hdAddressIdParent) $
+        pass
+
+    -- check newAddress exists
     zoom hdWalletsAddresses $ do
-      exists <- gets $ IxSet.member addrId
-      when exists $ throwError $ CreateHdAddressExists addrId
-      at addrId .= Just hdAddress
-  where
-    addrId = hdAddress ^. hdAddressId
+        exists <- gets $ IxSet.member addressId
+        when exists $ throwError $ CreateHdAddressExists addressId
+
+    createAddrPrefiltered addressId address Nothing pass
+
+-- | For each of the specified accounts, create them if they do not exist,
+-- and apply the specified function.
+createPrefiltered :: forall p e.
+                     (p -> PrefilteredUtxo)
+                      -- ^ Initial UTxO for each of the addresses in the
+                      -- newly created account, as well as the addresses
+                      -- themselves
+                  -> (p -> Update' HdAccount e ())
+                      -- ^ Function to apply to the account
+                  -> (AddrWithId -> p -> p)
+                      -- ^ Function that prefilters p further, leaving only
+                      -- stuff that is relevant to the provided address.
+                  -> (p -> Update' HdAddress e ())
+                      -- ^ Function to apply to the address
+                  -> Map HdAccountId p
+                  -> Map HdAccountId AccountName
+                  -> Update' HdWallets e ()
+createPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP pByAccount accountNames =
+    forM_ (toPairs pByAccount) $ \(accId, p) ->
+        createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p
+            (accountNames ^. at accId)
+
+-- | See @createPrefiltered@ for comments on parameters.
+createAccPrefiltered :: forall p e.
+                        (p -> PrefilteredUtxo)
+                     -> (p -> Update' HdAccount e ())
+                     -> (AddrWithId -> p -> p)
+                     -> (p -> Update' HdAddress e ())
+                     -> HdAccountId
+                     -> p
+                     -> Maybe AccountName
+                     -> Update' HdWallets e HdAccount
+createAccPrefiltered mkPrefilteredUtxo accApplyP narrowP addrApplyP accId p mbAccountName = do
+    let prefilteredUtxo :: PrefilteredUtxo
+        prefilteredUtxo = mkPrefilteredUtxo p
+        accUtxo :: Utxo
+        accUtxo = Map.unions $ elems prefilteredUtxo
+
+    -- apply the update to the account
+    let newAccount = initHdAccount accId accountName (firstAccCheckpoint accUtxo)
+    zoomOrCreateHdAccount
+        assumeHdRootExists
+        newAccount
+        accId
+        (accApplyP p)
+
+    -- create addresses (if they don't exist)
+    forM_ (toPairs prefilteredUtxo) $ \(addrWithId@(addressId, address), addrUtxo) ->
+        createAddrPrefiltered
+            addressId
+            address
+            (Just addrUtxo)
+            (addrApplyP $ narrowP addrWithId p)
+    pure newAccount
+    where
+        accountName :: AccountName
+        accountName = fromMaybe defName mbAccountName
+          where
+            defName = AccountName $ sformat ("Discovered account " % build)
+                                            (accId ^. hdAccountIdIx . to getHdAccountIx)
+
+        firstAccCheckpoint :: Utxo -> AccCheckpoint
+        firstAccCheckpoint utxo' = AccCheckpoint {
+              _accCheckpointUtxo        = InDb utxo'
+            , _accCheckpointUtxoBalance = InDb $ Spec.balance utxo'
+            , _accCheckpointPending     = Pending . InDb $ Map.empty
+            -- Since this is the first checkpoint before we have applied
+            -- any blocks, the block metadata is empty
+            , _accCheckpointBlockMeta   = mempty
+            }
+
+createAddrPrefiltered :: forall e a.
+                         HdAddressId
+                      -> Core.Address
+                      -> Maybe Utxo
+                      -> Update' HdAddress e a
+                      -> Update' HdWallets e HdAddress
+createAddrPrefiltered addressId address mAddrUtxo addrUpdate = do
+    _ <- zoomOrCreateHdAddress
+          assumeHdAccountExists -- created in previous steps
+          newAddress
+          addressId
+          addrUpdate
+
+    pure newAddress
+
+    where
+      newAddress :: HdAddress
+      newAddress = initHdAddress addressId (InDb address) firstAddrCheckpoint
+
+      firstAddrCheckpoint :: AddrCheckpoint
+      firstAddrCheckpoint = AddrCheckpoint
+            { _addrCheckpointUtxo =
+                  InDb $ maybeToMonoid mAddrUtxo
+            , _addrCheckpointUtxoBalance =
+                  InDb $ maybe (Core.mkCoin 0) Spec.balance mAddrUtxo
+            }
+
+
+{-------------------------------------------------------------------------------
+  Utilities
+-------------------------------------------------------------------------------}
+
+mkSingleton :: (Ord k, Eq m, Monoid m) => k -> Map k m -> Map k m
+mkSingleton addrWithId prefilteredUtxo =
+    let utxo = prefilteredUtxo ^. at addrWithId . non mempty in
+    one (addrWithId, utxo)
+
+doNothing :: forall p a e. p -> Update' a e ()
+doNothing _ = pass
 
 {-------------------------------------------------------------------------------
   Initial values

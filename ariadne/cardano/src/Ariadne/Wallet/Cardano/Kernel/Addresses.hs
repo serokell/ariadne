@@ -12,7 +12,7 @@ import qualified Text.Show
 
 import Data.Acid (AcidState, query, update)
 
-import Pos.Core (IsBootstrapEraAddr(..), mkCoin)
+import Pos.Core (IsBootstrapEraAddr(..))
 import Pos.Core.NetworkMagic (makeNetworkMagic)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
@@ -23,12 +23,10 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAccountId, HdAddress, HdAddressChain, HdAddressId(..), hdAccountIdIx,
   hdAccountIdParent)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
-  (CreateHdAddressError(..), initHdAddress)
+  (CreateHdAddressError(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
   (deriveBip44KeyPair, mkHdAddressIx)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read (readAddressesByAccountId)
-import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
-import Ariadne.Wallet.Cardano.Kernel.DB.Spec (AddrCheckpoint(..))
 import Ariadne.Wallet.Cardano.Kernel.Internal
   (PassiveWallet, walletKeystore, walletProtocolMagic, wallets)
 import qualified Ariadne.Wallet.Cardano.Kernel.Keystore as Keystore
@@ -168,15 +166,14 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
             (CreateAddressHdSeqGenerationFailed accId)
             mbAddr
 
-        let hdAddress = initHdAddress hdAddressId (InDb newAddress) firstCheckpoint
-        res <- liftIO $ update db (CreateHdAddress hdAddress)
+        res <- liftIO $ update db (CreateHdAddress hdAddressId newAddress)
 
         case res of
             (Left (CreateHdAddressExists _)) ->
                 go (succ collisions)
             (Left (CreateHdAddressUnknown _)) ->
                 throwError $ CreateAddressUnknownHdAccount accId
-            Right () -> pure hdAddress
+            Right hdAddress -> pure hdAddress
 
     db :: AcidState DB
     db = pw ^. wallets
@@ -184,9 +181,3 @@ createHdSeqAddress passphrase esk accId chain pw = runExceptT $ go 0
     -- The maximum number of allowed collisions.
     maxAllowedCollisions :: Word32
     maxAllowedCollisions = 32
-
-    firstCheckpoint :: AddrCheckpoint
-    firstCheckpoint = AddrCheckpoint
-        { _addrCheckpointUtxo        = InDb mempty
-        , _addrCheckpointUtxoBalance = InDb (mkCoin 0)
-        }
