@@ -179,9 +179,14 @@ handleTreeWidgetKey key = if
     | otherwise ->
         return WidgetEventNotHandled
   where
-    defaultPath f = get <&> treeItems <&> (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&> maybe [0] f >>= performSelect
+    defaultPath f =
+      getWidgetState <&>
+      treeItems <&>
+      (find treeItemSelected >=> treeItemPath >=> nonEmpty) <&>
+      maybe [0] f >>=
+      performSelect
 
-    modifiedPath forward = runMaybeT $ do
+    modifiedPath forward = runMaybeT $ zoomWidgetState $ do
       selection <- MaybeT $ use treeSelectionL
       items <- use treeItemsL
 
@@ -196,7 +201,7 @@ handleTreeWidgetMouseDown
   :: B.Location
   -> WidgetEventM TreeWidgetState p WidgetEventResult
 handleTreeWidgetMouseDown (B.Location (_, row)) = do
-  items <- use treeItemsL
+  items <- use (widgetStateL . treeItemsL)
   whenJust (items ^? ix (row - 1) >>= treeItemPath) performSelect  -- Account for 1-char padding
   return WidgetEventHandled
 
@@ -205,12 +210,14 @@ handleTreeWidgetEvent
   -> WidgetEventM TreeWidgetState p ()
 handleTreeWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    items <- uses treeInitializedL $ walletsToItems wuTrees wuSelection
-    unlessM (use treeInitializedL) $ do
-      treeInitializedL .= True
+    items <- uses (widgetStateL . treeInitializedL) $
+      walletsToItems wuTrees wuSelection
+    unlessM (use (widgetStateL . treeInitializedL)) $ do
+      widgetStateL . treeInitializedL .= True
       whenJust (items ^? ix 0 >>= treeItemPath) performSelect
-    treeItemsL .= items
-    treeSelectionL .= findIndex treeItemSelected items
+    zoomWidgetState $ do
+      treeItemsL .= items
+      treeSelectionL .= findIndex treeItemSelected items
   _ ->
     pass
 
@@ -222,5 +229,5 @@ performSelect
   :: [Word]
   -> WidgetEventM TreeWidgetState p ()
 performSelect path = do
-  UiLangFace{..} <- use treeLangFaceL
+  UiLangFace{..} <- use (widgetStateL . treeLangFaceL)
   void . liftIO . langPutUISilentCommand $ UiSelect path

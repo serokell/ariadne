@@ -8,6 +8,7 @@ library:
     - Earley
     - ansi-wl-pprint
     - async
+    - bytestring
     - componentm
     - concurrent-extra
     - containers

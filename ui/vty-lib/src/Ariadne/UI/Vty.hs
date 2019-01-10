@@ -8,6 +8,7 @@ import Brick.BChan
 import Control.Monad.Component (ComponentM, buildComponent_)
 import qualified Graphics.Vty as V
 
+import Ariadne.Logging (Logging, logDebug)
 import Ariadne.UI.Vty.App
 import Ariadne.UI.Vty.Face
 import Ariadne.UX.PasswordManager
@@ -18,12 +19,17 @@ type UiAction = UiLangFace -> IO ()
 --
 -- * a record of methods for interacting with the UI from other threads
 -- * the IO action to run in the UI thread
-createAriadneUI :: UiFeatures -> UiHistoryFace -> PutPassword -> ComponentM (UiFace, UiAction)
-createAriadneUI features historyFace putPass = buildComponent_ "UI-Vty" $ do
+createAriadneUI
+  :: UiFeatures
+  -> Logging
+  -> UiHistoryFace
+  -> PutPassword
+  -> ComponentM (UiFace, UiAction)
+createAriadneUI features logging historyFace putPass = buildComponent_ "UI-Vty" $ do
   eventChan <- mkEventChan
-  let uiFace = mkUiFace eventChan
+  let uiFace = mkUiFace eventChan logging
 
-  return (uiFace, runUI eventChan features putPass uiFace historyFace)
+  return (uiFace, runUI eventChan features logging putPass uiFace historyFace)
 
 -- Run the Ariadne UI. This action should be run in its own thread to provide a
 -- responsive interface, and the application should exit when this action
@@ -31,12 +37,13 @@ createAriadneUI features historyFace putPass = buildComponent_ "UI-Vty" $ do
 runUI
   :: BChan UiEvent
   -> UiFeatures
+  -> Logging
   -> PutPassword
   -> UiFace
   -> UiHistoryFace
   -> UiLangFace
   -> IO ()
-runUI eventChan features putPass uiFace historyFace langFace = do
+runUI eventChan features logging putPass uiFace historyFace langFace = do
   vtyConfig <- mkVtyConfig
 
   -- Run the Brick event loop:
@@ -67,7 +74,7 @@ runUI eventChan features putPass uiFace historyFace langFace = do
     app
 
     -- The fourth argument to 'customMain' is the initial application state.
-    (initApp features putPass uiFace langFace historyFace)
+    (initApp features logging putPass uiFace langFace historyFace)
 
 -- Build terminal configuration. This is where we can configure technical
 -- details like mouse support, input/output file descriptors, terminal name
@@ -87,9 +94,22 @@ mkEventChan :: IO (BChan UiEvent)
 mkEventChan = newBChan 100
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: BChan UiEvent -> UiFace
-mkUiFace eventChan =
+mkUiFace :: HasCallStack => BChan UiEvent -> Logging -> UiFace
+mkUiFace eventChan logging =
   UiFace
     {
-      putUiEvent = writeBChan eventChan
+      putUiEvent = \ev -> do
+        whenJust (eventDescription ev) $
+          logDebug logging . mappend "Putting a UI event "
+        writeBChan eventChan ev
     }
+  where
+    -- We don't log all events, because there happen to often and we
+    -- don't want to pollute logs.
+    eventDescription :: UiEvent -> Maybe Text
+    eventDescription =
+        \case
+            UiCommandEvent cid ev ->
+              Just ("UiCommandEvent " <> pretty cid <> " " <> show ev)
+            UiNewVersionEvent {} -> Just "UiNewVersionEvent"
+            _ -> Nothing

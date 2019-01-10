@@ -106,7 +106,7 @@ handleMenuWidgetMouseDown
   :: B.Location
   -> WidgetEventM (MenuWidgetState p a) p WidgetEventResult
 handleMenuWidgetMouseDown (B.Location (col, _)) = do
-    MenuWidgetState{..} <- get
+    MenuWidgetState{..} <- getWidgetState
     whenJust (colToSelection menuWidgetElems col) (assignWidgetLens menuWidgetSelectionLens)
     widgetEvent WidgetEventMenuSelected
     return WidgetEventHandled
@@ -126,7 +126,7 @@ handleMenuWidgetKey
   => KeyboardEvent
   -> WidgetEventM (MenuWidgetState p a) p WidgetEventResult
 handleMenuWidgetKey key = do
-  MenuWidgetState{..} <- get
+  MenuWidgetState{..} <- getWidgetState
   let
     rotate dir = do
       selection <- useWidgetLens menuWidgetSelectionLens

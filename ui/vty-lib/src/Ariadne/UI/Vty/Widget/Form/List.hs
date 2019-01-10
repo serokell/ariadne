@@ -52,17 +52,18 @@ handleListWidgetKey
   -> WidgetEventM (ListWidgetState p a) p WidgetEventResult
 handleListWidgetKey key
   | key `elem` [KeyEnter, KeyChar ' '] = do
-      ListWidgetState{..} <- get
-      items <- map listWidgetItemsGetter . lift . lift $ get
+      ListWidgetState{..} <- getWidgetState
+      items <- map listWidgetItemsGetter . lift $ get
       widgetEvent $ WidgetEventListSelected $ clampToList items listWidgetLocation
       return WidgetEventHandled
-  | KeyUp <- key = do
+  | KeyUp <- key = zoomWidgetState $ do
       listWidgetLocationL %= max 0 . pred . max 0
       return WidgetEventHandled
   | KeyDown <- key = do
-      ListWidgetState{..} <- get
-      items <- map listWidgetItemsGetter . lift . lift $ get
-      listWidgetLocationL %= clampToList items . succ . clampToList items
+      ListWidgetState{..} <- getWidgetState
+      items <- map listWidgetItemsGetter . lift $ get
+      widgetStateL . listWidgetLocationL %=
+        clampToList items . succ . clampToList items
       return WidgetEventHandled
   | otherwise = do
       return WidgetEventNotHandled
@@ -71,7 +72,7 @@ handleListWidgetMouseDown
   :: B.Location
   -> WidgetEventM (ListWidgetState p a) p WidgetEventResult
 handleListWidgetMouseDown (B.Location (_, row)) = do
-  listWidgetLocationL .= row
+  widgetStateL . listWidgetLocationL .= row
   widgetEvent $ WidgetEventListSelected row
   return WidgetEventHandled
 

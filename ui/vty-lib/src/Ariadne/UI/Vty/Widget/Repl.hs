@@ -41,8 +41,7 @@ data ReplParseResult
 
 data ReplWidgetState p =
   ReplWidgetState
-    { replWidgetUiFace :: !UiFace
-    , replWidgetLangFace :: !UiLangFace
+    { replWidgetLangFace :: !UiLangFace
     , replWidgetHistoryFace :: !UiHistoryFace
     , replWidgetCommand :: !Text
     , replWidgetCommandLocation :: !(Int, Int)
@@ -54,16 +53,15 @@ data ReplWidgetState p =
 
 makeLensesWith postfixLFields ''ReplWidgetState
 
-initReplWidget :: UiFace -> UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
-initReplWidget uiFace langFace historyFace fullsizeGetter =
+initReplWidget :: UiLangFace -> UiHistoryFace -> (p -> Bool) -> Widget p
+initReplWidget langFace historyFace fullsizeGetter =
   initWidget $ do
     setWidgetDrawWithFocus drawReplWidget
     setWidgetScrollable
     setWidgetHandleKey handleReplWidgetKey
     setWidgetHandleEvent handleReplWidgetEvent
     setWidgetState ReplWidgetState
-      { replWidgetUiFace = uiFace
-      , replWidgetLangFace = langFace
+      { replWidgetLangFace = langFace
       , replWidgetHistoryFace = historyFace
       , replWidgetCommand = ""
       , replWidgetCommandLocation = (0, 0)
@@ -87,7 +85,7 @@ initReplWidget uiFace langFace historyFace fullsizeGetter =
         reparse
         historyUpdate
       WidgetEventEditLocationChanged -> do
-        replWidgetCurrentAutocompletionL .= Nothing
+        widgetStateL . replWidgetCurrentAutocompletionL .= Nothing
       _ -> pass
 
     setWidgetFocusList [WidgetNameReplInput]
@@ -193,7 +191,7 @@ handleReplWidgetKey
   -> WidgetEventM (ReplWidgetState p) p WidgetEventResult
 handleReplWidgetKey = \case
     KeyQuit -> do
-      ReplWidgetState{..} <- get
+      ReplWidgetState{..} <- getWidgetState
       if null replWidgetCommand
         then return WidgetEventNotHandled
         else do
@@ -201,39 +199,39 @@ handleReplWidgetKey = \case
           return WidgetEventHandled
     KeyAutocomplete -> handleAutocompleteKey Z.tail
     KeyEnter -> do
-      ReplWidgetState{..} <- get
+      ReplWidgetState{..} <- getWidgetState
       if
         | null replWidgetCommand ->
-            pass
+            return WidgetEventHandled
         | isQuitCommand replWidgetCommand ->
-            liftIO $ putUiEvent replWidgetUiFace $ UiCommandAction UiCommandQuit
+            return WidgetEventHalt
         | otherwise -> do
             liftIO $ historyAddCommand replWidgetHistoryFace replWidgetCommand
             case replWidgetParseResult of
               ReplParseFailure{..} -> do
                 let out = OutputInfo $ \(Arg defAttr) (Arg w) -> pprDoc defAttr w rpfParseErrDoc
-                zoom replWidgetOutL $ modify (out:)
+                zoom (widgetStateL . replWidgetOutL) $ modify (out:)
               ReplParseSuccess{..} -> do
                 commandId <- liftIO rpfPutCommand
                 let
                   commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w rpfExprDoc
                   out = OutputCommand commandId commandSrc [] Nothing
-                zoom replWidgetOutL $ modify (out:)
+                zoom (widgetStateL . replWidgetOutL) $ modify (out:)
                 clearCommand
-            widgetName <- B.getName <$> lift get
+            widgetName <- B.getName <$> get
             liftBrick $ do
               B.invalidateCacheEntry widgetName
               scrollToEnd widgetName
-      return WidgetEventHandled
+            return WidgetEventHandled
     KeyUp -> historyNavigate historyPrevCommand
     KeyDown -> historyNavigate historyNextCommand
     _ ->
       return WidgetEventNotHandled
   where
     historyNavigate action = do
-      ReplWidgetState{..} <- get
+      ReplWidgetState{..} <- getWidgetState
       cmd <- liftIO $ action replWidgetHistoryFace
-      whenJust cmd $ \cmd' -> do
+      whenJust cmd $ \cmd' -> zoomWidgetState $ do
         let newLoc = defaultCommandLocation cmd'
         assign replWidgetCommandL cmd'
         assign replWidgetCommandLocationL newLoc
@@ -244,9 +242,9 @@ handleAutocompleteKey
   :: (forall a. (Z.Zipper a -> Z.Zipper a))
   -> WidgetEventM (ReplWidgetState p) p WidgetEventResult
 handleAutocompleteKey move = do
-  ReplWidgetState{..} <- get
+  ReplWidgetState{..} <- getWidgetState
   options <- case replWidgetCurrentAutocompletion of
-    Nothing -> do
+    Nothing -> zoomWidgetState $ do
       let
         (locRow, locColumn) = replWidgetCommandLocation
         convert :: Loc.ToNat a => a -> Int
@@ -265,10 +263,10 @@ handleAutocompleteKey move = do
     Just options -> pure options
   let newOptions = move options
   let suggestedOption = Z.head newOptions
-  replWidgetCommandL .= snd suggestedOption
-  replWidgetCommandLocationL .= fst suggestedOption
+  widgetStateL . replWidgetCommandL .= snd suggestedOption
+  widgetStateL . replWidgetCommandLocationL .= fst suggestedOption
   reparse
-  replWidgetCurrentAutocompletionL .= Just newOptions
+  widgetStateL . replWidgetCurrentAutocompletionL .= Just newOptions
   return WidgetEventHandled
 
 defaultCommandLocation :: Text -> (Int, Int)
@@ -284,16 +282,16 @@ handleReplWidgetEvent
   -> WidgetEventM (ReplWidgetState p) p ()
 handleReplWidgetEvent = \case
     UiCommandEvent commandId commandEvent -> case commandEvent of
-        UiCommandWidget doc -> do
+        UiCommandWidget doc -> zoomWidgetState $ do
             ReplWidgetState{..} <- get
             liftIO $ historyAddCommand replWidgetHistoryFace $ show doc
             let commandSrc (Arg defAttr) (Arg w) = pprDoc defAttr w doc
                 out = OutputCommand commandId commandSrc [] Nothing
             zoom replWidgetOutL $ modify (out:)
         _ -> do
-            zoom (replWidgetOutL . traversed) $
+            zoom (widgetStateL . replWidgetOutL . traversed) $
               modify (updateCommandResult commandId commandEvent)
-            widgetName <- B.getName <$> lift get
+            widgetName <- B.getName <$> get
             liftBrick $ do
               B.invalidateCacheEntry widgetName
               scrollToEnd widgetName
@@ -301,18 +299,19 @@ handleReplWidgetEvent = \case
 
 clearCommand :: WidgetEventM (ReplWidgetState p) p ()
 clearCommand = do
-  replWidgetCommandL .= ""
-  replWidgetCommandLocationL .= (0, 0)
+  zoomWidgetState $ do
+    replWidgetCommandL .= ""
+    replWidgetCommandLocationL .= (0, 0)
   reparse
 
 reparse :: WidgetEventM (ReplWidgetState p) p ()
-reparse = do
+reparse = zoomWidgetState $ do
   replWidgetCurrentAutocompletionL .= Nothing
   ReplWidgetState{..} <- get
   replWidgetParseResultL .= mkReplParseResult replWidgetLangFace replWidgetCommand
 
 historyUpdate :: WidgetEventM (ReplWidgetState p) p ()
-historyUpdate = do
+historyUpdate = zoomWidgetState $ do
   ReplWidgetState{..} <- get
   liftIO $ historySetPrefix replWidgetHistoryFace replWidgetCommand
 

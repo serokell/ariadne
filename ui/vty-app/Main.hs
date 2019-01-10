@@ -6,6 +6,7 @@ import Control.Monad.Component (ComponentM)
 import NType (N(..))
 
 import Ariadne.Config.TH (getCommitHash)
+import Ariadne.Logging (Logging)
 import Ariadne.MainTemplate (MainSettings(..), defaultMain)
 import Ariadne.UI.Vty
 import Ariadne.UI.Vty.Face
@@ -36,10 +37,11 @@ main = defaultMain mainSettings
 
     createUI
         :: walletUIFace
+        -> Logging
         -> CommandHistory
         -> PutPassword
         -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI _walletUIFace history putPass =
+    createUI _walletUIFace logging history putPass =
         let historyFace = historyToUI history
             features = UiFeatures
                 { featureStatus = True
@@ -48,4 +50,4 @@ main = defaultMain mainSettings
                 , featureTxHistory = False
                 , featureSecretKeyName = "Mnemonic"
                 }
-        in createAriadneUI features historyFace putPass
+        in createAriadneUI features logging historyFace putPass

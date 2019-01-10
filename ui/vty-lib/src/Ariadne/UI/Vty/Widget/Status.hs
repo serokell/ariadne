@@ -77,12 +77,14 @@ handleStatusWidgetEvent
   :: UiEvent
   -> WidgetEventM StatusWidgetState p ()
 handleStatusWidgetEvent = \case
-  UiBackendEvent (UiBackendStatusUpdateEvent UiBackendStatusUpdate{..}) -> do
-    statusWidgetSyncProgressL .= syncProgress
-    statusWidgetBlockchainLocalL .= blockchainLocal
-    statusWidgetBlockchainNetworkL .= blockchainNetwork
-  UiNewVersionEvent UiNewVersion{..} -> do
-    statusWidgetNewVersionL .= Just nvVersion
-    statusWidgetUpdateURLL .= Just nvUpdateURL
+  UiBackendEvent (UiBackendStatusUpdateEvent UiBackendStatusUpdate{..})
+    -> zoomWidgetState $ do
+      statusWidgetSyncProgressL .= syncProgress
+      statusWidgetBlockchainLocalL .= blockchainLocal
+      statusWidgetBlockchainNetworkL .= blockchainNetwork
+  UiNewVersionEvent UiNewVersion{..}
+    -> zoomWidgetState $ do
+      statusWidgetNewVersionL .= Just nvVersion
+      statusWidgetUpdateURLL .= Just nvUpdateURL
   _ ->
     pass

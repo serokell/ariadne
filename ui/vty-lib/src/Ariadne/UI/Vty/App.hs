@@ -12,6 +12,7 @@ import qualified Brick.Widgets.Border as B
 import qualified Data.List.NonEmpty as NE
 import qualified Graphics.Vty as V
 
+import Ariadne.Logging (Logging, logDebug)
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Focus
 import Ariadne.UI.Vty.Keyboard
@@ -21,10 +22,10 @@ import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.About
 import Ariadne.UI.Vty.Widget.Account
 import Ariadne.UI.Vty.Widget.AddWallet
-import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmMnemonic
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmRemove
 import Ariadne.UI.Vty.Widget.Dialog.ConfirmSend
+import Ariadne.UI.Vty.Widget.Dialog.Password
 import Ariadne.UI.Vty.Widget.Help
 import Ariadne.UI.Vty.Widget.Logs
 import Ariadne.UI.Vty.Widget.Menu
@@ -74,12 +75,13 @@ makeLensesWith postfixLFields ''AppState
 
 initApp
     :: UiFeatures
+    -> Logging
     -> PutPassword
     -> UiFace
     -> UiLangFace
     -> UiHistoryFace
     -> AppState
-initApp features putPass uiFace langFace historyFace =
+initApp features logging putPass uiFace langFace historyFace =
   AppState
     { appWidget = appWidget
     , appFocusRing = getFocusRing appWidget
@@ -92,7 +94,7 @@ initApp features putPass uiFace langFace historyFace =
       setWidgetFocusList $ appFocusList appWidgetState
       setWidgetDrawWithFocus drawAppWidget
       setWidgetHandleKey handleAppWidgetKey
-      setWidgetHandleEvent handleAppWidgetEvent
+      setWidgetHandleEvent (handleAppWidgetEvent logging)
 
       addWidgetChild WidgetNameMenu $ initMenuWidget menuItems (widgetParentLens appScreenL)
       when (featureStatus features) $
@@ -101,7 +103,7 @@ initApp features putPass uiFace langFace historyFace =
       addWidgetChild WidgetNameAddWallet $ initAddWalletWidget langFace features
       addWidgetChild WidgetNameWallet $ initWalletWidget langFace features
       addWidgetChild WidgetNameAccount $ initAccountWidget langFace
-      addWidgetChild WidgetNameRepl $ initReplWidget uiFace langFace historyFace
+      addWidgetChild WidgetNameRepl $ initReplWidget langFace historyFace
         (widgetParentGetter $ (== AppScreenWallet) . appScreen)
       addWidgetChild WidgetNameHelp $ initHelpWidget langFace
       addWidgetChild WidgetNameAbout initAboutWidget
@@ -151,8 +153,8 @@ getAppFocus AppState{..} =
 resetAppFocus :: WidgetEventM AppWidgetState AppState ()
 resetAppFocus = do
   modal <- useWidgetLens (Lens appModalL)
-  lift . setWidgetFocusList =<< case modal of
-    NoModal -> appFocusList <$> get
+  setWidgetFocusList =<< case modal of
+    NoModal -> appFocusList <$> getWidgetState
     PasswordMode -> return [WidgetNamePassword]
     ConfirmationMode confirmationType -> case confirmationType of
       UiConfirmMnemonic _   -> return [WidgetNameConfirmMnemonic]
@@ -296,6 +298,8 @@ handleAppEvent brickEvent = do
                   return AppInProgress
               | otherwise ->
                   return AppInProgress
+            WidgetEventHalt -> return AppCompleted
+        WidgetEventHalt -> return AppCompleted
     B.VtyEvent (V.EvPaste raw) -> do
       whenRight (decodeUtf8' raw) $ \pasted -> do
         focus <- gets getAppFocus
@@ -318,14 +322,15 @@ handleAppEvent brickEvent = do
           setAppFocus name
           void $ runHandler $ handleWidgetMouseDown coords name
       return AppInProgress
-    B.AppEvent (UiCommandAction UiCommandQuit) -> do
-      return AppCompleted
     B.AppEvent event -> do
       runHandler $ handleWidgetEvent event
       return AppInProgress
     _ ->
       return AppInProgress
   where
+    runHandler
+      :: StateT (Widget AppState) (StateT AppState (B.EventM WidgetName)) a
+      -> StateT AppState (B.EventM WidgetName) a
     runHandler handler = do
       widget <- use appWidgetL
       (res, widget') <- runStateT handler widget
@@ -337,15 +342,15 @@ handleAppWidgetKey
   -> WidgetEventM AppWidgetState AppState WidgetEventResult
 handleAppWidgetKey key = do
     navMode <- useWidgetLens $ Lens appNavModeL
-    selection <- use appSelectionL
+    selection <- use (widgetStateL . appSelectionL)
     case key of
       KeyChar (toLower -> c)
         | navMode -> do
             whenJust (charToScreen c) $ \screen -> do
-              appScreenL .= screen
+              widgetStateL . appScreenL .= screen
               resetAppFocus
             whenJust (charToFocus selection c) $ \focus -> do
-              lift . lift . setAppFocus $ [focus]
+              lift . setAppFocus $ [focus]
             assignWidgetLens (Lens appNavModeL) False
             return WidgetEventHandled
       _ ->
@@ -374,27 +379,35 @@ handleAppWidgetKey key = do
       AppSelectionAccount -> WidgetNameAccount
 
 handleAppWidgetEvent
-  :: UiEvent
+  :: HasCallStack
+  => Logging
+  -> UiEvent
   -> WidgetEventM AppWidgetState AppState ()
-handleAppWidgetEvent = \case
+handleAppWidgetEvent logging = \case
   UiWalletEvent UiWalletUpdate{..} -> do
-    appSelectionL .= AppSelectionAddWallet
-    whenJust wuSelectionInfo $ \case
-      UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
-      UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
+    -- Do not log, because there are too many of them during block sync
+    zoomWidgetState $ do
+      appSelectionL .= AppSelectionAddWallet
+      whenJust wuSelectionInfo $ \case
+        UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
+        UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
     resetAppFocus
   UiCommandAction UiCommandHelp -> do
-    appScreenL .= AppScreenHelp
+    logDebug logging "App widget received 'Help' event"
+    widgetStateL . appScreenL .= AppScreenHelp
     resetAppFocus
   UiCommandAction UiCommandLogs -> do
-    appScreenL .= AppScreenLogs
+    logDebug logging "Received 'Logs' event"
+    widgetStateL . appScreenL .= AppScreenLogs
     resetAppFocus
   UiPasswordEvent passEvent -> do
+    logDebug logging "App widget received a password event"
     assignWidgetLens (Lens appModalL) $ case passEvent of
       UiPasswordRequest _ _ -> PasswordMode
       UiPasswordSent ->  NoModal
     resetAppFocus
   UiConfirmEvent confirmEvent -> do
+    logDebug logging "App widget received a confirm event"
     assignWidgetLens (Lens appModalL) $ case confirmEvent of
       UiConfirmRequest _ confirmationType -> ConfirmationMode confirmationType
       UiConfirmDone -> NoModal

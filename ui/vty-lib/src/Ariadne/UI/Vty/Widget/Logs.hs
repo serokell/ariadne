@@ -2,7 +2,7 @@ module Ariadne.UI.Vty.Widget.Logs
        ( initLogsWidget
        ) where
 
-import Control.Lens (makeLensesWith, zoom, (+=), (.=))
+import Control.Lens (makeLensesWith, (%=), (+=), (.=))
 
 import qualified Brick as B
 import qualified Graphics.Vty as V
@@ -73,15 +73,15 @@ handleLogsWidgetScroll
   :: ScrollingAction
   -> WidgetEventM LogsWidgetState p WidgetEventResult
 handleLogsWidgetScroll action = do
-  widgetName <- B.getName <$> lift get
-  total <- use logsWidgetLinesTotalL
+  widgetName <- B.getName <$> get
+  total <- use (widgetStateL . logsWidgetLinesTotalL)
   follow <- updateFollow widgetName
 
   when (not follow && action == ScrollingEnd) $ do
     liftBrick $ B.invalidateCacheEntry widgetName
-    logsWidgetLinesRenderedL .= total
+    widgetStateL . logsWidgetLinesRenderedL .= total
   when (follow && action `elem` [ScrollingLineUp, ScrollingPgUp, ScrollingHome]) $ do
-    logsWidgetFollowL .= False
+    widgetStateL . logsWidgetFollowL .= False
     liftBrick $ B.invalidateCacheEntry widgetName
     liftBrick $ scrollToEnd widgetName
   liftBrick $ handleScrollingEvent widgetName action
@@ -92,29 +92,30 @@ handleLogsWidgetEvent
   -> WidgetEventM LogsWidgetState p ()
 handleLogsWidgetEvent = \case
   UiBackendEvent (UiBackendLogEvent message) -> do
-    widgetName <- B.getName <$> lift get
+    widgetName <- B.getName <$> get
     follow <- updateFollow widgetName
 
-    zoom logsWidgetMessagesL $ modify (LogMessage message:)
     let msgHeight = length (lines message)
-    logsWidgetLinesTotalL += msgHeight
+    zoomWidgetState $ do
+      logsWidgetMessagesL %= (LogMessage message:)
+      logsWidgetLinesTotalL += msgHeight
     when follow $ do
       liftBrick $ B.invalidateCacheEntry widgetName
-      logsWidgetLinesRenderedL += msgHeight
+      widgetStateL . logsWidgetLinesRenderedL += msgHeight
   _ ->
     pass
 
 updateFollow :: WidgetName -> WidgetEventM LogsWidgetState p Bool
 updateFollow widgetName = do
-  rendered <- use logsWidgetLinesRenderedL
-  total <- use logsWidgetLinesTotalL
-  follow <- use logsWidgetFollowL
+  rendered <- use (widgetStateL . logsWidgetLinesRenderedL)
+  total <- use (widgetStateL . logsWidgetLinesTotalL)
+  follow <- use (widgetStateL . logsWidgetFollowL)
 
   whenJustM (liftBrick $ B.lookupViewport widgetName) $ \vp -> do
     when (not follow && vp ^. B.vpTop + vp ^. (B.vpSize . _2) >= rendered) $ do
       liftBrick $ B.invalidateCacheEntry widgetName
       when (rendered == total) $ do
         liftBrick $ B.vScrollToBeginning $ B.viewportScroll widgetName
-        logsWidgetFollowL .= True
-      logsWidgetLinesRenderedL .= total
-  use logsWidgetFollowL
+        widgetStateL . logsWidgetFollowL .= True
+      widgetStateL . logsWidgetLinesRenderedL .= total
+  use (widgetStateL . logsWidgetFollowL)

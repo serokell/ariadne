@@ -3,23 +3,29 @@
 
 module Ariadne.Logging
        (
-         -- | Logging handle and the corresponding component.
+         -- * Logging handle and the corresponding component.
          Logging
        , loggingComponent
 
-         -- | Functions to actually log something
+         -- * Functions to actually log something
        , logDebug
        , logInfo
        , logWarning
        , logError
+
+         -- * Temporary logging
+       , temporaryLog
        ) where
 
 import Colog.Actions (logTextHandle)
-import Colog.Core (LogAction(..), Severity(..), cmap, (<&))
-import Colog.Message (Message(..), fmtMessage)
+import Colog.Core (LogAction(..), Severity(..), cmapM, (<&))
+import Colog.Message
+  (FieldMap, Message(..), RichMessage, defaultFieldMap, fmtRichMessageDefault,
+  upgradeMessageAction)
 import Control.Monad.Component (ComponentM, buildComponent)
 import System.FilePath ((</>))
 import System.IO (hClose, hFlush)
+import System.IO.Unsafe (unsafePerformIO)
 
 -- | An opaque type with everything needed to do logging.
 newtype Logging = Logging
@@ -59,15 +65,52 @@ log' logging messageSeverity messageText =
 -- as an argument to this function.
 -- 2. Messages are formatted using 'fmtMessage' function from 'co-log'.
 loggingComponent :: FilePath -> ComponentM Logging
-loggingComponent logFile = fst <$> buildComponent "Logging" mkLogging snd
+loggingComponent logDir =
+    fst <$> buildComponent "Logging" (mkLogging logFile) snd
   where
-    mkLogging :: IO (Logging, IO ())
-    mkLogging = do
-        hdl <- openFile (logFile </> "ariadne.log") AppendMode
-        let logToFile = cmap fmtMessage (logTextHandle hdl) <> logFlush hdl
-        return (Logging logToFile, hClose hdl)
+    logFile = logDir </> "ariadne.log"
+
+-- Private function, returns Logging handle and an action to release it.
+mkLogging :: FilePath -> IO (Logging, IO ())
+mkLogging logFile = do
+    hdl <- openFile logFile AppendMode
+    let logToFile :: LogAction IO (RichMessage IO)
+        logToFile =
+            cmapM fmtRichMessageDefault (logTextHandle hdl) <>
+            logFlush hdl
+    let logToFile' :: LogAction IO Message
+        logToFile' = upgradeMessageAction fieldMap logToFile
+    return (Logging logToFile', hClose hdl)
+  where
+    fieldMap :: FieldMap IO
+    fieldMap = defaultFieldMap
 
 -- A 'LogAction' which does not actually log anything, only
 -- flushes the handle.
 logFlush :: Handle -> LogAction IO a
 logFlush hdl = LogAction $ const (hFlush hdl)
+
+----------------------------------------------------------------------------
+-- Temporary hacky logging
+----------------------------------------------------------------------------
+
+-- | Sometimes one needs to quickly add logging to some place,
+-- e. g. to debug something. Propagating 'Logging' there might be
+-- cumbersome and tedious. Doing it for temporary logging which is not
+-- supposed to be merged to the integration branch does not make much
+-- sense. This function can be used directly to log something from 'IO'.
+-- However, it is not intended for long-term usage and its usage emits
+-- a warning. The reasons are at least the following:
+--
+-- 1. It's not configurable (making it configurable would require adding
+-- more constraints or arguments).
+-- 2. It uses a global variable.
+-- 3. Having more than one way to log something is confusing.
+{-# WARNING temporaryLog "'temporaryLog' remains in code" #-}
+temporaryLog :: MonadIO m => Text -> m ()
+temporaryLog = logDebug globalLogging
+{-# SPECIALIZE temporaryLog :: Text -> IO () #-}
+
+globalLogging :: Logging
+{-# NOINLINE globalLogging #-}
+globalLogging = unsafePerformIO (fst <$> mkLogging "ariadne-tmp.log")

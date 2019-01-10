@@ -7,12 +7,12 @@ import Control.Lens (makeLensesWith, (.=))
 
 import qualified Brick as B
 
-import Ariadne.UIConfig
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Keyboard
 import Ariadne.UI.Vty.Widget
 import Ariadne.UI.Vty.Widget.Dialog.Utils
 import Ariadne.UI.Vty.Widget.Form.Edit hiding (initPasswordWidget)
+import Ariadne.UIConfig
 import Ariadne.Util
 import Ariadne.UX.PasswordManager
 
@@ -74,7 +74,7 @@ handlePasswordWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM PasswordWidgetState p ()
-performContinue = do
+performContinue = zoomWidgetState $ do
     PasswordWidgetState{..} <- get
     whenJust passwordWidgetRecipient $ \(walletId, cEvent) -> do
         liftIO $ passwordWidgetPutPassword walletId passwordWidgetContent $ Just cEvent
@@ -86,6 +86,6 @@ handlePasswordWidgetEvent
     :: UiEvent
     -> WidgetEventM PasswordWidgetState p ()
 handlePasswordWidgetEvent = \case
-    UiPasswordEvent (UiPasswordRequest walletId cEvent) ->
+    UiPasswordEvent (UiPasswordRequest walletId cEvent) -> zoomWidgetState $
         passwordWidgetRecipientL .= Just (walletId, cEvent)
     _ -> pass

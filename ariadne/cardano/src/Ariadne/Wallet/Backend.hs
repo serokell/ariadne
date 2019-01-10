@@ -109,7 +109,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm logging
                 , walletRestore = restoreWallet pwl runCardanoMode getPassTemp
                 , walletRestoreFromFile = restoreFromKeyFile pwl runCardanoMode
-                , walletRename = renameSelection pwl this walletSelRef
+                , walletRename = renameSelection pwl this walletSelRef logging
                 , walletRemove = removeSelection pwl this walletSelRef waitUiConfirm
                 , walletRefreshState =
                     refreshState pwl walletSelRef sendWalletEvent

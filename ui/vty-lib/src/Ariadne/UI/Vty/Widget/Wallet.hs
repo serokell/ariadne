@@ -134,25 +134,25 @@ initWalletWidget langFace UiFeatures{..} =
     addWidgetChild WidgetNameWalletRenameButton $
       initButtonWidget "Rename"
     addWidgetEventHandler WidgetNameWalletRenameButton $ \case
-      WidgetEventButtonPressed -> performRename
+      WidgetEventButtonPressed -> zoomWidgetState performRename
       _ -> pass
 
     addWidgetChild WidgetNameWalletRemoveButton $
       initButtonWidget "Remove"
     addWidgetEventHandler WidgetNameWalletRemoveButton $ \case
-      WidgetEventButtonPressed -> performRemove
+      WidgetEventButtonPressed -> zoomWidgetState performRemove
       _ -> pass
 
     addWidgetChild WidgetNameWalletExportButton $
       initButtonWidget "Export"
     addWidgetEventHandler WidgetNameWalletExportButton $ \case
-      WidgetEventButtonPressed -> performExport
+      WidgetEventButtonPressed -> zoomWidgetState performExport
       _ -> pass
 
     addWidgetChild WidgetNameWalletAccountList $
       initListWidget (widgetParentGetter walletAccountsEdit) drawAccountRow
     addWidgetEventHandler WidgetNameWalletAccountList $ \case
-      WidgetEventListSelected idx -> toggleAccount idx
+      WidgetEventListSelected idx -> zoomWidgetState $ toggleAccount idx
       _ -> pass
 
     addWidgetChild WidgetNameWalletNewAccountName $
@@ -160,7 +160,7 @@ initWalletWidget langFace UiFeatures{..} =
     addWidgetChild WidgetNameWalletNewAccountButton $
       initButtonWidget "Create"
     addWidgetEventHandler WidgetNameWalletNewAccountButton $ \case
-      WidgetEventButtonPressed -> performNewAccount
+      WidgetEventButtonPressed -> zoomWidgetState performNewAccount
       _ -> pass
 
     addWidgetChild WidgetNameWalletSend $
@@ -169,7 +169,7 @@ initWalletWidget langFace UiFeatures{..} =
         (Just $ widgetParentGetter $
           map walletAccountIdx . filter walletAccountSelected . walletAccountsEdit)
 
-    withWidgetState updateFocusList
+    updateFocusList
 
 ----------------------------------------------------------------------------
 -- View
@@ -308,97 +308,104 @@ handleWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
     whenJust wuSelectionInfo $ \case
       UiSelectionWallet newInfo@UiWalletInfo{..} -> do
-        UiLangFace{..} <- use walletLangFaceL
+        zoomWidgetState $ do
+          UiLangFace{..} <- use walletLangFaceL
+          curInfo <- use walletInfoL
+          when (curInfo /= Just newInfo) $ do
+            walletRenameResultL .= RenameResultNone
+            walletRemoveResultL .= RemoveResultNone
+            walletExportResultL .= ExportResultNone
+            walletNewAccountResultL .= NewAccountResultNone
+          walletInfoL .= Just newInfo
 
-        curInfo <- use walletInfoL
-        when (curInfo /= Just newInfo) $ do
-          walletRenameResultL .= RenameResultNone
-          walletRemoveResultL .= RemoveResultNone
-          walletExportResultL .= ExportResultNone
-          walletNewAccountResultL .= NewAccountResultNone
-        walletInfoL .= Just newInfo
-
-        walletIdL .= uwiId
-        whenJust uwiLabel $ updateEditable walletNameL walletNameEditL
-        let converted =
-              map (\(idx, UiAccountInfo{..}) ->
-                  WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
-              (zip [0..] uwiAccounts)
-        updateEditable walletAccountsL walletAccountsEditL converted
-        case uwiBalance of
-          Just balance -> walletBalanceL .= BalanceResultSuccess balance
-          Nothing -> do
-            use walletBalanceL >>= \case
-              BalanceResultWaiting commandId
+          walletIdL .= uwiId
+          whenJust uwiLabel $ updateEditable walletNameL walletNameEditL
+          let converted =
+                map (\(idx, UiAccountInfo{..}) ->
+                    WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
+                (zip [0..] uwiAccounts)
+          updateEditable walletAccountsL walletAccountsEditL converted
+          case uwiBalance of
+            Just balance ->
+              walletBalanceL .= BalanceResultSuccess balance
+            Nothing -> do
+              use walletBalanceL >>= \case
+                BalanceResultWaiting commandId
+                  | Just taskId <- cmdTaskId commandId ->
+                      void . liftIO . langPutUISilentCommand $ UiKill taskId
+                _ -> pass
+              liftIO (langPutUISilentCommand UiBalance) >>=
+                assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+          whenM (use walletTxHistoryEnabledL) $ do
+            use walletTxHistoryL >>= \case
+              TxHistoryResultWaiting commandId
                 | Just taskId <- cmdTaskId commandId ->
                     void . liftIO . langPutUISilentCommand $ UiKill taskId
               _ -> pass
-            liftIO (langPutUISilentCommand UiBalance) >>=
-              assign walletBalanceL . either BalanceResultError BalanceResultWaiting
-        whenM (use walletTxHistoryEnabledL) $ do
-          use walletTxHistoryL >>= \case
-            TxHistoryResultWaiting commandId
-              | Just taskId <- cmdTaskId commandId ->
-                  void . liftIO . langPutUISilentCommand $ UiKill taskId
-            _ -> pass
-          liftIO (langPutUISilentCommand UiTxHistory) >>=
-            assign walletTxHistoryL . either TxHistoryResultError TxHistoryResultWaiting
+            liftIO (langPutUISilentCommand UiTxHistory) >>=
+              assign walletTxHistoryL . either TxHistoryResultError TxHistoryResultWaiting
 
         updateFocusList
       _ -> pass
-  UiCommandResult commandId (UiRenameCommandResult result) -> do
-    walletRenameResultL %= \case
-      RenameResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiRenameCommandSuccess -> RenameResultSuccess
-          UiRenameCommandFailure err -> RenameResultError err
-      other -> other
-  UiCommandResult commandId (UiRemoveCommandResult result) -> do
-    walletRemoveResultL %= \case
-      RemoveResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiRemoveCommandSuccess -> RemoveResultSuccess
-          UiRemoveCommandFailure err -> RemoveResultError err
-      other -> other
+  UiCommandResult commandId (UiRenameCommandResult result) ->
+    zoomWidgetState $ do
+      walletRenameResultL %= \case
+        RenameResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiRenameCommandSuccess -> RenameResultSuccess
+            UiRenameCommandFailure err -> RenameResultError err
+        other -> other
+  UiCommandResult commandId (UiRemoveCommandResult result) ->
+    zoomWidgetState $ do
+      walletRemoveResultL %= \case
+        RemoveResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiRemoveCommandSuccess -> RemoveResultSuccess
+            UiRemoveCommandFailure err -> RemoveResultError err
+        other -> other
 
-  UiCommandResult commandId (UiBalanceCommandResult result) -> do
-    walletBalanceL %= \case
-      BalanceResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
-          UiBalanceCommandFailure err -> BalanceResultError err
-      other -> other
-  UiCommandResult commandId (UiTxHistoryCommandResult result) -> do
-    walletTxHistoryL %= \case
-      TxHistoryResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiTxHistoryCommandSuccess history -> TxHistoryResultSuccess history
-          UiTxHistoryCommandFailure err -> TxHistoryResultError err
-      other -> other
-  UiCommandResult commandId (UiExportCommandResult result) -> do
-    use walletExportResultL >>= \case
-      ExportResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiExportCommandSuccess key -> do
-            dispResult <- liftIO . handle (\(_ :: ClipboardException) -> return $ ExportResultSuccess key) $ do
-              setClipboard . toString $ key
-              return $ ExportResultCopied key
-            walletExportResultL .= dispResult
-          UiExportCommandFailure err -> do
-            walletExportResultL .= ExportResultError err
-      _ ->
-        pass
-  UiCommandResult commandId (UiNewAccountCommandResult result) -> do
-    use walletNewAccountResultL >>= \case
-      NewAccountResultWaiting commandId' | commandId == commandId' ->
-        case result of
-          UiNewAccountCommandSuccess -> do
-            walletNewAccountResultL .= NewAccountResultSuccess
-            walletNewAccountNameL .= ""
-          UiNewAccountCommandFailure err -> do
-            walletNewAccountResultL .= NewAccountResultError err
-      _ ->
-        pass
+  UiCommandResult commandId (UiBalanceCommandResult result) ->
+    zoomWidgetState $ do
+      walletBalanceL %= \case
+        BalanceResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
+            UiBalanceCommandFailure err -> BalanceResultError err
+        other -> other
+  UiCommandResult commandId (UiTxHistoryCommandResult result) ->
+    zoomWidgetState $ do
+      walletTxHistoryL %= \case
+        TxHistoryResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiTxHistoryCommandSuccess history -> TxHistoryResultSuccess history
+            UiTxHistoryCommandFailure err -> TxHistoryResultError err
+        other -> other
+  UiCommandResult commandId (UiExportCommandResult result) ->
+    zoomWidgetState $ do
+      use walletExportResultL >>= \case
+        ExportResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiExportCommandSuccess key -> do
+              dispResult <- liftIO . handle (\(_ :: ClipboardException) -> return $ ExportResultSuccess key) $ do
+                setClipboard . toString $ key
+                return $ ExportResultCopied key
+              walletExportResultL .= dispResult
+            UiExportCommandFailure err -> do
+              walletExportResultL .= ExportResultError err
+        _ ->
+          pass
+  UiCommandResult commandId (UiNewAccountCommandResult result) ->
+    zoomWidgetState $ do
+      use walletNewAccountResultL >>= \case
+        NewAccountResultWaiting commandId' | commandId == commandId' ->
+          case result of
+            UiNewAccountCommandSuccess -> do
+              walletNewAccountResultL .= NewAccountResultSuccess
+              walletNewAccountNameL .= ""
+            UiNewAccountCommandFailure err -> do
+              walletNewAccountResultL .= NewAccountResultError err
+        _ ->
+          pass
   _ ->
     pass
 
@@ -406,12 +413,12 @@ handleWalletWidgetEvent = \case
 -- Actions
 ----------------------------------------------------------------------------
 
-updateFocusList :: Monad m => StateT WalletWidgetState (StateT (WidgetInfo WalletWidgetState p) m) ()
+updateFocusList :: Monad m => StateT (WidgetInfo WalletWidgetState p) m ()
 updateFocusList = do
-  accounts <- use walletAccountsEditL
-  accountsEnabled <- use walletAccountsEnabledL
-  exportEnabled <- use walletExportEnabledL
-  lift $ setWidgetFocusList $
+  accounts <- use (widgetStateL . walletAccountsEditL)
+  accountsEnabled <- use (widgetStateL . walletAccountsEnabledL)
+  exportEnabled <- use (widgetStateL . walletExportEnabledL)
+  setWidgetFocusList $
     [ WidgetNameWalletName
     , WidgetNameWalletRenameButton
     , WidgetNameWalletRemoveButton
@@ -426,7 +433,8 @@ updateFocusList = do
     [ WidgetNameWalletSend
     ]
 
-performRename :: WidgetEventM WalletWidgetState p ()
+performRename ::
+  StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
 performRename = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNameEditL
@@ -435,7 +443,8 @@ performRename = do
     _ -> liftIO (langPutUiCommand $ UiRename $ UiRenameArgs name) >>=
       assign walletRenameResultL . either RenameResultError RenameResultWaiting
 
-performRemove :: WidgetEventM WalletWidgetState p ()
+performRemove ::
+  StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
 performRemove = do
   UiLangFace{..} <- use walletLangFaceL
   use walletRemoveResultL >>= \case
@@ -443,7 +452,8 @@ performRemove = do
     _ -> liftIO (langPutUiCommand $ UiRemove) >>=
       assign walletRemoveResultL . either RemoveResultError RemoveResultWaiting
 
-performExport :: WidgetEventM WalletWidgetState p ()
+performExport ::
+  StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
 performExport = do
   UiLangFace{..} <- use walletLangFaceL
   use walletExportResultL >>= \case
@@ -451,11 +461,13 @@ performExport = do
     _ -> liftIO (langPutUiCommand $ UiExport) >>=
       assign walletExportResultL . either ExportResultError ExportResultWaiting
 
-toggleAccount :: Int -> WidgetEventM WalletWidgetState p ()
+toggleAccount ::
+  Int -> StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
 toggleAccount idx = do
   walletAccountsEditL . ix idx . walletAccountSelectedL %= not
 
-performNewAccount :: WidgetEventM WalletWidgetState p ()
+performNewAccount ::
+  StateT WalletWidgetState (StateT p (B.EventM WidgetName)) ()
 performNewAccount = do
   UiLangFace{..} <- use walletLangFaceL
   name <- use walletNewAccountNameL
