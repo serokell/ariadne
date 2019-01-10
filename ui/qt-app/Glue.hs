@@ -358,6 +358,7 @@ walletSelectionToInfo uiwd UiWalletSelection{..} =
     wallet UiWalletData{..} =
       UiWalletInfo
         { uwiLabel = Just _uwdName
+        , uwiWalletId = formatHdRootId _uwdId
         , uwiWalletIdx = uwsWalletIdx
         , uwiBalance = balance _uwdBalance
         , uwiAccounts = account <$> V.toList _uwdAccounts

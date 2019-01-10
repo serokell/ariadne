@@ -53,6 +53,10 @@ you understand what you are doing.
 When an account is selected you can open its settings by clicking the "Account settings" button in
 the wallet pane. A dialog will open where you can change your account's name or delete it.
 
+If you hover your mouse over wallet's name in the right pane, you will see a tooltip with wallet's
+internal stable database id. You can use that id in several knit commands, such as `send` or `new-account`.
+To copy that id to clipboard just right-click on the wallet name.
+
 ## Blockchain operations
 
 Wallet pane has two buttons for working with the blockchain &mdash; "SEND" and "REQUEST". Both will

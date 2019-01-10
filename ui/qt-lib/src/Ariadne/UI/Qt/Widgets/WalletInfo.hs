@@ -11,15 +11,20 @@ import Data.Text (toUpper)
 import Control.Lens (makeLensesWith)
 import Graphics.UI.Qtah.Signal (connect_)
 
-import Graphics.UI.Qtah.Core.Types (QtCursorShape(..))
+import Graphics.UI.Qtah.Core.Types (QtCursorShape(..), QtMouseButton(..))
 import Graphics.UI.Qtah.Widgets.QSizePolicy (QSizePolicyPolicy(..))
 
+import qualified Graphics.UI.Qtah.Core.QEvent as QEvent
 import qualified Graphics.UI.Qtah.Core.QItemSelectionModel as QItemSelectionModel
 import qualified Graphics.UI.Qtah.Core.QObject as QObject
+import qualified Graphics.UI.Qtah.Event as Event
+import qualified Graphics.UI.Qtah.Gui.QClipboard as QClipboard
 import qualified Graphics.UI.Qtah.Gui.QCursor as QCursor
 import qualified Graphics.UI.Qtah.Gui.QIcon as QIcon
+import qualified Graphics.UI.Qtah.Gui.QMouseEvent as QMouseEvent
 import qualified Graphics.UI.Qtah.Gui.QStandardItemModel as QStandardItemModel
 import qualified Graphics.UI.Qtah.Widgets.QAbstractButton as QAbstractButton
+import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QInputDialog as QInputDialog
@@ -166,6 +171,17 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   connect_ sendButton QAbstractButton.clickedSignal $
     sendButtonClicked langFace uiWalletFace WalletInfo{..}
 
+  clipboard <- QApplication.clipboard
+
+  void $ Event.onEvent itemNameLabel $ \(ev :: QMouseEvent.QMouseEvent) -> do
+    evType <- QEvent.eventType ev
+    button <- QMouseEvent.button ev
+    when (evType == QEvent.MouseButtonRelease && button == RightButton) $ do
+      toolTip <- QWidget.toolTip itemNameLabel
+      unless (null toolTip) $
+        QClipboard.setText clipboard toolTip
+    return False
+
   return (walletInfo, WalletInfo{..})
 
 data WalletInfoEvent
@@ -186,10 +202,14 @@ handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      let (itemName, (balance, unit), item) =
+      let (itemName, (balance, unit), item, tooltip) =
             case selectionInfo of
-              UiSelectionWallet UiWalletInfo{..} -> (uwiLabel, uwiBalance, WIWallet uwiWalletIdx uwiAccounts)
-              UiSelectionAccount uaci@UiAccountInfo{..} -> (uaciLabel, uaciBalance, WIAccount uaciWalletIdx uaci)
+              UiSelectionWallet UiWalletInfo{..} ->
+                (uwiLabel, uwiBalance, WIWallet uwiWalletIdx uwiAccounts, uwiWalletId)
+              UiSelectionAccount uaci@UiAccountInfo{..} ->
+                (uaciLabel, uaciBalance, WIAccount uaciWalletIdx uaci, "")
+
+      QWidget.setToolTip itemNameLabel $ toString tooltip
 
       QLabel.setText itemNameLabel . toString . toUpper . fromMaybe "" $ itemName
       QLabel.setText balanceLabel $ toString $ formatBalance balance unit
