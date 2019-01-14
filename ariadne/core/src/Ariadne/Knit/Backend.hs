@@ -35,6 +35,7 @@ createKnitBackend mkExecCtxs TaskManagerFace{..} =
         putCommandResult Nothing $ KnitCommandProcError e
         return Nothing
       Right expr' -> fmap Just . spawnTask $ \taskId -> do
+        putCommandToUI expr taskId
         let execCtxs = mkExecCtxs (putCommandOutput taskId)
         -- We catch asynchronous exceptions intentionally here to send them to UI and
         -- rethrow them afterwards.

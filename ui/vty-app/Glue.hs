@@ -71,7 +71,7 @@ knitFaceToUI
   -> UiLangFace
 knitFaceToUI UiFace{..} KnitFace{..} putPass =
   UiLangFace
-    { langPutCommand = putCommand False Nothing
+    { langPutCommand = putCommand False False Nothing
     , langPutUiCommand = putUiCommand False
     , langPutUISilentCommand = putUiCommand True
     , langParse = Knit.parse
@@ -82,26 +82,27 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
     , langGetHelp = getKnitHelp (Proxy @components)
     }
   where
-    putCommand silent mOp expr = do
+    putCommand ui silent mOp expr = do
       cid <- newUnique
-      fmap (commandIdToUI cid) . putKnitCommand (commandHandle silent mOp cid) $ expr
+      fmap (commandIdToUI cid) . putKnitCommand (commandHandle ui silent mOp cid) $ expr
 
     putUiCommand silent op = case opToExpr op of
       Left err -> return $ Left err
       Right expr -> do
         whenJust (extractPass op) pushPassword
-        comId <- putCommand silent (Just op) expr
-        unless silent $
-          putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
+        comId <- putCommand True silent (Just op) expr
         return $ Right comId
 
-    commandHandle silent mOp commandId = KnitCommandHandle
+    commandHandle ui silent mOp commandId = KnitCommandHandle
       { putCommandResult = \mtid result -> do
           unless silent $
             whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
           whenJust (resultToUI result =<< mOp) $ putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \tid doc -> unless silent $
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
+      , putCommandToUI = \expr taskId -> when (ui && not silent) $
+          let comId = commandIdToUI commandId (Just taskId)
+          in putUiEvent . UiCommandEvent comId . UiCommandWidget $ Knit.ppExpr expr
       }
 
     extractPass = \case

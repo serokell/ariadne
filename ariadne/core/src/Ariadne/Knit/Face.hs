@@ -27,6 +27,10 @@ data KnitCommandHandle components
   = KnitCommandHandle
   { putCommandResult :: (Maybe TaskId) -> KnitCommandResult components -> IO ()
   , putCommandOutput :: TaskId -> Doc -> IO ()
+  -- | Send a command back to UI to add it to REPL.
+  -- It might be a good idea to make various widgets send such events
+  -- to REPL widget directly, but interwidget communication is complicated.
+  , putCommandToUI :: Knit.Expr Knit.NoExt Knit.CommandId components -> TaskId -> IO ()
   }
 
 -- API for the knit interpreter.
