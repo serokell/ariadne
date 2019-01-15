@@ -21,7 +21,7 @@ import qualified Pos.Crypto as Crypto
   safeDeterministicKeyGen)
 import Pos.Txp.Toil.Types (Utxo)
 import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
-import Pos.Util.UserSecret (usKeys0)
+import Pos.Util.UserSecret (usKeys)
 
 import Ariadne.Cardano.Face (Address, CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.AddressDiscovery
@@ -128,7 +128,7 @@ readNonAriadneKeys path = do
   keyFile <- BS.readFile path
   case decodeFull' keyFile of
     Left e   -> throwM $ SecretsDecodingError path e
-    Right us -> pure $ us ^. usKeys0
+    Right us -> pure $ us ^. usKeys
 
 collectUtxo ::
        HasConfiguration
