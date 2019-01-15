@@ -15,7 +15,6 @@ import Data.Version (Version)
 import Data.Vinyl.TypeLevel (type (++))
 import NType (N(..), Rec)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
-import Time (KnownDivRat, Rat, Second, Time(..), threadDelay)
 
 import Ariadne.Cardano.Backend (CardanoBackend(..), createCardanoBackend)
 import Ariadne.Cardano.Face (CardanoEvent, CardanoFace(..), decodeTextAddress)
@@ -180,15 +179,13 @@ initializeEverything MainSettings {..}
     mainAction :: IO ()
     mainAction = do
       initAction
-      withAsync postInitAction $ \postInitActionThread -> do
-        linkUI postInitActionThread $ msPutBackendErrorToUI uiFace
       -- Spawn backend actions in async thread, then run ui action in the main thread
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
-        withAsync serviceAction $ \serviceThread -> do
-          -- Make custom link to service thread for UI apps.
-          -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
-          linkUI serviceThread $ msPutBackendErrorToUI uiFace
-          uiAction
+      withAsync serviceAction $ \serviceThread -> do
+        -- Make custom link to service thread for UI apps.
+        -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
+        linkUI serviceThread $ msPutBackendErrorToUI uiFace
+        uiAction
   return mainAction
 
 -- Similar to link from Control.Concurrent.Async, but calls finalizer on exception
@@ -205,12 +202,3 @@ linkUI thread finalizer = do
     isCancel e
       | Just AsyncCancelled <- fromException e = True
       | otherwise = False
-
--- | Helper function to run action periodically.
-runPeriodically :: forall (unit :: Rat) m a. (KnownDivRat unit Second, MonadIO m)
-  => Time unit -- ^ time between performing action
-  -> m a       -- ^ action
-  -> m ()
-runPeriodically delay action = forever $ do
-  _ <- action
-  threadDelay delay

@@ -54,6 +54,8 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
         keystore
         (wcAcidDBPath walletConfig)
         (cardanoProtocolMagic cardanoFace)
+        (wcDBCleanupPeriod walletConfig)
+        (wcNumStoredArchives walletConfig)
     (awl, _) <- activeWalletLayerComponent pwl pw
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent
@@ -139,12 +141,6 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             postInitAction = do
                 checkUnknownKeys pwl waitUiConfirm
                 checkWalletsWithoutSecretKey pwl waitUiConfirm
-
-            postInitWalletAction = pwlCleanAcidDB
-              pwl
-              (wcAcidDBPath walletConfig)
-              (wcNumStoredArchives walletConfig)
-              (usingLoggerName "acid-db" ... logMessage)
 
         walletPreface = WalletPreface
             { wpBListener = bListenerHandle

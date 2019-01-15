@@ -7,9 +7,11 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
 
+import Control.Concurrent.Async (async, uninterruptibleCancel)
 import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
-import System.Wlog (Severity(Debug))
+import System.Wlog (Severity(Debug), logMessage, usingLoggerName)
+import Time (KnownDivRat, Rat, Second, Time(..), threadDelay)
 
 import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (unsafeIntegerToCoin)
@@ -56,18 +58,23 @@ walletDBComponent dbPath =
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
 passiveWalletLayerComponent
-    :: forall m. (MonadIO m, MonadMask m)
+    :: forall (unit :: Rat) m. (KnownDivRat unit Second, MonadIO m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> FilePath
     -> ProtocolMagic
+    -> Time unit
+    -> Int
     -> ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
-passiveWalletLayerComponent logFunction keystore dbPath pm = do
+passiveWalletLayerComponent logFunction keystore dbPath pm cleanupPeriod storedArchives = do
     acidDB <- walletDBComponent dbPath
+    _ <- buildComponent "Wallet DB cleaner"
+           (async $ runPeriodically cleanupPeriod $ cleanupAcidState acidDB dbPath storedArchives
+             (usingLoggerName "acid-db" ... logMessage)) uninterruptibleCancel
     passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 passiveWalletLayerCustomDBComponent
-    :: forall m. (MonadIO m, MonadMask m)
+    :: forall m. MonadIO m
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
@@ -217,3 +224,12 @@ activeWalletLayerComponent pwl pw = do
         , awlNewPending      = \hdAccId tx ->
             liftIO $ Kernel.newPending aw hdAccId tx
         }
+
+-- | Helper function to run action periodically.
+runPeriodically :: forall (unit :: Rat) m a. (KnownDivRat unit Second, MonadIO m)
+  => Time unit -- ^ time between performing action
+  -> m a       -- ^ action
+  -> m ()
+runPeriodically delay action = forever $ do
+  _ <- action
+  threadDelay delay
