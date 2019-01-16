@@ -276,7 +276,7 @@ data UiCommandResult frontend
   | UiRemoveCommandResult UiRemoveCommandResult
   | UiExportCommandResult UiExportCommandResult
   | UiChangePasswordCommandResult UiChangePasswordCommandResult
-  | UiFronendCommandResult (FrontendCommandResult frontend)
+  | UiFrontendCommandResult (FrontendCommandResult frontend)
 
 -- UiCommandResult extension
 data family FrontendCommandResult frontend
