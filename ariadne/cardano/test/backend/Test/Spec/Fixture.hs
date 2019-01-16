@@ -47,14 +47,14 @@ genSpendingPassword =
     pick (frequency [(20, pure emptyPassphrase), (80, arbitrary)])
 
 withLayerInMemoryStorage
-  :: (MonadIO m, MonadMask m)
+  :: MonadIO m
   => ProtocolMagic
   -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
   -> PropertyM IO a
 withLayerInMemoryStorage pm cc = liftIO $ withLayer pm Memory cc
 
 withLayerLocalStorage
-  :: (MonadIO m, MonadMask m)
+  :: MonadIO m
   => ProtocolMagic
   -> FilePath
   -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
@@ -62,7 +62,7 @@ withLayerLocalStorage
 withLayerLocalStorage pm pathToDB cc = withLayer pm (Filesystem pathToDB) cc
 
 withLayer
-  :: (MonadIO m, MonadMask m)
+  :: MonadIO m
   => ProtocolMagic
   -> FileOrMemoryDB
   -> (PassiveWalletLayer m -> Kernel.PassiveWallet -> IO a)
@@ -77,7 +77,7 @@ type GenPassiveWalletFixture x = PropertyM IO (Kernel.PassiveWallet -> IO x)
 type GenActiveWalletFixture x  = PropertyM IO (Keystore.Keystore -> Kernel.ActiveWallet -> IO x)
 
 withPassiveWalletFixture
-  :: (MonadIO m, MonadMask m)
+  :: MonadIO m
   => ProtocolMagic
   -> GenPassiveWalletFixture x
   -> (Keystore -> PassiveWalletLayer m -> Kernel.PassiveWallet -> x -> IO a)
@@ -90,7 +90,7 @@ withPassiveWalletFixture pm prepareFixtures cc = do
       cc keystore layer wallet fixtures
 
 withActiveWalletFixture
-  :: (MonadIO m, MonadMask m)
+  :: MonadIO m
   => ProtocolMagic
   -> GenActiveWalletFixture x
   -> (Keystore.Keystore -> ActiveWalletLayer m -> Kernel.ActiveWallet -> x -> IO a)
@@ -127,7 +127,7 @@ bracketPassiveWallet pm logFunction keystore f =
       Kernel.passiveWalletCustomDBComponent logFunction keystore acidDB pm
 
 bracketKernelPassiveWallet
-  :: forall m n a. (MonadIO m, MonadMask m, MonadUnliftIO n)
+  :: forall m n a. (MonadIO m, MonadUnliftIO n)
   => ProtocolMagic
   -> (Severity -> Text -> IO ())
   -> Keystore
