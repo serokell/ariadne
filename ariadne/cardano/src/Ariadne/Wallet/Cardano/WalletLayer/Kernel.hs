@@ -32,7 +32,7 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Consistency
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (DB, dbHdWallets, defDB, runPeriodically)
+  (DB, dbHdWallets, defDB)
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState (cleanupAcidState)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead

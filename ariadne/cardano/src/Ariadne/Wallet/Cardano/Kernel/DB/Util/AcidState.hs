@@ -120,38 +120,37 @@ cleanupAcidState
     -> m ()
 cleanupAcidState db path numberOfStoredArchives writeLog = perform
     where
-      perform = cleanupAction `catchAny` handler
-      cleanupAction = do
-          writeLog Debug "Starting cleanup"
-          -- checkpoint/archive
-          liftIO $ createCheckpoint db >> createArchive db
-          writeLog Debug "Created checkpoint/archived"
-          -- cleanup old archive data
-          void $ flip catchAny (\e -> putStrLn @Text $ "Got error while cleaning up archive: " <> show e) $ do
-              removed <- liftIO $ cleanupOldAcidArchives path numberOfStoredArchives
-              writeLog Debug $ "Removed " <> pretty removed <> " old archive files"
-          pass
+        perform = cleanupAction `catchAny` handler
+        cleanupAction = do
+            writeLog Debug "Starting cleanup"
+            -- checkpoint/archive
+            liftIO $ createCheckpoint db >> createArchive db
+            writeLog Debug "Created checkpoint/archived"
+            -- cleanup old archive data
+            void $ flip catchAny (\e -> putStrLn @Text $ "Got error while cleaning up archive: " <> show e) $ do
+                removed <- liftIO $ cleanupOldAcidArchives path numberOfStoredArchives
+                writeLog Debug $ "Removed " <> pretty removed <> " old archive files"
 
-      handler :: SomeException -> m ()
-      handler e = do
-          let report = do
-                  writeLog Error $ sformat ("acidCleanupWorker failed with error: "%shown%
-                                             " restarting in 1m") e
-                  threadDelay @Second 60
-          report `finally` perform
+        handler :: SomeException -> m ()
+        handler e = do
+            let report = do
+                    writeLog Error $ sformat ("acidCleanupWorker failed with error: "%shown%
+                                               " restarting in 1m") e
+                    threadDelay @Second 60
+            report `finally` perform
+        -- Returns how many files were deleted
+        cleanupOldAcidArchives
+            :: FilePath  -- ^ path with stored files
+            -> Int    -- how many files should be stored
+            -> IO Int -- how many files have been deleted
+        cleanupOldAcidArchives dbPath numOfSaved = do
+            let archiveDir = dbPath </> "Archive"
+            archiveCheckpoints <- map (archiveDir </>) <$> listDirectory archiveDir
+            -- same files, but newest first
+            newestFirst <-
+                map fst . reverse . sortWith snd <$>
+                    mapM (\f -> (f,) <$> liftIO (getModificationTime f)) archiveCheckpoints
+            let oldFiles = drop numOfSaved newestFirst
+            forM_ oldFiles removeFile
+            pure $ length oldFiles
 
--- Returns how many files were deleted
-cleanupOldAcidArchives
-    :: FilePath  -- ^ path with stored files
-    -> Int    -- how many files should be stored
-    -> IO Int -- how many files have been deleted
-cleanupOldAcidArchives dbPath numOfSaved = do
-    let archiveDir = dbPath </> "Archive"
-    archiveCheckpoints <- map (archiveDir </>) <$> listDirectory archiveDir
-        -- same files, but newest first
-    newestFirst <-
-        map fst . reverse . sortWith snd <$>
-            mapM (\f -> (f,) <$> liftIO (getModificationTime f)) archiveCheckpoints
-    let oldFiles = drop numOfSaved newestFirst
-    forM_ oldFiles removeFile
-    pure $ length oldFiles

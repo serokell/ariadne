@@ -32,7 +32,7 @@ import Ariadne.Wallet.Face
 -- | This is what we create initially, before actually creating 'WalletFace'.
 data WalletPreface = WalletPreface
     { wpBListener :: !BListenerHandle
-    , wpMakeWallet :: !(CardanoFace -> ((Doc -> IO ()) -> WalletFace, IO (), IO ()))
+    , wpMakeWallet :: !((Doc -> IO ()) -> WalletFace, IO (), IO ())
     }
 
 createWalletBackend
@@ -100,7 +100,6 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             takeMVar mVar
 
         mkWallet = (mkWalletFace, initWalletAction, postInitAction)
-        mkWallet cf@CardanoFace{..} = (mkWalletFace, initWalletAction, walletAction)
           where
             NT runCardanoMode = cardanoRunCardanoMode cardanoFace
             withDicts :: ((HasConfigurations, HasCompileInfo) => r) -> r
