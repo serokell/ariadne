@@ -44,7 +44,7 @@ data UiNewVersionEvent = UiNewVersion
 
 data instance UiCurrency Vty
   = UiCurrency
-  { getUiCurrency :: (Maybe Text)
+  { getUiCurrency :: Text
   }
   deriving Eq
 

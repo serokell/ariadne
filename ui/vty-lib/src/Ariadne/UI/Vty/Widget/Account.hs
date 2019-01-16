@@ -148,7 +148,7 @@ drawAddressRow focused AccountAddress{..} =
         width = rdrCtx ^. B.availWidthL
 
         padBalance b = T.replicate (max 0 (15 - T.length b)) " " <> b
-        balance = maybe "" padBalance $ getUiCurrency accountAddressBalance
+        balance = padBalance $ getUiCurrency accountAddressBalance
 
         addressWidth = width - (T.length balance) - 1
         addressLength = T.length accountAddressHash
@@ -249,16 +249,7 @@ handleAccountWidgetEvent = \case
           whenJust uaciLabel $ updateEditable accountNameL accountNameEditL
           accountAddressesL .=
             map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
-          case uaciBalance of
-            UiCurrency (Just balance) -> accountBalanceL .= BalanceResultSuccess balance
-            UiCurrency Nothing -> do
-              use accountBalanceL >>= \case
-                BalanceResultWaiting commandId
-                  | Just taskId <- cmdTaskId commandId ->
-                      void . liftIO . langPutUISilentCommand $ UiKill taskId
-                _ -> pass
-              liftIO (langPutUISilentCommand UiBalance) >>=
-                assign accountBalanceL . either BalanceResultError BalanceResultWaiting
+          accountBalanceL .= BalanceResultSuccess (getUiCurrency uaciBalance)
         updateFocusList
       _ -> pass
   UiCommandResult commandId (UiRenameCommandResult result) ->

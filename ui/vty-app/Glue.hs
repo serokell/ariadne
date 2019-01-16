@@ -13,7 +13,7 @@ import Data.Version (Version)
 import qualified Ariadne.Cardano.Knit as Knit
 
 vtyToUiCurrency :: Text -> Knit.Currency -> UiCurrency Vty
-vtyToUiCurrency amount unit = UiCurrency . Just $ amount <> " " <> show unit
+vtyToUiCurrency amount unit = UiCurrency $ amount <> " " <> show unit
 
 putUpdateEventToUI :: UiFace Vty -> Version -> Text -> IO ()
 putUpdateEventToUI UiFace{..} ver updateURL = putUiEvent $ UiFrontendEvent $ UiNewVersionEvent $ UiNewVersion ver updateURL

@@ -346,17 +346,7 @@ handleWalletWidgetEvent = \case
                     WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
                 (zip [0..] uwiAccounts)
           updateEditable walletAccountsL walletAccountsEditL converted
-          case uwiBalance of
-            UiCurrency (Just balance) ->
-              walletBalanceL .= BalanceResultSuccess balance
-            UiCurrency Nothing -> do
-              use walletBalanceL >>= \case
-                BalanceResultWaiting commandId
-                  | Just taskId <- cmdTaskId commandId ->
-                      void . liftIO . langPutUISilentCommand $ UiKill taskId
-                _ -> pass
-              liftIO (langPutUISilentCommand UiBalance) >>=
-                assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+          walletBalanceL .= BalanceResultSuccess (getUiCurrency uwiBalance)
           whenM (use walletTxHistoryEnabledL) $ do
             use walletTxHistoryL >>= \case
               TxHistoryResultWaiting commandId
