@@ -1,6 +1,7 @@
 module Ariadne.Wallet.Cardano.Kernel.Wallets
        ( createHdWallet
        , updateHdWalletName
+       , updateHdWalletPassPhrase
        , updateHdWalletAssurance
        , deleteHdWallet
        , removeKeysFromKeystore
@@ -9,6 +10,7 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets
        , CreateWithAddress(..)
          -- * Errors
        , CreateWalletError(..)
+       , PassPhraseUpdateError(..)
        -- * Internal & testing use only
        , createWalletHdSeq
        ) where
@@ -21,15 +23,16 @@ import qualified Text.Show
 import Data.Acid.Advanced (update')
 
 import Pos.Core (Timestamp)
-import Pos.Crypto (EncryptedSecretKey, PassPhrase, emptyPassphrase)
+import Pos.Crypto
+  (EncryptedSecretKey, PassPhrase, changeEncPassphrase, emptyPassphrase)
 
 import Ariadne.Wallet.Cardano.Kernel.Accounts
   (CreateAccountError(..), createAccount)
 import Ariadne.Wallet.Cardano.Kernel.Addresses
   (CreateAddressError(..), createAddress)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
-  UpdateHdWalletName(..))
+  (CreateHdWallet(..), DeleteHdRoot(..),
+  UpdateHdWalletAssurance(..), UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (AccountName(..), AssuranceLevel, HdAddressChain(..), HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
@@ -218,6 +221,41 @@ updateHdWalletAssurance
 updateHdWalletAssurance pw hdRootId assuranceLevel =
     update' (pw ^. wallets) (UpdateHdWalletAssurance hdRootId assuranceLevel)
 
+data PassPhraseUpdateError
+  = PassPhraseUpdateIncorrectPassPhrase
+  | PassPhraseUpdateUnknownHdRoot HD.UnknownHdRoot
+  deriving (Eq, Show)
+
+instance Buildable PassPhraseUpdateError where
+  build = \case
+    PassPhraseUpdateIncorrectPassPhrase ->
+      "Incorrect passphrase"
+    PassPhraseUpdateUnknownHdRoot rootId ->
+      bprint ("Unknown wallet: "%build) rootId
+
+instance Exception PassPhraseUpdateError where
+  displayException e = "An error occurred during password change: "
+    <> formatToString build e
+
+updateHdWalletPassPhrase
+    :: PassiveWallet
+    -> HD.HdRootId
+    -> PassPhrase
+    -> PassPhrase
+    -> IO (Either PassPhraseUpdateError ())
+updateHdWalletPassPhrase pw rootId newPassword oldPassword = do
+  res <- Keystore.lookup (WalletIdHdSeq rootId) (pw ^. walletKeystore)
+  case res of
+    Nothing -> return $ Left $ PassPhraseUpdateUnknownHdRoot $ HD.UnknownHdRoot rootId
+    Just key -> do
+      mbNewEsk <- changeEncPassphrase oldPassword newPassword key
+      case mbNewEsk of
+        Nothing -> do
+          return $ Left $ PassPhraseUpdateIncorrectPassPhrase
+        Just newEsk -> do
+          Keystore.update (WalletIdHdSeq rootId) newEsk (pw ^. walletKeystore)
+          return $ Right ()
+
 {-------------------------------------------------------------------------------
   Automatic creation of Wallet Account and Address
 -------------------------------------------------------------------------------}
@@ -237,4 +275,3 @@ addDefaultAddress pw walletId passphrase = do
     void $ ExceptT
          $ first CreateAddressFailed
         <$> createAddress passphrase accountId HdChainExternal pw
-

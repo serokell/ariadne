@@ -5,7 +5,7 @@ import Test.Hspec (Spec, describe, shouldBe, shouldSatisfy)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (arbitrary, withMaxSuccess)
 import Test.QuickCheck.Monadic (PropertyM, monadicIO, pick)
-import qualified Test.Spec.CreateWallet as Wallets
+import qualified Test.Spec.Wallets as Wallets
 
 import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))

@@ -72,6 +72,9 @@ and that the last word of the Ariadne mnemonic is always fixed
 Ariadne wallet in Daedalus. However, you can import your Daedalus wallet into 
 Ariadne using the 12 word mnemonic.
 
+When you select a wallet you can change its password by filling `New password`
+and `Confirm password` edit fields and clicking on the `[ Change password ]` button.
+
 When you select a wallet or an account, you can see its balance and send 
 transactions using the form provided. You must fill at least one receiver's 
 address. To add or remove address lines, use `[ - ]` / `[ + ]` buttons on

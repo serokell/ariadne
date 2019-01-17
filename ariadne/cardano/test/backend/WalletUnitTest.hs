@@ -12,12 +12,12 @@ import UTxO.Translate (runTranslateNoErrors, withConfig)
 import qualified Test.Spec.Accounts
 import qualified Test.Spec.AcidState
 import qualified Test.Spec.CreateAddress
-import qualified Test.Spec.CreateWallet
 import qualified Test.Spec.Fee
 import qualified Test.Spec.Kernel
 import qualified Test.Spec.Keystore
 import qualified Test.Spec.Models
 import qualified Test.Spec.Translation
+import qualified Test.Spec.Wallets
 import qualified Test.Spec.WalletWorker
 import TxMetaStorageSpecs (txMetaStorageSpecs)
 
@@ -51,7 +51,7 @@ tests = describe "Wallet unit tests" $ do
     txMetaStorageSpecs
     Test.Spec.Keystore.spec
     Test.Spec.CreateAddress.spec
-    Test.Spec.CreateWallet.spec
+    Test.Spec.Wallets.spec
     Test.Spec.Accounts.spec
     Test.Spec.AcidState.spec
     Test.Spec.Fee.spec

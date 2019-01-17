@@ -81,6 +81,7 @@ data WalletFace =
     , walletFee ::
         WalletReference -> [LocalAccountReference] ->
         InputSelectionPolicy -> NonEmpty TxOut -> IO Coin
+    , walletChangePassword :: IO ()
     , walletBalance :: IO Coin
     , walletSumCoins :: [Coin] -> IO Coin
     }

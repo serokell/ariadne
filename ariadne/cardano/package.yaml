@@ -157,6 +157,7 @@ tests:
       - hspec
       - lens
       - log-warper
+      - memory
       - mtl
       - normaldistribution
       - optparse-applicative

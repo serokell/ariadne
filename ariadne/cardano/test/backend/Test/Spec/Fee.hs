@@ -49,9 +49,9 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 import qualified Ariadne.Wallet.Cardano.WalletLayer as WalletLayer
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer)
 
-import qualified Test.Spec.CreateWallet as Wallets
 import Test.Spec.Fixture
   (GenPassiveWalletFixture, genSpendingPassword, withPassiveWalletFixture)
+import qualified Test.Spec.Wallets as Wallets
 import Util.Buildable (ShowThroughBuild(..))
 
 data EstimateFees = EstimateFees

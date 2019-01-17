@@ -7,6 +7,7 @@ module Ariadne.Wallet.Backend
 import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))
 import qualified Data.ByteArray as ByteArray
+import qualified Data.Text as T
 import Data.Constraint (withDict)
 import Pos.Core (sumCoins, unsafeIntegerToCoin)
 import Pos.Crypto.Hashing (hashRaw)
@@ -64,14 +65,17 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             , bhOnRollback = rollbackHook
             }
 
-        getPass' :: WalletId -> IO PassPhrase
-        getPass' = fmap (ByteArray.convert . hashRaw . encodeUtf8) . getPass
+        getPass' :: PasswordRequestType -> WalletId -> IO PassPhrase
+        getPass' requestType = fmap makePassPhrase . (getPass RequestCurrentPassword requestType)
 
         getPassTemp :: IO PassPhrase
-        getPassTemp = getPass' WalletIdTemporary
+        getPassTemp = getPass' GetCached WalletIdTemporary
 
-        getPassPhrase :: WalletReference -> IO PassPhrase
-        getPassPhrase = getPass' . fromWalletRef
+        getPassPhrase :: PasswordRequestType -> WalletReference -> IO PassPhrase
+        getPassPhrase requestType = (getPass' requestType) . fromWalletRef
+
+        makePassPhrase :: T.Text -> PassPhrase
+        makePassPhrase = ByteArray.convert . hashRaw . encodeUtf8
 
         -- | Only catches SomeWalletPassExceptions to void the password in the
         -- Password Manager and then retrow the Exception
@@ -104,7 +108,7 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
             mkWalletFace putCommandOutput =
                 withDicts $ fix $ \this -> WalletFace
                 { walletNewAddress =
-                    newAddress pwl this walletSelRef getPassPhrase voidWrongPass
+                    newAddress pwl this walletSelRef (getPassPhrase GetCached) voidWrongPass
                 , walletNewAccount = newAccount pwl this walletSelRef
                 , walletNewWallet = newWallet pwl walletConfig this getPassTemp waitUiConfirm logging
                 , walletRestore = restoreWallet pwl runCardanoMode getPassTemp
@@ -116,10 +120,16 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
                 , walletSelect = select pwl this walletSelRef voidSelectionPass
                 , walletSend =
                     sendTx awl this cardanoFace walletSelRef putCommandOutput
-                        getPassPhrase voidWrongPass waitUiConfirm
+                        (getPassPhrase GetCached) voidWrongPass waitUiConfirm
                 , walletFee = \walletRef accRefs _ txOuts -> do
                     accountIds <- allAccountIds pwl walletSelRef walletRef accRefs
                     pwlEstimateFees pwl accountIds txOuts
+                , walletChangePassword = do
+                    changePassword pwl this walletSelRef
+                        (makePassPhrase <$> getPass RequestNewPassword GetCached WalletIdTemporary)
+                        (getPassPhrase GetPasswordFromUI)
+                    mbWalletId <- fromWalletSelRef walletSelRef
+                    whenJust mbWalletId voidPass
                 , walletBalance = getBalance pwl walletSelRef
                 , walletSumCoins = \amounts -> return $ unsafeIntegerToCoin $ sumCoins amounts
                 }
@@ -140,6 +150,15 @@ fromWalletRef = \case
     WalletRefByUIindex wrd -> WalletIdByUiIndex wrd
     WalletRefSelection     -> WalletIdSelected
     WalletRefByHdRootId hid -> WalletIdByBackend $ show hid
+
+fromWalletSelRef :: IORef (Maybe WalletSelection) -> IO (Maybe WalletId)
+fromWalletSelRef walletSelRef = do
+    mWalletSel <- readIORef walletSelRef
+    case mWalletSel of
+        Nothing -> return Nothing
+        Just selection -> case selection of
+            WSRoot hdrId -> return $ Just $ WalletIdByBackend $ show hdrId
+            _ -> return Nothing
 
 -- TODO: make 'append' and 'rewrite' modes for wallet acid-state database.
 -- If running append mode (append wallets to existing database) it should be

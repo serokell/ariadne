@@ -22,6 +22,7 @@ import qualified Graphics.UI.Qtah.Widgets.QHBoxLayout as QHBoxLayout
 import Ariadne.UI.Qt.Face
 import Ariadne.UI.Qt.UI
 import Ariadne.UI.Qt.Widgets.Dialogs.InsertPassword
+import Ariadne.UI.Qt.Widgets.Dialogs.ChangePassword
 import Ariadne.UI.Qt.Widgets.WalletInfo
 import Ariadne.UI.Qt.Widgets.WalletTree
 import Ariadne.Util
@@ -89,7 +90,8 @@ data WalletEvent
   | WalletRestoreWalletCommandResult UiCommandId UiRestoreWalletCommandResult
   | WalletNewAccountCommandResult UiCommandId UiNewAccountCommandResult
   | WalletNewAddressCommandResult UiCommandId UiNewAddressCommandResult
-  | WalletPasswordRequest WalletId CE.Event
+  | WalletPasswordChangeCommandResult UiCommandId UiChangePasswordCommandResult
+  | WalletPasswordRequest PasswordRequestMode WalletId CE.Event
   | WalletConfirmationRequest (MVar Bool) UiConfirmationType
 
 handleWalletEvent
@@ -123,9 +125,20 @@ handleWalletEvent langFace putPass ev = do
     WalletNewAddressCommandResult commandId result ->
       magnify walletInfoL $ handleWalletInfoEvent langFace $
         WalletInfoNewAddressCommandResult commandId result
-    WalletPasswordRequest walletId cEvent -> liftIO $ runInsertPassword >>= \case
-      InsertPasswordCanceled -> pass
-      InsertPasswordAccepted result -> putPass walletId (fromMaybe "" result) (Just cEvent)
+    WalletPasswordChangeCommandResult commandId result ->
+      magnify walletInfoL $ handleWalletInfoEvent langFace $
+        WalletInfoChangePasswordCommandResult commandId result
+    WalletPasswordRequest requestMode walletId cEvent ->
+      let putResultPass = \result -> putPass walletId (fromMaybe "" result) (Just cEvent) in
+      case requestMode of
+        RequestCurrentPassword ->
+          liftIO $ runInsertPassword >>= \case
+            InsertPasswordCanceled -> pass
+            InsertPasswordAccepted result -> putResultPass result
+        RequestNewPassword ->
+          liftIO $ runChangePassword >>= \case
+            ChangePasswordCanceled -> pass
+            ChangePasswordAccepted result -> putResultPass result
     WalletConfirmationRequest resultVar confirmationType -> case confirmationType of
       UiConfirmMnemonic mnemonic ->
         magnify walletTreeL $ handleWalletTreeEvent langFace $

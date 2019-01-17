@@ -121,6 +121,7 @@ data WidgetNamePart
   | WidgetNameWalletNewAccountName
   | WidgetNameWalletNewAccountButton
   | WidgetNameWalletSend
+  | WidgetNameWalletChangePasswordButton
 
   | WidgetNameAccount
   | WidgetNameAccountName
@@ -133,6 +134,11 @@ data WidgetNamePart
   | WidgetNamePassword
   | WidgetNamePasswordInput
   | WidgetNamePasswordContinue
+
+  | WidgetNameChangePassword
+  | WidgetNameChangePasswordNewPassword
+  | WidgetNameChangePasswordConfirmPassword
+  | WidgetNameChangePasswordContinue
 
   | WidgetNameConfirmMnemonic
   | WidgetNameConfirmMnemonicInput

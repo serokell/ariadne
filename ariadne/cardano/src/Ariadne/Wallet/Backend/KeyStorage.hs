@@ -15,6 +15,7 @@ module Ariadne.Wallet.Backend.KeyStorage
        , removeSelection
        , checkUnknownKeys
        , checkWalletsWithoutSecretKey
+       , changePassword
        , deriveBip44KeyPair
 
          -- * Exceptions
@@ -456,6 +457,25 @@ checkWalletsWithoutSecretKey pwl confirmation = do
   unless (null rootIDsWithMissedSecretKeys) $ do
     whenM (confirmation $ ConfirmDelBrokenWallets $ T.dropEnd 1 $ walletsWithoutKeysText) $
       mapM_ (pwlDeleteWallet pwl) rootIDsWithMissedSecretKeys
+
+changePassword
+  :: PassiveWalletLayer IO
+  -> WalletFace
+  -> IORef (Maybe WalletSelection)
+  -> IO PassPhrase
+  -> (WalletReference -> IO PassPhrase)
+  -> IO ()
+changePassword pwl WalletFace{..} walletSelRef getPassTemp getPassPhrase = do
+  mWalletSel <- readIORef walletSelRef
+  case mWalletSel of
+    Nothing -> pass
+    Just selection -> case selection of
+        WSRoot hdrId -> do
+          oldPassword <- getPassPhrase $ WalletRefByHdRootId hdrId
+          newPassword <- getPassTemp
+          throwLeftIO $ pwlUpdateWalletPassword pwl hdrId newPassword oldPassword
+        _ -> pass
+  walletRefreshState
 
 {-------------------------------------------------------------------------------
   Utilities

@@ -187,6 +187,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           (procCall Knit.renameCommandName $
             optString "name" uraName
           )
+      UiChangePassword UiChangePasswordArgs -> do
+        Right $ exprProcCall
+          (procCall Knit.changePasswordCommandName $ [])
       UiRemove -> do
         Right $ exprProcCall
           (procCall Knit.removeCommandName [])
@@ -221,6 +224,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           fromResult result
       UiRename{} ->
         Just . UiRenameCommandResult . either UiRenameCommandFailure (const UiRenameCommandSuccess) $
+          fromResult result
+      UiChangePassword{} ->
+        Just . UiChangePasswordCommandResult . either UiChangePasswordCommandFailure (const UiChangePasswordCommandSuccess) $
           fromResult result
       UiRemove{} ->
         Just . UiRemoveCommandResult . either UiRemoveCommandFailure (const UiRemoveCommandSuccess) $
@@ -424,6 +430,6 @@ historyToUI ch = UiHistoryFace
 -- Glue between the Password Manager and Vty frontend
 ----------------------------------------------------------------------------
 
-putPasswordEventToUI :: UiFace -> WalletId -> CE.Event -> IO ()
-putPasswordEventToUI UiFace{..} walletId cEvent = putUiEvent . UiPasswordEvent $
-    UiPasswordRequest walletId cEvent
+putPasswordEventToUI :: UiFace -> PasswordRequestMode -> WalletId -> CE.Event -> IO ()
+putPasswordEventToUI UiFace{..} requestMode walletId cEvent = putUiEvent . UiPasswordEvent $
+    UiPasswordRequest requestMode walletId cEvent

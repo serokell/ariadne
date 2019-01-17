@@ -28,6 +28,7 @@ module Ariadne.UI.Vty.Face
        , UiNewAddressArgs (..)
        , UiRestoreWalletArgs (..)
        , UiRenameArgs (..)
+       , UiChangePasswordArgs (..)
 
        , UiCommandResult (..)
        , UiBalanceCommandResult (..)
@@ -43,6 +44,7 @@ module Ariadne.UI.Vty.Face
        , UiRenameCommandResult (..)
        , UiRemoveCommandResult (..)
        , UiExportCommandResult (..)
+       , UiChangePasswordCommandResult (..)
 
        , UiTreeItem (..)
        , UiTree
@@ -62,7 +64,7 @@ import Data.Version (Version)
 import Formatting (bprint, int, (%))
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-import Ariadne.UX.PasswordManager (WalletId)
+import Ariadne.UX.PasswordManager (WalletId, PasswordRequestMode)
 
 -- | UI library settings for a particular currency implementation
 -- Mostly boolean flags for enabled widgets
@@ -184,7 +186,7 @@ data UiNewVersionEvent = UiNewVersion
 
 -- | Ui event triggered by the password manager
 data UiPasswordEvent
-  = UiPasswordRequest WalletId CE.Event
+  = UiPasswordRequest PasswordRequestMode WalletId CE.Event
 
 -- | Ui event to handle confirmations
 data UiConfirmEvent
@@ -225,6 +227,7 @@ data UiCommand
   | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiRename UiRenameArgs
+  | UiChangePassword UiChangePasswordArgs
   | UiRemove
   | UiExport
   | UiKill Natural
@@ -272,6 +275,8 @@ data UiRenameArgs = UiRenameArgs
   { uraName :: !Text
   }
 
+data UiChangePasswordArgs = UiChangePasswordArgs
+
 ----------------------------------------------------------------------------
 -- UI command results
 ----------------------------------------------------------------------------
@@ -289,6 +294,7 @@ data UiCommandResult
   | UiRenameCommandResult UiRenameCommandResult
   | UiRemoveCommandResult UiRemoveCommandResult
   | UiExportCommandResult UiExportCommandResult
+  | UiChangePasswordCommandResult UiChangePasswordCommandResult
 
 data UiBalanceCommandResult
   = UiBalanceCommandSuccess Text
@@ -347,6 +353,10 @@ data UiRemoveCommandResult
 data UiExportCommandResult
   = UiExportCommandSuccess Text
   | UiExportCommandFailure Text
+
+data UiChangePasswordCommandResult
+  = UiChangePasswordCommandSuccess
+  | UiChangePasswordCommandFailure Text
 
 ----------------------------------------------------------------------------
 -- Wallet widget model
