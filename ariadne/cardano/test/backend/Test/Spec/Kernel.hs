@@ -140,67 +140,32 @@ dependentPending GenesisValues{..} = Inductive {
 sendFromOur :: Inductive GivenHash Addr
 sendFromOur = Inductive
   { inductiveBoot = Transaction
-    { trFresh = 44999999999999992
+    { trFresh = 20
     , trIns = Set.empty
     , trOuts =
-      [ {-0: -} Output (Addr (IxRich 0)  0) 11137499999752500
-      , {-1: -} Output (Addr (IxRich 1)  0) 11137499999752500
-      , {-2: -} Output (Addr (IxRich 2)  0) 11137499999752500
-      , {-3: -} Output (Addr (IxRich 3)  0) 11137499999752500
-      , {-4: -} Output (Addr (IxPoor 0)  0) 37499999999166
-      , {-5: -} Output (Addr (IxPoor 1)  0) 37499999999166
-      , {-6: -} Output (Addr (IxPoor 2)  0) 37499999999166
-      , {-7: -} Output (Addr (IxPoor 3)  0) 37499999999166
-      , {-8: -} Output (Addr (IxPoor 4)  0) 37499999999166
-      , {-9: -} Output (Addr (IxPoor 5)  0) 37499999999166
-      , {-10:-} Output (Addr (IxPoor 6)  0) 37499999999166
-      , {-11:-} Output (Addr (IxPoor 7)  0) 37499999999166
-      , {-12:-} Output (Addr (IxPoor 8)  0) 37499999999166
-      , {-13:-} Output (Addr (IxPoor 9)  0) 37499999999166
-      , {-14:-} Output (Addr (IxPoor 10) 0) 37499999999166
-      , {-15:-} Output (Addr (IxPoor 11) 0) 37499999999166
-      , {-16:-} Output (Addr (IxAvvm 0)  0) 100000
-      , {-17:-} Output (Addr (IxAvvm 1)  0) 100000
-      , {-18:-} Output (Addr (IxAvvm 2)  0) 100000
-      , {-19:-} Output (Addr (IxAvvm 3)  0) 100000
-      , {-20:-} Output (Addr (IxAvvm 4)  0) 100000
-      , {-21:-} Output (Addr (IxAvvm 5)  0) 100000
-      , {-22:-} Output (Addr (IxAvvm 6)  0) 100000
-      , {-23:-} Output (Addr (IxAvvm 7)  0) 100000
-      , {-24:-} Output (Addr (IxAvvm 8)  0) 100000
-      , {-25:-} Output (Addr (IxAvvm 9)  0) 100000
+      [ {-0-} Output (Addr (IxPoor 0) 0) 10
+      , {-1-} Output (Addr (IxPoor 1) 0) 10
       ]
     , trFee = 0
     , trHash = 0
     , trExtra = ["Bootstrap transaction"]
     }
-  , inductiveOurs = Set.fromList [Addr (IxPoor 5) 0]
+  , inductiveOurs = Set.fromList [Addr (IxPoor 0) 0]
   , inductiveEvents = OldestFirst
     [ ApplyBlock $ OldestFirst
       [ Transaction
         { trFresh = 0
-        , trIns = Set.fromList [Input (GivenHash 0) 5]
-        , trOuts = [Output (Addr (IxPoor 10) 0) 30135871949270]
-        , trFee = 167115
-        , trHash = 1
-        , trExtra = []
-        }
-      , Transaction
-        { trFresh = 0
-        , trIns = Set.fromList [Input (GivenHash 0) 9]
+        , trIns = Set.fromList [Input (GivenHash 0) 0]
         , trOuts =
-          [ Output (Addr (IxRich 2) 0) 36228983418453
-          , Output (Addr (IxPoor 2) 0) 1058364097145
+          [ Output (Addr (IxPoor 1) 0) 9
           ]
-        , trFee = 170235
-        , trHash = 2
+        , trFee = 1
+        , trHash = 1
         , trExtra = []
         }
       ]
     , ApplyBlock $ OldestFirst []
     , Rollback
-    , ApplyBlock $ OldestFirst []
-    , ApplyBlock $ OldestFirst []
     ]
   }
 
