@@ -18,7 +18,6 @@ import Ariadne.UX.PasswordManager
 
 data PasswordWidgetState = PasswordWidgetState
     { passwordWidgetPutPassword :: !PutPassword
-    , passwordWidgetUiFace      :: !UiFace
     , passwordWidgetContent     :: !Text
     , passwordWidgetRecipient   :: !(Maybe (WalletId, CE.Event))
     , passwordWidgetDialog      :: !DialogState
@@ -26,14 +25,13 @@ data PasswordWidgetState = PasswordWidgetState
 
 makeLensesWith postfixLFields ''PasswordWidgetState
 
-initPasswordWidget :: PutPassword -> UiFace -> Widget p
-initPasswordWidget putPassword uiFace = initWidget $ do
+initPasswordWidget :: PutPassword -> Widget p
+initPasswordWidget putPassword = initWidget $ do
     setWidgetDrawWithFocus drawPasswordWidget
     setWidgetHandleKey handlePasswordWidgetKey
     setWidgetHandleEvent handlePasswordWidgetEvent
     setWidgetState PasswordWidgetState
         { passwordWidgetPutPassword = putPassword
-        , passwordWidgetUiFace      = uiFace
         , passwordWidgetContent     = ""
         , passwordWidgetRecipient   = Nothing
         , passwordWidgetDialog      = newDialogState passwordHeaderMessage
@@ -74,13 +72,14 @@ handlePasswordWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM PasswordWidgetState p ()
-performContinue = zoomWidgetState $ do
-    PasswordWidgetState{..} <- get
+performContinue = do
+    PasswordWidgetState{..} <- getWidgetState
     whenJust passwordWidgetRecipient $ \(walletId, cEvent) -> do
         liftIO $ passwordWidgetPutPassword walletId passwordWidgetContent $ Just cEvent
-        liftIO $ putUiEvent passwordWidgetUiFace $ UiPasswordEvent UiPasswordSent
-        passwordWidgetRecipientL .= Nothing
-        passwordWidgetContentL .= ""
+        widgetEvent WidgetEventModalExited
+        zoomWidgetState $ do
+            passwordWidgetRecipientL .= Nothing
+            passwordWidgetContentL .= ""
 
 handlePasswordWidgetEvent
     :: UiEvent

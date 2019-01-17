@@ -19,8 +19,7 @@ import Ariadne.UIConfig
 import Ariadne.Util
 
 data ConfirmRemoveWidgetState = ConfirmRemoveWidgetState
-    { confirmRemoveWidgetUiFace           :: !UiFace
-    , confirmRemoveWidgetDelRequest       :: !(Maybe DeleteRequest)
+    { confirmRemoveWidgetDelRequest       :: !(Maybe DeleteRequest)
     , confirmRemoveWidgetCheck            :: !Bool
     , confirmRemoveWidgetShowDeletingObjs :: !Bool
     , confirmRemoveWidgetName             :: !Text
@@ -74,15 +73,14 @@ makeMessages itemType =
       confirmMsg = itemName
   in MessagesOnDelWidget{..}
 
-initConfirmRemoveWidget :: UiFace -> Widget p
-initConfirmRemoveWidget uiFace = initWidget $ do
+initConfirmRemoveWidget :: Widget p
+initConfirmRemoveWidget = initWidget $ do
     setWidgetDrawWithFocus drawConfirmRemoveWidget
     setWidgetHandleKey handleConfirmRemoveWidgetKey
     setWidgetHandleEvent handleConfirmRemoveWidgetEvent
     setWidgetScrollable
     setWidgetState ConfirmRemoveWidgetState
-        { confirmRemoveWidgetUiFace           = uiFace
-        , confirmRemoveWidgetDelRequest       = Nothing
+        { confirmRemoveWidgetDelRequest       = Nothing
         , confirmRemoveWidgetCheck            = False
         , confirmRemoveWidgetShowDeletingObjs = False
         , confirmRemoveWidgetName             = ""
@@ -182,31 +180,30 @@ handleConfirmRemoveWidgetKey = \case
     _ -> return WidgetEventNotHandled
 
 performContinue :: WidgetEventM ConfirmRemoveWidgetState p ()
-performContinue = zoomWidgetState $
-  whenJustM (use confirmRemoveWidgetDelRequestL) $
+performContinue =
+  whenJustM (use (widgetStateL . confirmRemoveWidgetDelRequestL)) $
     \DeleteRequest {..} -> unlessM (nameNotConfirmed requestDelItem) $
         putMVar requestResultVar True *> closeDialog
   where
     nameNotConfirmed delItem = case itemNameToConfirm delItem of
         Just nameValue -> do
-            confirmNameValue <- use confirmRemoveWidgetNameL
+            confirmNameValue <- use (widgetStateL . confirmRemoveWidgetNameL)
             return $ nameValue /= confirmNameValue
         Nothing -> return False
 
 performCancel :: WidgetEventM ConfirmRemoveWidgetState p ()
-performCancel = zoomWidgetState $
-  whenJustM (use confirmRemoveWidgetDelRequestL) $
+performCancel =
+  whenJustM (use (widgetStateL . confirmRemoveWidgetDelRequestL)) $
     \DeleteRequest {..} -> putMVar requestResultVar False *> closeDialog
 
-closeDialog ::
-    StateT ConfirmRemoveWidgetState (StateT p (B.EventM WidgetName)) ()
+closeDialog :: WidgetEventM ConfirmRemoveWidgetState p ()
 closeDialog = do
-    UiFace{..} <- use confirmRemoveWidgetUiFaceL
-    liftIO $ putUiEvent $ UiConfirmEvent UiConfirmDone
-    confirmRemoveWidgetDelRequestL .= Nothing
-    confirmRemoveWidgetCheckL .= False
-    confirmRemoveWidgetNameL .= ""
-    confirmRemoveWidgetShowDeletingObjsL .= False
+    widgetEvent WidgetEventModalExited
+    zoomWidgetState $ do
+        confirmRemoveWidgetDelRequestL .= Nothing
+        confirmRemoveWidgetCheckL .= False
+        confirmRemoveWidgetNameL .= ""
+        confirmRemoveWidgetShowDeletingObjsL .= False
 
 updateFocusList :: WidgetEventM ConfirmRemoveWidgetState p ()
 updateFocusList = do

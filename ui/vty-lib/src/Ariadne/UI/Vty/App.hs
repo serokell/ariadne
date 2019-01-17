@@ -77,11 +77,10 @@ initApp
     :: UiFeatures
     -> Logging
     -> PutPassword
-    -> UiFace
     -> UiLangFace
     -> UiHistoryFace
     -> AppState
-initApp features logging putPass uiFace langFace historyFace =
+initApp features logging putPass langFace historyFace =
   AppState
     { appWidget = appWidget
     , appFocusRing = getFocusRing appWidget
@@ -108,16 +107,29 @@ initApp features logging putPass uiFace langFace historyFace =
       addWidgetChild WidgetNameHelp $ initHelpWidget langFace
       addWidgetChild WidgetNameAbout initAboutWidget
       addWidgetChild WidgetNameLogs initLogsWidget
-      addWidgetChild WidgetNamePassword $ initPasswordWidget putPass uiFace
-      addWidgetChild WidgetNameConfirmMnemonic $ initConfirmMnemonicWidget uiFace
-      addWidgetChild WidgetNameConfirmRemove $ initConfirmRemoveWidget uiFace
-      addWidgetChild WidgetNameConfirmSend $ initConfirmSendWidget uiFace
+      addWidgetChild WidgetNamePassword $ initPasswordWidget putPass
+      addWidgetChild WidgetNameConfirmMnemonic initConfirmMnemonicWidget
+      addWidgetChild WidgetNameConfirmRemove initConfirmRemoveWidget
+      addWidgetChild WidgetNameConfirmSend initConfirmSendWidget
 
       addWidgetEventHandler WidgetNameMenu $ \case
         WidgetEventMenuSelected -> do
           resetAppFocus
           assignWidgetLens (Lens appNavModeL) False
         _ -> pass
+
+      let addHandlerNoModal name = addWidgetEventHandler name $ \case
+            WidgetEventModalExited -> do
+              assignWidgetLens (Lens appModalL) NoModal
+              resetAppFocus
+            _ -> pass
+
+      mapM_ addHandlerNoModal
+        [ WidgetNamePassword
+        , WidgetNameConfirmMnemonic
+        , WidgetNameConfirmRemove
+        , WidgetNameConfirmSend
+        ]
 
     appWidgetState = AppWidgetState
       { appScreen = AppScreenWallet
@@ -400,17 +412,13 @@ handleAppWidgetEvent logging = \case
     logDebug logging "Received 'Logs' event"
     widgetStateL . appScreenL .= AppScreenLogs
     resetAppFocus
-  UiPasswordEvent passEvent -> do
+  UiPasswordEvent _ -> do
     logDebug logging "App widget received a password event"
-    assignWidgetLens (Lens appModalL) $ case passEvent of
-      UiPasswordRequest _ _ -> PasswordMode
-      UiPasswordSent ->  NoModal
+    assignWidgetLens (Lens appModalL) PasswordMode
     resetAppFocus
-  UiConfirmEvent confirmEvent -> do
+  UiConfirmEvent (UiConfirmRequest _ confirmationType) -> do
     logDebug logging "App widget received a confirm event"
-    assignWidgetLens (Lens appModalL) $ case confirmEvent of
-      UiConfirmRequest _ confirmationType -> ConfirmationMode confirmationType
-      UiConfirmDone -> NoModal
+    assignWidgetLens (Lens appModalL) $ ConfirmationMode confirmationType
     resetAppFocus
   _ ->
     pass
