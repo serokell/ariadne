@@ -29,6 +29,7 @@ library:
     - ansi-wl-pprint
     - text-zipper
     - transformers
+    - scientific
     - vector
     - vty
     - word-wrap

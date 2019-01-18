@@ -2,6 +2,12 @@ module Ariadne.UI.Common.Glue
        ( -- * Knit ↔ Vty
          knitFaceToUI
 
+         -- * Knit utilities
+       , fromResult
+       , fromValue
+       , optString
+       , justOptNumber
+
          -- * Cardano ↔ Vty
        , putCardanoEventToUI
 
@@ -57,11 +63,13 @@ knitFaceToUI
      , Elem components Knit.Cardano
      , Elem components Knit.TaskManager
      )
-  => UiFace frontend
+  => (FrontendCommand frontend -> Either Text (Knit.Expr Knit.NoExt Knit.CommandId components))
+  -> (KnitCommandResult components -> FrontendCommand frontend -> Maybe (UiCommandResult frontend))
+  -> UiFace frontend
   -> KnitFace components
   -> PutPassword
   -> UiLangFace frontend
-knitFaceToUI UiFace{..} KnitFace{..} putPass =
+knitFaceToUI cmdHandle resHandle UiFace{..} KnitFace{..} putPass =
   UiLangFace
     { langPutCommand = putCommand False Nothing
     , langPutUiCommand = putUiCommand False
@@ -103,11 +111,6 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       _ -> Nothing
     pushPassword (password, walletId) = putPass walletId password Nothing
 
-    optString key value = if null value then [] else
-      [argKw key . exprLit . Knit.toLit . Knit.LitString $ value]
-
-    justOptNumber key = maybe [] $ \value ->
-      [argKw key . exprLit . Knit.toLit . Knit.LitNumber $ fromIntegral value]
 
     opToExpr = \case
       UiSelect ws ->
@@ -118,10 +121,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiSend UiSendArgs{..} -> do
         argOutputs <- forM usaOutputs $ \UiSendOutput{..} -> do
           argAddress <- decodeTextAddress usoAddress
-          argCoin <- readEither usoAmount
           Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
             [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
-            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ usoAmount
             ]
         Right $ exprProcCall
           (procCall Knit.sendCommandName $
@@ -134,10 +136,9 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiFee UiFeeArgs{..} -> do
         argOutputs <- forM ufaOutputs $ \UiSendOutput{..} -> do
           argAddress <- first (const "Invalid address") $ decodeTextAddress usoAddress
-          argCoin <- first (const "Invalid amount") $ readEither usoAmount
           Right $ argKw "out" . exprProcCall $ procCall Knit.txOutCommandName
             [ argPos . exprLit . Knit.toLit . Knit.LitAddress $ argAddress
-            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ argCoin
+            , argPos . exprLit . Knit.toLit . Knit.LitNumber $ usoAmount
             ]
         Right $ exprProcCall
           (procCall Knit.feeCommandName $
@@ -161,12 +162,6 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             justOptNumber "wallet" unaaWalletIdx ++
             optString "name" unaaName
           )
-      UiNewAddress UiNewAddressArgs{..} -> do
-        Right $ exprProcCall
-          (procCall Knit.newAddressCommandName $
-            justOptNumber "wallet" unadaWalletIdx ++
-            justOptNumber "account" unadaAccountIdx
-          )
       UiRestoreWallet UiRestoreWalletArgs{..} -> do
         Right $ exprProcCall
           (procCall Knit.restoreCommandName $
@@ -185,6 +180,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiRemove -> do
         Right $ exprProcCall
           (procCall Knit.removeCommandName [])
+      UiFrontendCommand cmd -> cmdHandle cmd
       _ -> Left "Not implemented"
 
     resultToUI result = \case
@@ -207,9 +203,6 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiNewAccount{} ->
         Just . UiNewAccountCommandResult . either UiNewAccountCommandFailure (const UiNewAccountCommandSuccess) $
           fromResult result
-      UiNewAddress{} ->
-        Just . UiNewAddressCommandResult . either UiNewAddressCommandFailure (const UiNewAddressCommandSuccess) $
-          fromResult result
       UiRestoreWallet{} ->
         Just . UiRestoreWalletCommandResult . either UiRestoreWalletCommandFailure (const UiRestoreWalletCommandSuccess) $
           fromResult result
@@ -222,25 +215,45 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiRemove{} ->
         Just . UiRemoveCommandResult . either UiRemoveCommandFailure (const UiRemoveCommandSuccess) $
           fromResult result
+      UiFrontendCommand cmd -> resHandle result cmd
       _ -> Nothing
-
-    fromResult = \case
-      KnitCommandSuccess v -> Right v
-      KnitCommandEvalError _ -> Left $ "Invalid arguments"
-      KnitCommandException e -> Left $ fromString $ displayException e
-      KnitCommandProcError _ -> error "Undefined command used"
-
-    fromValue
-      :: Elem components component
-      => Knit.Value components
-      -> Either Text (Knit.ComponentValue components component)
-    fromValue = maybeToRight "Unrecognized return value" . Knit.fromValue
 
     exprProcCall = Knit.ExprProcCall Knit.NoExt
     exprLit = Knit.ExprLit Knit.NoExt
     procCall = Knit.ProcCall Knit.NoExt
     argPos = Knit.ArgPos Knit.NoExt
     argKw = Knit.ArgKw Knit.NoExt
+
+----------------------------------------------------------------------------
+-- Knit utilities
+----------------------------------------------------------------------------
+
+fromResult :: KnitCommandResult components -> Either Text (Knit.Value components)
+fromResult = \case
+  KnitCommandSuccess v -> Right v
+  KnitCommandEvalError _ -> Left $ "Invalid arguments"
+  KnitCommandException e -> Left $ fromString $ displayException e
+  KnitCommandProcError _ -> error "Undefined command used"
+
+fromValue
+  :: Elem components component
+  => Knit.Value components
+  -> Either Text (Knit.ComponentValue components component)
+fromValue = maybeToRight "Unrecognized return value" . Knit.fromValue
+
+optString
+  :: Elem components Knit.Core
+  => Knit.Name -> Text -> [Knit.Arg Knit.NoExt (Knit.Expr Knit.NoExt cmd components)]
+optString key value = if null value then [] else
+  [Knit.ArgKw Knit.NoExt key . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitString $ value]
+
+justOptNumber
+  :: ( Integral a
+     , Elem components Knit.Core
+     )
+  => Knit.Name -> Maybe a -> [Knit.Arg Knit.NoExt (Knit.Expr Knit.NoExt cmd components)]
+justOptNumber key = maybe [] $ \value ->
+  [Knit.ArgKw Knit.NoExt key . Knit.ExprLit Knit.NoExt . Knit.toLit . Knit.LitNumber $ fromIntegral value]
 
 commandIdToUI :: Unique -> Maybe TaskId -> UiCommandId
 commandIdToUI u mi =

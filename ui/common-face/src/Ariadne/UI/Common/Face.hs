@@ -24,7 +24,6 @@ module Ariadne.UI.Common.Face
        , UiFeeArgs (..)
        , UiNewWalletArgs (..)
        , UiNewAccountArgs (..)
-       , UiNewAddressArgs (..)
        , UiRestoreWalletArgs (..)
        , UiRenameArgs (..)
        , UiChangePasswordArgs (..)
@@ -39,7 +38,6 @@ module Ariadne.UI.Common.Face
        , UiFeeCommandResult (..)
        , UiNewWalletCommandResult (..)
        , UiNewAccountCommandResult (..)
-       , UiNewAddressCommandResult (..)
        , UiRestoreWalletCommandResult (..)
        , UiRenameCommandResult (..)
        , UiRemoveCommandResult (..)
@@ -64,6 +62,7 @@ import qualified Data.Text.Buildable as Buildable
 import Data.Loc (Loc, Span)
 import Data.Tree (Tree)
 import Formatting (bprint, int, (%))
+import Data.Scientific (Scientific)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.UX.PasswordManager
@@ -202,7 +201,6 @@ data UiCommand frontend
   | UiSend UiSendArgs
   | UiNewWallet UiNewWalletArgs
   | UiNewAccount UiNewAccountArgs
-  | UiNewAddress UiNewAddressArgs
   | UiRestoreWallet UiRestoreWalletArgs
   | UiChangePassword UiChangePasswordArgs
   | UiRename UiRenameArgs
@@ -219,7 +217,7 @@ data family FrontendCommand frontend
 
 data UiSendOutput = UiSendOutput
   { usoAddress :: !Text
-  , usoAmount :: !Text
+  , usoAmount :: !Scientific
   }
 
 data UiSendArgs = UiSendArgs
@@ -245,11 +243,6 @@ data UiNewAccountArgs = UiNewAccountArgs
   , unaaName :: !Text
   }
 
-data UiNewAddressArgs = UiNewAddressArgs
-  { unadaWalletIdx :: !(Maybe Word)
-  , unadaAccountIdx :: !(Maybe Word)
-  }
-
 data UiRestoreWalletArgs = UiRestoreWalletArgs
   { urwaName :: !Text
   , urwaMnemonic :: !Text
@@ -268,7 +261,6 @@ data UiCommandResult frontend
   | UiNewWalletCommandResult UiNewWalletCommandResult
   | UiRestoreWalletCommandResult UiRestoreWalletCommandResult
   | UiNewAccountCommandResult UiNewAccountCommandResult
-  | UiNewAddressCommandResult UiNewAddressCommandResult
   | UiBalanceCommandResult UiBalanceCommandResult
   | UiTxHistoryCommandResult UiTxHistoryCommandResult
   | UiFeeCommandResult UiFeeCommandResult
@@ -322,10 +314,6 @@ data UiRestoreWalletCommandResult
 data UiNewAccountCommandResult
   = UiNewAccountCommandSuccess
   | UiNewAccountCommandFailure Text
-
-data UiNewAddressCommandResult
-  = UiNewAddressCommandSuccess
-  | UiNewAddressCommandFailure Text
 
 data UiRenameCommandResult
   = UiRenameCommandSuccess

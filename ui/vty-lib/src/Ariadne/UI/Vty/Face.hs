@@ -2,6 +2,10 @@ module Ariadne.UI.Vty.Face
        ( UiFeatures (..)
        , Vty
        , FrontendEvent (..)
+       , FrontendCommand (..)
+       , UiNewAddressArgs (..)
+       , FrontendCommandResult (..)
+       , UiNewAddressCommandResult (..)
        , UiCommandAction (..)
        , UiNewVersionEvent (..)
        , UiCurrency (..)
@@ -31,6 +35,21 @@ data Vty
 data instance FrontendEvent Vty
   = UiNewVersionEvent UiNewVersionEvent
   | UiCommandAction UiCommandAction
+
+data instance FrontendCommand Vty
+  = UiNewAddress UiNewAddressArgs
+
+data UiNewAddressArgs = UiNewAddressArgs
+  { unadaWalletIdx :: !(Maybe Word)
+  , unadaAccountIdx :: !(Maybe Word)
+  }
+
+data instance FrontendCommandResult Vty
+  = UiNewAddressCommandResult UiNewAddressCommandResult
+
+data UiNewAddressCommandResult
+  = UiNewAddressCommandSuccess
+  | UiNewAddressCommandFailure Text
 
 -- UI event triggered by REPL command
 data UiCommandAction

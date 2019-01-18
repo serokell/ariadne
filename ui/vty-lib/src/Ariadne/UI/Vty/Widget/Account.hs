@@ -276,7 +276,7 @@ handleAccountWidgetEvent = \case
             UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
             UiBalanceCommandFailure err -> BalanceResultError err
         other -> other
-  UiCommandResult commandId (UiNewAddressCommandResult result) ->
+  UiCommandResult commandId (UiFrontendCommandResult (UiNewAddressCommandResult result)) ->
     zoomWidgetState $ do
       accountAddressResultL %= \case
         AddressResultWaiting commandId' | commandId == commandId' ->
@@ -330,7 +330,7 @@ performNewAddress = zoomWidgetState $ do
         _ -> Nothing
   use accountAddressResultL >>= \case
     AddressResultWaiting _ -> pass
-    _ -> liftIO (langPutUiCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
+    _ -> liftIO (langPutUiCommand . UiFrontendCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
       assign accountAddressResultL . either AddressResultError AddressResultWaiting
 
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()

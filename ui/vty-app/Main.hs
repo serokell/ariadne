@@ -30,7 +30,7 @@ main = defaultMain mainSettings
         , msPutCardanoEventToUI = putCardanoEventToUI
         , msPutUpdateEventToUI = Just putUpdateEventToUI
         , msPutPasswordEventToUI = putPasswordEventToUI
-        , msKnitFaceToUI = knitFaceToUI
+        , msKnitFaceToUI = knitFaceToUI commandHandle resultHandle
         , msUiExecContext = \uiFace -> Step (Knit.UiExecCtx uiFace, Base ())
         , msPutBackendErrorToUI = \_ _ -> pass
         }
