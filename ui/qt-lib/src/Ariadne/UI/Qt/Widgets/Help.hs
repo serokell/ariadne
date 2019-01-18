@@ -29,7 +29,7 @@ data Help =
 
 makeLensesWith postfixLFields ''Help
 
-initHelp :: UiLangFace -> IO (QDialog.QDialog, Help)
+initHelp :: UiLangFace Qt -> IO (QDialog.QDialog, Help)
 initHelp UiLangFace{..} = do
   dialog <- QDialog.new
   QWidget.setWindowTitle dialog ("Help" :: String)

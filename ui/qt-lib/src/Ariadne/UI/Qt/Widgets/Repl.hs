@@ -62,7 +62,7 @@ data CommandOutput =
 makeLensesWith postfixLFields ''Repl
 makeLensesWith postfixLFields ''CommandOutput
 
-initRepl :: UiLangFace -> UiHistoryFace -> IO (QWidget.QWidget, Repl)
+initRepl :: UiLangFace Qt -> UiHistoryFace -> IO (QWidget.QWidget, Repl)
 initRepl langFace historyFace = do
   cmdLine <- QLineEdit.new
   QObject.setObjectName cmdLine ("cmdLine" :: String)
@@ -174,7 +174,7 @@ addNewCommand commandId command = do
     modifyIORef' commandOutputs (commandOutput:)
     QBoxLayout.addLayout historyLayout $ view coLayoutL commandOutput
 
-returnPressed :: UiLangFace -> UiHistoryFace -> UI Repl ()
+returnPressed :: UiLangFace Qt -> UiHistoryFace -> UI Repl ()
 returnPressed UiLangFace{..} historyFace = do
   cmdLine <- view cmdLineL
   cmd <- liftIO $ QLineEdit.text cmdLine
@@ -193,7 +193,7 @@ scrollDown _ maxValue = do
   scrollBar <- view historyWidgetL >>= liftIO . QAbstractScrollArea.verticalScrollBar
   liftIO $ QAbstractSlider.setValue scrollBar maxValue
 
-handleReplEvent :: UiCommandId -> UiCommandEvent -> UI Repl ()
+handleReplEvent :: UiCommandId -> UiCommandEvent Qt -> UI Repl ()
 handleReplEvent commandId event = do
   commandOutputs <- view commandOutputsL >>= readIORef
   whenJust (find isThisCommand commandOutputs) $ liftIO . updateCommandResult event
@@ -201,7 +201,7 @@ handleReplEvent commandId event = do
   where
     isThisCommand CommandOutput{commandId = commandId'} = commandId == commandId'
 
-updateCommandResult :: UiCommandEvent -> CommandOutput -> IO ()
+updateCommandResult :: UiCommandEvent Qt -> CommandOutput -> IO ()
 updateCommandResult event CommandOutput{..} = do
   doc <- case event of
     UiCommandSuccess doc -> do

@@ -43,7 +43,7 @@ data WalletTree =
 makeLensesWith postfixLFields ''WalletTree
 
 initWalletTree
-  :: UiLangFace
+  :: UiLangFace Qt
   -> UiWalletFace
   -> QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
@@ -79,15 +79,16 @@ initWalletTree langFace uiWalletFace itemModel selectionModel = do
 
   return (widget, WalletTree{..})
 
-addWalletClicked :: UiLangFace -> UiWalletFace -> WalletTree -> Bool -> IO ()
+addWalletClicked :: UiLangFace Qt -> UiWalletFace -> WalletTree -> Bool -> IO ()
 addWalletClicked UiLangFace{..} _uiWalletFace WalletTree{..} _checked =
   runNewWallet >>= \case
     NewWalletCanceled -> pass
     NewWalletAccepted NewWalletParameters{..} ->
+      let pass = fromMaybe "" nwPassword in
       case nwSpecifier of
-        NewWalletName -> void $ langPutUiCommand $ UiNewWallet nwName nwPassword
+        NewWalletName -> void $ langPutUiCommand $ UiNewWallet $ UiNewWalletArgs nwName pass
         NewWalletMnemonic mnemonic -> void $ langPutUiCommand $
-          UiRestoreWallet nwName nwPassword mnemonic
+          UiRestoreWallet $ UiRestoreWalletArgs nwName mnemonic pass
 
 data WalletTreeEvent
   = WalletTreeNewWalletCommandResult UiCommandId UiNewWalletCommandResult
@@ -95,14 +96,14 @@ data WalletTreeEvent
   | WalletTreeConfirmMnemonic (MVar Bool) [Text]
 
 handleWalletTreeEvent
-  :: UiLangFace
+  :: UiLangFace Qt
   -> WalletTreeEvent
   -> UI WalletTree ()
 handleWalletTreeEvent UiLangFace{..} ev = do
   WalletTree{..} <- ask
   lift $ case ev of
     WalletTreeNewWalletCommandResult _commandId result -> case result of
-      UiNewWalletCommandSuccess -> do
+      (UiNewWalletCommandSuccess _) -> do
         void $ QMessageBox.information treeView ("Success" :: String) ("Wallet created" :: String)
       UiNewWalletCommandFailure err -> do
         void $ QMessageBox.critical treeView ("Error" :: String) $ toString err

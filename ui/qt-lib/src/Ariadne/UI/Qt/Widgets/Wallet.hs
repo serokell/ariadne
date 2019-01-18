@@ -39,7 +39,7 @@ data Wallet =
 
 makeLensesWith postfixLFields ''Wallet
 
-initWallet :: UiLangFace -> UiWalletFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
+initWallet :: UiLangFace Qt -> UiWalletFace -> IO (QHBoxLayout.QHBoxLayout, Wallet)
 initWallet langFace uiWalletFace = do
   itemModel <- initItemModel
   selectionModel <- QItemSelectionModel.newWithModel itemModel
@@ -74,7 +74,7 @@ initItemModel = do
 
   return model
 
-currentChanged :: UiLangFace -> Wallet -> QModelIndex.QModelIndex -> QModelIndex.QModelIndex -> IO ()
+currentChanged :: UiLangFace Qt -> Wallet -> QModelIndex.QModelIndex -> QModelIndex.QModelIndex -> IO ()
 currentChanged UiLangFace{..} Wallet{..} selected deselected = do
   isValid <- QModelIndex.isValid selected
   when (isValid && selected /= deselected) $ do
@@ -83,7 +83,7 @@ currentChanged UiLangFace{..} Wallet{..} selected deselected = do
     unless (null path) $ void $ langPutUiCommand $ UiSelect path
 
 data WalletEvent
-  = WalletUpdateEvent [UiWalletTree] (Maybe UiWalletTreeSelection) (Maybe UiSelectionInfo)
+  = WalletUpdateEvent [UiTree] (Maybe UiTreeSelection) (Maybe (UiSelectionInfo Qt))
   | WalletSendCommandResult UiCommandId UiSendCommandResult
   | WalletCalcTotalCommandResult UiCalcTotalCommandResult
   | WalletNewWalletCommandResult UiCommandId UiNewWalletCommandResult
@@ -95,7 +95,7 @@ data WalletEvent
   | WalletConfirmationRequest (MVar Bool) UiConfirmationType
 
 handleWalletEvent
-  :: UiLangFace
+  :: UiLangFace Qt
   -> PutPassword
   -> WalletEvent
   -> UI Wallet ()
@@ -153,8 +153,8 @@ handleWalletEvent langFace putPass ev = do
 updateModel
   :: QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
-  -> [UiWalletTree]
-  -> Maybe UiWalletTreeSelection
+  -> [UiTree]
+  -> Maybe UiTreeSelection
   -> IO ()
 updateModel model selectionModel wallets selection = do
   root <- QStandardItemModel.invisibleRootItem model
@@ -167,14 +167,14 @@ updateModel model selectionModel wallets selection = do
     QItemSelectionModel.clearCurrentIndex selectionModel
     QItemSelectionModel.clearSelection selectionModel
   where
-    selPath = (\UiWalletTreeSelection{..} -> wtsWalletIdx:wtsPath) <$> selection
+    selPath = (\UiTreeSelection{..} -> wtsWalletIdx:wtsPath) <$> selection
     toModelItem
       :: QStandardItem.QStandardItem
       -> Int
       -> Int
-      -> (Int, UiWalletTree)
+      -> (Int, UiTree)
       -> IO ()
-    toModelItem parent parentRowCount walletIdx (idx, Node UiWalletTreeItem{..} children) = do
+    toModelItem parent parentRowCount walletIdx (idx, Node UiTreeItem{..} children) = do
       let path = (fromIntegral walletIdx):wtiPath
 
       item <- if idx < parentRowCount

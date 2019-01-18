@@ -40,7 +40,7 @@ data MainWindow =
 
 makeLensesWith postfixLFields ''MainWindow
 
-initMainWindow :: UiLangFace -> UiWalletFace -> UiHistoryFace -> IO MainWindow
+initMainWindow :: UiLangFace Qt -> UiWalletFace -> UiHistoryFace -> IO MainWindow
 initMainWindow langFace uiWalletFace historyFace = do
   mainWindow <- QMainWindow.new
   QWidget.setWindowTitle mainWindow ("Ariadne" :: String)
@@ -80,9 +80,9 @@ initMainWindow langFace uiWalletFace historyFace = do
   return MainWindow{..}
 
 handleMainWindowEvent
-  :: UiLangFace
+  :: UiLangFace Qt
   -> PutPassword
-  -> UiEvent
+  -> UiEvent Qt
   -> UI MainWindow ()
 handleMainWindowEvent langFace putPass = \case
   UiBackendEvent (UiBackendLogEvent message) ->
@@ -95,7 +95,7 @@ handleMainWindowEvent langFace putPass = \case
     UiSendCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletSendCommandResult commandId result
-    UiCalcTotalCommandResult result ->
+    UiFrontendCommandResult (UiCalcTotalCommandResult result) ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletCalcTotalCommandResult result
     UiNewWalletCommandResult result ->
@@ -107,7 +107,7 @@ handleMainWindowEvent langFace putPass = \case
     UiNewAccountCommandResult result ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletNewAccountCommandResult commandId result
-    UiNewAddressCommandResult result ->
+    UiFrontendCommandResult (UiNewAddressCommandResult result) ->
       magnify walletL $ handleWalletEvent langFace putPass $
           WalletNewAddressCommandResult commandId result
     UiChangePasswordCommandResult result ->
@@ -122,7 +122,7 @@ handleMainWindowEvent langFace putPass = \case
   UiConfirmEvent (UiConfirmRequest resultVar confirmationType) -> do
     magnify walletL $ handleWalletEvent langFace putPass $
         WalletConfirmationRequest resultVar confirmationType
-  UiBackendExceptionEvent (UiBackendException e) -> liftIO $ do
+  UiFrontendEvent (UiBackendExceptionEvent (UiBackendException e)) -> liftIO $ do
     msg <- QWidget.new
     void $ QMessageBox.critical msg ("Error" :: String) ("Wallet backend died with exception: " <> show e :: String)
     QCoreApplication.exit 1

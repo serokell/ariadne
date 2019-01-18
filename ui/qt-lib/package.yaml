@@ -18,6 +18,7 @@ library:
     - ansi-terminal
     - ansi-wl-pprint
     - ariadne-core
+    - ariadne-common-ui-face
     - bytestring
     - componentm
     - concurrent-extra
