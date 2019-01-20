@@ -20,7 +20,7 @@ packages:
 
 extra-deps:
 - git: https://github.com/serokell/cardano-sl
-  commit: bbe0b23536da28e3100992e28b0538bc9fcdae75 # ariadne branch
+  commit: 5e1b28ce794fdf8864b23df0425f73214dc09b38 # ariadne branch
   subdirs:
   - binary
   - binary/test
@@ -32,7 +32,6 @@ extra-deps:
   - crypto
   - crypto/test
   - db
-  - generator
   - infra
   - lib
   - networking
@@ -40,6 +39,7 @@ extra-deps:
   - util/test
 
 # Cardano SL dependencies - please keep in sync
+# Note: we are using our own universum and serokell-util
 # IOHK projects:
 
 # TODO(parsonsmatt): There have been some breaking changes with Plutus for
@@ -48,8 +48,8 @@ extra-deps:
 - git: https://github.com/avieth/plutus-prototype
   commit: d094be301195fcd8ab864d793f114970426a4478
 
-- git: https://github.com/input-output-hk/cardano-report-server.git
-  commit: 62f04801ef9fce4c8e856607400a2bb05ab732e9
+- git: https://github.com/serokell/cardano-report-server.git
+  commit: a46274e47ec70f540c3c654cc77d7a3d215822c7
 
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: e87fcd3fea18f664d6e4f39c11abb8cafbd25785
@@ -147,11 +147,6 @@ extra-deps:
 # Add custom stylish-haskell while waiting for PR upstream: https://github.com/jaspervdj/stylish-haskell/pull/214
 - git: https://github.com/input-output-hk/stylish-haskell.git
   commit: ecfd3b307d8d13a6d12aff03055f25a39a17e182
-
-# Need to adjust version bounds on serokell-util.
-# serokell-util has an upper bound preventing 6.3 for some reason
-- git: https://github.com/input-output-hk/serokell-util.git
-  commit: 4ead9809e119483e7832da5f8224b0c4d4a2d5d6
 
 
 # Ariadne dependencies
@@ -259,7 +254,9 @@ extra-deps:
 - hinotify-0.3.10
 
 # Ariadne specific
-- universum-1.2.0   # we are using our own universum
+- universum-1.2.0 # we are using our own universum
+- serokell-util-0.10.0 # we are using our own serokell-util
+- o-clock-1.0.0.1 # due to serokell-util
 - vty-5.21
 - brick-0.37.1
 - vinyl-0.8.1.1

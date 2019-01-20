@@ -45,25 +45,26 @@ import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import System.Directory (getTemporaryDirectory)
 import System.FilePath ((</>))
-import System.Wlog (LoggerConfig, usingLoggerName)
 
 import Pos.Behavior (BehaviorConfig(..))
+import Pos.Chain.Ssc (SscParams(..))
+import Pos.Chain.Update (UpdateParams(..))
 import Pos.Client.CLI.NodeOptions (CommonNodeArgs(..))
 import Pos.Client.CLI.Options (CommonArgs(..))
 import Pos.Client.CLI.Secrets (prepareUserSecret)
-import Pos.Core.Configuration (HasConfiguration)
+import Pos.Core.NetworkAddress (NetworkAddress)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Crypto (VssKeyPair(..))
+import Pos.Infra.InjectFail (mkFInjects)
 import Pos.Infra.Network.CLI (NetworkConfigOpts(..), intNetworkConfigOpts')
 import Pos.Infra.Network.Types (NodeName(..))
 import qualified Pos.Infra.Network.Yaml as Network.Yaml
 import Pos.Infra.Statistics (EkgParams(..))
-import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher
   (BaseParams(..), ConfigurationOptions(..), LoggingParams(..), NodeParams(..))
-import Pos.Ssc (SscParams(..))
-import Pos.Update (UpdateParams(..))
+import Pos.Util.UserPublic (peekUserPublic)
 import Pos.Util.UserSecret (peekUserSecret)
+import Pos.Util.Wlog (LoggerConfig, usingLoggerName)
 
 import Ariadne.Cardano.Orphans ()
 import Ariadne.Config.DhallUtil
@@ -126,6 +127,7 @@ defaultCommonNodeArgs =
         , rebuildDB = False
         , cnaAssetLockPath = Nothing
         , devGenesisSecretI = Nothing
+        , publicKeyfilePath = "public-mainnet.key"
         , keyfilePath = "secret-mainnet.key"
         , networkConfigOpts = NetworkConfigOpts
             { ncoTopology = Nothing
@@ -140,6 +142,7 @@ defaultCommonNodeArgs =
         , commonArgs = CommonArgs
             { logConfig = Nothing
             , logPrefix = Just "logs/mainnet"
+            , logConsoleOff = False
             , reportServers = []
             , updateServers = []
             , configurationOptions = ConfigurationOptions
@@ -157,6 +160,7 @@ defaultCommonNodeArgs =
         , statsdParams = Nothing
         , cnaDumpGenesisDataPath = Nothing
         , cnaDumpConfiguration = False
+        , cnaFInjectsSpec = Nothing
         }
 
 defaultCardanoConfig :: FilePath -> CardanoConfig
@@ -199,7 +203,7 @@ gtSscParams vssSK BehaviorConfig{..} =
     , spBehavior = bcSscBehavior
     }
 
-getNodeParams :: HasConfiguration => CardanoConfig -> IO NodeParams
+getNodeParams :: CardanoConfig -> IO NodeParams
 -- Vanilla pattern-matching is used to be sure nothing is forgotten.
 getNodeParams conf@(CardanoConfig
     ccDbPath
@@ -230,13 +234,17 @@ getNodeParams conf@(CardanoConfig
     -- Now that all key management is done by the wallet, the node's
     -- key storage may be safely created in a temporary location.
     tempDir <- liftIO getTemporaryDirectory
-    let usPath = tempDir </> "ariadne-deprecated-keyfile-please-ignore"
+    let userPublicPath = tempDir </> "ariadne-deprecated-public-keyfile-please-ignore"
+    userPublic <- peekUserPublic userPublicPath
+    let usPath = tempDir </> "ariadne-deprecated-secret-keyfile-please-ignore"
     (primarySK, userSecret) <-
-        prepareUserSecret defaultCommonNodeArgs =<< peekUserSecret usPath
+        prepareUserSecret defaultCommonNodeArgs Nothing =<< peekUserSecret usPath
+    fInjects <- liftIO $ mkFInjects Nothing
     pure NodeParams
         { npDbPathM = ccDbPath
         , npRebuildDb = ccRebuildDB
         , npSecretKey = primarySK
+        , npUserPublic = userPublic
         , npUserSecret = userSecret
         , npBaseParams = baseParams
         , npJLFile = jlPath defaultCommonNodeArgs
@@ -253,6 +261,7 @@ getNodeParams conf@(CardanoConfig
         , npAssetLockPath = cnaAssetLockPath defaultCommonNodeArgs
         , npBehaviorConfig = def
         , npNetworkConfig = networkConfig
+        , npFInjects = fInjects
         }
 
 ----------------------------------------------------------------------------

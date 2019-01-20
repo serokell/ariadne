@@ -35,36 +35,34 @@ import Control.Natural ((:~>))
 import Crypto.Random (MonadRandom)
 import Data.Conduit (transPipe)
 import Data.Constraint (Dict(..))
-import Mockable
-  (ChannelT, Counter, Distribution, Gauge, MFunctor', Mockable, Production,
-  Promise, SharedAtomicT, SharedExclusiveT, ThreadId, hoist', liftMockable)
-import Pos.Block.BListener (MonadBListener(..))
-import Pos.Block.Slog (HasSlogContext(..), HasSlogGState(..))
-import Pos.Block.Types (Blund)
+import Pos.Chain.Block
+  (Blund, HasSlogContext(..), HasSlogGState(..), HeaderHash)
+import Pos.Chain.Txp (TxId, TxOut(..))
 import Pos.Context (HasNodeContext(..), HasPrimaryKey(..), HasSscContext(..))
 import Pos.Core
-  (Address, Coin, EpochIndex(..), EpochOrSlot(..), HasConfiguration,
-  HeaderHash, LocalSlotIndex(..), ProtocolMagic, SlotId(..), TxId, TxOut(..),
-  decodeTextAddress)
+  (Address, Coin, EpochIndex(..), EpochOrSlot(..), LocalSlotIndex(..),
+  SlotId(..), decodeTextAddress)
 import Pos.Core.Chrono (NE, NewestFirst, OldestFirst)
-import Pos.Crypto (PassPhrase)
+import Pos.Core.JsonLog (CanJsonLog(..))
+import Pos.Core.Reporting (HasMisbehaviorMetrics(..))
+import Pos.Core.Slotting (HasSlottingVar(..), MonadSlotsData)
+import Pos.Crypto (PassPhrase, ProtocolMagic)
 import Pos.DB (MonadGState(..))
+import Pos.DB.Block (MonadBListener(..))
 import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
+import Pos.DB.Txp (MonadTxpLocal(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Infra.Network.Types (HasNodeType(..))
-import Pos.Infra.Reporting (HasMisbehaviorMetrics(..), MonadReporting(..))
+import Pos.Infra.Reporting (MonadReporting(..))
 import Pos.Infra.Shutdown (HasShutdownContext(..))
 import Pos.Infra.Slotting.Class (MonadSlots(..))
-import Pos.Infra.Slotting.MemState (HasSlottingVar(..), MonadSlotsData)
 import Pos.Infra.Util.JsonLog.Events (HasJsonLogConfig(..), jsonLogDefault)
-import Pos.Infra.Util.TimeWarp (CanJsonLog(..))
 import Pos.Launcher (HasConfigurations)
-import Pos.Txp (HasTxpConfiguration, MempoolExt, MonadTxpLocal(..))
 import Pos.Util.CompileInfo (HasCompileInfo)
 import Pos.Util.LoggerName (HasLoggerName'(..))
 import Pos.Util.Util (HasLens(..))
+import Pos.Util.Wlog (CanLog, HasLoggerName(..))
 import Pos.WorkMode (EmptyMempoolExt, RealMode, RealModeContext(..))
-import System.Wlog (CanLog, HasLoggerName(..))
 
 import Ariadne.Util
 
@@ -98,7 +96,7 @@ data CardanoContext
   }
 makeLensesWith postfixLFields ''CardanoContext
 
-type CardanoModeMonad = ReaderT CardanoContext Production
+type CardanoModeMonad = ReaderT CardanoContext IO
 newtype CardanoMode a
   = CardanoMode
   { unwrapCardanoMode :: CardanoModeMonad a
@@ -120,33 +118,15 @@ newtype CardanoMode a
     , MonadUnliftIO
     )
 
-type instance ThreadId CardanoMode = ThreadId CardanoModeMonad
-type instance Promise CardanoMode = Promise CardanoModeMonad
-type instance SharedAtomicT CardanoMode = SharedAtomicT CardanoModeMonad
-type instance SharedExclusiveT CardanoMode = SharedExclusiveT CardanoModeMonad
-type instance ChannelT CardanoMode = ChannelT CardanoModeMonad
-type instance Gauge CardanoMode = Gauge CardanoModeMonad
-type instance Counter CardanoMode = Counter CardanoModeMonad
-type instance Distribution CardanoMode = Distribution CardanoModeMonad
-type instance MempoolExt CardanoMode = EmptyMempoolExt
-
 instance MonadBListener CardanoMode where
   onApplyBlocks _ b = do
     CardanoContext{..} <- ask
     liftIO $ bhOnApply ccBListenerHandle $ b
     pure mempty
-  onRollbackBlocks _ b = do
+  onRollbackBlocks _ _ b = do
     CardanoContext{..} <- ask
     liftIO $ bhOnRollback ccBListenerHandle $ b
     pure mempty
-
-instance
-  ( Mockable d Production
-  , MFunctor' d CardanoMode CardanoModeMonad
-  , MFunctor' d CardanoModeMonad Production
-  )
-  => Mockable d CardanoMode where
-  liftMockable = CardanoMode . liftMockable . hoist' unwrapCardanoMode
 
 -- ♫ E-E-G-G-E-E-G Mr. Boilerplate!
 -- Amazing, with Mr. Boilerplate my code is now twice as long!!!
@@ -197,7 +177,7 @@ realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
 instance {-# OVERLAPPING #-} CanJsonLog CardanoMode where
     jsonLog = jsonLogDefault
 
-instance (HasConfiguration, MonadSlotsData ctx CardanoMode)
+instance (MonadSlotsData ctx CardanoMode)
       => MonadSlots ctx CardanoMode
   where
     getCurrentSlot = realModeToCardanoMode ... getCurrentSlot
@@ -205,24 +185,24 @@ instance (HasConfiguration, MonadSlotsData ctx CardanoMode)
     getCurrentSlotInaccurate = realModeToCardanoMode ... getCurrentSlotInaccurate
     currentTimeSlotting = realModeToCardanoMode ... currentTimeSlotting
 
-instance HasConfiguration => MonadGState CardanoMode where
+instance MonadGState CardanoMode where
     gsAdoptedBVData = realModeToCardanoMode ... gsAdoptedBVData
 
-instance HasConfiguration => MonadDBRead CardanoMode where
+instance MonadDBRead CardanoMode where
     dbGet = realModeToCardanoMode ... dbGet
     dbIterSource tag p =
       transPipe (transResourceT realModeToCardanoMode) (dbIterSource tag p)
     dbGetSerBlock = realModeToCardanoMode ... dbGetSerBlock
     dbGetSerUndo = realModeToCardanoMode ... dbGetSerUndo
+    dbGetSerBlund = realModeToCardanoMode ... dbGetSerBlund
 
-instance HasConfiguration => MonadDB CardanoMode where
+instance MonadDB CardanoMode where
     dbPut = realModeToCardanoMode ... dbPut
     dbWriteBatch = realModeToCardanoMode ... dbWriteBatch
     dbDelete = realModeToCardanoMode ... dbDelete
     dbPutSerBlunds = realModeToCardanoMode ... dbPutSerBlunds
 
-instance (HasConfiguration, HasTxpConfiguration) =>
-         MonadTxpLocal CardanoMode where
+instance MonadTxpLocal CardanoMode where
     txpNormalize = realModeToCardanoMode ... txpNormalize
     txpProcessTx = realModeToCardanoMode ... txpProcessTx
 

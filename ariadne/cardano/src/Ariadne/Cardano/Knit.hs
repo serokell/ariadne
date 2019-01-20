@@ -30,9 +30,10 @@ import Control.Lens (makePrisms, prism')
 import Control.Natural (type (~>))
 import Data.List as List
 import Data.Scientific
+import Fmt (pretty)
 import Formatting (sformat, (%))
+import Pos.Chain.Txp (TxOut)
 import Pos.Core
-import Pos.Core.Txp (TxOut)
 import Pos.Crypto
 import Pos.Util.Util (toParsecError)
 import qualified Text.Megaparsec as P
