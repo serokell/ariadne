@@ -3,7 +3,6 @@ module Ariadne.System.FileMode
        ) where
 
 import System.Info (os)
-import System.Wlog (logWarning, usingLoggerName, CanLog)
 
 import qualified System.Posix.Files as PSX
 import qualified System.Posix.Types as PSX (FileMode)
@@ -31,17 +30,17 @@ whenPosix fn = case os of
 
 -- | Set given mode if needed.
 ensureModeIs
-    :: (MonadIO m, CanLog m)
-    => PSX.FileMode -> FilePath -> m ()
-ensureModeIs mode path = do
+    :: (MonadIO m)
+    => (Text -> m ()) -> PSX.FileMode -> FilePath -> m ()
+ensureModeIs logWarning mode path = do
     accessMode <- getAccessMode path
     unless (accessMode == mode) $ do
-        usingLoggerName "ariadne" . logWarning . fromString $
+        logWarning . fromString $
             "Key file at " <> path <> " has access mode " <> show accessMode <>
             " instead of 600. Fixing it automatically."
         setMode mode path
 
 ensureModeIs600
-    :: (MonadIO m, CanLog m)
-    => FilePath -> m ()
-ensureModeIs600 = whenPosix . ensureModeIs mode600
+    :: (MonadIO m)
+    => (Text -> m ()) -> FilePath -> m ()
+ensureModeIs600 logWarning = whenPosix . ensureModeIs logWarning mode600

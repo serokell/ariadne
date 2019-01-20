@@ -15,10 +15,10 @@ library:
     - co-log
     - co-log-core
     - filepath
+    - fmt
     - formatting
     - knit
     - lens
-    - log-warper
     - megaparsec
     - ntype
     - o-clock

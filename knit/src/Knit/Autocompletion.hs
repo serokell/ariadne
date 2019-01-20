@@ -12,9 +12,9 @@ import Data.Loc (loc, spanFromTo)
 import Data.Maybe (mapMaybe)
 import Data.Semigroup ((<>))
 import qualified Data.Text as T
-import Data.Text.Buildable (build)
 import Data.Text.Lazy (unpack)
 import Data.Text.Lazy.Builder (toLazyText)
+import Formatting.Buildable (build)
 import Text.Earley (fullParses)
 
 import Knit.Argument

@@ -20,97 +20,139 @@ packages:
 
 extra-deps:
 - git: https://github.com/serokell/cardano-sl
-  commit: 1e0a4923b433fd54bee2e4e2bb6d47fcc96715b5 # ariadne branch
+  commit: bbe0b23536da28e3100992e28b0538bc9fcdae75 # ariadne branch
   subdirs:
   - binary
   - binary/test
-  - block
-  - block/test
+  - chain
+  - chain/test
   - client
   - core
   - core/test
   - crypto
   - crypto/test
   - db
-  - delegation
-  - delegation/test
   - generator
   - infra
   - lib
-  - lrc
-  - lrc/test
   - networking
-  - ssc
-  - txp
-  - txp/test
-  - update
   - util
   - util/test
-  - wallet
 
 # Cardano SL dependencies - please keep in sync
+# IOHK projects:
+
+# TODO(parsonsmatt): There have been some breaking changes with Plutus for
+# cardano-sl and it would be nice to have some help from that team to get this
+# updated and back on IOHK.
+- git: https://github.com/avieth/plutus-prototype
+  commit: d094be301195fcd8ab864d793f114970426a4478
+
+- git: https://github.com/input-output-hk/cardano-report-server.git
+  commit: 62f04801ef9fce4c8e856607400a2bb05ab732e9
+
+- git: https://github.com/input-output-hk/cardano-crypto
+  commit: e87fcd3fea18f664d6e4f39c11abb8cafbd25785
+# to be removed when haskell-ip is in the current stackage version
+- git: https://github.com/andrewthad/haskell-ip
+  commit: 9bb453139aa82cc973125091800422a523e1eb8f
+
+## Vendored/Forked dependencies
+#
+# For these projects, please include a note describing:
+# 1. why we're using a fork
+# 2. what branch the commit is on
+# 3. a link to the PR that upstreams the patch
+#
+# Has support for canonical cbor. This commit is pulled into `master`. I've
+# posted a GitHub issue requesting a Hackage release:
+# https://github.com/well-typed/cborg/issues/171
 - git: https://github.com/well-typed/cborg
   commit: 3d274c14ca3077c3a081ba7ad57c5182da65c8c1
   subdirs:
   - cborg
-- git: https://github.com/serokell/time-units
+
+# this extra-dep is to avoid printing microseconds with unicode
+# no PR upstream was made
+# TODO(parsonsmatt): why was this change done?
+- git: https://github.com/serokell/time-units.git
   commit: 6c3747c1ac794f952de996dd7ba8a2f6d63bf132
-- git: https://github.com/serokell/kademlia
+
+# not reviewing this too deeply as we're dumping kademlia
+- git: https://github.com/serokell/kademlia.git
   commit: 7120bb4d28e708acd52dfd61d3dca7914fac7d7f # master
-- git: https://github.com/avieth/plutus-prototype
-  commit: d094be301195fcd8ab864d793f114970426a4478
-- git: https://github.com/thoughtpolice/hs-ed25519
-  # We're waiting on next release
-  commit: da4247b5b3420120e20451e6a252e2a2ca15b43c
-- git: https://github.com/input-output-hk/cardano-report-server
-  commit: 9b96874d0f234554a5779d98762cc0a6773a532a
 
 # These three are needed for cardano-sl-networking
-- git: https://github.com/serokell/network-transport-tcp
-  commit: 3d56652123bd296dc759cd31947eb2a17924e68a # csl-0.6.0
+#
+# This defines a bundle type and attribute:
+# https://github.com/haskell-distributed/network-transport/compare/master...serokell:018a50b9042c2115c3ec9c9fd5ca5f28737dd29c?expand=1
+# Seems relatively straightforward to PR.
 - git: https://github.com/serokell/network-transport
   commit: 018a50b9042c2115c3ec9c9fd5ca5f28737dd29c
+
+# This doesn't have much difference at all with the upstream master:
+# https://github.com/haskell-distributed/network-transport-tcp/compare/master...serokell:3d56652123bd296dc759cd31947eb2a17924e68a?expand=1
+# As above, seems relatively straightforward to PR.
+- git: https://github.com/serokell/network-transport-tcp
+  commit: 3d56652123bd296dc759cd31947eb2a17924e68a # csl-0.6.0
+
+# This one has more changes:
+# https://github.com/haskell-distributed/network-transport-inmemory/compare/master...avieth:5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a?expand=1
+# Do we have an issue that documents why we made these changes, so we can make a PR upstream?
 - git: https://github.com/avieth/network-transport-inmemory
   commit: 5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a
-- git: https://github.com/input-output-hk/cardano-crypto
-  commit: 33c7ecc6e4bd71c3ea0195e9d796eeace7be22cf
-  # to be removed when haskell-ip is in the current stackage version
-- git: https://github.com/andrewthad/haskell-ip
-  commit: 9bb453139aa82cc973125091800422a523e1eb8f
+
+# Waiting on the space leak bug fix PR to be merged:
+# https://github.com/acid-state/acid-state/pull/104
+- git: https://github.com/parsonsmatt/acid-state
+  commit: a1b23e2056f134e53f705a694ab85deeecabec5c
 
 # Required for explorer.
 # We forked it because it has some unacceptable version bounds. We didn't
 # add any features nor fix any bugs.
-- git: https://github.com/input-output-hk/engine.io
+- git: https://github.com/input-output-hk/engine.io.git
   commit: d3c55f51bb81cee7d0d551de930ce65fe7d76756
   subdirs:
-  - socket-io
-  - engine-io
-  - engine-io-wai
+    - socket-io
+    - engine-io
+    - engine-io-wai
 
-- git: https://github.com/well-typed/canonical-json
-  commit: 2d261bb971bada1893753b503452d9e6e217bc4a
+# Library has never been released on Hackage yet
+- git: https://github.com/input-output-hk/canonical-json.git
+  commit: f66762e4c4fe484ed109d28ad541fc55cc841c2c
 
-- git: https://github.com/input-output-hk/rocksdb-haskell-ng
+# The latest release of clock on hackage is *way* too old (0.7.2)
+# and can not be cross compiled.  As
+# https://github.com/corsis/clock/commit/f7fe4fb5691d56c342e6fbf5a99c121ab24a6b41
+# hasn't made it into any release yet.
+- git: https://github.com/corsis/clock.git
+  commit: ef60bd51a3587a173adf565c33bf2886df6e3842
+
+# Library has never been released on Hackage yet
+- git: https://github.com/input-output-hk/rocksdb-haskell-ng.git
   commit: 49f501a082d745f3b880677220a29cafaa181452
 
-# Because log-warper mainline depends on a lifted-async which depends upon a
-# buggy async
-- git: https://github.com/input-output-hk/log-warper
-  commit: fa925f9dadf239b38e2ffcc35f9d241a9fcb7d55
-
-# Because it includes a bunch of safecopy instances that we currently rely upon.
-# Also the 'Serokell.AcidState.ExtendedState' thing.
-- git: https://github.com/serokell/acid-state
-  commit: bae90f7565b4fc621cd45ac94d211b7b84627465
-
-- git: https://github.com/input-output-hk/haskell-hedgehog
+# Exposes a custom discovery function so you can specify the prefix.
+# https://github.com/hedgehogqa/haskell-hedgehog/compare/master...input-output-hk:master
+- git: https://github.com/input-output-hk/haskell-hedgehog.git
   commit: 2e741bb53afb085741807018948ae17d956c53af
   subdirs:
-  - hedgehog
+    - hedgehog
 
-- git: https://github.com/avieth/servant-quickcheck
+# servant-quickcheck has a doc/doc.cabal file that is poorly specified and this
+# breaks the mafia build tool.
+- git: https://github.com/avieth/servant-quickcheck.git
   commit: e4e879abca99d0d56015765859fb37af59a81dbb
+
+# Add custom stylish-haskell while waiting for PR upstream: https://github.com/jaspervdj/stylish-haskell/pull/214
+- git: https://github.com/input-output-hk/stylish-haskell.git
+  commit: ecfd3b307d8d13a6d12aff03055f25a39a17e182
+
+# Need to adjust version bounds on serokell-util.
+# serokell-util has an upper bound preventing 6.3 for some reason
+- git: https://github.com/input-output-hk/serokell-util.git
+  commit: 4ead9809e119483e7832da5f8224b0c4d4a2d5d6
+
 
 # Ariadne dependencies
 
@@ -131,6 +173,9 @@ extra-deps:
   - code/prelude
 
 # From `cardano-sl`:
+# Needed to fix an issue with CTX_INIT failing to build on newer openssl
+# versions.
+- cryptonite-openssl-0.7
 # Very important! First release with a fix of 'race' and 'cancel'.
 #   https://github.com/simonmar/async/issues/59
 #   https://github.com/simonmar/async/issues/81
@@ -138,43 +183,36 @@ extra-deps:
 - async-2.2.1
 # There are 2 asyncs -_-
 - lifted-async-0.10.0.1
-# Stackage has hinotify-0.3.9 which requires async < 2.2
-# This older version requires no async.
-- hinotify-0.3.8.1
-# Required by backend test from cardano-sl-wallet-new
-- normaldistribution-1.1.0.3
 
-# Serokell stuff
-- universum-1.1.0
-- serokell-util-0.8.0
-# Because serokell-util
-- formatting-6.2.5
+# Serokell-specific utilities not on stackage
+- fmt-0.6.1
 
-# Following 9 are not on stackage.
+# Following 10 are not on stackage.
 - pvss-0.2.0
+- systemd-1.1.2
 - base58-bytestring-0.1.0
 - pipes-interleave-1.1.2
-- systemd-1.1.2
 - tabl-1.0.3
 - loc-0.1.3.2
-- lens-sop-0.2.0.2
 - json-sop-0.2.0.3
+- lens-sop-0.2.0.2
 - lzma-clib-5.2.2
-# ekg-statsd version without the unnecessary diffing optimisation
-- ekg-statsd-0.2.2.0
-# https://github.com/fpco/lts-haskell/issues/70
-# Also, graphviz latest needs ghl >=5.4 && <5.6, but stackage has 5.6
-- fgl-5.5.3.1
+- micro-recursion-schemes-5.0.2.2
+
+# The changelog for directory-1.3.1.1 indicate some potentially important
+# bugfixes over directory-1.3.0.2, which is what's on lts-11.
+- directory-1.3.1.1
+# https://github.com/commercialhaskell/stack/issues/3151
+- happy-1.19.5
 # Good bug fixes in here.
 - criterion-1.4.0.0
-# Gauge _and_ criterion? Ok, whatever.
-- gauge-0.2.1
-- beam-sqlite-0.3.2.1
-- beam-core-0.7.2.1
-- beam-migrate-0.3.2.0
+
+- katip-0.5.5.1
+# Fix for a space leak: https://github.com/chrisdone/formatting/pull/44
+- formatting-6.3.6
 
 # Servant stuff not found on stackage
-- servant-multipart-0.11.1
+- servant-multipart-0.11.2
 # Because of servant-quickcheck
 # It defines serverSatisfiesMgr, but requires a newer hspec.
 - hspec-2.5.1
@@ -182,26 +220,46 @@ extra-deps:
 - hspec-discover-2.5.1
 
 # Graphics stuff not found on stackage.
-- Chart-diagrams-1.8.2
+- Chart-diagrams-1.8.3
 - graphviz-2999.19.0.0
-- diagrams-core-1.4.0.1
-# diagrams-core implies lens < 4.16
-- lens-4.15.4
-# lens-4.15.4 implies free < 5
-- free-4.12.4
-- diagrams-lib-1.4.2
-- diagrams-postscript-1.4
-- diagrams-svg-1.4.1.1
+- diagrams-core-1.4.1.1
+- diagrams-lib-1.4.2.2
+- diagrams-postscript-1.4.1
+- diagrams-svg-1.4.2
 - diagrams-solve-0.1.1
 - SVGFonts-1.6.0.3
 - dual-tree-0.2.1
-- pretty-show-1.6.16
+- fgl-5.5.4.0
 
 # Support for wallet's Txmeta tracking
 - sqlite-simple-errors-0.6.1.0
 
+# Working around a stack issue with rebuilding dependencies
+- pretty-show-1.7
+
+# Needed for coin selection in the wallet
+- normaldistribution-1.1.0.3
+
+# This used to be Serokell.Aeson.Options
+- aeson-options-0.0.0
+
+# universum depends on tasty-hedgehog
+# tasty-hedgehog < 0.2 depends on hedgehog < 0.6
+# LTS-11.13 -- LTS-11.17 provide tasty-hedgehog-0.1.0.2
+# thus to use our hedgehog-0.6+ from source,
+# we need to explicilty bump tasty-hedgehog to 0.2.0.0.
+- tasty-hedgehog-0.2.0.0
+
+- file-embed-lzma-0
+- servant-swagger-ui-core-0.3.1
+- servant-swagger-ui-0.3.0.3.13.2
+- servant-swagger-ui-redoc-0.3.0.1.21.2
+
+- fsnotify-0.2.1.2
+- hinotify-0.3.10
+
 # Ariadne specific
-- cryptonite-openssl-0.7
+- universum-1.2.0   # we are using our own universum
 - vty-5.21
 - brick-0.37.1
 - vinyl-0.8.1.1
@@ -216,9 +274,6 @@ extra-deps:
 - dhall-1.15.1      # needed due to contravariant
 - co-log-core-0.1.1
 - co-log-0.2.0
-
-# Required by https://github.com/input-output-hk/cardano-sl/pull/3232
-- micro-recursion-schemes-5.0.2.2
 
 ## Ariadne Qt GUI specific
 - hoppy-runtime-0.5.0
