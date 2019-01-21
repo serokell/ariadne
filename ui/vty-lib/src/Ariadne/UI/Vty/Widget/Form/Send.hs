@@ -220,7 +220,7 @@ updateFee :: WidgetEventM (SendWidgetState p) p ()
 updateFee = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
   collectFormData >>= \case
-    Left e -> assign sendFeeResultL (FeeResultError "Invalid amount!")
+    Left _ -> assign sendFeeResultL (FeeResultError "Invalid amount!")
     Right (walletIdx, accounts, outputs) -> do
       use sendFeeResultL >>= \case
         FeeResultWaiting commandId
@@ -267,7 +267,7 @@ performSendTransaction :: WidgetEventM (SendWidgetState p) p ()
 performSendTransaction = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
   collectFormData >>= \case
-    Left e -> assign sendResultL (SendResultError "Invalid amount!")
+    Left _ -> assign sendResultL (SendResultError "Invalid amount!")
     Right (walletIdx, accounts, outputs) -> do
       passphrase <- use sendPassL
       use sendResultL >>= \case
