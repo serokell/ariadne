@@ -42,12 +42,13 @@ import Data.Acid (Query, Update, makeAcidic)
 import qualified Data.Map.Merge.Strict as Map.Merge
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
-import qualified Pos.Core.Txp as Txp
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet as IxSet
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx

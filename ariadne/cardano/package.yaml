@@ -76,7 +76,6 @@ library:
     - stm
     - template-haskell
     - text
-    - text-format
     - time
     - time-units
     - transformers
@@ -159,7 +158,6 @@ tests:
       - tabl
       - temporary
       - text
-      - text-format
       - time
       - unliftio-core
       - unordered-containers

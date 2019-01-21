@@ -5,8 +5,8 @@ module Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Fees
        ) where
 
 import Control.Monad.Trans.Except (Except)
-import Data.Text.Buildable (Buildable(..))
 import Formatting (bprint)
+import Formatting.Buildable (Buildable(..))
 
 import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
 

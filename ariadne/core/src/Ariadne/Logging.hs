@@ -6,6 +6,7 @@ module Ariadne.Logging
          -- * Logging handle and the corresponding component.
          Logging
        , loggingComponent
+       , noLogging
 
          -- * Functions to actually log something
        , logDebug
@@ -89,6 +90,10 @@ mkLogging logFile = do
 -- flushes the handle.
 logFlush :: Handle -> LogAction IO a
 logFlush hdl = LogAction $ const (hFlush hdl)
+
+-- | 'Logging' that does nothing.
+noLogging :: Logging
+noLogging = Logging $ LogAction $ const pass
 
 ----------------------------------------------------------------------------
 -- Temporary hacky logging

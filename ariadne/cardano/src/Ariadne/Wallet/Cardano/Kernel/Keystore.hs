@@ -34,6 +34,7 @@ import System.Directory (removeFile)
 import Pos.Core (AddressHash, addressHash)
 import Pos.Crypto (EncryptedSecretKey, PublicKey, encToPublic)
 
+import Ariadne.Logging
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (HdRootId(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb (InDb(..))
 import Ariadne.Wallet.Cardano.Kernel.Keystore.Persistence
@@ -68,29 +69,31 @@ instance Exception DuplicatedWalletKey where
   displayException DuplicatedWalletKey =
     "The wallet with this root key already exists"
 
-keystoreComponent :: DeletePolicy -> FilePath -> ComponentM Keystore
-keystoreComponent deletePolicy fp =
+keystoreComponent :: Logging -> DeletePolicy -> FilePath -> ComponentM Keystore
+keystoreComponent logging deletePolicy fp =
     buildComponent
         "Keystore"
-        (newKeystore fp)
+        (newKeystore logging fp)
         (releaseKeystore deletePolicy)
 
 -- | Creates a 'Keystore' using a 'bracket' pattern, where the
 -- initalisation and teardown of the resource are wrapped in 'bracket'.
-bracketKeystore :: DeletePolicy
+bracketKeystore :: Logging
+                -- ^ Logging handle
+                -> DeletePolicy
                 -- ^ What to do if the keystore is empty
                 -> FilePath
                 -- ^ The path to the file which will be used for the 'Keystore'
                 -> (Keystore -> IO a)
                 -- ^ An action on the 'Keystore'.
                 -> IO a
-bracketKeystore deletePolicy fp withKeystore =
-    bracket (newKeystore fp) (releaseKeystore deletePolicy) withKeystore
+bracketKeystore logging deletePolicy fp withKeystore =
+    bracket (newKeystore logging fp) (releaseKeystore deletePolicy) withKeystore
 
 -- | Creates a new keystore.
-newKeystore :: FilePath -> IO Keystore
-newKeystore fp = do
-    istorage <- peekInternalStorage fp
+newKeystore :: Logging -> FilePath -> IO Keystore
+newKeystore logging fp = do
+    istorage <- peekInternalStorage logging fp
     Keystore <$> newMVar istorage <*> pure fp
 
 bracketTestKeystore :: (Keystore -> IO a) -> IO a
@@ -111,7 +114,7 @@ bracketTestKeystore withKeystore =
 newTestKeystore :: IO Keystore
 newTestKeystore = do
     fp <- getTempKeystorePath
-    istorage <- peekInternalStorage fp
+    istorage <- peekInternalStorage noLogging fp
     Keystore <$> newMVar istorage <*> pure fp
 
 -- | Release the resources associated with this 'Keystore'.

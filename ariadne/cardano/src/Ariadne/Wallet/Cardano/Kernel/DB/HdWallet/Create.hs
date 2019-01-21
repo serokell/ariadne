@@ -23,11 +23,13 @@ module Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Create
 import Control.Lens (at, non, to, (.=))
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable
+import Fmt (pretty)
 import Formatting (bprint, build, sformat, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 
+import Pos.Chain.Txp (Utxo)
 import qualified Pos.Core as Core
-import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
@@ -71,17 +73,17 @@ instance Exception CreateHdRootError where
 
 instance Exception CreateHdAccountError where
   displayException (CreateHdAccountUnknownRoot (UnknownHdRoot rootId)) =
-    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+    "The wallet '" <> pretty rootId <> "' does not exist."
   displayException (CreateHdAccountExists accountId) =
-    toString $ "The account '" <> pretty accountId <> "' already exists."
+    "The account '" <> pretty accountId <> "' already exists."
 
 instance Exception CreateHdAddressError where
   displayException (CreateHdAddressUnknown (UnknownHdAccountRoot rootId)) =
-    toString $ "The wallet " <> pretty rootId <> " does not exist."
+    "The wallet " <> pretty rootId <> " does not exist."
   displayException (CreateHdAddressUnknown (UnknownHdAccount accId)) =
-    toString $ "The account " <> pretty accId <> " does not exist."
+    "The account " <> pretty accId <> " does not exist."
   displayException (CreateHdAddressExists addrId) =
-    toString $ "The address " <> pretty addrId <> " is already used."
+    "The address " <> pretty addrId <> " is already used."
 
 deriveSafeCopySimple 1 'base ''CreateHdRootError
 deriveSafeCopySimple 1 'base ''CreateHdAccountError

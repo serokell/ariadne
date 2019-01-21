@@ -21,18 +21,17 @@ module Ariadne.Wallet.Cardano.Kernel.Types
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import Data.Text.Buildable (Buildable(..))
 import Data.Word (Word32)
-
-import Pos.Core.Block (MainBlock, gbBody, mainBlockSlot, mbTxs, mbWitnesses)
-import Pos.Core.Txp
-  (Tx, TxAux(..), TxId, TxIn(..), TxOut, TxOutAux(..), txInputs, txOutputs)
-import Pos.Crypto.Hashing (hash)
-import Pos.Txp (Utxo)
-import Serokell.Util (enumerate)
-
 import Formatting (bprint, (%))
 import qualified Formatting as F
+import Formatting.Buildable (Buildable(..))
+import Serokell.Util (enumerate)
+
+import Pos.Chain.Block (MainBlock, gbBody, mainBlockSlot, mbTxs, mbWitnesses)
+import Pos.Chain.Txp
+  (Tx, TxAux(..), TxId, TxIn(..), TxOut, TxOutAux(..), txInputs, txOutputs)
+import Pos.Chain.Txp (Utxo)
+import Pos.Crypto.Hashing (hash)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
