@@ -45,10 +45,10 @@ import qualified Data.Map.Strict as Map
 import Data.SafeCopy (SafeCopy(..), contain, safeGet, safePut)
 import qualified Data.Set as Set
 import qualified Data.Traversable
+import Formatting (bprint, build)
+import qualified Formatting.Buildable as Buildable
 
 -- Imports needed for the various instances
-import qualified Data.Text.Buildable
-import Formatting (bprint, build)
 import Pos.Infra.Util.LogSafe
   (BuildableSafe, SecureLog, buildSafeList, getSecureLog, secure)
 import Serokell.Util (listJsonIndent)
@@ -82,7 +82,7 @@ instance HasPrimKey a => Eq (OrdByPrimKey a) where
 instance HasPrimKey a => Ord (OrdByPrimKey a) where
   compare = compare `on` (primKey . unwrapOrdByPrimKey)
 
-instance Buildable a => Buildable (OrdByPrimKey a) where
+instance Buildable.Buildable a => Buildable.Buildable (OrdByPrimKey a) where
     build (WrapOrdByPrimKey o) = bprint build o
 
 instance (SafeCopy a) => SafeCopy (OrdByPrimKey a) where
@@ -312,14 +312,13 @@ toAscList = coerce . IxSet.toAscList (Proxy @(PrimKey a)) . unwrapIxSet
 instance (Indexable a, Arbitrary a) => Arbitrary (IxSet a) where
     arbitrary = fromList <$> arbitrary
 
-instance Buildable a => Buildable (IxSet a) where
+instance Buildable.Buildable a => Buildable.Buildable (IxSet a) where
     build = bprint (listJsonIndent 4) . map unwrapOrdByPrimKey
                                       . IxSet.toList
                                       . unwrapIxSet
 
-instance BuildableSafe a => Buildable (SecureLog (IxSet a)) where
+instance BuildableSafe a => Buildable.Buildable (SecureLog (IxSet a)) where
     build = bprint (buildSafeList secure) . map unwrapOrdByPrimKey
                                           . IxSet.toList
                                           . unwrapIxSet
                                           . getSecureLog
-

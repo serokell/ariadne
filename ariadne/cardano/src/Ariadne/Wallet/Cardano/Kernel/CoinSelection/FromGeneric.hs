@@ -34,19 +34,20 @@ import Data.Coerce (coerce)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import Data.Typeable (TypeRep, typeRep)
+import Fmt (pretty)
+import Serokell.Data.Memory.Units (Byte, toBytes)
 
 import Pos.Binary.Class
   (LengthOf, Range(..), SizeOverride(..), encode, szSimplify, szWithCtx,
   toLazyByteString)
+import Pos.Chain.Txp (TxAux, TxIn, TxInWitness, TxOut, TxSigData)
+import qualified Pos.Chain.Txp as Core
 import qualified Pos.Client.Txp.Util as Core
 import Pos.Core (AddrAttributes, Coin(..), TxSizeLinear, calculateTxSizeLinear)
 import qualified Pos.Core as Core
-import Pos.Core.Txp (TxAux, TxIn, TxInWitness, TxOut, TxSigData)
+import Pos.Core.Attributes (Attributes)
 import Pos.Crypto (Signature)
 import qualified Pos.Crypto as Core
-import Pos.Data.Attributes (Attributes)
-import qualified Pos.Txp as Core
-import Serokell.Data.Memory.Units (Byte, toBytes)
 
 import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
 import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic.Fees

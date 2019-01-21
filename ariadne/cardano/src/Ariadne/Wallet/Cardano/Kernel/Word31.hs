@@ -6,8 +6,8 @@ module Ariadne.Wallet.Cardano.Kernel.Word31
        ) where
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable (Buildable(..))
 import Formatting (bprint, int)
+import Formatting.Buildable (Buildable(..))
 import Test.QuickCheck (Arbitrary(..), arbitrarySizedBoundedIntegral)
 
 {-------------------------------------------------------------------------------

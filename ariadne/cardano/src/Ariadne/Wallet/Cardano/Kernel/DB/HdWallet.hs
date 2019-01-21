@@ -72,8 +72,9 @@ import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import Test.QuickCheck (Arbitrary(..), Gen, elements, oneof, vectorOf)
 
-import qualified Data.Text.Buildable
+import Fmt (pretty)
 import Formatting (bprint, build, (%))
+import qualified Formatting.Buildable as Buildable
 
 import qualified Pos.Core as Core
 import qualified Pos.Crypto as Core
@@ -92,7 +93,7 @@ import Ariadne.Wallet.Cardano.Kernel.Word31 (Word31)
 newtype WalletName = WalletName
     { unWalletName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
-      deriving newtype (Buildable)
+      deriving newtype (Buildable.Buildable)
 
 instance Arbitrary WalletName where
     arbitrary = WalletName . toText <$> (arbitrary :: Gen String)
@@ -101,7 +102,7 @@ instance Arbitrary WalletName where
 newtype AccountName = AccountName
     { unAccountName :: Text
     } deriving (Show, Eq, Ord, IsString, ToString)
-      deriving newtype (Buildable)
+      deriving newtype (Buildable.Buildable)
 
 instance Arbitrary AccountName where
     arbitrary = pure "New account"
@@ -140,7 +141,7 @@ data AssuranceLevel =
    | AssuranceLevelStrict
    deriving (Eq, Show, Ord, Enum, Bounded)
 
-instance Buildable AssuranceLevel where
+instance Buildable.Buildable AssuranceLevel where
     build AssuranceLevelNormal = "normal"
     build AssuranceLevelStrict = "strict"
 
@@ -156,7 +157,7 @@ data HasSpendingPassword =
   | HasSpendingPassword (InDb Core.Timestamp)
   deriving Eq
 
-instance Buildable HasSpendingPassword where
+instance Buildable.Buildable HasSpendingPassword where
     build NoSpendingPassword = "no"
     build (HasSpendingPassword (InDb lastUpdate)) =
         bprint ("updated " % build) lastUpdate
@@ -233,7 +234,7 @@ data HdRoot = HdRoot {
     }
     deriving Eq
 
-instance Buildable HdRoot where
+instance Buildable.Buildable HdRoot where
     build HdRoot{..} =
         bprint (
             "HdRoot { id = " % build %
@@ -263,7 +264,7 @@ data HdAccount = HdAccount {
     }
     deriving Eq
 
-instance Buildable HdAccount where
+instance Buildable.Buildable HdAccount where
     build HdAccount{..} =
         bprint ("HdAccount { id = "   % build
                          % " name = " % build
@@ -284,7 +285,7 @@ data HdAddress = HdAddress {
     , _hdAddressCheckpoints :: NonEmpty AddrCheckpoint
     } deriving Eq
 
-instance Buildable HdAddress where
+instance Buildable.Buildable HdAddress where
     build HdAddress{..} =
         bprint ("HdAddress { id = "   % build
                          % " address = " % build
@@ -387,23 +388,23 @@ data UnknownHdAddress =
 
 instance Exception UnknownHdRoot where
   displayException (UnknownHdRoot rootId) =
-    toString $ "The wallet " <> pretty rootId <> " does not exist."
+    "The wallet " <> pretty rootId <> " does not exist."
 
 instance Exception UnknownHdAccount where
   displayException (UnknownHdAccountRoot rootId) =
-    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+    "The wallet '" <> pretty rootId <> "' does not exist."
   displayException (UnknownHdAccount accId) =
-    toString $ "The account '" <> pretty accId <> "' does not exist."
+    "The account '" <> pretty accId <> "' does not exist."
 
 instance Exception UnknownHdAddress where
   displayException (UnknownHdAddressRoot rootId) =
-    toString $ "The wallet '" <> pretty rootId <> "' does not exist."
+    "The wallet '" <> pretty rootId <> "' does not exist."
   displayException (UnknownHdAddressAccount accId) =
-    toString $ "The account '" <> pretty accId <> "' does not exist."
+    "The account '" <> pretty accId <> "' does not exist."
   displayException (UnknownHdAddress addrId) =
-    toString $ "The address '" <> pretty addrId <> "' does not exist."
+    "The address '" <> pretty addrId <> "' does not exist."
   displayException (UnknownHdCardanoAddress cardanoAddress) =
-    toString $ "Cardano address '" <> pretty cardanoAddress <> "' is not stored in the DB."
+    "Cardano address '" <> pretty cardanoAddress <> "' is not stored in the DB."
 
 embedUnknownHdRoot :: UnknownHdRoot -> UnknownHdAccount
 embedUnknownHdRoot = go
@@ -576,35 +577,35 @@ assumeHdAccountExists _id = pass
   Pretty printing
 -------------------------------------------------------------------------------}
 
-instance Buildable HdRootId where
+instance Buildable.Buildable HdRootId where
     build (HdRootId keyInDb)
         = bprint ("HdRootId: "%build) (_fromDb keyInDb)
 
-instance Buildable HdAccountIx where
+instance Buildable.Buildable HdAccountIx where
     build (HdAccountIx ix)
         = bprint ("HdAccountIx: "%build) ix
 
-instance Buildable HdAccountId where
+instance Buildable.Buildable HdAccountId where
     build (HdAccountId parentId accountIx)
         = bprint ("HdAccountId: "%build%", "%build) parentId accountIx
 
-instance Buildable HdAddressChain where
+instance Buildable.Buildable HdAddressChain where
     build HdChainInternal = "internal"
     build HdChainExternal = "external"
 
-instance Buildable HdAddressIx where
+instance Buildable.Buildable HdAddressIx where
     build (HdAddressIx ix)
         = bprint ("HdAddressIx: "%build) ix
 
-instance Buildable HdAddressId where
+instance Buildable.Buildable HdAddressId where
     build (HdAddressId parentId chain addressIx)
         = bprint ("HdAddressId: "%build%", "%build%", "%build) parentId chain addressIx
 
-instance Buildable UnknownHdRoot where
+instance Buildable.Buildable UnknownHdRoot where
     build (UnknownHdRoot rootId)
         = bprint ("UnknownHdRoot: "%build) rootId
 
-instance Buildable UnknownHdAccount where
+instance Buildable.Buildable UnknownHdAccount where
     build (UnknownHdAccountRoot rootId)
         = bprint ("UnknownHdAccountRoot: "%build) rootId
     build (UnknownHdAccount accountId)

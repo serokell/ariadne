@@ -30,8 +30,8 @@ import Data.Time.Clock.POSIX (getPOSIXTime)
 import Pos.Core.Chrono
 import qualified Test.QuickCheck as QC
 
+import qualified Pos.Chain.Txp as Core
 import qualified Pos.Core as Core
-import qualified Pos.Txp as Core
 
 {-------------------------------------------------------------------------------
   Lists

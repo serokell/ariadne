@@ -19,9 +19,9 @@ import Universum hiding (Sum(..), group)
 import Data.Coerce (coerce)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Data.Text.Buildable (build)
 import Formatting (bprint, sformat, (%))
 import qualified Formatting as F
+import qualified Formatting.Buildable as Buildable
 import Serokell.Util (listJson)
 
 import Ariadne.Wallet.Cardano.Kernel.CoinSelection.Generic
@@ -36,7 +36,7 @@ newtype Grouped a = Group { getGroup :: [a] }
 
 -- | The summarized value of a group of outputs
 newtype Sum a = Sum { getSum :: a }
-  deriving (Show, Eq, Ord, Buildable, IsValue)
+  deriving (Show, Eq, Ord, Buildable.Buildable, IsValue)
 
 -- | A grouped domain is useful when we cannot pick single entries from the
 -- UTxO, but instead must--for cryptographic reasons--sometimes bundle inputs
@@ -235,5 +235,5 @@ resolveGroup GroupedUtxo{..} io =
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-instance Buildable a => Buildable (Grouped a) where
+instance Buildable.Buildable a => Buildable.Buildable (Grouped a) where
   build (Group as) = bprint listJson as
