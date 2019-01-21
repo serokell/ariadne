@@ -12,6 +12,7 @@ import Network.HTTP.Client.TLS (newTlsManager)
 import Text.ParserCombinators.ReadP (readP_to_S)
 
 import Ariadne.Config.Update (UpdateConfig(..))
+import Ariadne.Logging (Logging, logDebug, logWarning)
 import Ariadne.Version (currentAriadneVersion)
 
 data FailedToParseResponse = FailedToParseResponse
@@ -20,8 +21,14 @@ data FailedToParseResponse = FailedToParseResponse
 instance Exception FailedToParseResponse where
   displayException _ = "Failed to parse server response"
 
-updateCheckLoop :: UpdateConfig -> Request -> Manager -> (Version -> Text -> IO ()) -> IO ()
-updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
+updateCheckLoop
+    :: Logging
+    -> UpdateConfig
+    -> Request
+    -> Manager
+    -> (Version -> Text -> IO ())
+    -> IO ()
+updateCheckLoop logging uc@UpdateConfig{..} req man notifyUpdate = do
   let
     getVersionParse =
         fmap (fst . head) . nonEmpty .
@@ -30,15 +37,15 @@ updateCheckLoop uc@UpdateConfig{..} req man notifyUpdate = do
   (mVer :: Either SomeException Version) <- tryAny $ httpLbs req man >>= readVersion . BS.unpack . BS.init . responseBody
   case mVer of
     Left e ->
-      usingLoggerName "ariadne" . logWarning . fromString $ "Failed to check for an update: " <> displayException e
+      logWarning logging . fromString $ "Failed to check for an update: " <> displayException e
     Right ver -> do
-      usingLoggerName "ariadne" . logDebug . fromString $ "Fetched version from the server: " <> showVersion ver
+      logDebug logging . fromString $ "Fetched version from the server: " <> showVersion ver
       when (ver > currentAriadneVersion) (notifyUpdate ver ucUpdateUrl)
   threadDelay (ucCheckDelay * 1000000)
-  updateCheckLoop uc req man notifyUpdate
+  updateCheckLoop logging uc req man notifyUpdate
 
-runUpdateCheck :: UpdateConfig -> (Version -> Text -> IO ()) -> IO ()
-runUpdateCheck uc@UpdateConfig{..} notifyUpdate = do
+runUpdateCheck :: Logging -> UpdateConfig -> (Version -> Text -> IO ()) -> IO ()
+runUpdateCheck logging uc@UpdateConfig{..} notifyUpdate = do
   man <- newTlsManager
   req <- parseRequest $ toString ucVersionCheckUrl
-  updateCheckLoop uc req man notifyUpdate
+  updateCheckLoop logging uc req man notifyUpdate

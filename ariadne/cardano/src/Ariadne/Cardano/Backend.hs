@@ -83,57 +83,58 @@ runCardanoNode ::
     -> IO ()
 runCardanoNode genesisConfig txpConfig bHandle cardanoContextVar diffusionVar
     cardanoConfig sendCardanoEvent = do
-  let loggingParams = mkLoggingParams cardanoConfig
-      getLoggerConfig LoggingParams{..} = do
-          let consoleLogAction _ message =
-                  sendCardanoEvent $ CardanoLogEvent message
+  undefined
+  -- let loggingParams = mkLoggingParams cardanoConfig
+  --     getLoggerConfig LoggingParams{..} = do
+  --         let consoleLogAction _ message =
+  --                 sendCardanoEvent $ CardanoLogEvent message
 
-          let cfgBuilder = undefined  -- showTidB
-                        -- <> showTimeB
-                        -- <> maybeLogsDirB lpHandlerPrefix
-                        -- <> consoleActionB consoleLogAction
+  --         let cfgBuilder = undefined  -- showTidB
+  --                       -- <> showTimeB
+  --                       -- <> maybeLogsDirB lpHandlerPrefix
+  --                       -- <> consoleActionB consoleLogAction
 
-          cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
-          pure $ cfg <> cfgBuilder
-      extractionWorker diffusion = do
-          ask >>= putMVar cardanoContextVar
-          putMVar diffusionVar diffusion
-  loggerConfig <- getLoggerConfig loggingParams
-  let setupLoggers = setupLogging' "ariadne" loggerConfig
-  bracket setupLoggers removeAllHandlers $ \loggingHandler -> logException "ariadne" $ do
-      nodeParams <- getNodeParams cardanoConfig
-      let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
-      let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
-      let workers =
-              [ ("Update trigger", updateTriggerWorker)
-              , ("Extraction", extractionWorker)
-              , ("Status polling",
-                 statusPollingWorker genesisConfig sendCardanoEvent)
-              ]
-      let
-        realModeToCardanoMode :: RealMode () a -> CardanoMode a
-        realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
+  --         cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
+  --         pure $ cfg <> cfgBuilder
+  --     extractionWorker diffusion = do
+  --         ask >>= putMVar cardanoContextVar
+  --         putMVar diffusionVar diffusion
+  -- loggerConfig <- getLoggerConfig loggingParams
+  -- let setupLoggers = setupLogging' "ariadne" loggerConfig
+  -- bracket setupLoggers removeAllHandlers $ \loggingHandler -> logException "ariadne" $ do
+  --     nodeParams <- getNodeParams cardanoConfig
+  --     let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
+  --     let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
+  --     let workers =
+  --             [ ("Update trigger", updateTriggerWorker)
+  --             , ("Extraction", extractionWorker)
+  --             , ("Status polling",
+  --                statusPollingWorker genesisConfig sendCardanoEvent)
+  --             ]
+  --     let
+  --       realModeToCardanoMode :: RealMode () a -> CardanoMode a
+  --       realModeToCardanoMode m = CardanoMode $ withReaderT ccRealModeContext m
 
-        cardanoModeToRealMode :: CardanoMode a -> RealMode () a
-        cardanoModeToRealMode (CardanoMode m) = withReaderT (CardanoContext bHandle) m
+  --       cardanoModeToRealMode :: CardanoMode a -> RealMode () a
+  --       cardanoModeToRealMode (CardanoMode m) = withReaderT (CardanoContext bHandle) m
 
-        convertMode :: (Diffusion CardanoMode -> CardanoMode a) -> Diffusion (RealMode ()) -> RealMode () a
-        convertMode f diff =
-            cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode cardanoModeToRealMode diff)
+  --       convertMode :: (Diffusion CardanoMode -> CardanoMode a) -> Diffusion (RealMode ()) -> RealMode () a
+  --       convertMode f diff =
+  --           cardanoModeToRealMode $ f (hoistDiffusion realModeToCardanoMode cardanoModeToRealMode diff)
 
-        -- It's needed because 'bracketNodeResources' uses its own
-        -- logic to create a logging config, which differs from what
-        -- we do above. We want 'ncLoggerConfig' to be the same config
-        -- as the one passed to 'setupLogging'.
-        setProperLogConfig :: NodeResources __ -> NodeResources __
-        setProperLogConfig nr =
-            nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
-        txpSettings = txpGlobalSettings genesisConfig txpConfig
-        initDBs = initNodeDBs genesisConfig
-      bracketNodeResources genesisConfig nodeParams sscParams txpSettings initDBs
-          $ \(setProperLogConfig -> nr@NodeResources{..}) ->
-            runRealMode genesisConfig txpConfig nr .
-            convertMode $ runNode genesisConfig txpConfig nr workers
+  --       -- It's needed because 'bracketNodeResources' uses its own
+  --       -- logic to create a logging config, which differs from what
+  --       -- we do above. We want 'ncLoggerConfig' to be the same config
+  --       -- as the one passed to 'setupLogging'.
+  --       setProperLogConfig :: NodeResources __ -> NodeResources __
+  --       setProperLogConfig nr =
+  --           nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
+  --       txpSettings = txpGlobalSettings genesisConfig txpConfig
+  --       initDBs = initNodeDBs genesisConfig
+  --     bracketNodeResources genesisConfig nodeParams sscParams txpSettings initDBs
+  --         $ \(setProperLogConfig -> nr@NodeResources{..}) ->
+  --           runRealMode genesisConfig txpConfig nr .
+  --           convertMode $ runNode genesisConfig txpConfig nr workers
 
 statusPollingWorker ::
        (HasConfigurations)

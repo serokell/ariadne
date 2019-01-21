@@ -14,8 +14,9 @@ module Ariadne.Wallet.Cardano.Kernel.Actions
 import Control.Concurrent.Async (async, link)
 import Control.Concurrent.Chan
 import Control.Lens (makeLenses, (%=), (+=), (-=), (.=))
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, shown, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 
 import Pos.Core.Chrono
 

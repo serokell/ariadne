@@ -42,13 +42,12 @@ import Control.Lens (at, lens, non, to, (?~))
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as M
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
+import qualified Formatting.Buildable as Buildable
 import Serokell.Util.Text (listJsonIndent, mapJson)
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
-import qualified Pos.Txp as Core (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
@@ -108,7 +107,7 @@ removePending ids (Pending (InDb old)) = Pending (InDb $ old `withoutKeys` ids)
 data AccCheckpoint = AccCheckpoint {
       -- Invariant: this must match the union of utxos of all
       -- addresses in this account.
-      _accCheckpointUtxo        :: !(InDb Core.Utxo)
+      _accCheckpointUtxo        :: !(InDb Txp.Utxo)
       -- Invariant: this must match the sum of balances of all
       -- addresses in this account.
     , _accCheckpointUtxoBalance :: !(InDb Core.Coin)
@@ -143,7 +142,7 @@ data AddrCheckpoint = AddrCheckpoint {
       -- 2. There is no meaningful notion of a "pending" set for
       --    an address since many transactions are going to have
       --    inputs from more than one address.
-      _addrCheckpointUtxo        :: !(InDb Core.Utxo)
+      _addrCheckpointUtxo        :: !(InDb Txp.Utxo)
     , _addrCheckpointUtxoBalance :: !(InDb Core.Coin)
     } deriving Eq
 
@@ -179,7 +178,7 @@ accCheckpointAddressMeta addr =
 currentAccCheckpoint :: Lens' AccCheckpoints AccCheckpoint
 currentAccCheckpoint = neHead
 
-currentAccUtxo        :: Lens' AccCheckpoints Core.Utxo
+currentAccUtxo        :: Lens' AccCheckpoints Txp.Utxo
 currentAccUtxoBalance :: Lens' AccCheckpoints Core.Coin
 currentAccBlockMeta   :: Lens' AccCheckpoints BlockMeta
 currentAccPending     :: Lens' AccCheckpoints Pending
@@ -194,7 +193,7 @@ currentAccPendingTxs  = currentAccPending . pendingTransactions . fromDb
 currentAddrCheckpoint :: Lens' AddrCheckpoints AddrCheckpoint
 currentAddrCheckpoint = neHead
 
-currentAddrUtxo        :: Lens' AddrCheckpoints Core.Utxo
+currentAddrUtxo        :: Lens' AddrCheckpoints Txp.Utxo
 currentAddrUtxoBalance :: Lens' AddrCheckpoints Core.Coin
 
 currentAddrUtxo        = currentAddrCheckpoint . addrCheckpointUtxo        . fromDb
@@ -211,12 +210,12 @@ neHead f (x :| xs) = (:| xs) <$> f x
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-instance Buildable Pending where
+instance Buildable.Buildable Pending where
     build (Pending p) =
       let elems = p ^. fromDb . to toPairs
       in bprint ("Pending " % listJsonIndent 4) (map fst elems)
 
-instance Buildable AccCheckpoint where
+instance Buildable.Buildable AccCheckpoint where
     build AccCheckpoint{..} = bprint
         ( "AccCheckpoint"
         % "{ utxo:        " % mapJson

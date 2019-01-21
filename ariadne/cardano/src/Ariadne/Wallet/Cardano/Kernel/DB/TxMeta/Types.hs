@@ -37,15 +37,15 @@ import Control.Lens.TH (makeLenses)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
-import Data.Text.Buildable (build)
 import Formatting (bprint, shown, (%))
 import qualified Formatting as F
+import qualified Formatting.Buildable as Buildable
 import Pos.Crypto (shortHashF)
 import Serokell.Util.Text (listJsonIndent, mapBuilder)
 import Test.QuickCheck (Arbitrary(..), Gen, suchThat)
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
 
 {-------------------------------------------------------------------------------
   Transaction metadata
@@ -148,7 +148,7 @@ data TxMetaStorageError =
 
 instance Exception TxMetaStorageError
 
-instance Buildable TxMetaStorageError where
+instance Buildable.Buildable TxMetaStorageError where
     build storageErr = bprint shown storageErr
 
 -- | Generates 'NonEmpty' collections which do not contain duplicates.
@@ -159,7 +159,7 @@ uniqueElements size = do
     let (e, es) = Set.deleteFindMax noDupes
     return $ e :| List.take size (Set.toList es)
 
-instance Buildable TxMeta where
+instance Buildable.Buildable TxMeta where
     build txMeta = bprint (" id = "%shortHashF%
                            " amount = " % F.build %
                            " inputs = " % F.later mapBuilder %
@@ -175,7 +175,7 @@ instance Buildable TxMeta where
                             (txMeta ^. txMetaIsLocal)
                             (txMeta ^. txMetaIsOutgoing)
 
-instance Buildable [TxMeta] where
+instance Buildable.Buildable [TxMeta] where
     build txMeta = bprint ("TxMetas: "%listJsonIndent 4) txMeta
 
 

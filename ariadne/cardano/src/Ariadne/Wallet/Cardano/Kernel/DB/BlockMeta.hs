@@ -13,12 +13,13 @@ import Control.Lens.TH (makeLenses)
 import qualified Data.Map.Strict as Map
 import Data.SafeCopy
   (SafeCopy(..), base, contain, deriveSafeCopySimple, safeGet, safePut)
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import Serokell.Util (mapJson)
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 

@@ -51,8 +51,8 @@ import GHC.Generics (Generic)
 import Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types
   (Limit(..), Offset(..), SortCriteria(..), SortDirection(..), Sorting(..))
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.TxMeta.Types as Kernel
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
 import Pos.Crypto.Hashing (decodeAbstractHash, hashHexF)
 
 
@@ -518,4 +518,3 @@ toOrdering (Sorting criteria dir) =
             SortByAmount ->
                 \t1 t2 -> (comparator dir) (t1 ^. Kernel.txMetaAmount)
                                            (t2 ^. Kernel.txMetaAmount)
-
