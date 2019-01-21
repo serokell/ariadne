@@ -12,6 +12,8 @@ import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
 import Data.Ratio ((%))
 import Pos.Chain.Block (headerHash)
+import qualified Pos.Chain.Genesis as Genesis
+import Pos.Chain.Txp (TxpConfiguration)
 import Pos.Context (NodeContext(..))
 import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId)
 import Pos.Crypto (ProtocolMagic)
@@ -51,18 +53,18 @@ createCardanoBackend cardanoConfig = buildComponent_ "Cardano" $ do
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
   let confOpts = ccConfigurationOptions cardanoConfig
-  withCompileInfo $
-      withConfigurations confOpts $ \protocolMagic ->
-      let face = CardanoFace
-              { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
-              , cardanoConfigurations = Dict
-              , cardanoCompileInfo = Dict
-              , cardanoGetDiffusion = getDiffusion diffusionVar
-              , cardanoProtocolMagic = protocolMagic
-              }
-          mkAction bHandle = runCardanoNode protocolMagic bHandle cardanoContextVar
-              diffusionVar cardanoConfig
-      in return $ CardanoBackend face mkAction
+  withCompileInfo $ withConfigurations confOpts $
+    \genesisConfig txpConfig ->
+    let face = CardanoFace
+            { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
+            , cardanoConfigurations = Dict
+            , cardanoCompileInfo = Dict
+            , cardanoGetDiffusion = getDiffusion diffusionVar
+            , cardanoProtocolMagic = Genesis.configProtocolMagic genesisConfig
+            }
+        mkAction bHandle = runCardanoNode genesisConfig txpConfig bHandle
+          cardanoContextVar diffusionVar cardanoConfig
+    in return $ CardanoBackend face mkAction
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
@@ -71,14 +73,15 @@ runCardanoMode cardanoContextVar (CardanoMode act) = do
 
 runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
-    => ProtocolMagic
+    => Genesis.Config
+    -> TxpConfiguration
     -> BListenerHandle
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
     -> CardanoConfig
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
+runCardanoNode genesisConfig txpConfig bHandle cardanoContextVar diffusionVar
     cardanoConfig sendCardanoEvent = do
   let loggingParams = mkLoggingParams cardanoConfig
       getLoggerConfig LoggingParams{..} = do
@@ -102,9 +105,10 @@ runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
       let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
-              [ updateTriggerWorker
-              , extractionWorker
-              , statusPollingWorker sendCardanoEvent
+              [ ("Update trigger", updateTriggerWorker)
+              , ("Extraction", extractionWorker)
+              , ("Status polling",
+                 statusPollingWorker genesisConfig sendCardanoEvent)
               ]
       let
         realModeToCardanoMode :: RealMode () a -> CardanoMode a
@@ -124,28 +128,32 @@ runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
         setProperLogConfig :: NodeResources __ -> NodeResources __
         setProperLogConfig nr =
             nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
-        txpSettings = txpGlobalSettings protocolMagic
-        initDBs = initNodeDBs undefined
-      bracketNodeResources nodeParams sscParams txpSettings initDBs
+        txpSettings = txpGlobalSettings genesisConfig txpConfig
+        initDBs = initNodeDBs genesisConfig
+      bracketNodeResources genesisConfig nodeParams sscParams txpSettings initDBs
           $ \(setProperLogConfig -> nr@NodeResources{..}) ->
-            runRealMode protocolMagic nr .
-            convertMode $ \diff -> runNode protocolMagic nr workers diff
+            runRealMode genesisConfig txpConfig nr .
+            convertMode $ runNode genesisConfig txpConfig nr workers
 
 statusPollingWorker ::
        (HasConfigurations)
-    => (CardanoEvent -> IO ())
+    => Genesis.Config
+    -> (CardanoEvent -> IO ())
     -> Diffusion CardanoMode
     -> CardanoMode ()
-statusPollingWorker sendCardanoEvent _diffusion = do
+statusPollingWorker genesis sendCardanoEvent _diffusion = do
   initialTipHeader <- DB.getTipHeader
-  let initialSlotIdx = fromIntegral . flattenEpochOrSlot $ initialTipHeader ^. epochOrSlotG
+  let epochSlots = Genesis.configEpochSlots genesis
+  let initialSlotIdx =
+        fromIntegral . flattenEpochOrSlot epochSlots $
+        initialTipHeader ^. epochOrSlotG
   forever $ do
-    currentSlot <- getCurrentSlot
-    currentSlotInaccurate <- getCurrentSlotInaccurate
+    currentSlot <- getCurrentSlot epochSlots
+    currentSlotInaccurate <- getCurrentSlotInaccurate epochSlots
     tipHeader <- DB.getTipHeader
     let
-      tipSlotIdx = fromIntegral . flattenEpochOrSlot $ tipHeader ^. epochOrSlotG
-      currentSlotIdx = fromIntegral . flattenSlotId $ currentSlotInaccurate
+      tipSlotIdx = fromIntegral . flattenEpochOrSlot epochSlots $ tipHeader ^. epochOrSlotG
+      currentSlotIdx = fromIntegral . flattenSlotId epochSlots $ currentSlotInaccurate
       syncProgress = (tipSlotIdx - initialSlotIdx) % (currentSlotIdx - initialSlotIdx)
     liftIO $ sendCardanoEvent $ CardanoStatusUpdateEvent CardanoStatusUpdate
       { tipHeaderHash = headerHash tipHeader
@@ -179,13 +187,14 @@ instance Exception GenesisDataFileExists where
 withConfigurations
     :: (WithLogger m, MonadThrow m, MonadIO m)
     => ConfigurationOptions
-    -> (HasConfigurations => ProtocolMagic -> m r)
+    -> (HasConfigurations => Genesis.Config -> TxpConfiguration -> m r)
     -> m r
 withConfigurations cfo act = do
     liftIO $ ensureConfigurationExists (cfoFilePath cfo)
     -- We don't use asset lock feature, because we don't create
     -- blocks, we leave these concerns to core nodes owners.
-    Launcher.Configuration.withConfigurations Nothing cfo (\_ntpConf -> act)
+    Launcher.Configuration.withConfigurations Nothing Nothing False cfo
+        (\genesisConf _walletConf txpConf _ntpConf -> act genesisConf txpConf)
   where
     -- Quite simple, but works in cases we care about. We do not check
     -- what is in embedded 'ByteString's, just assume it is what we expect.
