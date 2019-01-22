@@ -7,6 +7,7 @@ module Ariadne.UI.Vty.Widget.Tree
 import Control.Lens (ix, makeLensesWith, uses, (.=))
 import Data.List (findIndex)
 import Data.Tree (Tree(..))
+import Fmt (pretty)
 import Serokell.Util (enumerate)
 
 import qualified Brick as B

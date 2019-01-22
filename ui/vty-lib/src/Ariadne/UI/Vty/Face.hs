@@ -62,7 +62,7 @@ import Data.Tree (Tree)
 import Data.Version (Version)
 import Formatting (bprint, int, (%))
 import Formatting.Buildable (Buildable)
-import qualified Formatting.Buildable
+import qualified Formatting.Buildable as Buildable
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.UX.PasswordManager (PasswordRequestMode, WalletId)
