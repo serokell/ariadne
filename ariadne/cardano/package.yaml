@@ -100,6 +100,7 @@ tests:
       - cardano-crypto
       - cardano-sl
       - cardano-sl-core
+      - cardano-sl-core-test
       - cardano-sl-crypto
       - cardano-sl-infra
       - data-default

@@ -6,6 +6,7 @@ module Ariadne.UI.Vty
 import qualified Brick as B
 import Brick.BChan
 import Control.Monad.Component (ComponentM, buildComponent_)
+import Fmt (pretty)
 import qualified Graphics.Vty as V
 
 import Ariadne.Logging (Logging, logDebug)

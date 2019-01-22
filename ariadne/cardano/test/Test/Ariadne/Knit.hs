@@ -18,6 +18,7 @@ import Knit
 import NType (N(..))
 import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)
+import Test.Pos.Core.Arbitrary
 import Test.QuickCheck
   (Arbitrary(..), Gen, Property, elements, listOf, property, (===))
 import Test.QuickCheck.Gen (listOf1, oneof)
