@@ -21,7 +21,7 @@ import Control.Monad.Component (ComponentM, buildComponent_, runComponentM)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Data.Acid (AcidState)
 import Data.Acid.Memory (openMemoryState)
-import System.Wlog (Severity)
+import Pos.Util.Wlog (Severity)
 
 import Pos.Crypto (PassPhrase, ProtocolMagic, emptyPassphrase)
 

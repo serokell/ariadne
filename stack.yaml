@@ -257,6 +257,7 @@ extra-deps:
 - universum-1.2.0 # we are using our own universum
 - serokell-util-0.10.0 # we are using our own serokell-util
 - o-clock-1.0.0.1 # due to serokell-util
+- tiempo-0.0.1.1 # due to o-clock and nix :facepalm:
 - vty-5.21
 - brick-0.37.1
 - vinyl-0.8.1.1
