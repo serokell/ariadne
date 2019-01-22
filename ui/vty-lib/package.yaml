@@ -26,7 +26,6 @@ library:
     - serokell-util
     - streams
     - text
-    - text-format
     - text-zipper
     - transformers
     - vector

@@ -13,10 +13,10 @@ module Test.Ariadne.Cardano.Arbitrary
 
 import Ariadne.Config.Cardano (CardanoConfig(..))
 import Data.Time.Units (fromMicroseconds)
+import Pos.Core.NetworkAddress (NetworkAddress)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
-import Pos.Infra.Util.TimeWarp (NetworkAddress)
 import Pos.Launcher (ConfigurationOptions(..))
 import Test.QuickCheck (Gen, suchThat)
 import Test.QuickCheck.Arbitrary (Arbitrary(..))
