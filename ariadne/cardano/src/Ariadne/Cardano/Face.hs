@@ -50,7 +50,7 @@ import Pos.Crypto (PassPhrase, ProtocolMagic)
 import Pos.DB (MonadGState(..))
 import Pos.DB.Block (MonadBListener(..))
 import Pos.DB.Class (MonadDB(..), MonadDBRead(..))
-import Pos.DB.Txp (MonadTxpLocal(..))
+import Pos.DB.Txp (MempoolExt, MonadTxpLocal(..))
 import Pos.Infra.Diffusion.Types (Diffusion)
 import Pos.Infra.Network.Types (HasNodeType(..))
 import Pos.Infra.Reporting (MonadReporting(..))
@@ -208,6 +208,8 @@ instance MonadTxpLocal CardanoMode where
 
 instance MonadReporting CardanoMode where
     report = realModeToCardanoMode ... report
+
+type instance MempoolExt CardanoMode = EmptyMempoolExt
 
 data CardanoFace = CardanoFace
     { cardanoRunCardanoMode :: CardanoMode :~> IO

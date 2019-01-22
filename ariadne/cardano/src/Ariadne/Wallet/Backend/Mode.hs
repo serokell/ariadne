@@ -31,7 +31,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAddressChain(HdChainExternal))
 
 instance MonadBalances CardanoMode where
-    getOwnUtxos = getFilteredUtxo
+    getOwnUtxos = const getFilteredUtxo
     getBalance = getBalanceFromUtxo
 
 instance HasConfigurations => MonadTxHistory CardanoMode where
@@ -41,9 +41,9 @@ instance HasConfigurations => MonadTxHistory CardanoMode where
 
 instance MonadAddresses CardanoMode where
     type AddrData CardanoMode = NetworkMagic -> IO Address
-    getNewAddress nm f = liftIO (f nm)
+    getNewAddress nm _ f = liftIO (f nm)
     -- [AD-236] Do not assume bootstrap era.
-    getFakeChangeAddress = pure . largestHDAddressBoot
+    getFakeChangeAddress nm _ = pure $ largestHDAddressBoot nm
 
 -- | Like 'largestHDAddressBoot' from 'cardano-sl', but uses different
 -- derivation scheme (BIP-44).
