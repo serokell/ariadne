@@ -60,7 +60,7 @@ createCardanoBackend cardanoConfig = buildComponent_ "Cardano" $ do
             , cardanoConfigurations = Dict
             , cardanoCompileInfo = Dict
             , cardanoGetDiffusion = getDiffusion diffusionVar
-            , cardanoProtocolMagic = Genesis.configProtocolMagic genesisConfig
+            , cardanoGenesisConfig = genesisConfig
             }
         mkAction bHandle = runCardanoNode genesisConfig txpConfig bHandle
           cardanoContextVar diffusionVar cardanoConfig

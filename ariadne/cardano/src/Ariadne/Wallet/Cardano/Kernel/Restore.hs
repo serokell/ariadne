@@ -12,15 +12,15 @@ import Control.Exception (Exception(displayException))
 import Control.Lens (at, non, (?~))
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
+import Fmt (pretty)
 
 import Pos.Binary.Class (decodeFull')
-import Pos.Core.Configuration (HasConfiguration)
+import Pos.Chain.Txp (Utxo)
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 import qualified Pos.Crypto as Crypto
   (checkPassMatches, deriveHDPassphrase, emptyPassphrase, encToPublic,
   safeDeterministicKeyGen)
-import Pos.Txp.Toil.Types (Utxo)
-import Pos.Util.BackupPhrase (BackupPhrase(..), safeKeysFromPhrase)
+import qualified Pos.Util.Mnemonic as Daedalus
 import Pos.Util.UserSecret (usKeys)
 
 import Ariadne.Cardano.Face (Address, CardanoMode)
@@ -54,7 +54,7 @@ instance Exception SecretsDecodingError where
     "Failed to decode " <> path <> ": " <> show txt
 
 data RestoreFrom
-  = RestoreFromMnemonic !(Either Mnemonic BackupPhrase)
+  = RestoreFromMnemonic !(Either Mnemonic (Daedalus.Mnemonic 12))
                         !PassPhrase
   | RestoreFromKeyFile  !FilePath
 
@@ -71,23 +71,21 @@ restoreWallets
     -> IO [WalletToRestore]
 restoreWallets rFrom walletName = do
   case rFrom of
-    RestoreFromMnemonic eMnemonicBPhrase pp -> do
-      walletRestore <- restoreWalletFromMnemonic pp walletName eMnemonicBPhrase
-      pure [walletRestore]
+    RestoreFromMnemonic eMnemonicBPhrase pp ->
+      pure [restoreWalletFromMnemonic pp walletName eMnemonicBPhrase]
     RestoreFromKeyFile path ->
       restoreFromKeyFile walletName path
 
 restoreWalletFromMnemonic
-  :: MonadThrow m
-  => PassPhrase
+  :: PassPhrase
   -> WalletName
-  -> Either Mnemonic BackupPhrase
-  -> m WalletToRestore
-restoreWalletFromMnemonic pp walletName eMnemonicBPhrase = do
-  let hasPP = mkHasPP pp
-  esk <- getKeyFromMnemonic pp eMnemonicBPhrase
-  pure $ WalletToRestore esk hasPP walletName assurance
+  -> Either Mnemonic (Daedalus.Mnemonic 12)
+  -> WalletToRestore
+restoreWalletFromMnemonic pp walletName eMnemonicBPhrase =
+    WalletToRestore esk hasPP walletName assurance
   where
+    hasPP = mkHasPP pp
+    esk = getKeyFromMnemonic pp eMnemonicBPhrase
     -- TODO(AD-251): allow selecting assurance.
     assurance = AssuranceLevelNormal
 
@@ -109,18 +107,15 @@ restoreFromKeyFile walletName path = do
       assurance = AssuranceLevelNormal
 
 getKeyFromMnemonic
-    :: MonadThrow m
-    => PassPhrase
-    -> Either Mnemonic BackupPhrase
-    -> m EncryptedSecretKey
-getKeyFromMnemonic pp = \case
-    Left (Mnemonic mnemonic) ->
-      let seed = mnemonicToSeedNoPassword mnemonic
-      in pure . snd $ Crypto.safeDeterministicKeyGen seed pp
-    Right backupPhrase ->
-      case safeKeysFromPhrase pp backupPhrase of
-        Left e        -> throwM $ WrongMnemonic e
-        Right (sk, _) -> pure sk
+    :: PassPhrase
+    -> Either Mnemonic (Daedalus.Mnemonic 12)
+    -> EncryptedSecretKey
+getKeyFromMnemonic pp mnemonicOrMnemonic =
+    snd $ Crypto.safeDeterministicKeyGen seed pp
+  where
+    seed = case mnemonicOrMnemonic of
+      Left (Mnemonic mnemonic) -> mnemonicToSeedNoPassword mnemonic
+      Right daedalusMnemonic -> Daedalus.mnemonicToSeed daedalusMnemonic
 
 -- | Reads daedalus wallet keys from file for wallet restoration
 readNonAriadneKeys :: FilePath -> IO [EncryptedSecretKey]
@@ -130,10 +125,7 @@ readNonAriadneKeys path = do
     Left e   -> throwM $ SecretsDecodingError path e
     Right us -> pure $ us ^. usKeys
 
-collectUtxo ::
-       HasConfiguration
-    => EncryptedSecretKey
-    -> CardanoMode UtxoByAccount
+collectUtxo :: EncryptedSecretKey -> CardanoMode UtxoByAccount
 collectUtxo esk = do
     m <- discoverHDAddressWithUtxo $ Crypto.deriveHDPassphrase $ Crypto.encToPublic esk
     pure $ groupAddresses $ filterAddresses m

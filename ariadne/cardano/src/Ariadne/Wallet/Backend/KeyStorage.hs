@@ -31,8 +31,10 @@ import Control.Exception (Exception(displayException))
 import Control.Lens (ix)
 
 import qualified Data.Text as T
-import qualified Data.Text.Buildable
+import Fmt (pretty)
 import Formatting (bprint, int, sformat, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import Serokell.Data.Memory.Units (Byte)
 
 import Pos.Core (mkCoin)
@@ -282,7 +284,7 @@ instance Buildable InvalidEntropySize where
         bprint ("Invalid size of entropy: "%int%" bytes") sz
 
 instance Exception InvalidEntropySize where
-    displayException = toString . pretty
+    displayException = pretty
 
 generateMnemonic :: Byte -> IO [Text]
 generateMnemonic entropySize = do

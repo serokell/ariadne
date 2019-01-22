@@ -20,7 +20,6 @@ import Pos.Core (Address, IsBootstrapEraAddr(..))
 import Pos.Core.NetworkMagic (NetworkMagic)
 import Pos.Crypto (PublicKey, deterministicKeyGen)
 import Pos.DB.Txp (getFilteredUtxo)
-import Pos.Launcher.Configuration (HasConfigurations)
 
 import Ariadne.Cardano.Face (CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.Bip32
@@ -34,7 +33,7 @@ instance MonadBalances CardanoMode where
     getOwnUtxos = const getFilteredUtxo
     getBalance = getBalanceFromUtxo
 
-instance HasConfigurations => MonadTxHistory CardanoMode where
+instance MonadTxHistory CardanoMode where
     getBlockHistory = getBlockHistoryDefault
     getLocalHistory = getLocalHistoryDefault
     saveTx = saveTxDefault

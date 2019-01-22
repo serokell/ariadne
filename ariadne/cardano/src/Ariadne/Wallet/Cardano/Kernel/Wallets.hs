@@ -15,9 +15,10 @@ module Ariadne.Wallet.Cardano.Kernel.Wallets
        , createWalletHdSeq
        ) where
 
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import qualified Text.Show
 
 import Data.Acid.Advanced (update')
@@ -31,8 +32,8 @@ import Ariadne.Wallet.Cardano.Kernel.Accounts
 import Ariadne.Wallet.Cardano.Kernel.Addresses
   (CreateAddressError(..), createAddress)
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
-  (CreateHdWallet(..), DeleteHdRoot(..),
-  UpdateHdWalletAssurance(..), UpdateHdWalletName(..))
+  (CreateHdWallet(..), DeleteHdRoot(..), UpdateHdWalletAssurance(..),
+  UpdateHdWalletName(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (AccountName(..), AssuranceLevel, HdAddressChain(..), HdRoot, WalletName)
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD

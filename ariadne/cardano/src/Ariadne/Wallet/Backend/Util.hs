@@ -5,8 +5,10 @@ module Ariadne.Wallet.Backend.Util
        ) where
 
 import Control.Lens (ix)
-import qualified Data.Text.Buildable
+import Fmt (pretty)
 import Formatting (bprint, build, int, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 
 import Pos.Util (maybeThrow)
 
@@ -28,7 +30,7 @@ instance Buildable AccountsToUseException where
         bprint ("Account #"%int%" doesn't exist in "%build) idx rootId
 
 instance Exception AccountsToUseException where
-    displayException = toString . prettyL
+    displayException = pretty
 
 -- | Used for fee estimate
 allAccountIds ::

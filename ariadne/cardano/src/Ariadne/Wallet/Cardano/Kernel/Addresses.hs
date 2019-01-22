@@ -5,9 +5,10 @@ module Ariadne.Wallet.Cardano.Kernel.Addresses
        ) where
 
 import Control.Monad.Error.Class (liftEither, throwError)
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, formatToString, (%))
 import qualified Formatting as F
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import qualified Text.Show
 
 import Data.Acid (AcidState, query, update)

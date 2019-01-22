@@ -8,20 +8,20 @@ module Ariadne.Wallet.Backend.Restore
 import qualified Universum.Unsafe as Unsafe (init)
 
 import Control.Natural (type (~>))
+import Fmt (pretty)
 
-import Pos.Util.BackupPhrase (BackupPhrase(..))
-import Pos.Core.Configuration (HasConfiguration)
 import Pos.Crypto (PassPhrase)
+import qualified Pos.Util.Mnemonic as Daedalus
 
 import Ariadne.Cardano.Face (CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet (WalletName(..))
-import Ariadne.Wallet.Cardano.Kernel.Restore (RestoreFrom(..), WrongMnemonic(..))
+import Ariadne.Wallet.Cardano.Kernel.Restore
+  (RestoreFrom(..), WrongMnemonic(..))
 import Ariadne.Wallet.Cardano.WalletLayer.Types (PassiveWalletLayer(..))
 import Ariadne.Wallet.Face (Mnemonic(..))
 
 restoreWallet ::
-       HasConfiguration
-    => PassiveWalletLayer IO
+       PassiveWalletLayer IO
     -> (CardanoMode ~> IO)
     -> IO PassPhrase
     -> Maybe WalletName
@@ -33,8 +33,7 @@ restoreWallet pwl runCardanoMode getPassTemp mbWalletName mnemonic = do
     pwlRestoreWallet pwl runCardanoMode rFrom (getWalletName mbWalletName)
 
 restoreFromKeyFile ::
-       HasConfiguration
-    => PassiveWalletLayer IO
+       PassiveWalletLayer IO
     -> (CardanoMode ~> IO)
     -> Maybe WalletName
     -> FilePath
@@ -58,8 +57,11 @@ getMnemonicRestore (Mnemonic mnemonic) pp = do
     rFromEither <- if
         | isAriadneMnemonic ->
             pure . Left $ Mnemonic (unwords $ Unsafe.init mnemonicWords)
-        | length mnemonicWords == 12 ->
-            pure . Right $ BackupPhrase mnemonicWords
+        | length mnemonicWords == 12 -> do
+            daedalusMnemonic <-
+              either (throwM . WrongMnemonic . pretty) pure $
+              Daedalus.mkMnemonic mnemonicWords
+            pure . Right $ daedalusMnemonic
         | otherwise -> throwM $ WrongMnemonic "Unknown mnemonic type"
 
     pure $ RestoreFromMnemonic rFromEither pp

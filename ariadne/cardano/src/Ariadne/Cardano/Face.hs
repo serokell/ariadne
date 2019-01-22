@@ -37,6 +37,7 @@ import Data.Conduit (transPipe)
 import Data.Constraint (Dict(..))
 import Pos.Chain.Block
   (Blund, HasSlogContext(..), HasSlogGState(..), HeaderHash)
+import qualified Pos.Chain.Genesis as Genesis
 import Pos.Chain.Txp (TxId, TxOut(..))
 import Pos.Context (HasNodeContext(..), HasPrimaryKey(..), HasSscContext(..))
 import Pos.Core
@@ -216,5 +217,5 @@ data CardanoFace = CardanoFace
     , cardanoConfigurations :: Dict HasConfigurations
     , cardanoCompileInfo :: Dict HasCompileInfo
     , cardanoGetDiffusion :: CardanoMode (Diffusion CardanoMode)
-    , cardanoProtocolMagic :: !ProtocolMagic
+    , cardanoGenesisConfig :: !Genesis.Config
     }
