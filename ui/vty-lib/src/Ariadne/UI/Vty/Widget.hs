@@ -226,7 +226,7 @@ data WidgetInfo s p = WidgetInfo
   , widgetHandlePaste :: !(Text -> WidgetEventM s p WidgetEventResult)
   , widgetHandleMouseDown :: !(B.Location -> WidgetEventM s p WidgetEventResult)
   , widgetHandleScroll :: !(ScrollingAction -> WidgetEventM s p WidgetEventResult)
-  , widgetHandleEvent :: !(UiEvent -> WidgetEventM s p ())
+  , widgetHandleEvent :: !((UiEvent Vty) -> WidgetEventM s p ())
   }
 
 instance B.Named (WidgetInfo s p) WidgetName where
@@ -355,7 +355,7 @@ setWidgetHandleMouseDown = assign widgetHandleMouseDownL
 setWidgetHandleScroll :: MonadState (WidgetInfo s p) m => (ScrollingAction -> WidgetEventM s p WidgetEventResult) -> m ()
 setWidgetHandleScroll = assign widgetHandleScrollL
 
-setWidgetHandleEvent :: MonadState (WidgetInfo s p) m => (UiEvent -> WidgetEventM s p ()) -> m ()
+setWidgetHandleEvent :: MonadState (WidgetInfo s p) m => ((UiEvent Vty) -> WidgetEventM s p ()) -> m ()
 setWidgetHandleEvent = assign widgetHandleEventL
 
 ----------------------------------------------------------------------------
@@ -510,7 +510,7 @@ handleWidgetScroll action name = do
     (widgetHandleScroll action)
     (handleWidgetScroll action)
 
-handleWidgetEvent :: UiEvent -> StateT (Widget p) (StateT p (B.EventM WidgetName)) ()
+handleWidgetEvent :: (UiEvent Vty) -> StateT (Widget p) (StateT p (B.EventM WidgetName)) ()
 handleWidgetEvent event = do
   Widget widget@WidgetInfo{..} <- get
   handleAll widget

@@ -43,13 +43,13 @@ instance ComponentPrinter UI where
   componentPpToken = \case{}
 
 data instance ComponentCommandRepr components UI
-  = CommandAction (UiFace -> IO (Value components))
+  = CommandAction ((UiFace Vty) -> IO (Value components))
 
 instance ComponentLitToValue components UI where
   componentLitToValue = \case{}
 
 data instance ComponentExecContext _ _ UI =
-  UiExecCtx UiFace
+  UiExecCtx (UiFace Vty)
 
 instance MonadIO m => ComponentCommandExec m components UI where
   componentCommandExec (UiExecCtx uiFace) (CommandAction act) =
@@ -63,7 +63,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
-            putUiEvent $ UiCommandAction UiCommandHelp
+            putUiEvent $ UiFrontendEvent $ UiCommandAction UiCommandHelp
             return $ toValue ValueUnit
         , cpHelp = "Show help screen"
         }
@@ -72,7 +72,7 @@ instance (AllConstrained (Elem components) '[UI, Core]) => ComponentCommandProcs
         , cpArgumentPrepare = identity
         , cpArgumentConsumer = pass
         , cpRepr = \() -> CommandAction $ \UiFace{..} -> do
-            putUiEvent $ UiCommandAction UiCommandLogs
+            putUiEvent $ UiFrontendEvent $ UiCommandAction UiCommandLogs
             return $ toValue ValueUnit
         , cpHelp = "Show logs screen"
         }

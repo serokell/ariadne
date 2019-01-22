@@ -27,7 +27,7 @@ import Ariadne.Util
 -- display (corresponds to a list of wallets).
 data TreeWidgetState =
   TreeWidgetState
-    { treeLangFace :: !UiLangFace
+    { treeLangFace :: !(UiLangFace Vty)
     , treeItems :: ![TreeItem]
     , treeSelection :: !(Maybe Int)
     , treeInitialized :: !Bool
@@ -57,7 +57,7 @@ treeItemSeparator = TreeItem TreeItemSeparator "" "" Nothing False
 treeItemAddWallet :: Bool -> TreeItem
 treeItemAddWallet = TreeItem TreeItemAddWallet "" "[ + Add wallet ]" (Just [])
 
-initTreeWidget :: UiLangFace -> Widget p
+initTreeWidget :: UiLangFace Vty -> Widget p
 initTreeWidget langFace =
   initWidget $ do
     setWidgetDraw drawTreeWidget
@@ -206,7 +206,7 @@ handleTreeWidgetMouseDown (B.Location (_, row)) = do
   return WidgetEventHandled
 
 handleTreeWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM TreeWidgetState p ()
 handleTreeWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do

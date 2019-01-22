@@ -13,7 +13,7 @@ import Ariadne.UI.Vty.App
 import Ariadne.UI.Vty.Face
 import Ariadne.UX.PasswordManager
 
-type UiAction = UiLangFace -> IO ()
+type UiAction = UiLangFace Vty -> IO ()
 
 -- Initialize the UI, returning two components:
 --
@@ -24,7 +24,7 @@ createAriadneUI
   -> Logging
   -> UiHistoryFace
   -> PutPassword
-  -> ComponentM (UiFace, UiAction)
+  -> ComponentM (UiFace Vty, UiAction)
 createAriadneUI features logging historyFace putPass = buildComponent_ "UI-Vty" $ do
   eventChan <- mkEventChan
   let uiFace = mkUiFace eventChan logging
@@ -35,12 +35,12 @@ createAriadneUI features logging historyFace putPass = buildComponent_ "UI-Vty" 
 -- responsive interface, and the application should exit when this action
 -- completes.
 runUI
-  :: BChan UiEvent
+  :: BChan (UiEvent Vty)
   -> UiFeatures
   -> Logging
   -> PutPassword
   -> UiHistoryFace
-  -> UiLangFace
+  -> UiLangFace Vty
   -> IO ()
 runUI eventChan features logging putPass historyFace langFace = do
   vtyConfig <- mkVtyConfig
@@ -89,11 +89,11 @@ mkVtyConfig = do
 -- Create a channel for application events that aren't user input. This channel
 -- is bounded to avoid infinite accumulation of events, but the bound is
 -- somewhat arbitrary.
-mkEventChan :: IO (BChan UiEvent)
+mkEventChan :: IO (BChan (UiEvent Vty))
 mkEventChan = newBChan 100
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: HasCallStack => BChan UiEvent -> Logging -> UiFace
+mkUiFace :: HasCallStack => BChan (UiEvent Vty) -> Logging -> UiFace Vty
 mkUiFace eventChan logging =
   UiFace
     {
@@ -105,10 +105,10 @@ mkUiFace eventChan logging =
   where
     -- We don't log all events, because there happen to often and we
     -- don't want to pollute logs.
-    eventDescription :: UiEvent -> Maybe Text
+    eventDescription :: UiEvent Vty -> Maybe Text
     eventDescription =
         \case
             UiCommandEvent cid ev ->
               Just ("UiCommandEvent " <> pretty cid <> " " <> show ev)
-            UiNewVersionEvent {} -> Just "UiNewVersionEvent"
+            UiFrontendEvent (UiNewVersionEvent {}) -> Just "UiNewVersionEvent"
             _ -> Nothing

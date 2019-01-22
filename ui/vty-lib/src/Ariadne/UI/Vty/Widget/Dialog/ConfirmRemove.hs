@@ -45,7 +45,6 @@ data MessagesOnDelWidget =
 
 makeLensesWith postfixLFields ''ConfirmRemoveWidgetState
 
-
 makeMessages :: UiDeletingItem -> MessagesOnDelWidget
 makeMessages (UiDelUnknownKeys _) =
   let header = rmUnkownKeysHeaderMessage
@@ -232,7 +231,7 @@ focusList deleteItemM removeCheck =
         Nothing -> []
 
 handleConfirmRemoveWidgetEvent
-    :: UiEvent
+    :: UiEvent Vty
     -> WidgetEventM ConfirmRemoveWidgetState p ()
 handleConfirmRemoveWidgetEvent = \case
     UiConfirmEvent (UiConfirmRequest requestResultVar (UiConfirmRemove requestDelItem)) -> do
