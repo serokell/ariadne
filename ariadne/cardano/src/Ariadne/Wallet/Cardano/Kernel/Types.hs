@@ -29,8 +29,8 @@ import Serokell.Util (enumerate)
 
 import Pos.Chain.Block (MainBlock, gbBody, mainBlockSlot, mbTxs, mbWitnesses)
 import Pos.Chain.Txp
-  (Tx, TxAux(..), TxId, TxIn(..), TxOut, TxOutAux(..), txInputs, txOutputs)
-import Pos.Chain.Txp (Utxo)
+  (Tx, TxAux(..), TxId, TxIn(..), TxOut, TxOutAux(..), Utxo, txInputs,
+  txOutputs)
 import Pos.Crypto.Hashing (hash)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as HD
