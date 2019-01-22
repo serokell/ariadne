@@ -21,7 +21,7 @@ data HelpWidgetState =
 
 makeLensesWith postfixLFields ''HelpWidgetState
 
-initHelpWidget :: UiLangFace -> Widget p
+initHelpWidget :: (UiLangFace Vty) -> Widget p
 initHelpWidget UiLangFace{..} =
   initWidget $ do
     setWidgetDraw drawHelpWidget

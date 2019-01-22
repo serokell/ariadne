@@ -46,7 +46,7 @@ import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Validation
 
-data SendInputs = SendInputsSingle Word | SendInputsMulti [UiAccountInfo]
+data SendInputs = SendInputsSingle Word | SendInputsMulti [UiAccountInfo Qt]
 data SendMode = SendBasic | SendAdvanced deriving (Show, Eq, Enum, Bounded)
 
 data Error
@@ -118,7 +118,7 @@ createModeSelector = do
     QComboBox.addItem modeSelector $ toString $ sendModeName mode
   return modeSelector
 
-initSend :: UiLangFace -> UiWalletFace -> SendInputs -> IO Send
+initSend :: UiLangFace Qt -> UiWalletFace -> SendInputs -> IO Send
 initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
   send <- QDialog.new
   QObject.setObjectName send ("sendDialog" :: String)
@@ -236,7 +236,7 @@ initSend uiLangFace@UiLangFace{..} uiWalletFace@UiWalletFace{..} sendInputs = do
 
   return s
 
-modeChanged :: UiLangFace -> Send -> SendMode -> IO ()
+modeChanged :: UiLangFace Qt -> Send -> SendMode -> IO ()
 modeChanged uiLangFace s@Send{..} mode = do
   let isBasic = mode == SendBasic
   QWidget.setVisible receiversWidget $ not isBasic
@@ -336,7 +336,7 @@ createUnitLabel = do
   QObject.setObjectName unitLabel ("amountLabel" :: String)
   return unitLabel
 
-createAccountSelector :: [UiAccountInfo] -> IO AccountSelector
+createAccountSelector :: [UiAccountInfo Qt] -> IO AccountSelector
 createAccountSelector uacis = do
   dropdownWidget <- QWidget.new
   layout <- QVBoxLayout.new
@@ -408,7 +408,7 @@ createMulptipleReceivers = do
   QWidget.setLayout receiversWidget receiversLayout
   return (receiversWidget, receiversLayout)
 
-createNewReceiver :: UiLangFace -> Send -> IO ()
+createNewReceiver :: UiLangFace Qt -> Send -> IO ()
 createNewReceiver uiLangFace@UiLangFace{..} s@Send{..} = do
   receiverWidget <- QWidget.new
   layout <- createLayout receiverWidget
@@ -458,7 +458,7 @@ createNewReceiver uiLangFace@UiLangFace{..} s@Send{..} = do
   QWidget.adjustSize send
   revalidate s
 
-removeReceiver :: UiLangFace -> Receiver -> Send -> IO ()
+removeReceiver :: UiLangFace Qt -> Receiver -> Send -> IO ()
 removeReceiver uiLangFace@UiLangFace{..} Receiver{..} s@Send{..} = do
   enabledReceivers <- getEnabledReceivers s
   QWidget.setEnabled receiverWidget False
@@ -489,7 +489,7 @@ blackColorQLabelStyleSheet = "QLabel { color : rgba(52, 52, 62, 255) }"
 grayColorQLabelStyleSheet :: String
 grayColorQLabelStyleSheet = "QLabel { color : rgba(52, 52, 62, 127) }"
 
-recalcTotal :: UiLangFace -> Send -> IO ()
+recalcTotal :: UiLangFace Qt -> Send -> IO ()
 recalcTotal UiLangFace{..} s@Send{..} = do
   enabledReceivers <- getEnabledReceivers s
   textAmounts <- mapM (fmap fromString . QLineEdit.text . amountEdit) enabledReceivers
@@ -500,7 +500,7 @@ recalcTotal UiLangFace{..} s@Send{..} = do
   if length enabledReceivers == length amounts
     then do
       QWidget.setStyleSheet totalAmount blackColorQLabelStyleSheet
-      langPutUiCommand (UiCalcTotal amounts) >>= \case
+      langPutUiCommand (UiFrontendCommand $ UiCalcTotal amounts) >>= \case
         Left err -> void $ QMessageBox.critical send ("Error" :: String) $ toString err
         Right _ -> pass
     -- Color amount gray, when something is typed improperly. Last correct total amount will be shown
@@ -525,12 +525,12 @@ moveAddReceiverButton Send{..} = do
   HSize{width = sendWidth} <- QWidget.size send
   QWidget.move addReceiverButton $ HPoint {x = sendWidth - 40, y = widgetY + widgetHeight - 85}
 
-createAccountCheckbox :: QVBoxLayout.QVBoxLayout -> UiAccountInfo -> IO AccountCheckbox
+createAccountCheckbox :: QVBoxLayout.QVBoxLayout -> UiAccountInfo Qt -> IO AccountCheckbox
 createAccountCheckbox layout UiAccountInfo{..} = do
   rowLayout <- QHBoxLayout.new
   (checkbox, label) <- createCheckBoxWithLabel $ fromMaybe "" uaciLabel
   balance <- QLabel.newWithText $ toString $
-    let (balance, unit) = uaciBalance in balance <> " " <> unitToHtmlSmall unit
+    let (UiCurrency balance unit) = uaciBalance in balance <> " " <> unitToHtmlSmall unit
 
   QBoxLayout.addWidget rowLayout checkbox
   QBoxLayout.addWidget rowLayout label

@@ -1,6 +1,6 @@
 <<: !include "../../hpack/module.yaml"
 
-name: ariadne-vty-lib
+name: ariadne-common-ui-glue
 
 library:
   <<: *lib-common
@@ -9,16 +9,16 @@ library:
   dependencies:
     - Earley
     - Hclip
-    - ansi-terminal
-    - ansi-wl-pprint
     - ariadne-core
+    - ariadne-cardano
     - ariadne-common-ui-face
-    - brick
     - componentm
     - concurrent-extra
     - containers
     - directory
+    - double-conversion
     - formatting
+    - ntype
     # UI is independent of Knit, but provides Knit command bindings
     - knit
     - lens
@@ -27,7 +27,7 @@ library:
     - serokell-util
     - streams
     - text
-    - text-format
+    - ansi-wl-pprint
     - text-zipper
     - transformers
     - vector

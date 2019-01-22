@@ -32,8 +32,8 @@ import Ariadne.UI.Qt.Util
 import Ariadne.UI.Qt.Widgets.Dialogs.Util
 
 data RequestAccounts
-  = RequestAccountsSingle UiAccountInfo
-  | RequestAccountsMulti [UiAccountInfo]
+  = RequestAccountsSingle (UiAccountInfo Qt)
+  | RequestAccountsMulti [(UiAccountInfo Qt)]
 
 data RequestAccountWidget =
   RequestAccountWidget
@@ -51,7 +51,7 @@ data Request =
     , accountWidgets :: [RequestAccountWidget]
     }
 
-initRequest :: UiLangFace -> RequestAccounts -> IO Request
+initRequest :: UiLangFace Qt -> RequestAccounts -> IO Request
 initRequest langFace requestAccounts = do
   request <- QDialog.new
   layout <- createLayout request
@@ -84,7 +84,7 @@ initRequest langFace requestAccounts = do
 
   return req
 
-startRequest :: UiLangFace -> IO () -> RequestAccounts -> IO Request
+startRequest :: UiLangFace Qt -> IO () -> RequestAccounts -> IO Request
 startRequest langFace onClosed requestAccounts = do
   req@Request{..} <- initRequest langFace requestAccounts
   QWidget.show request
@@ -93,7 +93,7 @@ startRequest langFace onClosed requestAccounts = do
 
   return req
 
-uaciToIndices :: UiAccountInfo -> (Word, Word)
+uaciToIndices :: UiAccountInfo Qt -> (Word, Word)
 uaciToIndices UiAccountInfo{..} = (uaciWalletIdx, head uaciPath)
 
 createAccountWidgets :: QVBoxLayout.QVBoxLayout -> RequestAccounts -> IO [RequestAccountWidget]
@@ -134,8 +134,8 @@ createAccountWidgets layout (RequestAccountsMulti uacis) = forM uacis $ \uaci@Ui
       , rawAIdx = aIdx
       }
 
-createAddressRow :: QVBoxLayout.QVBoxLayout -> Text -> (Text, UiCurrency) -> IO ()
-createAddressRow parentLayout address (balance, unit) = do
+createAddressRow :: QVBoxLayout.QVBoxLayout -> Text -> UiCurrency Qt -> IO ()
+createAddressRow parentLayout address (UiCurrency balance unit) = do
   layout <- createRowLayout
   QLayout.setSpacing layout 18
   QLayout.setSizeConstraint layout QLayout.SetMinimumSize
@@ -165,7 +165,7 @@ createAddressRow parentLayout address (balance, unit) = do
   clipboard <- QApplication.clipboard
   connect_ copyButton QAbstractButton.clickedSignal $ \_ -> QClipboard.setText clipboard $ toString address
 
-createAccountWidget :: UiAccountInfo -> IO (QWidget.QWidget, QVBoxLayout.QVBoxLayout)
+createAccountWidget :: UiAccountInfo Qt -> IO (QWidget.QWidget, QVBoxLayout.QVBoxLayout)
 createAccountWidget UiAccountInfo{..} = do
   widget <- QWidget.new
   layout <- QVBoxLayout.new
@@ -194,9 +194,9 @@ switchAccount Request{..} RequestAccountWidget{..} = do
   whenJust rawHeader $ \header -> QAbstractButton.setIcon header openIcon
   QWidget.adjustSize request
 
-generateClicked :: UiLangFace -> Request -> IO ()
+generateClicked :: UiLangFace Qt -> Request -> IO ()
 generateClicked UiLangFace{..} req@Request{..} = whenJustM (readIORef currentAccount) $ \(wIdx, aIdx) ->
-  langPutUiCommand (UiNewAddress wIdx aIdx) >>= handleResult req
+  langPutUiCommand (UiFrontendCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>= handleResult req
 
 handleResult :: Request -> Either Text UiCommandId -> IO ()
 handleResult Request{..} (Left msg) = void $ QMessageBox.critical request ("Error" :: String) $ toString msg
@@ -211,4 +211,4 @@ addNewAddress Request{..} wIdx aIdx address = for_ accountWidgets updateAccountW
       | otherwise = pass
 
     doUpdate :: QVBoxLayout.QVBoxLayout -> IO ()
-    doUpdate layout = createAddressRow layout address ("0", ADA)
+    doUpdate layout = createAddressRow layout address (UiCurrency "0" ADA)

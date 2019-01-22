@@ -8,7 +8,7 @@ import Control.Monad.Component (ComponentM, buildComponent_)
 import Control.Monad.Extra (loopM)
 
 import Ariadne.UI.Qt.Face
-  (UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
+  (Qt, UiEvent(..), UiFace(..), UiHistoryFace, UiLangFace, UiWalletFace)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -26,15 +26,15 @@ import Ariadne.UI.Qt.StyleSheet
 import Ariadne.UI.Qt.UI
 import Ariadne.UX.PasswordManager
 
-type UiAction = UiLangFace -> IO ()
+type UiAction = UiLangFace Qt -> IO ()
 
-type UiEventBQueue = TBQueue UiEvent
+type UiEventBQueue = TBQueue (UiEvent Qt)
 
 createAriadneUI
   :: UiWalletFace
   -> UiHistoryFace
   -> PutPassword
-  -> ComponentM (UiFace, UiAction)
+  -> ComponentM (UiFace Qt, UiAction)
 createAriadneUI uiWalletFace historyFace putPass = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
@@ -83,7 +83,7 @@ postEventToQt :: QObject.QObject -> IO ()
 postEventToQt eventDispatcher = QEvent.new QEvent.None >>= QCoreApplication.postEvent eventDispatcher
 
 -- Create the API for interacting with the UI thread.
-mkUiFace :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiFace
+mkUiFace :: UiEventBQueue -> IORef (Maybe QObject.QObject) -> UiFace Qt
 mkUiFace eventBQueue dispatcherIORef =
   UiFace
     { putUiEvent = \event -> do
@@ -95,7 +95,7 @@ mkUiFace eventBQueue dispatcherIORef =
     }
 
 {-# ANN qtEventSubLoop ("HLint: ignore Redundant return" :: Text) #-}
-qtEventSubLoop :: UiEventBQueue -> (UiEvent -> IO ()) -> Int -> IO (Either Int ())
+qtEventSubLoop :: UiEventBQueue -> (UiEvent Qt -> IO ()) -> Int -> IO (Either Int ())
 qtEventSubLoop _ _ 0 = return $ Right ()
 qtEventSubLoop eventBQueue handler depth = do
   maybeEvent <- atomically $ tryReadTBQueue eventBQueue
@@ -107,7 +107,7 @@ qtEventSubLoop eventBQueue handler depth = do
   return next
 
 handleAppEvent
-  :: UiLangFace
+  :: UiLangFace Qt
   -> PutPassword
   -> UiEventBQueue
   -> MainWindow

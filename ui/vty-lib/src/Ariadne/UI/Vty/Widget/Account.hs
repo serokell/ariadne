@@ -10,6 +10,7 @@ import System.Hclip (ClipboardException, setClipboard)
 import qualified Brick as B
 import qualified Data.Text as T
 import qualified Graphics.Vty as V
+import qualified Data.List.NonEmpty as NE
 
 import Ariadne.UI.Vty.Face
 import Ariadne.UI.Vty.Scrolling
@@ -27,13 +28,13 @@ import Ariadne.Util
 data AccountAddress =
   AccountAddress
     { accountAddressHash :: !Text
-    , accountAddressBalance :: !(Maybe Text)
+    , accountAddressBalance :: !(UiCurrency Vty)
     }
 
 data AccountWidgetState =
   AccountWidgetState
-    { accountLangFace :: !UiLangFace
-    , accountInfo :: !(Maybe UiAccountInfo)
+    { accountLangFace :: !(UiLangFace Vty)
+    , accountInfo :: !(Maybe (UiAccountInfo Vty))
 
     , accountName :: !Text
     , accountNameEdit :: !Text
@@ -73,7 +74,7 @@ data AddressResult
 makeLensesWith postfixLFields ''AccountAddress
 makeLensesWith postfixLFields ''AccountWidgetState
 
-initAccountWidget :: UiLangFace -> Widget p
+initAccountWidget :: UiLangFace Vty -> Widget p
 initAccountWidget langFace =
   initWidget $ do
     setWidgetDrawWithFocus drawAccountWidget
@@ -111,7 +112,7 @@ initAccountWidget langFace =
       initSendWidget langFace
         (Just $ widgetParentGetter $ map uaciWalletIdx . accountInfo)
         (Just $ widgetParentGetter $
-          maybe [] (take 1 . map fromIntegral . uaciPath) . accountInfo)
+          maybe [] (NE.take 1 . map fromIntegral . uaciPath) . accountInfo)
 
     addWidgetChild WidgetNameAccountAddressGenerateButton $
       initButtonWidget "Generate"
@@ -147,7 +148,7 @@ drawAddressRow focused AccountAddress{..} =
         width = rdrCtx ^. B.availWidthL
 
         padBalance b = T.replicate (max 0 (15 - T.length b)) " " <> b
-        balance = maybe "" padBalance accountAddressBalance
+        balance = padBalance $ getUiCurrency accountAddressBalance
 
         addressWidth = width - (T.length balance) - 1
         addressLength = T.length accountAddressHash
@@ -229,7 +230,7 @@ drawAccountWidget focus AccountWidgetState{..} = do
 ----------------------------------------------------------------------------
 
 handleAccountWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM AccountWidgetState p ()
 handleAccountWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
@@ -248,16 +249,7 @@ handleAccountWidgetEvent = \case
           whenJust uaciLabel $ updateEditable accountNameL accountNameEditL
           accountAddressesL .=
             map (\UiAddressInfo{..} -> AccountAddress uadiAddress uadiBalance) uaciAddresses
-          case uaciBalance of
-            Just balance -> accountBalanceL .= BalanceResultSuccess balance
-            Nothing -> do
-              use accountBalanceL >>= \case
-                BalanceResultWaiting commandId
-                  | Just taskId <- cmdTaskId commandId ->
-                      void . liftIO . langPutUISilentCommand $ UiKill taskId
-                _ -> pass
-              liftIO (langPutUISilentCommand UiBalance) >>=
-                assign accountBalanceL . either BalanceResultError BalanceResultWaiting
+          accountBalanceL .= BalanceResultSuccess (getUiCurrency uaciBalance)
         updateFocusList
       _ -> pass
   UiCommandResult commandId (UiRenameCommandResult result) ->
@@ -284,7 +276,7 @@ handleAccountWidgetEvent = \case
             UiBalanceCommandSuccess balance -> BalanceResultSuccess balance
             UiBalanceCommandFailure err -> BalanceResultError err
         other -> other
-  UiCommandResult commandId (UiNewAddressCommandResult result) ->
+  UiCommandResult commandId (UiFrontendCommandResult (UiNewAddressCommandResult result)) ->
     zoomWidgetState $ do
       accountAddressResultL %= \case
         AddressResultWaiting commandId' | commandId == commandId' ->
@@ -334,11 +326,11 @@ performNewAddress = zoomWidgetState $ do
   mUiAccountInfo <- use accountInfoL
   let wIdx = uaciWalletIdx <$> mUiAccountInfo
       aIdx = case uaciPath <$> mUiAccountInfo of
-        Just (x:_) -> Just x
+        Just (x:|_) -> Just x
         _ -> Nothing
   use accountAddressResultL >>= \case
     AddressResultWaiting _ -> pass
-    _ -> liftIO (langPutUiCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
+    _ -> liftIO (langPutUiCommand . UiFrontendCommand . UiNewAddress $ UiNewAddressArgs wIdx aIdx) >>=
       assign accountAddressResultL . either AddressResultError AddressResultWaiting
 
 performCopyAddress :: Int -> WidgetEventM AccountWidgetState p ()

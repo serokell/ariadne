@@ -27,7 +27,7 @@ data WalletAccount =
   WalletAccount
     { walletAccountIdx :: !Word32
     , walletAccountName :: !Text
-    , walletAccountBalance :: !(Maybe Text)
+    , walletAccountBalance :: !(UiCurrency Vty)
     , walletAccountSelected :: Bool
     }
 
@@ -36,8 +36,8 @@ instance Eq WalletAccount where
 
 data WalletWidgetState =
   WalletWidgetState
-    { walletLangFace :: !UiLangFace
-    , walletInfo :: !(Maybe UiWalletInfo)
+    { walletLangFace :: !(UiLangFace Vty)
+    , walletInfo :: !(Maybe (UiWalletInfo Vty))
 
     , walletName :: !Text
     , walletNameEdit :: !Text
@@ -107,7 +107,7 @@ data ChangePasswordResult
 makeLensesWith postfixLFields ''WalletAccount
 makeLensesWith postfixLFields ''WalletWidgetState
 
-initWalletWidget :: UiLangFace -> UiFeatures -> Widget p
+initWalletWidget :: UiLangFace Vty -> UiFeatures -> Widget p
 initWalletWidget langFace UiFeatures{..} =
   initWidget $ do
     setWidgetDrawWithFocus drawWalletWidget
@@ -323,7 +323,7 @@ drawWalletWidget focus WalletWidgetState{..} = do
 ----------------------------------------------------------------------------
 
 handleWalletWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM WalletWidgetState p ()
 handleWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..} -> do
@@ -346,17 +346,7 @@ handleWalletWidgetEvent = \case
                     WalletAccount idx (fromMaybe "" uaciLabel) uaciBalance False)
                 (zip [0..] uwiAccounts)
           updateEditable walletAccountsL walletAccountsEditL converted
-          case uwiBalance of
-            Just balance ->
-              walletBalanceL .= BalanceResultSuccess balance
-            Nothing -> do
-              use walletBalanceL >>= \case
-                BalanceResultWaiting commandId
-                  | Just taskId <- cmdTaskId commandId ->
-                      void . liftIO . langPutUISilentCommand $ UiKill taskId
-                _ -> pass
-              liftIO (langPutUISilentCommand UiBalance) >>=
-                assign walletBalanceL . either BalanceResultError BalanceResultWaiting
+          walletBalanceL .= BalanceResultSuccess (getUiCurrency uwiBalance)
           whenM (use walletTxHistoryEnabledL) $ do
             use walletTxHistoryL >>= \case
               TxHistoryResultWaiting commandId

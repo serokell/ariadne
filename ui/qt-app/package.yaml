@@ -16,6 +16,8 @@ executables:
       - ansi-wl-pprint
       - ariadne-cardano
       - ariadne-core
+      - ariadne-common-ui-face
+      - ariadne-common-ui-glue
       - ariadne-qt-lib
       - async
       - componentm

@@ -29,7 +29,7 @@ data SendOutput =
 
 data SendWidgetState p =
   SendWidgetState
-    { sendLangFace :: !UiLangFace
+    { sendLangFace :: !(UiLangFace Vty)
     , sendWalletIdxGetter :: !(Maybe (p -> Maybe Word))
     , sendAccountsGetter :: !(Maybe (p -> [Word32]))
 
@@ -56,7 +56,7 @@ makeLensesWith postfixLFields ''SendOutput
 makeLensesWith postfixLFields ''SendWidgetState
 
 initSendWidget
-  :: UiLangFace
+  :: (UiLangFace Vty)
   -> Maybe (p -> Maybe Word)
   -> Maybe (p -> [Word32])
   -> Widget p
@@ -159,7 +159,7 @@ drawSendWidget focus SendWidgetState{..} = do
 ----------------------------------------------------------------------------
 
 handleSendWidgetEvent
-  :: UiEvent
+  :: (UiEvent Vty)
   -> WidgetEventM (SendWidgetState p) p ()
 handleSendWidgetEvent = \case
   UiCommandResult commandId (UiSendCommandResult result) -> do
@@ -208,25 +208,27 @@ updateFocusList = do
       ]
 
 collectFormData ::
-  StateT (SendWidgetState p) (StateT p (B.EventM WidgetName)) (Maybe Word, [Word32], [UiSendOutput])
+  StateT (SendWidgetState p) (StateT p (B.EventM WidgetName)) (Either Text (Maybe Word, [Word32], [UiSendOutput]))
 collectFormData = do
   parentState <- lift get
   walletIdx <- uses sendWalletIdxGetterL $ maybe Nothing (\getter -> getter parentState)
   accounts <- uses sendAccountsGetterL $ maybe [] (\getter -> getter parentState)
-  outputs <- fmap (\SendOutput{..} -> UiSendOutput sendAddress sendAmount) <$> uses sendOutputsL Map.elems
-  return (walletIdx, accounts, outputs)
+  outputs <- traverse (\SendOutput{..} -> UiSendOutput sendAddress <$> readEither sendAmount) <$> uses sendOutputsL Map.elems
+  return $ fmap (walletIdx, accounts,) outputs
 
 updateFee :: WidgetEventM (SendWidgetState p) p ()
 updateFee = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
-  (walletIdx, accounts, outputs) <- collectFormData
-  use sendFeeResultL >>= \case
-    FeeResultWaiting commandId
-      | Just taskId <- cmdTaskId commandId ->
-          void . liftIO . langPutUISilentCommand $ UiKill taskId
-    _ -> pass
-  liftIO (langPutUISilentCommand $ UiFee $ UiFeeArgs walletIdx accounts outputs) >>=
-    assign sendFeeResultL . either FeeResultError FeeResultWaiting
+  collectFormData >>= \case
+    Left _ -> assign sendFeeResultL (FeeResultError "Invalid amount!")
+    Right (walletIdx, accounts, outputs) -> do
+      use sendFeeResultL >>= \case
+        FeeResultWaiting commandId
+          | Just taskId <- cmdTaskId commandId ->
+              void . liftIO . langPutUISilentCommand $ UiKill taskId
+        _ -> pass
+      liftIO (langPutUISilentCommand $ UiFee $ UiFeeArgs walletIdx accounts outputs) >>=
+        assign sendFeeResultL . either FeeResultError FeeResultWaiting
 
 addOutput :: Monad m => StateT (WidgetInfo (SendWidgetState p) p) m ()
 addOutput = do
@@ -264,12 +266,14 @@ removeOutput idx = do
 performSendTransaction :: WidgetEventM (SendWidgetState p) p ()
 performSendTransaction = zoomWidgetState $ do
   UiLangFace{..} <- use sendLangFaceL
-  (walletIdx, accounts, outputs) <- collectFormData
-  passphrase <- use sendPassL
-  use sendResultL >>= \case
-    SendResultWaiting _ -> pass
-    _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs walletIdx accounts outputs passphrase) >>=
-      assign sendResultL . either SendResultError SendResultWaiting
+  collectFormData >>= \case
+    Left _ -> assign sendResultL (SendResultError "Invalid amount!")
+    Right (walletIdx, accounts, outputs) -> do
+      passphrase <- use sendPassL
+      use sendResultL >>= \case
+        SendResultWaiting _ -> pass
+        _ -> liftIO (langPutUiCommand $ UiSend $ UiSendArgs walletIdx accounts outputs passphrase) >>=
+          assign sendResultL . either SendResultError SendResultWaiting
 
 unsafeFromJust :: Lens' (Maybe a) a
 unsafeFromJust = lens Unsafe.fromJust setJust

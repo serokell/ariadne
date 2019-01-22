@@ -45,7 +45,7 @@ import Ariadne.UI.Qt.Widgets.Dialogs.Request
 import Ariadne.UI.Qt.Widgets.Dialogs.Send
 import Ariadne.Util
 
-data CurrentItem = WIWallet Word [UiAccountInfo] | WIAccount Word UiAccountInfo
+data CurrentItem = WIWallet Word [UiAccountInfo Qt] | WIAccount Word (UiAccountInfo Qt)
 
 data WalletInfo =
   WalletInfo
@@ -71,7 +71,7 @@ data WalletInfo =
 makeLensesWith postfixLFields ''WalletInfo
 
 initWalletInfo
-  :: UiLangFace
+  :: UiLangFace Qt
   -> UiWalletFace
   -> QStandardItemModel.QStandardItemModel
   -> QItemSelectionModel.QItemSelectionModel
@@ -193,7 +193,7 @@ initWalletInfo langFace uiWalletFace itemModel selectionModel = do
   return (walletInfo, WalletInfo{..})
 
 data WalletInfoEvent
-  = WalletInfoSelectionChange UiSelectionInfo
+  = WalletInfoSelectionChange (UiSelectionInfo Qt)
   | WalletInfoDeselect
   | WalletInfoSendCommandResult UiCommandId UiSendCommandResult
   | WalletInfoCalcTotalCommandResult UiCalcTotalCommandResult
@@ -204,17 +204,17 @@ data WalletInfoEvent
   | WalletInfoConfirmSend (MVar Bool) [UiConfirmSendInfo]
 
 handleWalletInfoEvent
-  :: UiLangFace
+  :: UiLangFace Qt
   -> WalletInfoEvent
   -> UI WalletInfo ()
 handleWalletInfoEvent UiLangFace{..} ev = do
   WalletInfo{..} <- ask
   lift $ case ev of
     WalletInfoSelectionChange selectionInfo -> do
-      let (itemName, (balance, unit), item, tooltip) =
+      let (itemName, (UiCurrency balance unit), item, tooltip) =
             case selectionInfo of
               UiSelectionWallet UiWalletInfo{..} ->
-                (uwiLabel, uwiBalance, WIWallet uwiWalletIdx uwiAccounts, uwiWalletId)
+                (uwiLabel, uwiBalance, WIWallet uwiWalletIdx uwiAccounts, uwiId)
               UiSelectionAccount uaci@UiAccountInfo{..} ->
                 (uaciLabel, uaciBalance, WIAccount uaciWalletIdx uaci, "")
 
@@ -276,7 +276,7 @@ handleWalletInfoEvent UiLangFace{..} ev = do
         void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
 
     WalletInfoChangePasswordCommandResult _commandId result -> case result of
-      UiChangePasswordCommandSuсcess -> do
+      UiChangePasswordCommandSuccess -> do
         void $ QMessageBox.information walletInfo ("Success" :: String)
           ("Password was successfully changed" :: String)
       UiChangePasswordCommandFailure err ->
@@ -291,31 +291,31 @@ handleWalletInfoEvent UiLangFace{..} ev = do
       cs <- runConfirmSend sendInfo resultVar
       writeIORef sendConfirmDialog $ Just cs
 
-addAccountClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+addAccountClicked :: UiLangFace Qt -> WalletInfo -> Bool -> IO ()
 addAccountClicked UiLangFace{..} WalletInfo{..} _checked = do
   name <- toText <$> QInputDialog.getText walletInfo ("New account" :: String) ("Account name" :: String)
-  unless (null name) $ void $ langPutUiCommand $ UiNewAccount name
+  unless (null name) $ void $ langPutUiCommand $ UiNewAccount $ UiNewAccountArgs Nothing name
 
-accountSettingsClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+accountSettingsClicked :: UiLangFace Qt -> WalletInfo -> Bool -> IO ()
 accountSettingsClicked langFace@UiLangFace{..} wi@WalletInfo{..} _checked =
   whenJustM (readIORef currentItem) $ \_ -> do
     currentName <- readIORef currentItemName
 
     let
       renameHandler :: RenameHandler
-      renameHandler newName = void $ langPutUiCommand $ UiRename newName
+      renameHandler newName = void $ langPutUiCommand $ UiRename $ UiRenameArgs $ newName
 
       deleteHandler :: DeleteHandler
       deleteHandler = deleteItemClicked langFace wi False
 
     runAccountSettings currentName renameHandler deleteHandler
 
-deleteItemClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+deleteItemClicked :: UiLangFace Qt -> WalletInfo -> Bool -> IO ()
 deleteItemClicked UiLangFace{..} WalletInfo{..} _checked =
   whenJustM (readIORef currentItem) $ \_ ->
-    void $ langPutUiCommand UiRemoveCurrentItem
+    void $ langPutUiCommand UiRemove
 
-requestButtonClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+requestButtonClicked :: UiLangFace Qt -> WalletInfo -> Bool -> IO ()
 requestButtonClicked langFace WalletInfo{..} _checked = do
   req <- readIORef requestDialog
   whenNothing_ req $
@@ -328,7 +328,7 @@ requestButtonClicked langFace WalletInfo{..} _checked = do
       writeIORef requestDialog $ Just req'
   where onClosed = writeIORef requestDialog Nothing
 
-sendButtonClicked :: UiLangFace -> UiWalletFace -> WalletInfo -> Bool -> IO ()
+sendButtonClicked :: UiLangFace Qt -> UiWalletFace -> WalletInfo -> Bool -> IO ()
 sendButtonClicked uiLangFace@UiLangFace{..} uiWalletFace WalletInfo{..} _checked = whenJustM (readIORef currentItem) $ \item -> do
   let
     (wIdx, inputs) = case item of
@@ -340,14 +340,14 @@ sendButtonClicked uiLangFace@UiLangFace{..} uiWalletFace WalletInfo{..} _checked
   case result of
     SendCancel -> pass
     SendSuccess SendOptions{..} -> do
-      let sendOutputs = zipWith UiSendOutput soAmounts soAddresses
-      langPutUiCommand (UiSend $ UiSendArgs wIdx soAccounts sendOutputs) >>= \case
+      let sendOutputs = zipWith UiSendOutput soAddresses soAmounts
+      langPutUiCommand (UiSend $ UiSendArgs (Just wIdx) (map fromIntegral soAccounts) sendOutputs "") >>= \case
         Left err -> void $ QMessageBox.critical walletInfo ("Error" :: String) $ toString err
         Right _ -> pass
 
-changePasswordClicked :: UiLangFace -> WalletInfo -> Bool -> IO ()
+changePasswordClicked :: UiLangFace Qt -> WalletInfo -> Bool -> IO ()
 changePasswordClicked UiLangFace{..} WalletInfo{..} _checked = do
-  void $ langPutUiCommand (UiChangePassword)
+  void $ langPutUiCommand (UiChangePassword UiChangePasswordArgs)
 
 selectSomethingText :: Text
 selectSomethingText = "Select something..."

@@ -79,7 +79,7 @@ initApp
     :: UiFeatures
     -> Logging
     -> PutPassword
-    -> UiLangFace
+    -> UiLangFace Vty
     -> UiHistoryFace
     -> AppState
 initApp features logging putPass langFace historyFace =
@@ -192,7 +192,7 @@ updateAppFocusRing = do
   whenJust mcurrent setAppFocus
 
 -- The Ariadne UI view and controller a single record.
-app :: B.App AppState UiEvent WidgetName
+app :: B.App AppState (UiEvent Vty) WidgetName
 app = B.App{..} where
 
   appDraw :: AppState -> [B.Widget WidgetName]
@@ -206,7 +206,7 @@ app = B.App{..} where
 
   appHandleEvent
     :: AppState
-    -> B.BrickEvent WidgetName UiEvent
+    -> B.BrickEvent WidgetName (UiEvent Vty)
     -> B.EventM WidgetName (B.Next AppState)
   appHandleEvent appState ev = do
     (completed, appState') <-
@@ -283,7 +283,7 @@ drawAppWidget focus AppWidgetState{..} = do
         UiConfirmSend _     -> (drawChild WidgetNameConfirmSend)
 
 handleAppEvent
-  :: B.BrickEvent WidgetName UiEvent
+  :: B.BrickEvent WidgetName (UiEvent Vty)
   -> StateT AppState (B.EventM WidgetName) AppCompleted
 handleAppEvent brickEvent = do
   case brickEvent of
@@ -400,7 +400,7 @@ handleAppWidgetKey key = do
 handleAppWidgetEvent
   :: HasCallStack
   => Logging
-  -> UiEvent
+  -> UiEvent Vty
   -> WidgetEventM AppWidgetState AppState ()
 handleAppWidgetEvent logging = \case
   UiWalletEvent UiWalletUpdate{..} -> do
@@ -411,11 +411,11 @@ handleAppWidgetEvent logging = \case
         UiSelectionWallet{} -> appSelectionL .= AppSelectionWallet
         UiSelectionAccount{} -> appSelectionL .= AppSelectionAccount
     resetAppFocus
-  UiCommandAction UiCommandHelp -> do
+  UiFrontendEvent (UiCommandAction UiCommandHelp) -> do
     logDebug logging "App widget received 'Help' event"
     widgetStateL . appScreenL .= AppScreenHelp
     resetAppFocus
-  UiCommandAction UiCommandLogs -> do
+  UiFrontendEvent (UiCommandAction UiCommandLogs) -> do
     logDebug logging "Received 'Logs' event"
     widgetStateL . appScreenL .= AppScreenLogs
     resetAppFocus

@@ -20,7 +20,7 @@ import Ariadne.Util
 
 data AddWalletWidgetState =
   AddWalletWidgetState
-    { addWalletLangFace :: !UiLangFace
+    { addWalletLangFace :: !(UiLangFace Vty)
 
     , addWalletNewName :: !Text
     , addWalletNewPass :: !Text
@@ -49,7 +49,7 @@ data RestoreResult
 
 makeLensesWith postfixLFields ''AddWalletWidgetState
 
-initAddWalletWidget :: UiLangFace -> UiFeatures -> Widget p
+initAddWalletWidget :: (UiLangFace Vty) -> UiFeatures -> Widget p
 initAddWalletWidget langFace features =
   initWidget $ do
     setWidgetDrawWithFocus drawAddWalletWidget
@@ -153,7 +153,7 @@ drawAddWalletWidget focus AddWalletWidgetState{..} = do
 ----------------------------------------------------------------------------
 
 handleAddWalletWidgetEvent
-  :: UiEvent
+  :: UiEvent Vty
   -> WidgetEventM AddWalletWidgetState p ()
 handleAddWalletWidgetEvent = \case
   UiWalletEvent UiWalletUpdate{..}
