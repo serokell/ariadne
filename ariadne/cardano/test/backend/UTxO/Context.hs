@@ -46,17 +46,17 @@ import Serokell.Util (listJson, mapJson, pairF)
 import Serokell.Util.Base16 (base16F)
 
 import Pos.Chain.Block
-  (BlockHeader(..), GenesisBlock, HeaderHash, blockHeaderHash, genesisBlock0,
-  _gbHeader)
+  (BlockHeader(..), GenesisBlock, HeaderHash, blockHeaderHash, gbHeader,
+  genesisBlock0)
 import Pos.Chain.Delegation (ProxySKHeavy)
-import Pos.Chain.Genesis
-  (GeneratedSecrets(..), GenesisData(..), GenesisDelegation(..),
-  PoorSecret(..), RichSecrets(..))
+import Pos.Chain.Genesis as Genesis
+  (Config(..), GeneratedSecrets(..), GenesisData(..), GenesisDelegation(..),
+  PoorSecret(..), RichSecrets(..), configEpochSlots)
+import Pos.Chain.Lrc
 import Pos.Chain.Txp
 import Pos.Core
 import Pos.Core.NetworkMagic (NetworkMagic, makeNetworkMagic)
 import Pos.Crypto
-import Pos.Lrc.Genesis
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
   (deriveFirstBip44KeyPair)
@@ -93,23 +93,24 @@ data CardanoContext = CardanoContext {
     , ccEpochSlots  :: SlotCount
     }
 
-initCardanoContext :: HasConfiguration => ProtocolMagic -> CardanoContext
-initCardanoContext ccMagic = CardanoContext{..}
+initCardanoContext :: Genesis.Config -> CardanoContext
+initCardanoContext genesisConfig = CardanoContext{..}
   where
-    ccLeaders     = genesisLeaders epochSlots
-    ccStakes      = utxoToStakes ccUtxo
-    ccBlock0      = genesisBlock0 ccMagic (GenesisHash genesisHash) ccLeaders
-    ccData        = genesisData
+    ccLeaders     = genesisLeaders genesisConfig
+    ccStakes      = genesisStakes ccData
+    ccMagic      = configProtocolMagic genesisConfig
+    ccBlock0      = genesisBlock0 ccMagic (configGenesisHash genesisConfig) ccLeaders
+    ccData        = configGenesisData genesisConfig
     ccUtxo        = bip44GenesisUtxo
     ccSecrets     = fromMaybe (error "initCardanoContext: no secrets") $
-                      generatedSecrets
+                      configGeneratedSecrets genesisConfig
     ccInitLeaders = ccLeaders
     ccBalances    = utxoToAddressCoinPairs ccUtxo
-    ccHash0       = (blockHeaderHash . BlockHeaderGenesis . _gbHeader) ccBlock0
-    ccEpochSlots  = epochSlots
+    ccHash0       = (blockHeaderHash . BlockHeaderGenesis . view gbHeader) ccBlock0
+    ccEpochSlots  = configEpochSlots genesisConfig
 
     bip44GenesisUtxo :: Utxo
-    bip44GenesisUtxo = Map.fromList $ map mkUtxoEntry $ toList $ unGenesisUtxo genesisUtxo
+    bip44GenesisUtxo = Map.fromList $ map mkUtxoEntry $ toList $ genesisUtxo ccData
 
     mkUtxoEntry :: TxOutAux -> (TxIn, TxOutAux)
     mkUtxoEntry (TxOutAux (TxOut addr coin)) =
