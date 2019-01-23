@@ -39,8 +39,9 @@ module UTxO.Context (
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, sformat, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import Serokell.Util (listJson, mapJson, pairF)
 import Serokell.Util.Base16 (base16F)
 
@@ -51,11 +52,11 @@ import Pos.Chain.Delegation (ProxySKHeavy)
 import Pos.Chain.Genesis
   (GeneratedSecrets(..), GenesisData(..), GenesisDelegation(..),
   PoorSecret(..), RichSecrets(..))
+import Pos.Chain.Txp
 import Pos.Core
 import Pos.Core.NetworkMagic (NetworkMagic, makeNetworkMagic)
 import Pos.Crypto
 import Pos.Lrc.Genesis
-import Pos.Txp
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Derivation
   (deriveFirstBip44KeyPair)
