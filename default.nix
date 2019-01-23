@@ -23,5 +23,9 @@ stackToNix {
     qtah-cpp = overrideCabal previous.qtah-cpp (super: {
       librarySystemDepends = with qt5; [ qtbase qttools ];
     });
+
+    cardano-sl = overrideCabal previous.qtah-cpp (super: {
+      doCheck = false;
+    });
   };
 }
