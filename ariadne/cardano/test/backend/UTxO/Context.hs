@@ -44,14 +44,14 @@ import Formatting (bprint, build, sformat, (%))
 import Serokell.Util (listJson, mapJson, pairF)
 import Serokell.Util.Base16 (base16F)
 
-import Pos.Core
-import Pos.Core.Block
+import Pos.Chain.Block
   (BlockHeader(..), GenesisBlock, HeaderHash, blockHeaderHash, genesisBlock0,
   _gbHeader)
-import Pos.Core.Delegation (ProxySKHeavy)
-import Pos.Core.Genesis
+import Pos.Chain.Delegation (ProxySKHeavy)
+import Pos.Chain.Genesis
   (GeneratedSecrets(..), GenesisData(..), GenesisDelegation(..),
   PoorSecret(..), RichSecrets(..))
+import Pos.Core
 import Pos.Core.NetworkMagic (NetworkMagic, makeNetworkMagic)
 import Pos.Crypto
 import Pos.Lrc.Genesis
