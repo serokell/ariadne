@@ -82,6 +82,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
           whenJust (knitCommandResultToUI (commandIdToUI commandId mtid) result) putUiEvent
       , putCommandOutput = \tid doc ->
           putUiEvent $ knitCommandOutputToUI (commandIdToUI commandId (Just tid)) doc
+      , putCommandToUI = \_expr _taskId -> pass
       }
 
     putUiCommand op = case opToExpr op of
@@ -95,6 +96,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
             putUiEvent . UiCommandResult (commandIdToUI commandId mtid)
       , putCommandOutput = \_ _ ->
           pass
+      , putCommandToUI = \_expr _taskId -> pass
       }
 
     extractPass = \case
