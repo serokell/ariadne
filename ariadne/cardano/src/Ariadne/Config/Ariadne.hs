@@ -6,6 +6,7 @@ module Ariadne.Config.Ariadne
        , acUpdateL
        , acHistoryL
        , acLoggingL
+       , acUIL
        ) where
 
 import Control.Lens (makeLensesWith)
@@ -19,6 +20,7 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (parseField)
 import Ariadne.Config.History
 import Ariadne.Config.Logging
+import Ariadne.Config.UI
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
 import Ariadne.Util
@@ -32,6 +34,7 @@ defaultAriadneConfig dataDir =
         , acUpdate  = defaultUpdateConfig
         , acHistory = defaultHistoryConfig dataDir
         , acLogging = defaultLoggingConfig dataDir
+        , acUI      = defaultUIConfig
         }
 
 parseFieldAriadne ::
@@ -46,6 +49,7 @@ ariadneFieldModifier = f
     f "acUpdate" = "update"
     f "acHistory" = "history"
     f "acLogging" = "logging"
+    f "acUI" = "ui"
     f x = x
 
 -- dhall representation of AriadneConfig is a record
@@ -58,6 +62,7 @@ data AriadneConfig = AriadneConfig
   , acUpdate :: UpdateConfig
   , acHistory :: HistoryConfig
   , acLogging :: LoggingConfig
+  , acUI :: UIConfig
   } deriving (Eq, Show)
 
 makeLensesWith postfixLFields ''AriadneConfig
@@ -71,6 +76,7 @@ instance D.Interpret AriadneConfig where
         acUpdate <- parseFieldAriadne fields "acUpdate" (D.auto @UpdateConfig)
         acHistory <- parseFieldAriadne fields "acHistory" (D.auto @HistoryConfig)
         acLogging <- parseFieldAriadne fields "acLogging" (D.auto @LoggingConfig)
+        acUI <- parseFieldAriadne fields "acUI" (D.auto @UIConfig)
         return AriadneConfig {..}
       extractOut _ = Nothing
 
@@ -82,4 +88,5 @@ instance D.Interpret AriadneConfig where
                 , (ariadneFieldModifier "acUpdate", D.expected (D.auto @UpdateConfig))
                 , (ariadneFieldModifier "acHistory", D.expected (D.auto @HistoryConfig))
                 , (ariadneFieldModifier "acLogging", D.expected (D.auto @LoggingConfig))
+                , (ariadneFieldModifier "acUI", D.expected (D.auto @UIConfig))
                 ])

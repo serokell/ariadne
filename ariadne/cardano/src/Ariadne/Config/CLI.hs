@@ -15,7 +15,8 @@ import qualified Dhall as D
 import Distribution.System (OS(..), buildOS)
 import Formatting (sformat, string, (%))
 import Options.Applicative
-  (auto, help, long, metavar, option, showDefault, strOption, switch, value)
+  (auto, flag', help, long, metavar, option, showDefault, strOption, switch,
+  value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne_cardano (version)
 import Pos.Core.Slotting (Timestamp(..))
@@ -38,6 +39,7 @@ import Ariadne.Config.Cardano
 import Ariadne.Config.DhallUtil (fromDhall)
 import Ariadne.Config.History
 import Ariadne.Config.Logging
+import Ariadne.Config.UI
 import Ariadne.Config.Update
 import Ariadne.Config.Wallet
   (WalletConfig(..), walletFieldModifier, wcAcidDBPathL, wcKeyfilePathL)
@@ -51,6 +53,7 @@ data CLI_AriadneConfig = CLI_AriadneConfig
     , cli_acUpdate :: !CLI_UpdateConfig
     , cli_acHistory :: !CLI_HistoryConfig
     , cli_acLogging :: !CLI_LoggingConfig
+    , cli_acUI :: !CLI_UIConfig
     } deriving (Eq, Show, Generic)
 
 data CLI_CardanoConfig = CLI_CardanoConfig
@@ -92,10 +95,15 @@ data CLI_LoggingConfig = CLI_LoggingConfig
     { cli_lcPath :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
+data CLI_UIConfig = CLI_UIConfig
+    { cli_ucNoConfirm :: !(Maybe Bool)
+    } deriving (Eq, Show)
+
 makeLensesWith postfixLFields ''CLI_ConfigurationOptions
 makeLensesWith postfixLFields ''CLI_CardanoConfig
 makeLensesWith postfixLFields ''CLI_HistoryConfig
 makeLensesWith postfixLFields ''CLI_LoggingConfig
+makeLensesWith postfixLFields ''CLI_UIConfig
 
 makeLensesWith postfixLFields ''ConfigurationOptions
 
@@ -112,6 +120,7 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
         , acUpdate = mergedUpdateConfig
         , acHistory = mergedHistoryConfig
         , acLogging = mergedLoggingConfig
+        , acUI = mergedUIConfig
         }
 
     -- Merge Wallet config
@@ -184,6 +193,12 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
     defaultLc = acLogging defaultAc
     mergedLoggingConfig = defaultLc
         { lcPath = merge (overrideLc ^. cli_lcPathL) (defaultLc ^. lcPathL)
+        }
+
+    overrideUIc = cli_acUI overrideAc
+    defaultUIc = acUI defaultAc
+    mergedUIConfig = defaultUIc
+        { ucNoConfirm = merge (overrideUIc ^. cli_ucNoConfirmL) (defaultUIc ^. ucNoConfirmL)
         }
 
 data ConfigDirectories = ConfigDirectories
@@ -288,6 +303,7 @@ cliAriadneConfigParser = do
   cli_acUpdate <- cliUpdateParser
   cli_acHistory <- cliHistoryParser
   cli_acLogging <- cliLoggingParser
+  cli_acUI <- cliUIParser
   pure CLI_AriadneConfig {..}
 
 cliWalletParser :: Opt.Parser CLI_WalletConfig
@@ -350,6 +366,14 @@ cliLoggingParser = do
     , help "Path to store logs."
     ]
   pure CLI_LoggingConfig {..}
+
+cliUIParser :: Opt.Parser CLI_UIConfig
+cliUIParser = do
+  cli_ucNoConfirm <- optional $ flag' True $ mconcat
+    [ long $ toOptionNameUI "ucNoConfirm"
+    , help "Do not require confirmation for important actions (ADVANCED)."
+    ]
+  pure CLI_UIConfig {..}
 
 cliCardanoConfigParser :: Opt.Parser CLI_CardanoConfig
 cliCardanoConfigParser = do
@@ -453,3 +477,6 @@ toOptionNameHistory = ("history:" <>) . toString . historyFieldModifier
 
 toOptionNameLogging :: D.Text -> String
 toOptionNameLogging = ("logging:" <>) . toString . loggingFieldModifier
+
+toOptionNameUI :: D.Text -> String
+toOptionNameUI = ("ui:" <>) . toString . uiFieldModifier
