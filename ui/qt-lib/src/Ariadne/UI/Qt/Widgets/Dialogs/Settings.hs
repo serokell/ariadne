@@ -255,8 +255,10 @@ initAdvancedSettings uiSettingsRef = do
   QWidget.setLayout advancedWidget advancedLayout
 
   noConfirmCheckbox <- createCheckBox advancedLayout CheckboxOnRight $
-    "Do not require confirmations for important actions. \
+    "Do not require confirmations for important actions. <br>\
     \<b>WARNING: this can be very dangerous.</b>"
+  noConfirmValue <- uiNoConfirm <$> readIORef uiSettingsRef
+  QAbstractButton.setChecked noConfirmCheckbox noConfirmValue
 
   connect_ noConfirmCheckbox QAbstractButton.toggledSignal $
         \checked -> modifyIORef' uiSettingsRef $ \settings -> settings { uiNoConfirm = checked }

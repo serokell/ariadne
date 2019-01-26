@@ -35,11 +35,12 @@ createAriadneUI
   :: UiWalletFace
   -> UiHistoryFace
   -> PutPassword
+  -> Bool
   -> ComponentM (UiFace, UiAction)
-createAriadneUI uiWalletFace historyFace putPass = buildComponent_ "UI-Qt" $ do
+createAriadneUI uiWalletFace historyFace putPass noConfirm = buildComponent_ "UI-Qt" $ do
   eventQueue <- mkEventBQueue
   dispatcherIORef :: IORef (Maybe QObject.QObject) <- newIORef Nothing
-  settings <- newIORef $ UiSettings { uiNoConfirm = False }
+  settings <- newIORef $ UiSettings { uiNoConfirm = noConfirm }
   return
     ( mkUiFace eventQueue dispatcherIORef settings
     , runUIEventLoop eventQueue dispatcherIORef uiWalletFace historyFace putPass settings

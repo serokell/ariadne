@@ -40,8 +40,9 @@ main = defaultMain mainSettings
         -> Logging
         -> CommandHistory
         -> PutPassword
+        -> uiconfig
         -> ComponentM (UiFace, UiLangFace -> IO ())
-    createUI _walletUIFace logging history putPass =
+    createUI _walletUIFace logging history putPass _ =
         let historyFace = historyToUI history
             features = UiFeatures
                 { featureStatus = True
