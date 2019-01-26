@@ -7,8 +7,8 @@ module Ariadne.MainTemplate
 
 import Control.Concurrent (forkIO, myThreadId, throwTo)
 import Control.Concurrent.Async
-  (Async(..), AsyncCancelled(..), ExceptionInLinkedThread(..), race_,
-  waitCatch, withAsync)
+  (Async(..), AsyncCancelled(..), ExceptionInLinkedThread(..), concurrently,
+  race_, waitCatch, withAsync)
 import Control.Monad.Component (ComponentM, runComponentM)
 import Control.Natural (($$))
 import Data.Version (Version)
@@ -25,7 +25,7 @@ import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.Logging (LoggingConfig(..))
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
-import Ariadne.Logging (Logging, loggingComponent)
+import Ariadne.Logging (Logging, logDebug, loggingComponent)
 import Ariadne.TaskManager.Backend
 import Ariadne.Update.Backend
 import Ariadne.UX.CommandHistory
@@ -89,7 +89,7 @@ defaultMain settings = do
 
 initializeEverything
     :: forall uiComponents uiFace uiLangFace.
-       (Components (AllComponents uiComponents))
+       (Components (AllComponents uiComponents), HasCallStack)
     => MainSettings uiComponents uiFace uiLangFace
     -> AriadneConfig
     -> ComponentM (IO ())
@@ -169,6 +169,9 @@ initializeEverything MainSettings {..}
     initAction :: IO ()
     initAction = walletInitAction
 
+    postStartupAction :: IO ()
+    postStartupAction = postInitAction
+
     serviceAction :: IO ()
     serviceAction =
       raceWithUpdateCheckAction cardanoAction
@@ -176,14 +179,13 @@ initializeEverything MainSettings {..}
     mainAction :: IO ()
     mainAction = do
       initAction
-      withAsync postInitAction $ \postInitActionThread -> do
-        linkUI postInitActionThread $ msPutBackendErrorToUI uiFace
       -- Spawn backend actions in async thread, then run ui action in the main thread
       -- This is needed because some UI libraries (Qt) insist on livng in the main thread
-        withAsync serviceAction $ \serviceThread -> do
+      withAsync (concurrently postStartupAction serviceAction) $ \serviceThread -> do
           -- Make custom link to service thread for UI apps.
           -- It is going to call msPutBackendErrorToUI and rethrow exception, if something goes wrong
           linkUI serviceThread $ msPutBackendErrorToUI uiFace
+          logDebug logging "Launching the UI..."
           uiAction
   return mainAction
 
