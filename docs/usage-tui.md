@@ -191,13 +191,22 @@ Finally, the commands which will help you manage your `ADA` wallet. Each
 command will be annotated with its arguments and their types. Optional 
 arguments will be marked with "`?`".
 
-- `new-wallet name: String? entropy-size: Int?`: create a new wallet with a 
-  name and size of entropy. Size of entropy influences the security of your 
-  wallet and the length of the mnemonic. Default value is 16 bytes, leading 
-  to mnemonics of 13 words. Ariadne mnemonics follow 
-  [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) 
-  with an addition of one extra word as mentioned above.
-  Created Wallet will also have a default auto generated account and address.
+Some commands accept optional boolean argument `no-confirm`. These commands
+perform sensitive operations on the wallet that can lead to loss of data
+and/or money. Thus, normally these commands will display a confirmation
+dialog to make sure you really intend to do it. However, sometimes, e.g.
+for testing, going through the confirmation dialog may not be convenient.
+Therefore, you can pass `no-confirm: true` option to bypass the
+confirmation. Warning: this is an **advanced** feature, so use it at your
+own risk.
+
+- `new-wallet name: String? entropy-size: Int? no-confirm: Bool?`: create a
+  new wallet with a name and size of entropy. Size of entropy influences
+  the security of your wallet and the length of the mnemonic. Default value
+  is 16 bytes, leading to mnemonics of 13 words. Ariadne mnemonics follow
+  [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+  with an addition of one extra word as mentioned above. Created Wallet
+  will also have a default auto generated account and address.
 - `new-account wallet: WalletId or Word name: String?`: create a new account
   in the specified or currently selected wallet. You can specify a wallet 
   either by its ID or by its (zero-based) index in the wallet tree.
@@ -212,7 +221,7 @@ arguments will be marked with "`?`".
   in that wallet. Like this: `select 3 1` to select the second account in the 
   fourth wallet.
 - `rename name: String`: give a new name to the currently selected wallet or account.
-- `remove`: remove the currently selected wallet or account.
+- `remove no-confirm: Bool?`: remove the currently selected wallet or account.
 - `restore name: String? mnemonic: String`: restore a wallet from mnemonic.
 - `restore-from-daedalus-file name: String? file: FilePath`: restore
   wallet from Daedalus's secret file. Please note that the restored wallet will have the
@@ -220,7 +229,7 @@ arguments will be marked with "`?`".
 
 There is also a command to send a transaction from your wallet:
 
-    send wallet: (String or Word)? account: (String or Word)* policy: InputSelectionPolicy? out: TxOut+
+    send wallet: (String or Word)? account: (String or Word)* policy: InputSelectionPolicy? out: TxOut+ no-confirm: Bool?
 
 Since one transaction can have multiple outputs, you have to pass these outputs 
 to the `send` command. An output is constructed with the `tx-out` command, 
