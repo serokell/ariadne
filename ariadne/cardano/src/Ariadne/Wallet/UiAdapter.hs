@@ -22,6 +22,7 @@ module Ariadne.Wallet.UiAdapter
        , toUiWalletSelection
        , formatAddressHash
        , formatHdRootId
+       , formatAHash
        ) where
 
 import qualified Data.Vector as V
@@ -35,7 +36,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)
 import Ariadne.Wallet.Face
 
 import Pos.Core (AddressHash, unsafeIntegerToCoin)
-import Pos.Crypto.Hashing (hashHexF)
+import Pos.Crypto.Hashing (AHash(..), hashHexF)
 import Serokell.Util (enumerate)
 
 import Control.Lens (makeLenses)
@@ -164,3 +165,6 @@ formatAddressHash = sformat ("#" % hashHexF)
 
 formatHdRootId :: HdRootId -> Text
 formatHdRootId = formatAddressHash . _fromDb . getHdRootId
+
+formatAHash :: AHash -> Text
+formatAHash = sformat hashHexF . getAHash
