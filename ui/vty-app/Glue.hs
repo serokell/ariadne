@@ -200,7 +200,7 @@ knitFaceToUI UiFace{..} KnitFace{..} putPass =
       UiSend{} ->
         Just . UiSendCommandResult . either UiSendCommandFailure UiSendCommandSuccess $
           fromResult result >>= fromValue >>= \case
-            Knit.ValueHash h -> Right $ pretty h
+            Knit.ValueHash h -> Right $ formatAHash h
             _ -> Left "Unrecognized return value"
       UiFee{} ->
         Just . UiFeeCommandResult . either UiFeeCommandFailure UiFeeCommandSuccess $
