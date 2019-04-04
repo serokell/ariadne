@@ -1,5 +1,7 @@
 # ![](./img/logo.png) Ariadne
 
+**ARIADNE IS TEMPORARILY FROZEN, NOBODY IS WORKING ON IT, BUT WE HOPE TO RESUME OUR WORK ON IT LATER**
+
 [![Build status](https://badge.buildkite.com/50f5e1e5b64e085f138dc0f267c0578ce3104d4187d50e1cc7.svg?branch=master)](https://buildkite.com/serokell/ariadne)
 [![GitHub license](https://img.shields.io/github/license/serokell/ariadne.svg)](https://github.com/serokell/ariadne/blob/master/COPYING.md)
 
@@ -190,11 +192,14 @@ exec -- <executable_name>` to launch the corresponding executable.
 
 For complete usage guide visit [TUI](docs/usage-tui.md) or [GUI](docs/usage-gui.md) page.
 
-## Issue tracker
+## Issue tracker [↑](#-ariadne)
 
-We use [YouTrack](https://issues.serokell.io/issues/AD) as our issue
+~We use [YouTrack](https://issues.serokell.io/issues/AD) as our issue
 tracker. You can login using your GitHub account to leave a comment or
-create a new issue.
+create a new issue.~
+
+Since the project is currently frozen, we have temporarily enabled GitHub issue tracker.
+You can use it to report issues, but they can be resolved only after we resume our work on the project.
 
 ## For Contributors [↑](#-ariadne)
 
