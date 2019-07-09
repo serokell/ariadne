@@ -140,6 +140,8 @@ cliArgs =
   , "--wallet:entropy-size", "32"
   , "--wallet:keyfile", "new-secret-mainnet.key"
   , "--wallet:wallet-db-path", "new-wallet-db"
+  , "--wallet:stored-db-archives", "20"
+  , "--wallet:db-cleanup-period", "300.0"
   , "--update:version-check-url", "new-version-check-url"
   , "--update:update-url", "new-update-url"
   , "--update:check-delay", "21600"
@@ -168,9 +170,11 @@ expectedAriadneConfig = defaultAriadneCfg
         (EkgParams {ekgHost = "255.255.255.252", ekgPort = 8888})
       }
   , acWallet = defaultWalletConfig
-    { wcEntropySize = fromBytes 32
-    , wcKeyfilePath = "new-secret-mainnet.key"
-    , wcAcidDBPath  = "new-wallet-db"
+    { wcEntropySize       = fromBytes 32
+    , wcKeyfilePath       = "new-secret-mainnet.key"
+    , wcAcidDBPath        = "new-wallet-db"
+    , wcNumStoredArchives = 20
+    , wcDBCleanupPeriod   = 300
     }
   , acUpdate = defaultUpdateConfig
       { ucVersionCheckUrl = "new-version-check-url"

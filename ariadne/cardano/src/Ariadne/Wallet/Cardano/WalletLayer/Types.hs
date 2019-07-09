@@ -6,9 +6,9 @@ module Ariadne.Wallet.Cardano.WalletLayer.Types
 import Control.Natural (type (~>))
 
 import Ariadne.Cardano.Face (CardanoMode)
+import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Addresses as Kernel
-import qualified Ariadne.Wallet.Cardano.Kernel.DB.AcidState as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Delete as Kernel
 import Ariadne.Wallet.Cardano.Kernel.DB.Util.IxSet (IxSet)

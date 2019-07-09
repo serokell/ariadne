@@ -54,6 +54,8 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
         keystore
         (wcAcidDBPath walletConfig)
         (cardanoProtocolMagic cardanoFace)
+        (wcDBCleanupPeriod walletConfig)
+        (wcNumStoredArchives walletConfig)
     (awl, _) <- activeWalletLayerComponent pwl pw
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent

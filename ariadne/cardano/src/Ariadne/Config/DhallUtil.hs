@@ -6,12 +6,14 @@ module Ariadne.Config.DhallUtil
        , interpretInt
        , interpretBytestringUTF8
        , interpretByte
+       , interpretTime
        , injectInt
        , injectFilePath
        , injectByteStringUTF8
        , injectWord16
        , injectByte
        , injectMaybe
+       , injectTime
        , toDhall
        , fromDhall
        ) where
@@ -26,6 +28,7 @@ import Dhall.Parser (Src(..))
 import Dhall.TypeCheck (X)
 import qualified Numeric.Natural as Numeric
 import Serokell.Data.Memory.Units (Byte, fromBytes)
+import Time (Rat, Time(..))
 
 defalultIfNothing :: (Monad m) => a -> m (Maybe a) -> m a
 defalultIfNothing def_ mMba = fromMaybe def_ <$> mMba
@@ -45,6 +48,9 @@ interpretFilePath = toString <$> D.lazyText
 
 interpretWord16 :: D.Type Word16
 interpretWord16 = (fromIntegral . toInteger) <$> D.natural
+
+interpretTime :: forall (unit :: Rat) . D.Type (Time unit)
+interpretTime = (Time . realToFrac) <$> D.double
 
 interpretInt :: D.Type Int
 interpretInt = fromIntegral <$> D.integer -- overflow problem?
@@ -78,6 +84,9 @@ injectWord16 = contramap (fromIntegral . toInteger) (D.inject :: D.InputType Num
 
 injectByte :: D.InputType Byte
 injectByte = contramap (fromIntegral . toInteger) (D.inject :: D.InputType Numeric.Natural)
+
+injectTime :: forall (unit :: Rat) . D.InputType (Time unit)
+injectTime = contramap (realToFrac . unTime) (D.inject :: D.InputType Double)
 
 injectMaybe :: D.InputType a -> D.InputType (Maybe a)
 injectMaybe innerInpType = D.InputType embedOut declaredOut

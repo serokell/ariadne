@@ -30,6 +30,7 @@ import System.Directory
   (XdgDirectory(..), createDirectoryIfMissing, doesFileExist,
   getCurrentDirectory, getXdgDirectory)
 import System.FilePath (isAbsolute, takeDirectory, (</>))
+import Time (Second, Time(..))
 
 import Ariadne.Config.Ariadne
   (AriadneConfig(..), acCardanoL, acHistoryL, acLoggingL, acWalletL,
@@ -73,9 +74,11 @@ data CLI_ConfigurationOptions = CLI_ConfigurationOptions
     } deriving (Eq, Show, Generic)
 
 data CLI_WalletConfig = CLI_WalletConfig
-    { cli_wcEntropySize :: !(Maybe Byte)
-    , cli_wcKeyfilePath :: !(Maybe FilePath)
-    , cli_wcAcidDBPath  :: !(Maybe FilePath)
+    { cli_wcEntropySize       :: !(Maybe Byte)
+    , cli_wcKeyfilePath       :: !(Maybe FilePath)
+    , cli_wcAcidDBPath        :: !(Maybe FilePath)
+    , cli_wcNumStoredArchives :: !(Maybe Int)
+    , cli_wcDBCleanupPeriod   :: !(Maybe (Time Second))
     } deriving (Eq, Show)
 
 data CLI_UpdateConfig = CLI_UpdateConfig
@@ -124,6 +127,10 @@ mergeConfigs overrideAc defaultAc = mergedAriadneConfig
             cli_wcKeyfilePath overrideWc `merge` wcKeyfilePath defaultWc
         , wcAcidDBPath =
             cli_wcAcidDBPath overrideWc `merge` wcAcidDBPath defaultWc
+        , wcNumStoredArchives =
+            cli_wcNumStoredArchives overrideWc `merge` wcNumStoredArchives defaultWc
+        , wcDBCleanupPeriod =
+            cli_wcDBCleanupPeriod overrideWc `merge` wcDBCleanupPeriod defaultWc
         }
 
     -- Merge Cardano config
@@ -304,8 +311,18 @@ cliWalletParser = do
     ]
   cli_wcAcidDBPath <- optional $ strOption $ mconcat
      [ long $ toOptionNameWallet "wcAcidDBPath"
-     , metavar "FilePath"
+     , metavar "FILEPATH"
      , help "Wallets database path"
+     ]
+  cli_wcNumStoredArchives <- optional $ option auto $ mconcat
+     [ long $ toOptionNameWallet "wcNumStoredArchives"
+     , metavar "INT"
+     , help "Number of stored archives with old states of wallet database"
+     ]
+  cli_wcDBCleanupPeriod <- (fmap . fmap) convertToTime $ optional $ option auto $ mconcat
+     [ long $ toOptionNameWallet "wcDBCleanupPeriod"
+     , metavar "DOUBLE"
+     , help "Delay (in seconds) between consecutive events of archiving DB state and deleting old archives"
      ]
   pure CLI_WalletConfig {..}
   where
@@ -313,6 +330,8 @@ cliWalletParser = do
     then return b
     else err b
   err inp = Opt.readerError $ "Invalid entropy size " <> (show inp) <> ". Chose one of [16, 20, 24, 28, 32]"
+  convertToTime :: Double -> Time Second
+  convertToTime = Time . realToFrac
 
 cliUpdateParser :: Opt.Parser CLI_UpdateConfig
 cliUpdateParser = do

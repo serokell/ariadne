@@ -7,9 +7,11 @@ module Ariadne.Wallet.Cardano.WalletLayer.Kernel
 
 import qualified Universum.Unsafe as Unsafe (fromJust)
 
+import Control.Concurrent.Async (async, uninterruptibleCancel)
 import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
-import System.Wlog (Severity(Debug))
+import System.Wlog (Severity(Debug), logMessage, usingLoggerName)
+import Time (KnownDivRat, Rat, Second, Time(..), threadDelay)
 
 import Pos.Block.Types (Blund, Undo(..))
 import Pos.Core (unsafeIntegerToCoin)
@@ -29,7 +31,9 @@ import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
 import Ariadne.Wallet.Cardano.Kernel.Bip39 (mnemonicToSeedNoPassword)
 import Ariadne.Wallet.Cardano.Kernel.Consistency
-import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB, dbHdWallets, defDB)
+import Ariadne.Wallet.Cardano.Kernel.DB.AcidState
+  (DB, dbHdWallets, defDB)
+import Ariadne.Wallet.Cardano.Kernel.DB.Util.AcidState (cleanupAcidState)
 
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HDRead
 import Ariadne.Wallet.Cardano.Kernel.DB.Resolved (ResolvedBlock)
@@ -54,18 +58,23 @@ walletDBComponent dbPath =
 -- | Initialize the passive wallet.
 -- The passive wallet cannot send new transactions.
 passiveWalletLayerComponent
-    :: forall m. (MonadIO m)
+    :: forall (unit :: Rat) m. (KnownDivRat unit Second, MonadIO m)
     => (Severity -> Text -> IO ())
     -> Keystore
     -> FilePath
     -> ProtocolMagic
+    -> Time unit
+    -> Int
     -> ComponentM (PassiveWalletLayer m, Kernel.PassiveWallet)
-passiveWalletLayerComponent logFunction keystore dbPath pm = do
+passiveWalletLayerComponent logFunction keystore dbPath pm cleanupPeriod storedArchives = do
     acidDB <- walletDBComponent dbPath
+    _ <- buildComponent "Wallet DB cleaner"
+           (async $ runPeriodically cleanupPeriod $ cleanupAcidState acidDB dbPath storedArchives
+             (usingLoggerName "acid-db" ... logMessage)) uninterruptibleCancel
     passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm
 
 passiveWalletLayerCustomDBComponent
-    :: forall m. (MonadIO m)
+    :: forall m. MonadIO m
     => (Severity -> Text -> IO ())
     -> Keystore
     -> AcidState DB
@@ -164,12 +173,10 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
 
             , pwlApplyBlocks           = liftIO . invoke . Actions.ApplyBlocks
             , pwlRollbackBlocks        = liftIO . invoke . Actions.RollbackBlocks
-
             , pwlCreateEncryptedKey = \pp mnemonic ->
                 let seed     = mnemonicToSeedNoPassword $ unwords mnemonic
                     (_, esk) = safeDeterministicKeyGen seed pp
                 in pure esk
-
             , pwlEstimateFees          = \hdAccIds txOuts -> do
                 snapshot <- liftIO (Kernel.getWalletSnapshot wallet)
                 let payees = ((,) <$> txOutAddress <*> txOutValue) <$> txOuts
@@ -177,7 +184,6 @@ passiveWalletLayerCustomDBComponent logFunction keystore acidDB pm = do
                     Spec.queryAccountAvailableUtxo hdAccId (snapshot ^. dbHdWallets)
                 ins <- liftIO $ transactionInputs availableUtxo payees
                 return $ cardanoFee ins (txOutValue <$> txOuts)
-
             , pwlGetDBSnapshot         = liftIO $ Kernel.getWalletSnapshot wallet
             , pwlLookupKeystore        = \hdrId -> liftIO $
                 Keystore.lookup (WalletIdHdSeq hdrId) (wallet ^. Kernel.walletKeystore)
@@ -219,3 +225,11 @@ activeWalletLayerComponent pwl pw = do
             liftIO $ Kernel.newPending aw hdAccId tx
         }
 
+-- | Helper function to run action periodically.
+runPeriodically :: forall (unit :: Rat) m a. (KnownDivRat unit Second, MonadIO m)
+  => Time unit -- ^ time between performing action
+  -> m a       -- ^ action
+  -> m ()
+runPeriodically delay action = forever $ do
+  _ <- action
+  threadDelay delay

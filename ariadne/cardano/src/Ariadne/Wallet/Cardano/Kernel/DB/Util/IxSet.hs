@@ -122,7 +122,7 @@ type IsIndexOf ix a = IxSet.IsIndexOf ix (PrimKey a ': IndicesOf a)
 -------------------------------------------------------------------------------}
 
 instance (Indexable a, SafeCopy a) => SafeCopy (IxSet a) where
-  getCopy =  contain $ WrapIxSet <$> safeGet
+  getCopy = contain $ WrapIxSet <$> safeGet
   putCopy (WrapIxSet ixset) = contain . safePut $ ixset
 
 {-------------------------------------------------------------------------------

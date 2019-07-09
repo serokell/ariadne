@@ -66,6 +66,7 @@ library:
     - named
     - natural-transformation
     - ntype
+    - o-clock
     - optparse-applicative
     - process
     - resourcet
@@ -114,6 +115,7 @@ tests:
       - lens
       - memory
       - ntype
+      - o-clock      
       - optparse-applicative
       - scientific
       - serokell-util
