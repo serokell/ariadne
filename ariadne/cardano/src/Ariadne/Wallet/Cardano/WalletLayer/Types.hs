@@ -16,12 +16,11 @@ import qualified Ariadne.Wallet.Cardano.Kernel.PrefilterTx as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Restore as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Wallets as Kernel
 
-import Pos.Block.Types (Blund)
+import Pos.Chain.Block (Blund)
+import Pos.Chain.Txp (TxOut(..))
+import qualified Pos.Chain.Txp as Txp
 import Pos.Core (Coin)
 import Pos.Core.Chrono (NE, NewestFirst(..), OldestFirst(..))
-import Pos.Core.Configuration (HasConfiguration)
-import Pos.Core.Txp (TxOut(..))
-import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (EncryptedSecretKey, PassPhrase)
 
 type Mnemonic = [Text]
@@ -69,8 +68,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
           :: Kernel.HdRootId
           -> m (Either Kernel.DeleteHdRootError ())
     , pwlRestoreWallet
-          :: HasConfiguration
-          => (CardanoMode ~> IO)
+          :: (CardanoMode ~> IO)
           -> Kernel.RestoreFrom
           -> Kernel.WalletName
           -> m ()

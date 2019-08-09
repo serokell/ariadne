@@ -18,6 +18,7 @@ import System.IO (hClose, openBinaryTempFile)
 
 import qualified Data.ByteString.Lazy as LBS (hPut, readFile)
 
+import Ariadne.Logging
 import Ariadne.System.FileMode (ensureModeIs600)
 import Ariadne.Wallet.Cardano.Kernel.Keystore.Types
   (InternalStorage(..), StorageDecodingError(..), Versioned(..))
@@ -39,21 +40,21 @@ createEmptyFile :: FilePath -> IO ()
 createEmptyFile fp = writeFile fp mempty
 
 -- | Creates empty keystore file and initialise user secret from default value
-initialiseInternalStorage :: FilePath -> IO InternalStorage
-initialiseInternalStorage fp =
+initialiseInternalStorage :: Logging -> FilePath -> IO InternalStorage
+initialiseInternalStorage logging fp =
        createEmptyFile fp
-    *> ensureModeIs600 fp
+    *> ensureModeIs600 (logWarning logging) fp
     *> def
 
 -- | Reads InternalStorage from the given file.
 -- If the file does not exist or is empty return a default InternalStorage instance
-peekInternalStorage :: FilePath -> IO InternalStorage
-peekInternalStorage fp = do
+peekInternalStorage :: Logging -> FilePath -> IO InternalStorage
+peekInternalStorage logging fp = do
     exists <- doesFileExist fp
     if exists then
         readInternalStorage fp
     else
-        initialiseInternalStorage fp
+        initialiseInternalStorage logging fp
 
 -- | Reads InternalStorage from file, assuming that file exists,and has mode 600.
 -- If file exists but is empty return the default InternalStorage instance.

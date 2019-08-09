@@ -9,13 +9,13 @@ import qualified Universum.Unsafe as Unsafe (fromJust)
 
 import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState, closeAcidState, openLocalStateFrom)
-import System.Wlog (Severity(Debug))
 
-import Pos.Block.Types (Blund, Undo(..))
+import Pos.Chain.Block (Blund, Undo(..))
+import Pos.Chain.Txp (TxOut(..))
 import Pos.Core (unsafeIntegerToCoin)
 import Pos.Core.Chrono (OldestFirst(..))
-import Pos.Core.Txp (TxOut(..))
 import Pos.Crypto (ProtocolMagic, safeDeterministicKeyGen)
+import Pos.Util.Wlog (Severity(Debug))
 
 import qualified Ariadne.Wallet.Cardano.Kernel as Kernel
 import qualified Ariadne.Wallet.Cardano.Kernel.Accounts as Kernel
@@ -218,4 +218,3 @@ activeWalletLayerComponent pwl pw = do
         , awlNewPending      = \hdAccId tx ->
             liftIO $ Kernel.newPending aw hdAccId tx
         }
-

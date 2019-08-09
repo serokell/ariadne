@@ -12,7 +12,7 @@ import Data.Coerce (coerce)
 import Data.List.NonEmpty as NonEmpty
 import Data.List.Split (splitWhen)
 import Data.String (IsString(..))
-import Data.Text.Buildable as Buildable
+import qualified Formatting.Buildable as Buildable
 import GHC.Generics (Generic)
 import Test.QuickCheck.Arbitrary.Generic
   (Arbitrary(..), genericArbitrary, genericShrink)
@@ -39,7 +39,7 @@ instance Arbitrary Name where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Buildable Name where
+instance Buildable.Buildable Name where
     build
         = foldMap (fromString . toList)
         . NonEmpty.intersperse ('-' :| [])
@@ -49,7 +49,7 @@ instance Buildable Name where
         fromLetterNENE = coerce
 
 instance Show Name where
-    showsPrec n = showsPrec n . build
+    showsPrec n = showsPrec n . Buildable.build
 
 -- | Unsafe, requires manual validation.
 instance IsString Name where

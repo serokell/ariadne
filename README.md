@@ -22,7 +22,6 @@ support multiple currencies in the future.
 * [ ] Transaction history
 * [x] Transaction sending
 * [x] Spending passwords
-* [x] Optimized block storage (compared to Daedalus)
 * [x] [Knit](knit/README.md) language
 * [x] Notifications about new software versions
 * [ ] Automatic software updates
@@ -79,14 +78,6 @@ belonging to a wallet. More than one output can be specified.
 Each wallet can be protected with its own spending password. It's
 impossible to send a transaction from a wallet if one doesn't know its
 spending password.
-
-### Optimized block storage
-
-Daedalus stores blocks in plain files. Each block is stored in its own
-file. Since number of blocks is large, it leads to excessive
-fragmentation. Ariadne stores blocks in a RocksDB database. It reduces
-number of files by order of magnitude and the size of block database
-is about 8 times smaller.
 
 ### Knit
 

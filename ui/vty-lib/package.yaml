@@ -17,6 +17,7 @@ library:
     - concurrent-extra
     - containers
     - directory
+    - fmt
     - formatting
     # UI is independent of Knit, but provides Knit command bindings
     - knit
@@ -26,7 +27,6 @@ library:
     - serokell-util
     - streams
     - text
-    - text-format
     - text-zipper
     - transformers
     - vector

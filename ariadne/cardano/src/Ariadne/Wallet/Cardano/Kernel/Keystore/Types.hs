@@ -22,8 +22,8 @@ import Pos.Crypto (EncryptedSecretKey(..), PublicKey)
 import Ariadne.Wallet.Cardano.Kernel.Keystore.Util (esksToMap)
 
 import qualified Data.Map as Map (elems, empty)
-import qualified Data.Text.Buildable
 import qualified Data.Vector as V
+import qualified Formatting.Buildable as Buildable
 import qualified Serokell.Util.Base16 as S (decode, encode)
 
 -- | InternalStorage data containing wallet keys that gets saved to file
@@ -49,7 +49,7 @@ newtype StorageDecodingError = StorageDecodingError Text
 
 instance Exception StorageDecodingError
 
-instance Buildable StorageDecodingError where
+instance Buildable.Buildable StorageDecodingError where
     build (StorageDecodingError msg) =
         "Failed to decode stored json: " <> bprint build msg
 

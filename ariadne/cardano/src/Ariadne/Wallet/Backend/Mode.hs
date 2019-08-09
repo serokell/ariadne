@@ -17,11 +17,9 @@ import Pos.Client.Txp.History
   (MonadTxHistory(..), getBlockHistoryDefault, getLocalHistoryDefault,
   saveTxDefault)
 import Pos.Core (Address, IsBootstrapEraAddr(..))
-import Pos.Core.Configuration (HasConfiguration)
 import Pos.Core.NetworkMagic (NetworkMagic)
 import Pos.Crypto (PublicKey, deterministicKeyGen)
-import Pos.Launcher.Configuration (HasConfigurations)
-import Pos.Txp.DB.Utxo (getFilteredUtxo)
+import Pos.DB.Txp (getFilteredUtxo)
 
 import Ariadne.Cardano.Face (CardanoMode)
 import Ariadne.Wallet.Cardano.Kernel.Bip32
@@ -31,20 +29,20 @@ import Ariadne.Wallet.Cardano.Kernel.Bip44
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
   (HdAddressChain(HdChainExternal))
 
-instance HasConfiguration => MonadBalances CardanoMode where
-    getOwnUtxos = getFilteredUtxo
+instance MonadBalances CardanoMode where
+    getOwnUtxos = const getFilteredUtxo
     getBalance = getBalanceFromUtxo
 
-instance HasConfigurations => MonadTxHistory CardanoMode where
+instance MonadTxHistory CardanoMode where
     getBlockHistory = getBlockHistoryDefault
     getLocalHistory = getLocalHistoryDefault
     saveTx = saveTxDefault
 
 instance MonadAddresses CardanoMode where
     type AddrData CardanoMode = NetworkMagic -> IO Address
-    getNewAddress nm f = liftIO (f nm)
+    getNewAddress nm _ f = liftIO (f nm)
     -- [AD-236] Do not assume bootstrap era.
-    getFakeChangeAddress = pure . largestHDAddressBoot
+    getFakeChangeAddress nm _ = pure $ largestHDAddressBoot nm
 
 -- | Like 'largestHDAddressBoot' from 'cardano-sl', but uses different
 -- derivation scheme (BIP-44).

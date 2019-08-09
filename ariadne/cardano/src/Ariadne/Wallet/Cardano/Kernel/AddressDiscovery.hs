@@ -11,12 +11,11 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import UnliftIO (MonadUnliftIO)
 
+import Pos.Chain.Txp (TxOutAux(..), Utxo, txOutAddress)
 import Pos.Core (AddrAttributes(..), Address, addrAttributesUnwrapped)
-import Pos.Core.Txp (TxOutAux(..), txOutAddress)
 import Pos.Crypto.HD (HDAddressPayload, HDPassphrase, unpackHDAddressAttr)
 import Pos.DB.Class (MonadDBRead)
-import Pos.Txp.DB (utxoSource)
-import Pos.Txp.Toil.Types (Utxo)
+import Pos.DB.Txp (utxoSource)
 
 import Ariadne.Wallet.Cardano.Kernel.Bip32 (DerivationPath(..))
 

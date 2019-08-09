@@ -163,7 +163,7 @@ initializeEverything MainSettings {..}
         Nothing -> action
         Just putUpdateEventToUI ->
           let updateCheck =
-                runUpdateCheck updateConfig (putUpdateEventToUI uiFace)
+                runUpdateCheck logging updateConfig (putUpdateEventToUI uiFace)
           in action `race_` updateCheck
 
     initAction :: IO ()

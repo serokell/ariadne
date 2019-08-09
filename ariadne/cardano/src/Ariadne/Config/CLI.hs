@@ -18,13 +18,13 @@ import Options.Applicative
   (auto, help, long, metavar, option, showDefault, strOption, switch, value)
 import qualified Options.Applicative as Opt
 import Paths_ariadne_cardano (version)
+import Pos.Core.NetworkAddress (NetworkAddress, addrParser)
 import Pos.Core.Slotting (Timestamp(..))
 import Pos.Infra.Network.Types (NodeName(..))
 import Pos.Infra.Statistics (EkgParams(..))
-import Pos.Infra.Util.TimeWarp (NetworkAddress, addrParser)
 import Pos.Launcher
+import Pos.Util.OptParse (fromParsec)
 import Serokell.Data.Memory.Units (Byte, fromBytes)
-import Serokell.Util.OptParse (fromParsec)
 import Serokell.Util.Parse (byte)
 import System.Directory
   (XdgDirectory(..), createDirectoryIfMissing, doesFileExist,

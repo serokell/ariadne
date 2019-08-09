@@ -9,18 +9,18 @@ import qualified Text.Show (show)
 import Crypto.Random (MonadRandom(..))
 import qualified Data.ByteArray as ByteArray
 import qualified Data.ByteString as B
-import Data.Text.Buildable (Buildable(..))
 import qualified Data.Vector as V
+import Fmt (pretty)
 import Formatting (sformat)
 import qualified Formatting as F
+import qualified Formatting.Buildable as Buildable
 import System.Random.MWC (GenIO, asGenIO, initialize, uniformVector)
 
+import Pos.Chain.Txp (TxOut(..), TxOutAux(..), Utxo)
 import Pos.Core
   (Address(..), Coin(..), coinToInteger, sumCoins, unsafeIntegerToCoin)
 import qualified Pos.Core as Core
-import Pos.Core.Txp (TxOut(..), TxOutAux(..))
 import Pos.Crypto (hash)
-import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.CoinSelection.FromGeneric
   (CoinSelFinalResult(..), CoinSelectionOptions(..),
@@ -33,29 +33,30 @@ import qualified Ariadne.Wallet.Cardano.Kernel.CoinSelection.FromGeneric as Coin
 
 data TxInputsException = TxInputsCoinSelErr CoinSelHardErr
 
-instance Buildable TxInputsException where
+instance Buildable.Buildable TxInputsException where
     build (TxInputsCoinSelErr e) = case e of
         (CoinSelHardErrOutputCannotCoverFee _ val) ->
-            "Payment to receiver insufficient to cover fee. Fee: " <> build val
+            "Payment to receiver insufficient to cover fee. Fee: " <>
+            Buildable.build val
         (CoinSelHardErrOutputIsRedeemAddress _) ->
             "Attempt to pay into a redeem-only address"
         (CoinSelHardErrMaxInputsReached inputs) ->
             "When trying to construct a transaction, the max number of allowed inputs was reached."
-            <> " Inputs: " <> build inputs
+            <> " Inputs: " <> Buildable.build inputs
         (CoinSelHardErrCannotCoverFee) ->
           "UTxO exhausted whilst trying to pick inputs to cover remaining fee"
         (CoinSelHardErrUtxoExhausted bal val) ->
            "UTxO exhausted during input selection."
-           <> " Balance: " <> build bal
-           <> " Fee: " <> build val
+           <> " Balance: " <> Buildable.build bal
+           <> " Fee: " <> Buildable.build val
         (CoinSelHardErrUtxoDepleted) ->
            "UTxO depleted using input selection"
         (CoinSelHardErrAddressNotOwned _ addr) ->
-           "This wallet does not \"own\" the input address " <> build addr
-
+           "This wallet does not \"own\" the input address "
+           <> Buildable.build addr
 
 instance Show TxInputsException where
-    show = toString . prettyL
+    show = pretty
 
 instance Exception TxInputsException
 

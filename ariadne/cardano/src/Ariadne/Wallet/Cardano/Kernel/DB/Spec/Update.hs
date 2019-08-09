@@ -15,8 +15,9 @@ import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import Test.QuickCheck (Arbitrary(..))
 
-import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable as Buildable
 import Serokell.Util (listJsonIndent)
 
 import qualified Data.List.NonEmpty as NE
@@ -24,11 +25,11 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 import Control.Lens (each)
+import Pos.Chain.Txp (Utxo)
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
 import Pos.Core.Chrono (OldestFirst(..))
-import qualified Pos.Core.Txp as Txp
 import Pos.Crypto (hash)
-import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.PrefilterTx
   (PrefilteredBlock(..), pfbInputs, pfbOutputs)

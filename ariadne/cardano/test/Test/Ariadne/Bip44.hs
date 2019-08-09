@@ -164,7 +164,7 @@ checkKeyPairGeneration TestVector{..} = do
     let (actualAddress, actualEsk) =
             fromMaybe (error "Failed to derive bip44 keypair") $
                 deriveBip44KeyPairUnwrapped
-                    NMNothing
+                    NetworkMainOrStage
                     era
                     S.emptyPassphrase
                     rootEsk
@@ -198,7 +198,7 @@ checkKeyPairGeneration TestVector{..} = do
         let rootPubKey = toXPub rootXPrv
             rootPassPhrase = S.deriveHDPassphrase (S.PublicKey rootPubKey)
             payload = S.packHDAddressAttr rootPassPhrase tvPath
-        return $ makePubKeyHdwAddress NMNothing era payload publicKey
+        return $ makePubKeyHdwAddress NetworkMainOrStage era payload publicKey
 
 checkAllVectors :: [TestVector] -> Property
 checkAllVectors vectors =

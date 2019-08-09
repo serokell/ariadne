@@ -11,11 +11,9 @@ import Data.SafeCopy
   (SafeCopy(..), base, contain, deriveSafeCopySimple, safeGet, safePut)
 import qualified Data.Set as Set
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
 import qualified Pos.Crypto as Core
-import Pos.SafeCopy ()
-import qualified Pos.Txp as Core (Utxo)
 
 {-------------------------------------------------------------------------------
   Wrap core types so that we can make independent serialization decisions
@@ -38,19 +36,19 @@ makeLenses ''InDb
  Orphans
 -------------------------------------------------------------------------------}
 
-deriveSafeCopySimple 1 'base ''Core.TxAux
+deriveSafeCopySimple 1 'base ''Txp.TxAux
 deriveSafeCopySimple 1 'base ''Core.Timestamp
 
 {-------------------------------------------------------------------------------
   Specific SafeCopy instances
 -------------------------------------------------------------------------------}
 
-instance SafeCopy (InDb Core.Utxo) where
+instance SafeCopy (InDb Txp.Utxo) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 
 -- TODO: This is really a UTxO again..
-instance SafeCopy (InDb (NonEmpty (Txp.TxIn, Core.TxOutAux))) where
+instance SafeCopy (InDb (NonEmpty (Txp.TxIn, Txp.TxOutAux))) where
   getCopy = contain $ InDb <$> safeGet
   putCopy (InDb a) = contain . safePut $ a
 

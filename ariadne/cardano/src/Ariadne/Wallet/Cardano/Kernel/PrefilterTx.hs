@@ -16,19 +16,18 @@ import qualified Data.List.NonEmpty as NE
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text.Buildable
 import Data.Text.Lazy.Builder (Builder)
 import Formatting (Format, bprint, later, (%))
+import qualified Formatting.Buildable as Buildable
 import Serokell.Util (listBuilder, pairBuilder)
 
 import Data.SafeCopy (base, deriveSafeCopySimple)
 
 import Ariadne.Wallet.Cardano.Kernel.Decrypt
   (HDPassphrase, WAddressMeta(..), eskToHDPassphrase, selectOwnAddresses)
+import Pos.Chain.Txp (TxId, TxIn(..), TxOut(..), TxOutAux(..), Utxo, formatUtxo)
 import Pos.Core (Address(..), SlotId)
-import Pos.Core.Txp (TxId, TxIn(..), TxOut(..), TxOutAux(..))
 import Pos.Crypto (EncryptedSecretKey)
-import Pos.Txp (Utxo, formatUtxo)
 
 import Ariadne.Wallet.Cardano.Kernel.Bip44 (Bip44DerivationPath(..))
 import Ariadne.Wallet.Cardano.Kernel.DB.BlockMeta
@@ -331,7 +330,7 @@ fromUtxoSummary summary = (toPrefilteredUtxo addrSummaryId summary, addrs)
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-setBuilder :: (Buildable a, Foldable t) => t a -> Builder
+setBuilder :: (Buildable.Buildable a, Foldable t) => t a -> Builder
 setBuilder = listBuilder ("{" :: Builder) (", " :: Builder) ("}" :: Builder)
 
 mapBuilderExplicit
@@ -350,7 +349,7 @@ prefilteredInputsF = later $ mapBuilderExplicit pairBuilder setBuilder
 prefilteredUtxoF :: Format r (PrefilteredUtxo -> r)
 prefilteredUtxoF = later $ mapBuilderExplicit pairBuilder formatUtxo
 
-instance Buildable PrefilteredBlock where
+instance Buildable.Buildable PrefilteredBlock where
   build PrefilteredBlock{..} = bprint
     ( "PrefilteredBlock "
     % "{ inputs:  " % prefilteredInputsF

@@ -18,9 +18,9 @@ module Ariadne.Wallet.Cardano.Kernel.Internal
 
 import Control.Lens.TH (makeLenses)
 import Data.Acid (AcidState)
-import System.Wlog (Severity(..))
 
 import Pos.Crypto (ProtocolMagic)
+import Pos.Util.Wlog (Severity(..))
 
 import Ariadne.Wallet.Cardano.Kernel.DB.AcidState (DB)
 import Ariadne.Wallet.Cardano.Kernel.Keystore (Keystore)

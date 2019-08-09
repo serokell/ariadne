@@ -9,9 +9,8 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Spec.Read
 
 import qualified Data.Map.Strict as Map
 
+import Pos.Chain.Txp (TxOut(..), TxOutAux(..), Utxo)
 import qualified Pos.Core as Core
-import Pos.Core.Txp (TxOut(..), TxOutAux(..))
-import Pos.Txp (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.HdWallet
 import qualified Ariadne.Wallet.Cardano.Kernel.DB.HdWallet.Read as HD

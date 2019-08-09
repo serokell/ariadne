@@ -35,11 +35,11 @@ import Control.Monad.Component (ComponentM, buildComponent, buildComponent_)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import qualified Data.Map.Strict as Map
-import System.Wlog (Severity(..))
 
+import Pos.Chain.Txp (TxAux)
 import Pos.Core.Chrono (OldestFirst)
-import Pos.Core.Txp (TxAux)
 import Pos.Crypto (ProtocolMagic)
+import Pos.Util.Wlog (Severity(..))
 
 import Ariadne.Wallet.Cardano.Kernel.Internal
 

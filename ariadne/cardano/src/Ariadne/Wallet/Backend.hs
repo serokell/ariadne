@@ -7,11 +7,12 @@ module Ariadne.Wallet.Backend
 import Control.Monad.Component (ComponentM)
 import Control.Natural ((:~>)(..))
 import qualified Data.ByteArray as ByteArray
-import qualified Data.Text as T
 import Data.Constraint (withDict)
+import qualified Data.Text as T
+import qualified Pos.Chain.Genesis as Genesis
 import Pos.Core (sumCoins, unsafeIntegerToCoin)
 import Pos.Crypto.Hashing (hashRaw)
-import System.Wlog (logMessage, usingLoggerName)
+import Pos.Util.Wlog (logMessage, usingLoggerName)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import Ariadne.Cardano.Face
@@ -47,13 +48,14 @@ createWalletBackend walletConfig cardanoFace sendWalletEvent getPass voidPass lo
     walletSelRef <- newIORef Nothing
 
     keystore <- keystoreComponent
+        logging
         RemoveKeystoreIfEmpty
         (wcKeyfilePath walletConfig)
     (pwl, pw) <- passiveWalletLayerComponent
         (usingLoggerName "passive-wallet" ... logMessage)
         keystore
         (wcAcidDBPath walletConfig)
-        (cardanoProtocolMagic cardanoFace)
+        (Genesis.configProtocolMagic $ cardanoGenesisConfig cardanoFace)
     (awl, _) <- activeWalletLayerComponent pwl pw
 
     let refresh = refreshState pwl walletSelRef sendWalletEvent

@@ -14,14 +14,13 @@ module Ariadne.Wallet.Cardano.Kernel.DB.Resolved
 import Control.Lens.TH (makeLenses)
 import qualified Data.Map as Map
 import Data.SafeCopy (base, deriveSafeCopySimple)
-import qualified Data.Text.Buildable
 import Formatting (bprint, (%))
+import qualified Formatting.Buildable as Buildable
 
 import Serokell.Util (listJson, mapJson)
 
+import qualified Pos.Chain.Txp as Txp
 import qualified Pos.Core as Core
-import qualified Pos.Core.Txp as Txp
-import qualified Pos.Txp as Core (Utxo)
 
 import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 
@@ -34,7 +33,7 @@ import Ariadne.Wallet.Cardano.Kernel.DB.InDb
 -- A transaction input @(h, i)@ points to the @i@th output of the transaction
 -- with hash @h@, which is not particularly informative. The corresponding
 -- 'ResolvedInput' is obtained by looking up what that output actually is.
-type ResolvedInput = Core.TxOutAux
+type ResolvedInput = Txp.TxOutAux
 
 -- | (Unsigned) transaction with inputs resolved
 --
@@ -46,7 +45,7 @@ data ResolvedTx = ResolvedTx {
       _rtxInputs  :: InDb (NonEmpty (Txp.TxIn, ResolvedInput))
 
       -- | Transaction outputs
-    , _rtxOutputs :: InDb Core.Utxo
+    , _rtxOutputs :: InDb Txp.Utxo
     }
 
 -- | (Unsigned block) containing resolved transactions
@@ -72,7 +71,7 @@ deriveSafeCopySimple 1 'base ''ResolvedBlock
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-instance Buildable ResolvedTx where
+instance Buildable.Buildable ResolvedTx where
   build ResolvedTx{..} = bprint
     ( "ResolvedTx "
     % "{ inputs:  " % mapJson
@@ -82,7 +81,7 @@ instance Buildable ResolvedTx where
     (Map.fromList (toList (_rtxInputs  ^. fromDb)))
     (_rtxOutputs ^. fromDb)
 
-instance Buildable ResolvedBlock where
+instance Buildable.Buildable ResolvedBlock where
   build ResolvedBlock{..} = bprint
     ( "ResolvedBlock "
     % "{ txs: " % listJson

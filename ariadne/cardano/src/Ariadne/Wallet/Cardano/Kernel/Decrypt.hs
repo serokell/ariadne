@@ -17,12 +17,12 @@ module Ariadne.Wallet.Cardano.Kernel.Decrypt
        ) where
 
 import qualified Data.List.NonEmpty as NE
+import Pos.Chain.Txp
+  (Tx(..), TxIn(..), TxOut, TxOutAux(..), TxUndo, toaOut, txOutAddress)
 import Pos.Client.Txp.History (TxHistoryEntry(..))
 import Pos.Core
   (Address(..), ChainDifficulty, Timestamp, aaPkDerivationPath,
   addrAttributesUnwrapped)
-import Pos.Core.Txp
-  (Tx(..), TxIn(..), TxOut, TxOutAux(..), TxUndo, toaOut, txOutAddress)
 import Pos.Crypto
   (EncryptedSecretKey, HDPassphrase, WithHash(..), deriveHDPassphrase,
   encToPublic, unpackHDAddressAttr)

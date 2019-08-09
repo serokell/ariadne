@@ -6,16 +6,17 @@ module Ariadne.Wallet.Backend.Tx
 
 import Prelude hiding (list)
 
-import qualified Data.Text.Buildable
-
 import Control.Exception (Exception(displayException))
 import Control.Lens (at, ix)
 import Control.Natural ((:~>)(..))
+import Fmt (pretty)
 import Formatting (bprint, build, formatToString, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 import Text.PrettyPrint.ANSI.Leijen (Doc, list, softline, string)
 
+import Pos.Chain.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Client.Txp.Network (prepareMTx, submitTxRaw)
-import Pos.Core.Txp (Tx(..), TxAux(..), TxOutAux(..))
 import Pos.Crypto
   (EncryptedSecretKey, PassPhrase, SafeSigner(..), checkPassMatches, hash)
 import Pos.Crypto.HD (ShouldCheckPassphrase(..))
@@ -62,7 +63,7 @@ instance Exception SendTxException where
         SendTxIncorrectPassPhrase -> walletPassExceptionToException e
         _ -> SomeException e
     fromException = walletPassExceptionFromException
-    displayException = toString . prettyL
+    displayException = pretty
 
 -- | Send a transaction from selected to wallet to the list of
 -- 'TxOut's.  If list of accounts is not empty, only those accounts
@@ -145,7 +146,7 @@ sendTx
                 HdChainInternal
         (txAux, _) <-
             prepareMTx
-                cardanoProtocolMagic
+                cardanoGenesisConfig
                 getSigner
                 mempty
                 isp

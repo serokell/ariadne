@@ -16,23 +16,20 @@ import Control.Monad.State.Strict (mapStateT)
 import Data.Default (def)
 import qualified Data.HashSet as HS
 import qualified Data.List.NonEmpty as NE
-import System.Wlog
+import Pos.Util.Wlog
 
-import Pos.Block.Error
-import Pos.Block.Logic (toTxpBlock, verifyBlocks)
-import Pos.Block.Slog hiding (slogVerifyBlocks)
-import Pos.Block.Types (Undo(..))
+import Pos.Chain.Block
+  (Block, ComponentBlock(..), HeaderHash, Undo(..), genBlockLeaders,
+  mainBlockSlot, prevBlockL, verifyBlocks)
+import Pos.Chain.Delegation (DlgUndo(..))
+import Pos.Chain.Txp
+import Pos.Chain.Update (BlockVersionData)
+import Pos.Chain.Update
 import Pos.Core
-import Pos.Core.Block
-  (Block, ComponentBlock(..), HeaderHash, genBlockLeaders, mainBlockSlot,
-  prevBlockL)
 import Pos.Core.Chrono
-import Pos.Core.Update (BlockVersionData)
+import Pos.DB.Block (toTxpBlock)
 import Pos.DB.Class (MonadGState(..))
-import Pos.Delegation.Types (DlgUndo(..))
-import Pos.Txp hiding (tgsVerifyBlocks)
-import Pos.Txp.Settings (TxpBlock)
-import Pos.Update.Poll
+import Pos.DB.Txp.Settings (TxpBlock)
 import Pos.Util (neZipWith4)
 import Pos.Util.Lens
 import qualified Pos.Util.Modifier as MM
@@ -70,7 +67,7 @@ verifyEnv' utxo bvd lname = UnsafeVerifyEnv {
     , venvLoggerName       = lname
     }
 
-verifyEnv :: HasConfiguration => Utxo -> VerifyEnv
+verifyEnv :: Utxo -> VerifyEnv
 verifyEnv utxo =
     verifyEnv'
       utxo

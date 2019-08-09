@@ -16,12 +16,13 @@ module UTxO.Crypto (
   , DelegatedTo(..)
   ) where
 
-import qualified Data.Text.Buildable
 import Formatting (bprint, build, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable
 
+import Pos.Chain.Delegation (ProxySKHeavy)
+import Pos.Chain.Txp (TxIn)
 import Pos.Core
-import Pos.Core.Delegation (ProxySKHeavy)
-import Pos.Core.Txp (TxIn)
 import Pos.Crypto
 
 {-------------------------------------------------------------------------------

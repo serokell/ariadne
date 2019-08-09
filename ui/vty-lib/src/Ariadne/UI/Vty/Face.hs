@@ -58,13 +58,14 @@ module Ariadne.UI.Vty.Face
 
 import qualified Control.Concurrent.Event as CE
 import Data.Loc (Loc, Span)
-import qualified Data.Text.Buildable as Buildable
 import Data.Tree (Tree)
 import Data.Version (Version)
 import Formatting (bprint, int, (%))
+import Formatting.Buildable (Buildable)
+import qualified Formatting.Buildable as Buildable
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-import Ariadne.UX.PasswordManager (WalletId, PasswordRequestMode)
+import Ariadne.UX.PasswordManager (PasswordRequestMode, WalletId)
 
 -- | UI library settings for a particular currency implementation
 -- Mostly boolean flags for enabled widgets

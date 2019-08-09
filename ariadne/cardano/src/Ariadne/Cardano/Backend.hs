@@ -11,13 +11,15 @@ import Control.Natural ((:~>)(..), type (~>))
 import qualified Data.ByteString as BS
 import Data.Constraint (Dict(..))
 import Data.Ratio ((%))
-import Mockable (Production(..), runProduction)
+import Pos.Chain.Block (headerHash)
+import qualified Pos.Chain.Genesis as Genesis
+import Pos.Chain.Txp (TxpConfiguration)
 import Pos.Context (NodeContext(..))
-import Pos.Core
-  (ProtocolMagic, epochOrSlotG, flattenEpochOrSlot, flattenSlotId, headerHash)
-import Pos.Core.Configuration (epochSlots)
+import Pos.Core (epochOrSlotG, flattenEpochOrSlot, flattenSlotId)
+import Pos.Crypto (ProtocolMagic)
 import qualified Pos.DB.BlockIndex as DB
 import Pos.DB.DB (initNodeDBs)
+import Pos.DB.Txp (txpGlobalSettings)
 import Pos.Infra.Diffusion.Types (Diffusion, hoistDiffusion)
 import Pos.Infra.Slotting (MonadSlots(getCurrentSlot, getCurrentSlotInaccurate))
 import Pos.Launcher
@@ -25,17 +27,15 @@ import Pos.Launcher
   runNode, runRealMode)
 import qualified Pos.Launcher.Configuration as Launcher.Configuration
 import Pos.Launcher.Resource (NodeResources(..), bracketNodeResources)
-import Pos.Txp (txpGlobalSettings)
-import Pos.Update.Worker (updateTriggerWorker)
 import Pos.Util (logException, sleep)
-import Pos.Util.CompileInfo (retrieveCompileTimeInfo, withCompileInfo)
+import Pos.Util.CompileInfo (withCompileInfo)
 import Pos.Util.UserSecret (usVss)
+import Pos.Util.Wlog
+  (WithLogger, parseLoggerConfig, removeAllHandlers, setupLogging')
+import Pos.Worker.Update (updateTriggerWorker)
 import Pos.WorkMode (RealMode)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, (</>))
-import System.Wlog
-  (WithLogger, consoleActionB, maybeLogsDirB, parseLoggerConfig,
-  removeAllHandlers, setupLogging, showTidB, showTimeB)
 
 import Ariadne.Cardano.Face
 import Ariadne.Config.Cardano
@@ -53,45 +53,46 @@ createCardanoBackend cardanoConfig = buildComponent_ "Cardano" $ do
   cardanoContextVar <- newEmptyMVar
   diffusionVar <- newEmptyMVar
   let confOpts = ccConfigurationOptions cardanoConfig
-  runProduction $
-      withCompileInfo $(retrieveCompileTimeInfo) $
-      withConfigurations confOpts $ \protocolMagic ->
-      let face = CardanoFace
-              { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
-              , cardanoConfigurations = Dict
-              , cardanoCompileInfo = Dict
-              , cardanoGetDiffusion = getDiffusion diffusionVar
-              , cardanoProtocolMagic = protocolMagic
-              }
-          mkAction bHandle = runCardanoNode protocolMagic bHandle cardanoContextVar
-              diffusionVar cardanoConfig
-      in return $ CardanoBackend face mkAction
+  withCompileInfo $ withConfigurations confOpts $
+    \genesisConfig txpConfig ->
+    let face = CardanoFace
+            { cardanoRunCardanoMode = NT (runCardanoMode cardanoContextVar)
+            , cardanoConfigurations = Dict
+            , cardanoCompileInfo = Dict
+            , cardanoGetDiffusion = getDiffusion diffusionVar
+            , cardanoGenesisConfig = genesisConfig
+            }
+        mkAction bHandle = runCardanoNode genesisConfig txpConfig bHandle
+          cardanoContextVar diffusionVar cardanoConfig
+    in return $ CardanoBackend face mkAction
 
 runCardanoMode :: MVar CardanoContext -> (CardanoMode ~> IO)
 runCardanoMode cardanoContextVar (CardanoMode act) = do
   cardanoContext <- readMVar cardanoContextVar
-  runProduction $ runReaderT act cardanoContext
+  runReaderT act cardanoContext
 
 runCardanoNode ::
        (HasConfigurations, HasCompileInfo)
-    => ProtocolMagic
+    => Genesis.Config
+    -> TxpConfiguration
     -> BListenerHandle
     -> MVar CardanoContext
     -> MVar (Diffusion CardanoMode)
     -> CardanoConfig
     -> (CardanoEvent -> IO ())
     -> IO ()
-runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
+runCardanoNode genesisConfig txpConfig bHandle cardanoContextVar diffusionVar
     cardanoConfig sendCardanoEvent = do
+  -- undefined
   let loggingParams = mkLoggingParams cardanoConfig
       getLoggerConfig LoggingParams{..} = do
           let consoleLogAction _ message =
                   sendCardanoEvent $ CardanoLogEvent message
 
-          let cfgBuilder = showTidB
-                        <> showTimeB
-                        <> maybeLogsDirB lpHandlerPrefix
-                        <> consoleActionB consoleLogAction
+          let cfgBuilder = undefined  -- showTidB
+                        -- <> showTimeB
+                        -- <> maybeLogsDirB lpHandlerPrefix
+                        -- <> consoleActionB consoleLogAction
 
           cfg <- maybe (pure defaultLoggerConfig) parseLoggerConfig lpConfigPath
           pure $ cfg <> cfgBuilder
@@ -99,15 +100,16 @@ runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
           ask >>= putMVar cardanoContextVar
           putMVar diffusionVar diffusion
   loggerConfig <- getLoggerConfig loggingParams
-  let setupLoggers = setupLogging Nothing loggerConfig
-  bracket_ setupLoggers removeAllHandlers . logException "ariadne" $ do
+  let setupLoggers = setupLogging' "ariadne" loggerConfig
+  bracket setupLoggers removeAllHandlers $ \loggingHandler -> logException "ariadne" $ do
       nodeParams <- getNodeParams cardanoConfig
       let vssSK = Unsafe.fromJust $ npUserSecret nodeParams ^. usVss
       let sscParams = gtSscParams vssSK (npBehaviorConfig nodeParams)
       let workers =
-              [ updateTriggerWorker
-              , extractionWorker
-              , statusPollingWorker sendCardanoEvent
+              [ ("Update trigger", updateTriggerWorker)
+              , ("Extraction", extractionWorker)
+              , ("Status polling",
+                 statusPollingWorker genesisConfig sendCardanoEvent)
               ]
       let
         realModeToCardanoMode :: RealMode () a -> CardanoMode a
@@ -127,31 +129,32 @@ runCardanoNode protocolMagic bHandle cardanoContextVar diffusionVar
         setProperLogConfig :: NodeResources __ -> NodeResources __
         setProperLogConfig nr =
             nr {nrContext = (nrContext nr) {ncLoggerConfig = loggerConfig}}
-        txpSettings = txpGlobalSettings protocolMagic
-        initDBs = initNodeDBs protocolMagic epochSlots
-        runMode = bracketNodeResources nodeParams sscParams txpSettings initDBs
-            $ \(setProperLogConfig -> nr@NodeResources{..}) ->
-                Production .
-                runRealMode protocolMagic nr .
-                convertMode $ \diff ->
-                    runNode protocolMagic nr workers diff
-      runProduction runMode
+        txpSettings = txpGlobalSettings genesisConfig txpConfig
+        initDBs = initNodeDBs genesisConfig
+      bracketNodeResources genesisConfig nodeParams sscParams txpSettings initDBs
+          $ \(setProperLogConfig -> nr@NodeResources{..}) ->
+            runRealMode genesisConfig txpConfig nr .
+            convertMode $ runNode genesisConfig txpConfig nr workers
 
 statusPollingWorker ::
        (HasConfigurations)
-    => (CardanoEvent -> IO ())
+    => Genesis.Config
+    -> (CardanoEvent -> IO ())
     -> Diffusion CardanoMode
     -> CardanoMode ()
-statusPollingWorker sendCardanoEvent _diffusion = do
+statusPollingWorker genesis sendCardanoEvent _diffusion = do
   initialTipHeader <- DB.getTipHeader
-  let initialSlotIdx = fromIntegral . flattenEpochOrSlot $ initialTipHeader ^. epochOrSlotG
+  let epochSlots = Genesis.configEpochSlots genesis
+  let initialSlotIdx =
+        fromIntegral . flattenEpochOrSlot epochSlots $
+        initialTipHeader ^. epochOrSlotG
   forever $ do
-    currentSlot <- getCurrentSlot
-    currentSlotInaccurate <- getCurrentSlotInaccurate
+    currentSlot <- getCurrentSlot epochSlots
+    currentSlotInaccurate <- getCurrentSlotInaccurate epochSlots
     tipHeader <- DB.getTipHeader
     let
-      tipSlotIdx = fromIntegral . flattenEpochOrSlot $ tipHeader ^. epochOrSlotG
-      currentSlotIdx = fromIntegral . flattenSlotId $ currentSlotInaccurate
+      tipSlotIdx = fromIntegral . flattenEpochOrSlot epochSlots $ tipHeader ^. epochOrSlotG
+      currentSlotIdx = fromIntegral . flattenSlotId epochSlots $ currentSlotInaccurate
       syncProgress = (tipSlotIdx - initialSlotIdx) % (currentSlotIdx - initialSlotIdx)
     liftIO $ sendCardanoEvent $ CardanoStatusUpdateEvent CardanoStatusUpdate
       { tipHeaderHash = headerHash tipHeader
@@ -185,13 +188,14 @@ instance Exception GenesisDataFileExists where
 withConfigurations
     :: (WithLogger m, MonadThrow m, MonadIO m)
     => ConfigurationOptions
-    -> (HasConfigurations => ProtocolMagic -> m r)
+    -> (HasConfigurations => Genesis.Config -> TxpConfiguration -> m r)
     -> m r
 withConfigurations cfo act = do
     liftIO $ ensureConfigurationExists (cfoFilePath cfo)
     -- We don't use asset lock feature, because we don't create
     -- blocks, we leave these concerns to core nodes owners.
-    Launcher.Configuration.withConfigurations Nothing cfo (\_ntpConf -> act)
+    Launcher.Configuration.withConfigurations Nothing Nothing False cfo
+        (\genesisConf _walletConf txpConf _ntpConf -> act genesisConf txpConf)
   where
     -- Quite simple, but works in cases we care about. We do not check
     -- what is in embedded 'ByteString's, just assume it is what we expect.

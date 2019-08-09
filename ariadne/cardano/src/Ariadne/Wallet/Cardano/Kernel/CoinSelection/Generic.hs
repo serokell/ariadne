@@ -70,9 +70,9 @@ import Crypto.Random (MonadRandom(..))
 import Data.Coerce (coerce)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Data.Text.Buildable (build)
 import Formatting (bprint, (%))
 import qualified Formatting as F
+import qualified Formatting.Buildable as Buildable
 import Test.QuickCheck (Arbitrary(..))
 
 import Ariadne.Wallet.Cardano.Kernel.Util (withoutKeys)
@@ -95,9 +95,9 @@ class Ord v => IsValue v where
 class ( Ord (Input dom)
       , IsValue (Value dom)
         -- Buildable and Show instances to aid debugging and testing
-      , Buildable (Input  dom)
-      , Buildable (Output dom)
-      , Buildable (Value  dom)
+      , Buildable.Buildable (Input  dom)
+      , Buildable.Buildable (Output dom)
+      , Buildable.Buildable (Value  dom)
       , Show (Value dom)
       ) => CoinSelDom dom where
   type Input     dom = i | i -> dom
@@ -184,7 +184,7 @@ unsafeValueAdjust r x y = fromMaybe (error "unsafeValueAdjust: out of range") $
 -------------------------------------------------------------------------------}
 
 class ( CoinSelDom dom
-      , Buildable (Address dom)
+      , Buildable.Buildable (Address dom)
       , Ord (Address dom)
       ) => HasAddress dom where
   type Address dom :: *
@@ -617,7 +617,7 @@ divvyFee f fee as = map (\a -> (feeForOut a, a)) as
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-instance Buildable CoinSelHardErr where
+instance Buildable.Buildable CoinSelHardErr where
   build (CoinSelHardErrOutputCannotCoverFee out val) = bprint
     ( "CoinSelHardErrOutputCannotCoverFee"
     % "{ output: " % F.build
@@ -653,5 +653,5 @@ instance Buildable CoinSelHardErr where
   build (CoinSelHardErrAddressNotOwned _ addr) = bprint
     ( "CoinSelHardErrAddressNotOwned { address: " % F.build % " } ") addr
 
-instance CoinSelDom dom => Buildable (Fee dom) where
+instance CoinSelDom dom => Buildable.Buildable (Fee dom) where
   build = bprint F.build . getFee

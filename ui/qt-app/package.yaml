@@ -22,6 +22,7 @@ executables:
       - concurrent-extra
       - containers
       - double-conversion
+      - fmt
       - knit
       - lens
       - ntype

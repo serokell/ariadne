@@ -13,9 +13,9 @@ module Knit.Printer
 import Data.List as List
 import Data.Semigroup ((<>))
 import qualified Data.Text as T
-import Data.Text.Buildable (build)
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (toLazyText)
+import Formatting.Buildable (build)
 
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
