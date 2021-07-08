@@ -23,6 +23,7 @@ import Ariadne.Config.Ariadne (AriadneConfig(..))
 import Ariadne.Config.CLI (getConfig)
 import Ariadne.Config.History (HistoryConfig(..))
 import Ariadne.Config.Logging (LoggingConfig(..))
+import Ariadne.Config.UI (UIConfig)
 import Ariadne.Config.Wallet (WalletConfig(..))
 import Ariadne.Knit.Backend (Components, KnitFace, createKnitBackend)
 import Ariadne.Logging (Logging, logDebug, loggingComponent)
@@ -56,6 +57,7 @@ data MainSettings (uiComponents :: [*]) uiFace uiLangFace = MainSettings
         Logging ->
         CommandHistory ->
         PutPassword ->
+        UIConfig ->
         ComponentM (uiFace, uiLangFace -> IO ())
       )
     , msPutWalletEventToUI :: !(uiFace -> WalletEvent -> IO ())
@@ -99,6 +101,7 @@ initializeEverything MainSettings {..}
                                    , acUpdate = updateConfig
                                    , acHistory = historyConfig
                                    , acLogging = loggingConfig
+                                   , acUI = uiConfig
                                    } = do
   logging <- loggingComponent $ lcPath loggingConfig
   history <- openCommandHistory $ hcPath historyConfig
@@ -112,7 +115,7 @@ initializeEverything MainSettings {..}
       }
   PasswordManager {..} <- createPasswordManager
 
-  (uiFace, mkUiAction) <- msCreateUI walletUIFace logging history putPassword
+  (uiFace, mkUiAction) <- msCreateUI walletUIFace logging history putPassword uiConfig
   CardanoBackend
     { cbFace = cardanoFace
     , cbMkAction = mkCardanoAction

@@ -25,6 +25,7 @@ module Ariadne.UI.Qt.Face
        , UiConfirmationType (..)
        , UiConfirmSendInfo (..)
        , UiDeletingItem (..)
+       , UiSettings (..)
        , UiFace (..)
 
        , UiWalletTreeItem (..)
@@ -225,11 +226,19 @@ data UiHistoryFace =
     , historyPrevCommand :: IO (Maybe Text)
     }
 
+-- | Settings for UI
+data UiSettings = UiSettings
+  { uiNoConfirm :: Bool
+  -- ^ Do not require confirmations for some knit actions
+  }
+
 -- API for the UI.
 data UiFace = UiFace
     { putUiEvent :: UiEvent -> IO ()
     -- ^ Update the user interface with an event. Does not block unless the
     -- queue of events is full (should not normally happen).
+    , uiSettings :: IORef UiSettings
+    -- ^ Runtime configurable settings of the appliaction
     }
 
 ----------------------------------------------------------------------------
